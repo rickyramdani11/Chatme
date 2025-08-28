@@ -368,25 +368,83 @@ export default function ChatScreen() {
         }
       });
 
-      // Listen for gift animations
-      socket.on('gift-animation', (data: any) => {
-        // Don't show animation for gifts sent by current user (already shown locally)
-        if (data.sender !== user?.username) {
-          setActiveGiftAnimation({
-            ...data.gift,
-            sender: data.sender,
-            timestamp: data.timestamp,
-          });
+      // Listen for gift broadcasts from server
+      socket.on('receiveGift', (data: any) => {
+        console.log('Received gift broadcast:', data);
+        
+        // Show animation for all users (including sender for consistency)
+        setActiveGiftAnimation({
+          ...data.gift,
+          sender: data.sender,
+          timestamp: data.timestamp,
+        });
 
-          // Set animation duration based on gift type
-          const duration = data.gift.type === 'animated' ? 6000 : 4000;
-          setGiftAnimationDuration(duration);
+        // Set animation duration based on gift type
+        const duration = data.gift.type === 'animated' ? 4000 : 3000;
+        setGiftAnimationDuration(duration);
 
-          // Hide animation after duration
-          setTimeout(() => {
+        // Start entrance animation
+        giftScaleAnim.setValue(0);
+        giftOpacityAnim.setValue(0);
+        
+        Animated.parallel([
+          Animated.spring(giftScaleAnim, {
+            toValue: 1,
+            tension: 50,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          Animated.timing(giftOpacityAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Auto close animation after duration
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(giftScaleAnim, {
+              toValue: 0.8,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(giftOpacityAnim, {
+              toValue: 0,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
             setActiveGiftAnimation(null);
-          }, duration);
-        }
+          });
+        }, duration - 300);
+
+        // Add gift message to chat
+        const giftMessage: Message = {
+          id: `gift_${Date.now()}_${data.sender}`,
+          sender: data.sender,
+          content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
+          timestamp: new Date(data.timestamp),
+          roomId: chatTabs[activeTab]?.id || data.roomId,
+          role: data.role || 'user',
+          level: data.level || 1,
+          type: 'gift'
+        };
+
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === (chatTabs[activeTab]?.id || data.roomId)
+              ? { ...tab, messages: [...tab.messages, giftMessage] }
+              : tab
+          )
+        );
+      });
+
+      // Listen for gift animations (legacy support)
+      socket.on('gift-animation', (data: any) => {
+        console.log('Received legacy gift animation:', data);
+        // Redirect to receiveGift handler for consistency
+        socket.emit('receiveGift', data);
       });
 
       return () => {
@@ -396,6 +454,7 @@ export default function ChatScreen() {
         socket.off('participants-updated');
         socket.off('user-kicked');
         socket.off('user-muted');
+        socket.off('receiveGift');
         socket.off('gift-animation');
       };
     }
@@ -2012,112 +2071,33 @@ export default function ChatScreen() {
       // For private chats, gifts are sent via sendMessage with a special flag
       if (isPrivateChat) {
         if (socket) {
-          socket.emit('sendMessage', currentRoomId, `🎁 Gift: ${gift.name} ${gift.icon}`, user.username, true);
+          socket.emit('sendMessage', {
+            roomId: currentRoomId,
+            sender: user.username,
+            content: `🎁 Gift: ${gift.name} ${gift.icon}`,
+            role: user.role || 'user',
+            level: user.level || 1,
+            type: 'gift',
+            gift: gift
+          });
         }
-        // Add to local messages as a notification
-        const notificationMessage: Message = {
-          id: `gift_noti_${Date.now()}_${user.username}`,
-          sender: 'System',
-          content: `You sent ${gift.name} ${gift.icon} to ${targetUser?.username || 'the other participant'}`,
-          timestamp: new Date(),
-          roomId: currentRoomId,
-          type: 'gift'
-        };
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === currentRoomId
-              ? { ...tab, messages: [...tab.messages, notificationMessage] }
-              : tab
-          )
-        );
         setShowGiftPicker(false);
         return;
       }
 
-      // Show gift animation immediately for public rooms
-      setActiveGiftAnimation({
-        ...gift,
-        sender: user.username,
-        timestamp: new Date(),
-      });
-
-      // Set animation duration based on gift type - shorter for better UX
-      const duration = gift.type === 'animated' ? 4000 : 3000;
-      setGiftAnimationDuration(duration);
-
-      // Start entrance animation
-      giftScaleAnim.setValue(0);
-      giftOpacityAnim.setValue(0);
-      
-      Animated.parallel([
-        Animated.spring(giftScaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.timing(giftOpacityAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Auto close animation after duration
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(giftScaleAnim, {
-            toValue: 0.8,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(giftOpacityAnim, {
-            toValue: 0,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setActiveGiftAnimation(null);
-        });
-      }, duration - 300);
-
-      // Send gift message via socket for public rooms
+      // Send gift via socket - this will trigger animation for ALL users
       if (socket) {
-        const giftMessage = {
+        socket.emit('sendGift', {
           roomId: currentRoomId,
           sender: user.username,
-          content: `sent a ${gift.name} ${gift.icon}`,
-          type: 'gift',
           gift: gift,
           timestamp: new Date(),
           role: user.role || 'user',
           level: user.level || 1
-        };
-        socket.emit('send-message', giftMessage);
+        });
       }
 
-      // Add gift message to local state for public rooms
-      const newMessage: Message = {
-        id: `gift_${Date.now()}_${user.username}`,
-        sender: user.username,
-        content: `🎁 sent a ${gift.name} ${gift.icon}`,
-        timestamp: new Date(),
-        roomId: currentRoomId,
-        role: user.role || 'user',
-        level: user.level || 1,
-        type: 'gift'
-      };
-
-      setChatTabs(prevTabs =>
-        prevTabs.map(tab =>
-          tab.id === currentRoomId
-            ? { ...tab, messages: [...tab.messages, newMessage] }
-            : tab
-        )
-      );
-
       setShowGiftPicker(false);
-      // Removed Alert popup - let the animation speak for itself
 
     } catch (error) {
       console.error('Error sending gift:', error);

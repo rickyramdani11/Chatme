@@ -3934,6 +3934,27 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('new-message', muteMessage);
   });
 
+  socket.on('sendGift', (giftData) => {
+    try {
+      const { roomId, sender, gift, timestamp, role, level } = giftData;
+      console.log(`Gift sent by ${sender} in room ${roomId}: ${gift.name}`);
+
+      // Broadcast gift to ALL users in the room (including sender)
+      io.to(roomId).emit('receiveGift', {
+        roomId,
+        sender,
+        gift,
+        timestamp,
+        role: role || 'user',
+        level: level || 1
+      });
+
+      console.log(`Gift broadcasted to all users in room ${roomId}`);
+    } catch (error) {
+      console.error('Error handling sendGift:', error);
+    }
+  });
+
   socket.on('send-report', (reportData) => {
     console.log('Report received:', reportData);
 
