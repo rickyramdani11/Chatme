@@ -596,6 +596,31 @@ export default function ChatScreen() {
     const command = parts[0].toLowerCase();
     const args = parts.slice(1);
 
+    // First, show the command message in chat
+    const commandDisplayMessage = {
+      id: `cmd_${Date.now()}_${user?.username}`,
+      sender: user?.username || 'User',
+      content: commandMessage,
+      timestamp: new Date(),
+      roomId: currentRoomId,
+      role: user?.role || 'user',
+      level: user?.level || 1,
+      type: 'message'
+    };
+
+    setChatTabs(prevTabs =>
+      prevTabs.map(tab => 
+        tab.id === currentRoomId
+          ? { ...tab, messages: [...tab.messages, commandDisplayMessage] }
+          : tab
+      )
+    );
+
+    // Auto-scroll after showing command
+    setTimeout(() => {
+      flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
+    }, 50);
+
     switch (command) {
       case '/me': {
         if (args.length > 0) {
