@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 // API configuration
 const getApiUrl = () => {
-  return 'https://01b6d1c3-d54e-4850-9198-08ef6ebc9b67-00-2dzywtte8ryaz.sisko.replit.dev';
+  return 'https://baa09f5e-d020-4523-9ac4-83080f8f0a34-00-1re5noc78idq6.sisko.replit.dev';
 };
 
 const API_BASE_URL = getApiUrl();
