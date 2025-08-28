@@ -2031,7 +2031,6 @@ export default function ChatScreen() {
           )
         );
         setShowGiftPicker(false);
-        Alert.alert('Gift Sent!', `You sent ${gift.name} ${gift.icon} for ${gift.price} credits`);
         return;
       }
 
@@ -2042,8 +2041,8 @@ export default function ChatScreen() {
         timestamp: new Date(),
       });
 
-      // Set animation duration based on gift type
-      const duration = gift.type === 'animated' ? 6000 : 4000;
+      // Set animation duration based on gift type - shorter for better UX
+      const duration = gift.type === 'animated' ? 4000 : 3000;
       setGiftAnimationDuration(duration);
 
       // Start entrance animation
@@ -2064,7 +2063,7 @@ export default function ChatScreen() {
         }),
       ]).start();
 
-      // Start exit animation before hiding
+      // Auto close animation after duration
       setTimeout(() => {
         Animated.parallel([
           Animated.timing(giftScaleAnim, {
@@ -2118,7 +2117,7 @@ export default function ChatScreen() {
       );
 
       setShowGiftPicker(false);
-      Alert.alert('Gift Sent!', `You sent ${gift.name} ${gift.icon} for ${gift.price} credits`);
+      // Removed Alert popup - let the animation speak for itself
 
     } catch (error) {
       console.error('Error sending gift:', error);
@@ -2218,7 +2217,7 @@ export default function ChatScreen() {
 
       setShowUserGiftPicker(false);
       setSelectedGiftForUser(null);
-      Alert.alert('Gift Sent!', `You sent ${selectedGiftForUser.name} ${selectedGiftForUser.icon} to ${targetUser.username} for ${selectedGiftForUser.price} credits`);
+      // Removed Alert popup - animation provides enough feedback
 
     } catch (error) {
       console.error('Error sending gift to user:', error);
@@ -3123,12 +3122,7 @@ export default function ChatScreen() {
                 transform: [{ scale: giftScaleAnim }]
               }
             ]}>
-              <TouchableOpacity 
-                style={styles.closeGiftButton}
-                onPress={() => setActiveGiftAnimation(null)}
-              >
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
+              
 
               <View style={styles.giftAnimationContent}>
                 <View style={styles.giftAnimationMediaContainer}>
