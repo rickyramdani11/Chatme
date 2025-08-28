@@ -605,7 +605,7 @@ export default function ChatScreen() {
       roomId: currentRoomId,
       role: user?.role || 'user',
       level: user?.level || 1,
-      type: 'message'
+      type: 'message' as const
     };
 
     setChatTabs(prevTabs =>
@@ -619,7 +619,7 @@ export default function ChatScreen() {
     // Auto-scroll after showing command
     setTimeout(() => {
       flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-    }, 50);
+    }, 100);
 
     switch (command) {
       case '/me': {
@@ -1528,6 +1528,34 @@ export default function ChatScreen() {
     // Filter out messages from blocked users
     if (blockedUsers.includes(item.sender)) {
       return null;
+    }
+
+    // Handle user command input (when user types /roll, /whois, etc.)
+    if (item.content.startsWith('/') && item.sender === user?.username && item.type === 'message') {
+      return (
+        <TouchableOpacity 
+          style={styles.messageContainer}
+          onLongPress={() => handleMessageLongPress(item)}
+        >
+          <View style={styles.messageRow}>
+            <View style={styles.messageContentRow}>
+              <LevelBadge level={item.level || 1} />
+              <Text style={styles.messageText}>
+                <Text style={[
+                  styles.senderName,
+                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>
+                  {item.sender}: 
+                </Text>
+                <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
+                  {item.content}
+                </Text>
+              </Text>
+            </View>
+            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
+          </View>
+        </TouchableOpacity>
+      );
     }
 
     // Handle special command messages (me, roll, whois, gift commands, errors)
