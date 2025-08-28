@@ -4368,7 +4368,7 @@ const styles = StyleSheet.create({
   },
   giftAnimationOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     backdropFilter: 'blur(10px)',
@@ -4376,7 +4376,7 @@ const styles = StyleSheet.create({
   giftAnimationModal: {
     width: '85%',
     height: '70%',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -4430,7 +4430,7 @@ const styles = StyleSheet.create({
   giftAnimationInfo: {
     alignItems: 'center',
     width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     paddingVertical: 25,
     paddingHorizontal: 20,
     borderRadius: 20,
