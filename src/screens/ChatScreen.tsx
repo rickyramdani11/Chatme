@@ -3108,7 +3108,7 @@ export default function ChatScreen() {
                     {activeGiftAnimation.recipient && ` to ${activeGiftAnimation.recipient}`}
                   </Text>
                   <View style={styles.giftAnimationPrice}>
-                    <Ionicons name="diamond" size={16} color="#FFD700" />
+                    <Ionicons name="diamond" size={24} color="#FFD700" />
                     <Text style={styles.giftPriceText}>{activeGiftAnimation.price}</Text>
                   </View>
                 </View>
@@ -4300,8 +4300,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   giftAnimationModal: {
-    width: '95%',
-    maxHeight: '85%',
+    width: '98%',
+    height: '90%',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 20,
     overflow: 'hidden',
@@ -4330,7 +4330,7 @@ const styles = StyleSheet.create({
   },
   giftAnimationMediaContainer: {
     width: '100%',
-    height: 300,
+    height: '70%',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -4347,7 +4347,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   giftAnimationIcon: {
-    fontSize: 120,
+    fontSize: 200,
     color: '#FFD700',
   },
   giftAnimationInfo: {
@@ -4355,13 +4355,13 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   giftAnimationSender: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#FFD700',
     marginBottom: 8,
   },
   giftAnimationText: {
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '600',
     color: 'white',
     textAlign: 'center',
@@ -4378,7 +4378,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFD700',
   },
   giftPriceText: {
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#FFD700',
     marginLeft: 4,
