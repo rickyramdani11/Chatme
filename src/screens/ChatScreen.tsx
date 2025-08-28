@@ -81,6 +81,8 @@ export default function ChatScreen() {
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
   const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
+  const giftScaleAnim = useRef(new Animated.Value(0)).current;
+  const giftOpacityAnim = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
   const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
@@ -2044,10 +2046,41 @@ export default function ChatScreen() {
       const duration = gift.type === 'animated' ? 6000 : 4000;
       setGiftAnimationDuration(duration);
 
-      // Hide animation after duration
+      // Start entrance animation
+      giftScaleAnim.setValue(0);
+      giftOpacityAnim.setValue(0);
+      
+      Animated.parallel([
+        Animated.spring(giftScaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(giftOpacityAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Start exit animation before hiding
       setTimeout(() => {
-        setActiveGiftAnimation(null);
-      }, duration);
+        Animated.parallel([
+          Animated.timing(giftScaleAnim, {
+            toValue: 0.8,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(giftOpacityAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setActiveGiftAnimation(null);
+        });
+      }, duration - 300);
 
       // Send gift message via socket for public rooms
       if (socket) {
@@ -2117,9 +2150,41 @@ export default function ChatScreen() {
       const duration = selectedGiftForUser.type === 'animated' ? 6000 : 4000;
       setGiftAnimationDuration(duration);
 
+      // Start entrance animation
+      giftScaleAnim.setValue(0);
+      giftOpacityAnim.setValue(0);
+      
+      Animated.parallel([
+        Animated.spring(giftScaleAnim, {
+          toValue: 1,
+          tension: 50,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.timing(giftOpacityAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Start exit animation before hiding
       setTimeout(() => {
-        setActiveGiftAnimation(null);
-      }, duration);
+        Animated.parallel([
+          Animated.timing(giftScaleAnim, {
+            toValue: 0.8,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(giftOpacityAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setActiveGiftAnimation(null);
+        });
+      }, duration - 300);
 
       // Send private gift notification to target user
       if (socket) {
@@ -3051,7 +3116,13 @@ export default function ChatScreen() {
           onRequestClose={() => setActiveGiftAnimation(null)}
         >
           <View style={styles.giftAnimationOverlay}>
-            <View style={styles.giftAnimationModal}>
+            <Animated.View style={[
+              styles.giftAnimationModal,
+              {
+                opacity: giftOpacityAnim,
+                transform: [{ scale: giftScaleAnim }]
+              }
+            ]}>
               <TouchableOpacity 
                 style={styles.closeGiftButton}
                 onPress={() => setActiveGiftAnimation(null)}
@@ -3062,7 +3133,7 @@ export default function ChatScreen() {
               <View style={styles.giftAnimationContent}>
                 <View style={styles.giftAnimationMediaContainer}>
                   {activeGiftAnimation.animation ? (
-                    // For animated GIFs or video files
+                    // For animated GIFs or video files - keep larger size
                     typeof activeGiftAnimation.animation === 'string' && 
                     (activeGiftAnimation.animation.includes('.mp4') || activeGiftAnimation.animation.includes('.webm')) ? (
                       <Video
@@ -3081,7 +3152,7 @@ export default function ChatScreen() {
                         }}
                       />
                     ) : (
-                      // For GIF files
+                      // For animated GIF files - keep larger size
                       <Image 
                         source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
                         style={styles.giftAnimationImage}
@@ -3089,13 +3160,15 @@ export default function ChatScreen() {
                       />
                     )
                   ) : activeGiftAnimation.image ? (
+                    // For static images - smaller size
                     <Image 
                       source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
-                      style={styles.giftAnimationImage}
+                      style={[styles.giftAnimationImage, { width: '60%', height: '60%' }]}
                       resizeMode="contain"
                     />
                   ) : (
-                    <Text style={styles.giftAnimationIcon}>{activeGiftAnimation.icon}</Text>
+                    // For emoji/icon - smaller size
+                    <Text style={[styles.giftAnimationIcon, { fontSize: 150 }]}>{activeGiftAnimation.icon}</Text>
                   )}
                 </View>
 
@@ -3113,7 +3186,7 @@ export default function ChatScreen() {
                   </View>
                 </View>
               </View>
-            </View>
+            </Animated.View>
           </View>
         </Modal>
       )}
@@ -4295,21 +4368,23 @@ const styles = StyleSheet.create({
   },
   giftAnimationOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
+    backdropFilter: 'blur(10px)',
   },
   giftAnimationModal: {
-    width: '90%',
-    height: '80%',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 20,
+    width: '85%',
+    height: '70%',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 25,
-    elevation: 15,
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.4,
+    shadowRadius: 30,
+    elevation: 20,
+    transform: [{ scale: 1 }],
   },
   closeGiftButton: {
     position: 'absolute',
@@ -4329,15 +4404,15 @@ const styles = StyleSheet.create({
   },
   giftAnimationMediaContainer: {
     width: '100%',
-    height: '70%',
+    height: '65%',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
   giftAnimationImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
+    width: '80%',
+    height: '80%',
+    borderRadius: 15,
     resizeMode: 'contain',
   },
   giftAnimationVideo: {
@@ -4346,16 +4421,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   giftAnimationIcon: {
-    fontSize: 200,
+    fontSize: 150,
     color: '#FFD700',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 5,
   },
   giftAnimationInfo: {
     alignItems: 'center',
     width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    paddingVertical: 20,
-    paddingHorizontal: 15,
-    borderRadius: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backdropFilter: 'blur(15px)',
   },
   giftAnimationSender: {
     fontSize: 28,
