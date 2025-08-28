@@ -3107,7 +3107,7 @@ export default function ChatScreen() {
               <View style={styles.giftAnimationContent}>
                 <View style={styles.giftAnimationMediaContainer}>
                   {activeGiftAnimation.animation ? (
-                    // For animated GIFs or video files - keep larger size
+                    // For animated GIFs or video files
                     typeof activeGiftAnimation.animation === 'string' && 
                     (activeGiftAnimation.animation.includes('.mp4') || activeGiftAnimation.animation.includes('.webm')) ? (
                       <Video
@@ -3126,7 +3126,7 @@ export default function ChatScreen() {
                         }}
                       />
                     ) : (
-                      // For animated GIF files - keep larger size
+                      // For animated GIF files
                       <Image 
                         source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
                         style={styles.giftAnimationImage}
@@ -3134,15 +3134,15 @@ export default function ChatScreen() {
                       />
                     )
                   ) : activeGiftAnimation.image ? (
-                    // For static images - smaller size
+                    // For static images
                     <Image 
                       source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
-                      style={[styles.giftAnimationImage, { width: '60%', height: '60%' }]}
+                      style={styles.giftAnimationImage}
                       resizeMode="contain"
                     />
                   ) : (
-                    // For emoji/icon - smaller size
-                    <Text style={[styles.giftAnimationIcon, { fontSize: 150 }]}>{activeGiftAnimation.icon}</Text>
+                    // For emoji/icon
+                    <Text style={styles.giftAnimationIcon}>{activeGiftAnimation.icon}</Text>
                   )}
                 </View>
 
@@ -3155,7 +3155,7 @@ export default function ChatScreen() {
                     {activeGiftAnimation.recipient && ` to ${activeGiftAnimation.recipient}`}
                   </Text>
                   <View style={styles.giftAnimationPrice}>
-                    <Ionicons name="diamond" size={12} color="#FFD700" />
+                    <Ionicons name="diamond" size={16} color="#FFD700" />
                     <Text style={styles.giftPriceText}>{activeGiftAnimation.price}</Text>
                   </View>
                 </View>
@@ -4341,24 +4341,24 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   giftAnimationOverlay: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1000,
   },
   giftAnimationModal: {
-    width: '60%',
-    height: '40%',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    width: '80%',
+    height: '50%',
+    backgroundColor: 'transparent',
     borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1001,
   },
   closeGiftButton: {
     position: 'absolute',
@@ -4378,51 +4378,54 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   giftAnimationMediaContainer: {
-    width: 35,
-    height: 35,
+    width: 120,
+    height: 120,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
+    backgroundColor: 'transparent',
+    zIndex: 1002,
   },
   giftAnimationImage: {
-    width: 30,
-    height: 35,
-    borderRadius: 6,
+    width: 100,
+    height: 100,
+    borderRadius: 12,
     resizeMode: 'contain',
   },
   giftAnimationVideo: {
-    width: 30,
-    height: 35,
-    borderRadius: 6,
+    width: 100,
+    height: 100,
+    borderRadius: 12,
   },
   giftAnimationIcon: {
-    fontSize: 24,
+    fontSize: 80,
     color: '#FFD700',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
   giftAnimationInfo: {
     alignItems: 'center',
-    width: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginTop: 4,
+    width: '90%',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginTop: 8,
+    zIndex: 1003,
   },
   giftAnimationSender: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFD700',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   giftAnimationText: {
-    fontSize: 10,
+    fontSize: 14,
     fontWeight: '500',
     color: 'white',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   giftAnimationPrice: {
     flexDirection: 'row',
