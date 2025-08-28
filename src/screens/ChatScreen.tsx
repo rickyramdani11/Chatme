@@ -4300,8 +4300,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   giftAnimationModal: {
-    width: '90%',
-    maxHeight: '70%',
+    width: '95%',
+    maxHeight: '85%',
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 20,
     overflow: 'hidden',
@@ -4330,7 +4330,7 @@ const styles = StyleSheet.create({
   },
   giftAnimationMediaContainer: {
     width: '100%',
-    height: 200,
+    height: 300,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -4339,6 +4339,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 12,
+    resizeMode: 'contain',
   },
   giftAnimationVideo: {
     width: '100%',
@@ -4346,7 +4347,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   giftAnimationIcon: {
-    fontSize: 80,
+    fontSize: 120,
     color: '#FFD700',
   },
   giftAnimationInfo: {
