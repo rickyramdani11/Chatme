@@ -191,7 +191,7 @@ export default function ChatScreen() {
         // Set the new room as active tab
         const newActiveTab = newTabs.length - 1;
         setActiveTab(newActiveTab);
-        
+
         // Scroll to the active tab after state update
         setTimeout(() => {
           if (scrollViewRef.current) {
@@ -201,7 +201,7 @@ export default function ChatScreen() {
             });
           }
         }, 100);
-        
+
         return newTabs;
       });
 
@@ -425,7 +425,7 @@ export default function ChatScreen() {
       if (roomId && roomName && !chatTabs.length) {
         // Find and load the specific room
         const targetRoom = rooms.find((room: any) => room.id.toString() === roomId.toString());
-        
+
         if (targetRoom) {
           try {
             const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${targetRoom.id}`, {
@@ -553,12 +553,12 @@ export default function ChatScreen() {
 
   const handleMessageChange = (text: string) => {
     setMessage(text);
-    
+
     // Check for @ symbol to trigger user tagging
     const lastAtIndex = text.lastIndexOf('@');
     if (lastAtIndex !== -1) {
       const searchText = text.substring(lastAtIndex + 1);
-      
+
       if (searchText.length === 0) {
         // Show all participants when @ is typed
         setFilteredParticipants(participants);
@@ -605,7 +605,7 @@ export default function ChatScreen() {
       roomId: currentRoomId,
       role: user?.role || 'user',
       level: user?.level || 1,
-      type: 'message' as const
+      type: 'message'
     };
 
     setChatTabs(prevTabs =>
@@ -635,7 +635,7 @@ export default function ChatScreen() {
             level: user?.level || 1,
             type: 'me'
           };
-          
+
           // Add locally and emit to server
           setChatTabs(prevTabs =>
             prevTabs.map(tab => 
@@ -644,7 +644,7 @@ export default function ChatScreen() {
                 : tab
             )
           );
-          
+
           socket?.emit('sendMessage', {
             roomId: currentRoomId,
             sender: user?.username || 'User',
@@ -661,7 +661,7 @@ export default function ChatScreen() {
         if (args.length > 0) {
           const targetUsername = args[0];
           const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
-          
+
           if (targetUser) {
             const whoisMessage = {
               id: `whois_${Date.now()}_${user?.username}`,
@@ -673,7 +673,7 @@ export default function ChatScreen() {
               level: 1,
               type: 'whois'
             };
-            
+
             // Only show to current user (local only)
             setChatTabs(prevTabs =>
               prevTabs.map(tab => 
@@ -693,7 +693,7 @@ export default function ChatScreen() {
               level: 1,
               type: 'error'
             };
-            
+
             setChatTabs(prevTabs =>
               prevTabs.map(tab => 
                 tab.id === currentRoomId
@@ -713,7 +713,7 @@ export default function ChatScreen() {
             level: 1,
             type: 'error'
           };
-          
+
           setChatTabs(prevTabs =>
             prevTabs.map(tab => 
               tab.id === currentRoomId
@@ -729,7 +729,7 @@ export default function ChatScreen() {
         const min = 1;
         const max = 100;
         const rollResult = Math.floor(Math.random() * (max - min + 1)) + min;
-        
+
         const rollMessage = {
           id: `roll_${Date.now()}_${user?.username}`,
           sender: 'System',
@@ -740,7 +740,7 @@ export default function ChatScreen() {
           level: 1,
           type: 'roll'
         };
-        
+
         // Add locally and emit to server
         setChatTabs(prevTabs =>
           prevTabs.map(tab => 
@@ -749,7 +749,7 @@ export default function ChatScreen() {
               : tab
           )
         );
-        
+
         socket?.emit('sendMessage', {
           roomId: currentRoomId,
           sender: 'System',
@@ -765,9 +765,9 @@ export default function ChatScreen() {
         if (args.length >= 2) {
           const targetUsername = args[0];
           const giftItem = args.slice(1).join(' ');
-          
+
           const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
-          
+
           if (targetUser) {
             const giftMessage = {
               id: `gift_cmd_${Date.now()}_${user?.username}`,
@@ -779,7 +779,7 @@ export default function ChatScreen() {
               level: 1,
               type: 'gift'
             };
-            
+
             // Add locally and emit to server
             setChatTabs(prevTabs =>
               prevTabs.map(tab => 
@@ -788,7 +788,7 @@ export default function ChatScreen() {
                   : tab
               )
             );
-            
+
             socket?.emit('sendMessage', {
               roomId: currentRoomId,
               sender: 'System',
@@ -808,7 +808,7 @@ export default function ChatScreen() {
               level: 1,
               type: 'error'
             };
-            
+
             setChatTabs(prevTabs =>
               prevTabs.map(tab => 
                 tab.id === currentRoomId
@@ -828,7 +828,7 @@ export default function ChatScreen() {
             level: 1,
             type: 'error'
           };
-          
+
           setChatTabs(prevTabs =>
             prevTabs.map(tab => 
               tab.id === currentRoomId
@@ -858,7 +858,7 @@ export default function ChatScreen() {
             level: 1,
             type: 'error'
           };
-          
+
           setChatTabs(prevTabs =>
             prevTabs.map(tab => 
               tab.id === currentRoomId
@@ -871,7 +871,7 @@ export default function ChatScreen() {
 
         if (args.length > 0) {
           const password = args.join(' ');
-          
+
           // Emit lock room command to server
           socket?.emit('lock-room', {
             roomId: currentRoomId,
@@ -889,7 +889,7 @@ export default function ChatScreen() {
             level: 1,
             type: 'lock'
           };
-          
+
           setChatTabs(prevTabs =>
             prevTabs.map(tab => 
               tab.id === currentRoomId
@@ -917,7 +917,7 @@ export default function ChatScreen() {
             level: 1,
             type: 'error'
           };
-          
+
           setChatTabs(prevTabs =>
             prevTabs.map(tab => 
               tab.id === currentRoomId
@@ -940,7 +940,7 @@ export default function ChatScreen() {
           level: 1,
           type: 'error'
         };
-        
+
         setChatTabs(prevTabs =>
           prevTabs.map(tab => 
             tab.id === currentRoomId
@@ -1049,7 +1049,7 @@ export default function ChatScreen() {
 
       // Clear participants for this room
       setParticipants([]);
-      
+
       // Clear unread count for this room
       setUnreadCounts(prev => {
         const newCounts = { ...prev };
@@ -1065,7 +1065,7 @@ export default function ChatScreen() {
       // Remove the tab from chatTabs and navigate to Room screen
       setChatTabs(prevTabs => {
         const newTabs = prevTabs.filter((_, index) => index !== currentActiveTab);
-        
+
         // If no tabs left, navigate to Room screen
         if (newTabs.length === 0) {
           setTimeout(() => {
@@ -1483,7 +1483,7 @@ export default function ChatScreen() {
   const renderMessageContent = (content: string) => {
     // Split content by @ mentions and style them
     const parts = content.split(/(@\w+)/g);
-    
+
     return parts.map((part, index) => {
       if (part.startsWith('@')) {
         // Style @ mentions
@@ -1600,7 +1600,7 @@ export default function ChatScreen() {
       const roomName = currentRoom?.title || 'Room';
       const username = item.sender;
       const userRole = item.userRole || 'user';
-      
+
       // Get role badge
       const getRoleBadgeText = (role: string) => {
         switch (role) {
@@ -2300,7 +2300,7 @@ export default function ChatScreen() {
           <Text style={styles.managedByText}>
             <Text style={styles.roomNameHighlight}>{chatTabs[activeTab].title}</Text> This room is managed by {chatTabs[activeTab]?.managedBy || 'admin'}
           </Text>
-          
+
           {/* Currently in the room section */}
           <View style={styles.currentlyInRoomContainer}>
             <Text style={styles.currentlyInRoomText}>
@@ -3005,7 +3005,7 @@ export default function ChatScreen() {
             <View style={styles.messageMenuHeader}>
               <Text style={styles.messageMenuTitle}>Message Options</Text>
             </View>
-            
+
             <TouchableOpacity
               style={styles.messageMenuItem}
               onPress={handleCopyMessage}
@@ -3058,7 +3058,7 @@ export default function ChatScreen() {
               >
                 <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
-              
+
               <View style={styles.giftAnimationContent}>
                 <View style={styles.giftAnimationMediaContainer}>
                   {activeGiftAnimation.animation ? (
@@ -3098,7 +3098,7 @@ export default function ChatScreen() {
                     <Text style={styles.giftAnimationIcon}>{activeGiftAnimation.icon}</Text>
                   )}
                 </View>
-                
+
                 <View style={styles.giftAnimationInfo}>
                   <Text style={styles.giftAnimationSender}>
                     {activeGiftAnimation.sender}
@@ -4302,7 +4302,7 @@ const styles = StyleSheet.create({
   giftAnimationModal: {
     width: '90%',
     height: '80%',
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
