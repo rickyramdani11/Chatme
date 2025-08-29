@@ -3977,7 +3977,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
-    backgroundColor: '#2C2C2E',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '85%',
@@ -4176,23 +4176,28 @@ const styles = StyleSheet.create({
   giftGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 8,
   },
   giftItemContainer: {
-    width: '31%',
+    width: '30%',
+    aspectRatio: 0.85,
     marginBottom: 16,
   },
   giftItem: {
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
+    flex: 1,
+    minHeight: 140,
   },
   giftActionButtons: {
     flexDirection: 'row',
@@ -4223,9 +4228,13 @@ const styles = StyleSheet.create({
   giftIconContainer: {
     position: 'relative',
     marginBottom: 8,
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   giftIcon: {
-    fontSize: 48,
+    fontSize: 40,
   },
   animatedBadge: {
     position: 'absolute',
@@ -4243,26 +4252,30 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   giftName: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 4,
+    marginBottom: 6,
     textAlign: 'center',
+    minHeight: 28,
+    lineHeight: 14,
   },
   giftPriceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 4,
   },
   giftPrice: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#FFD700',
     marginLeft: 2,
   },
   giftPreviewImage: {
-    width: 48,
-    height: 48,
+    width: 60,
+    height: 60,
     borderRadius: 8,
+    resizeMode: 'contain',
   },
   // Auto scroll button styles
   autoScrollButton: {
