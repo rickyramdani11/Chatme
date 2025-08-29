@@ -2948,11 +2948,25 @@ export default function ChatScreen() {
                           resizeMode="contain"
                         />
                       ) : gift.animation ? (
-                        <Image 
-                          source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
-                          style={styles.giftPreviewImage} 
-                          resizeMode="contain"
-                        />
+                        // Check if it's MP4 video
+                        (typeof gift.animation === 'string' && gift.animation.toLowerCase().includes('.mp4')) ||
+                        (gift.name && (gift.name.toLowerCase().includes('love') || gift.name.toLowerCase().includes('ufo'))) ? (
+                          <Video
+                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
+                            style={styles.giftPreviewImage}
+                            resizeMode="contain"
+                            shouldPlay={false}
+                            isLooping={false}
+                            isMuted={true}
+                          />
+                        ) : (
+                          // For GIF animations
+                          <Image 
+                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
+                            style={styles.giftPreviewImage} 
+                            resizeMode="contain"
+                          />
+                        )
                       ) : (
                         <Text style={styles.giftIcon}>{gift.icon}</Text>
                       )}
@@ -3187,12 +3201,28 @@ export default function ChatScreen() {
             <View style={styles.giftAnimationContent}>
               <View style={styles.giftAnimationMediaContainer}>
                 {activeGiftAnimation.animation ? (
-                  // For animated GIF files - always use Image for GIFs
-                  <Image 
-                    source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
-                    style={styles.giftAnimationImage}
-                    resizeMode="contain"
-                  />
+                  // Check if it's MP4 or other video format
+                  (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
+                  (activeGiftAnimation.name && activeGiftAnimation.name.toLowerCase().includes('love')) ||
+                  (activeGiftAnimation.name && activeGiftAnimation.name.toLowerCase().includes('ufo')) ? (
+                    <Video
+                      ref={giftVideoRef}
+                      source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
+                      style={styles.giftAnimationVideo}
+                      resizeMode="contain"
+                      shouldPlay
+                      isLooping
+                      isMuted={false}
+                      volume={0.5}
+                    />
+                  ) : (
+                    // For GIF animations
+                    <Image 
+                      source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
+                      style={styles.giftAnimationImage}
+                      resizeMode="contain"
+                    />
+                  )
                 ) : activeGiftAnimation.image ? (
                   // For static images
                   <Image 
@@ -4457,6 +4487,7 @@ const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderRadius: 15,
+    backgroundColor: 'transparent',
   },
   giftAnimationImage: {
     width: 250,
