@@ -3220,7 +3220,7 @@ export default function ChatScreen() {
                   />
                 )}
 
-                {/* Overlay layer - MP4 videos */}
+                {/* Overlay layer - MP4 videos with absolute positioning */}
                 {activeGiftAnimation.animation && (
                   (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
                   (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
@@ -4483,6 +4483,7 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
   },
   giftAnimationMediaContainer: {
+    position: 'relative',
     width: 250,
     height: 250,
     justifyContent: 'center',
@@ -4500,16 +4501,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 250,
-    height: 250,
+    width: '100%',
+    height: '100%',
     borderRadius: 15,
     backgroundColor: 'transparent',
-    zIndex: 2,
-    opacity: 0.85,
+    zIndex: 999,
+    opacity: 0.8,
   },
   giftAnimationBaseImage: {
-    width: 250,
-    height: 250,
+    width: '100%',
+    height: '100%',
     borderRadius: 15,
     zIndex: 1,
   },
