@@ -4179,19 +4179,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   giftItemContainer: {
-    width: '48%',
+    width: '31%',
     marginBottom: 16,
   },
   giftItem: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E9ECEF',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.3,
     shadowRadius: 2,
   },
   giftActionButtons: {
@@ -4201,7 +4201,7 @@ const styles = StyleSheet.create({
   },
   sendToRoomButton: {
     flex: 1,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: 'rgba(139, 92, 246, 0.8)',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
@@ -4209,14 +4209,14 @@ const styles = StyleSheet.create({
   },
   sendToUserButton: {
     flex: 1,
-    backgroundColor: '#FF69B4',
+    backgroundColor: 'rgba(255, 105, 180, 0.8)',
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
     alignItems: 'center',
   },
   giftActionText: {
-    color: 'white',
+    color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 10,
     fontWeight: '600',
   },
@@ -4225,7 +4225,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   giftIcon: {
-    fontSize: 32,
+    fontSize: 48,
   },
   animatedBadge: {
     position: 'absolute',
@@ -4245,7 +4245,7 @@ const styles = StyleSheet.create({
   giftName: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 4,
     textAlign: 'center',
   },
@@ -4260,9 +4260,9 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   giftPreviewImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
+    width: 48,
+    height: 48,
+    borderRadius: 8,
   },
   // Auto scroll button styles
   autoScrollButton: {
