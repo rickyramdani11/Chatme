@@ -288,6 +288,68 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
+  const handleAddGift = async () => {
+    if (!itemName.trim()) {
+      Alert.alert('Error', 'Nama gift harus diisi');
+      return;
+    }
+    if (!itemPrice.trim()) {
+      Alert.alert('Error', 'Harga gift harus diisi');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const requestBody: any = {
+        name: itemName.trim(),
+        icon: '🎁', // Default icon
+        price: parseInt(itemPrice),
+        type: selectedFile ? 'animated' : 'static',
+        category: 'popular'
+      };
+
+      // Add gift image if uploaded
+      if (uploadedGiftImage) {
+        requestBody.giftImage = uploadedGiftImage.base64;
+        requestBody.imageType = uploadedGiftImage.type;
+        requestBody.imageName = uploadedGiftImage.name;
+      }
+
+      // Add animation file if uploaded
+      if (selectedFile) {
+        requestBody.hasAnimation = true;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/gifts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Berhasil', 'Gift berhasil ditambahkan');
+        // Reset form
+        setItemName('');
+        setItemPrice('');
+        setSelectedFile(null);
+        setUploadedGiftImage(null);
+        loadGifts();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal menambahkan gift');
+      }
+    } catch (error) {
+      console.error('Error adding gift:', error);
+      Alert.alert('Error', error.message || 'Gagal menambahkan gift');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddItem = async () => {
     if (!itemName.trim()) {
       Alert.alert('Error', 'Please enter a name');
@@ -719,21 +781,120 @@ export default function AdminScreen({ navigation }: any) {
             }
           />
         ) : activeTab === 'gift' ? (
-          <FlatList
-            data={gifts}
-            renderItem={renderGiftItem}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons name="gift-outline" size={60} color="#ccc" />
-                <Text style={styles.emptyTitle}>No Gifts Added</Text>
-                <Text style={styles.emptySubtitle}>Add gifts for users to send in chat</Text>
+          <ScrollView style={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
+            {/* Gift Form */}
+            <View style={styles.giftFormCard}>
+              <Text style={styles.formTitle}>Add New Gift</Text>
+              
+              {/* Input Nama Gift */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Nama Gift</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={itemName}
+                  onChangeText={setItemName}
+                  placeholder="Masukkan nama gift..."
+                  placeholderTextColor="#999"
+                />
               </View>
-            }
-          />
+
+              {/* Input Harga Gift */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Harga Gift</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={itemPrice}
+                  onChangeText={setItemPrice}
+                  placeholder="Masukkan harga dalam credits..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Upload Gambar Gift PNG */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Upload Gambar Gift (PNG)</Text>
+                <TouchableOpacity
+                  style={styles.uploadFormButton}
+                  onPress={handleGiftImageUpload}
+                >
+                  <Ionicons name="image-outline" size={24} color="#FF6B35" />
+                  <Text style={styles.uploadFormText}>
+                    {uploadedGiftImage ? uploadedGiftImage.name : 'Pilih Gambar PNG'}
+                  </Text>
+                </TouchableOpacity>
+                {uploadedGiftImage && (
+                  <View style={styles.formPreviewContainer}>
+                    <Image source={{ uri: uploadedGiftImage.uri }} style={styles.formPreviewImage} />
+                    <TouchableOpacity
+                      style={styles.formRemoveButton}
+                      onPress={() => setUploadedGiftImage(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#F44336" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              {/* Upload Gift Animasi */}
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Upload Gift Animasi (MP4/GIF/Lottie JSON)</Text>
+                <TouchableOpacity
+                  style={styles.uploadFormButton}
+                  onPress={handleFileUpload}
+                >
+                  <Ionicons name="play-circle-outline" size={24} color="#FF6B35" />
+                  <Text style={styles.uploadFormText}>
+                    {selectedFile ? selectedFile.name : 'Pilih File Animasi'}
+                  </Text>
+                </TouchableOpacity>
+                {selectedFile && (
+                  <View style={styles.formFileInfo}>
+                    <Text style={styles.formFileName}>{selectedFile.name}</Text>
+                    <TouchableOpacity
+                      style={styles.formRemoveButton}
+                      onPress={() => setSelectedFile(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#F44336" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleAddGift}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Gift</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Gift List */}
+            <View style={styles.giftListContainer}>
+              <Text style={styles.giftListTitle}>Gift yang Sudah Ditambahkan</Text>
+              {gifts.length > 0 ? (
+                <FlatList
+                  data={gifts}
+                  renderItem={renderGiftItem}
+                  keyExtractor={(item) => item.id}
+                  numColumns={2}
+                  scrollEnabled={false}
+                  contentContainerStyle={styles.giftGrid}
+                />
+              ) : (
+                <View style={styles.emptyGiftList}>
+                  <Ionicons name="gift-outline" size={40} color="#ccc" />
+                  <Text style={styles.emptyGiftText}>Belum ada gift yang ditambahkan</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
         ) : (
           <View style={styles.userSearchContainer}>
             {/* Search Input */}
@@ -1389,5 +1550,134 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  // New Gift Form Styles
+  giftFormContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  giftFormCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  formTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  formInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#333',
+  },
+  uploadFormButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 20,
+    backgroundColor: '#FFF5F2',
+  },
+  uploadFormText: {
+    fontSize: 16,
+    color: '#FF6B35',
+    marginLeft: 10,
+    fontWeight: '500',
+  },
+  formPreviewContainer: {
+    marginTop: 12,
+    position: 'relative',
+    alignItems: 'center',
+  },
+  formPreviewImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  formRemoveButton: {
+    position: 'absolute',
+    top: -5,
+    right: 5,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+  },
+  formFileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+  },
+  formFileName: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  submitButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  giftListContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  giftListTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  giftGrid: {
+    paddingBottom: 10,
+  },
+  emptyGiftList: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  emptyGiftText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 10,
   },
 });
