@@ -4490,6 +4490,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
     backgroundColor: 'transparent',
+    minHeight: 200,
   },
   giftAnimationVideo: {
     width: Dimensions.get('window').width,
@@ -4511,15 +4512,15 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   giftAnimationBaseImage: {
-    width: Dimensions.get('window').width,
-    maxHeight: Dimensions.get('window').height / 2,
+    width: 200,
+    height: 200,
     alignSelf: 'center',
     borderRadius: 15,
     zIndex: 1,
   },
   giftAnimationImage: {
-    width: Dimensions.get('window').width,
-    maxHeight: Dimensions.get('window').height / 2,
+    width: 200,
+    height: 200,
     alignSelf: 'center',
     borderRadius: 15,
   },
