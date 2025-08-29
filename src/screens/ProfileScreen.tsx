@@ -27,7 +27,7 @@ const getApiUrl = () => {
     return 'https://44372427-bfe1-45b1-b97f-db471d902e92-00-2ew9dmgdkdkpb.pike.replit.dev:5000';
   }
   // For mobile/React Native
-  return 'https://44372427-bfe1-45b1-b97f-db471d902e92-00-2ew9dmgdkdkpb.pike.replit.dev';
+  return 'https://44372427-bfe1-45b1-b97f-db471d902e92-00-2ew9dmgdkdkpb.pike.replit.dev:3001';
 };
 
 const API_BASE_URL = getApiUrl();
