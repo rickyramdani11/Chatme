@@ -83,6 +83,7 @@ const getApiUrl = () => {
 const API_BASE_URL = getApiUrl();
 
 export default function FeedScreen() {
+  const { height } = Dimensions.get('window');
   const [postText, setPostText] = useState('');
   const [feedPosts, setFeedPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -935,8 +936,9 @@ export default function FeedScreen() {
                   source={{ uri: selectedVideoUrl }}
                   useNativeControls
                   resizeMode="contain"
-                  isLooping={false}
+                  isLooping={true}
                   shouldPlay={true}
+                  playWhenInactive={true}
                   onError={(error) => {
                     console.error('Video playback error:', error);
                     console.error('Video URL that failed:', selectedVideoUrl);
@@ -1350,13 +1352,14 @@ const styles = StyleSheet.create({
   },
   videoModalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    position: 'relative',
   },
   videoModalContent: {
-    width: '95%',
-    height: '80%',
+    position: 'absolute',
+    top: Dimensions.get('window').height / 4, // Start from 25% of screen height
+    height: Dimensions.get('window').height / 2, // 50% of screen height 
+    width: '100%',
     backgroundColor: '#000',
     borderRadius: 12,
     overflow: 'hidden',
