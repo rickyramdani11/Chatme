@@ -3200,38 +3200,45 @@ export default function ChatScreen() {
 
             <View style={styles.giftAnimationContent}>
               <View style={styles.giftAnimationMediaContainer}>
-                {activeGiftAnimation.animation ? (
-                  // Check if it's MP4 or other video format
-                  (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
-                  (activeGiftAnimation.name && activeGiftAnimation.name.toLowerCase().includes('love')) ||
-                  (activeGiftAnimation.name && activeGiftAnimation.name.toLowerCase().includes('ufo')) ? (
-                    <Video
-                      ref={giftVideoRef}
-                      source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
-                      style={styles.giftAnimationVideo}
-                      resizeMode="contain"
-                      shouldPlay
-                      isLooping
-                      isMuted={false}
-                      volume={0.5}
-                    />
-                  ) : (
-                    // For GIF animations
-                    <Image 
-                      source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
-                      style={styles.giftAnimationImage}
-                      resizeMode="contain"
-                    />
-                  )
-                ) : activeGiftAnimation.image ? (
-                  // For static images
+                {/* Base layer - PNG/GIF/Static images */}
+                {activeGiftAnimation.image && (
                   <Image 
                     source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
-                    style={styles.giftAnimationImage}
+                    style={styles.giftAnimationBaseImage}
                     resizeMode="contain"
                   />
-                ) : (
-                  // For emoji/icon
+                )}
+                
+                {/* Static GIF layer */}
+                {activeGiftAnimation.animation && 
+                 !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
+                 !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
+                  <Image 
+                    source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
+                    style={styles.giftAnimationBaseImage}
+                    resizeMode="contain"
+                  />
+                )}
+
+                {/* Overlay layer - MP4 videos */}
+                {activeGiftAnimation.animation && (
+                  (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
+                  (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
+                ) && (
+                  <Video
+                    ref={giftVideoRef}
+                    source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
+                    style={styles.giftAnimationVideoOverlay}
+                    resizeMode="contain"
+                    shouldPlay
+                    isLooping
+                    isMuted={false}
+                    volume={0.5}
+                  />
+                )}
+
+                {/* Fallback emoji/icon layer */}
+                {!activeGiftAnimation.animation && !activeGiftAnimation.image && (
                   <Text style={styles.giftAnimationIcon}>{activeGiftAnimation.icon}</Text>
                 )}
               </View>
@@ -4488,6 +4495,23 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 15,
     backgroundColor: 'transparent',
+  },
+  giftAnimationVideoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 250,
+    height: 250,
+    borderRadius: 15,
+    backgroundColor: 'transparent',
+    zIndex: 2,
+    opacity: 0.85,
+  },
+  giftAnimationBaseImage: {
+    width: 250,
+    height: 250,
+    borderRadius: 15,
+    zIndex: 1,
   },
   giftAnimationImage: {
     width: 250,
