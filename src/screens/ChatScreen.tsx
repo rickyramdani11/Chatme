@@ -1997,6 +1997,60 @@ export default function ChatScreen() {
           image: require('../../assets/gift/image/lion_img.gif'),
           category: 'animals'
         },
+        { 
+          id: 'local_3', 
+          name: 'Love Animation', 
+          icon: '💕', 
+          price: 200, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Love.mp4'),
+          category: 'romance'
+        },
+        { 
+          id: 'local_4', 
+          name: 'UFO Animation', 
+          icon: '🛸', 
+          price: 300, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Ufonew.mp4'),
+          category: 'space'
+        },
+        { 
+          id: 'local_5', 
+          name: 'Mermaid', 
+          icon: '🧜‍♀️', 
+          price: 80, 
+          type: 'static',
+          image: require('../../assets/gift/image/duyung.png'),
+          category: 'fantasy'
+        },
+        { 
+          id: 'local_6', 
+          name: 'Princess Mermaid', 
+          icon: '👸', 
+          price: 120, 
+          type: 'static',
+          image: require('../../assets/gift/image/putri_duyung.png'),
+          category: 'fantasy'
+        },
+        { 
+          id: 'local_7', 
+          name: 'Girl', 
+          icon: '👧', 
+          price: 90, 
+          type: 'static',
+          image: require('../../assets/gift/image/girl.png'),
+          category: 'people'
+        },
+        { 
+          id: 'local_8', 
+          name: 'Dolphin', 
+          icon: '🐬', 
+          price: 110, 
+          type: 'static',
+          image: require('../../assets/gift/image/lumba.png'),
+          category: 'animals'
+        },
       ];
 
       console.log('Loading gifts from:', `${API_BASE_URL}/api/gifts`);
@@ -2049,6 +2103,33 @@ export default function ChatScreen() {
           type: 'static',
           image: require('../../assets/gift/image/lion_img.gif'),
           category: 'animals'
+        },
+        { 
+          id: 'local_3', 
+          name: 'Love Animation', 
+          icon: '💕', 
+          price: 200, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Love.mp4'),
+          category: 'romance'
+        },
+        { 
+          id: 'local_4', 
+          name: 'UFO Animation', 
+          icon: '🛸', 
+          price: 300, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Ufonew.mp4'),
+          category: 'space'
+        },
+        { 
+          id: 'local_5', 
+          name: 'Mermaid', 
+          icon: '🧜‍♀️', 
+          price: 80, 
+          type: 'static',
+          image: require('../../assets/gift/image/duyung.png'),
+          category: 'fantasy'
         },
         { id: '1', name: 'Heart', icon: '❤️', price: 10, type: 'static' },
         { id: '2', name: 'Rose', icon: '🌹', price: 20, type: 'static' },
