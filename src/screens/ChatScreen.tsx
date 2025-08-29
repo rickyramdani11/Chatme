@@ -4451,14 +4451,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     zIndex: 1000,
   },
   giftAnimationModal: {
-    width: '90%',
-    height: '70%',
+    position: 'absolute',
+    top: Dimensions.get('window').height / 4, // Start from 25% of screen height
+    height: Dimensions.get('window').height / 2, // 50% of screen height
+    width: '100%',
     backgroundColor: 'transparent',
     borderRadius: 15,
     justifyContent: 'center',
