@@ -447,6 +447,65 @@ export default function ChatScreen() {
         );
       });
 
+      // Listen for private gift notifications
+      socket.on('receive-private-gift', (data: any) => {
+        console.log('Received private gift:', data);
+
+        // Show animation for recipient
+        setActiveGiftAnimation({
+          ...data.gift,
+          sender: data.from,
+          recipient: user?.username,
+          timestamp: data.timestamp,
+          isPrivate: true
+        });
+
+        // Start dramatic entrance animation
+        giftScaleAnim.setValue(0.3);
+        giftOpacityAnim.setValue(0);
+
+        Animated.parallel([
+          Animated.spring(giftScaleAnim, {
+            toValue: 1,
+            tension: 80,
+            friction: 6,
+            useNativeDriver: true,
+          }),
+          Animated.timing(giftOpacityAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Auto-close timing based on gift type
+        const isVideoGift = data.gift.animation && (
+          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        );
+
+        // For non-video gifts, use fixed timeout
+        if (!isVideoGift) {
+          const duration = data.gift.type === 'animated' ? 5000 : 3000;
+          setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(giftScaleAnim, {
+                toValue: 1.1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(giftOpacityAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setActiveGiftAnimation(null);
+            });
+          }, duration);
+        }
+      });
+
       // Listen for gift animations (legacy support)
       socket.on('gift-animation', (data: any) => {
         console.log('Received legacy gift animation:', data);
@@ -462,6 +521,7 @@ export default function ChatScreen() {
         socket.off('user-kicked');
         socket.off('user-muted');
         socket.off('receiveGift');
+        socket.off('receive-private-gift');
         socket.off('gift-animation');
       };
     }
@@ -3247,30 +3307,34 @@ export default function ChatScreen() {
               />
             )}
 
-            {/* Full Screen Static Image/GIF Effect */}
+            {/* Small Static Image/GIF Effect (30x30) */}
             {activeGiftAnimation.image && (
-              <Image 
-                source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
-                style={styles.fullScreenImage}
-                resizeMode="cover"
-              />
+              <View style={styles.smallGiftContainer}>
+                <Image 
+                  source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
+                  style={styles.smallGiftImage}
+                  resizeMode="contain"
+                />
+              </View>
             )}
 
-            {/* Static GIF layer for non-MP4 animations */}
+            {/* Static GIF layer for non-MP4 animations (small) */}
             {activeGiftAnimation.animation && 
              !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
              !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
-              <Image 
-                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
-                style={styles.fullScreenImage}
-                resizeMode="cover"
-              />
+              <View style={styles.smallGiftContainer}>
+                <Image 
+                  source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
+                  style={styles.smallGiftImage}
+                  resizeMode="contain"
+                />
+              </View>
             )}
 
-            {/* Fallback emoji/icon layer */}
+            {/* Fallback emoji/icon layer (small) */}
             {!activeGiftAnimation.animation && !activeGiftAnimation.image && (
-              <View style={styles.fullScreenEmojiContainer}>
-                <Text style={styles.fullScreenEmoji}>{activeGiftAnimation.icon}</Text>
+              <View style={styles.smallGiftContainer}>
+                <Text style={styles.smallGiftEmoji}>{activeGiftAnimation.icon}</Text>
               </View>
             )}
           </Animated.View>
@@ -4523,29 +4587,26 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     opacity: 0.6, // More transparent for smoother look
   },
-  fullScreenImage: {
+  smallGiftContainer: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'transparent',
-    opacity: 0.5, // More transparent for static images
-  },
-  fullScreenEmojiContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: '45%',
+    left: '45%',
+    width: 60,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  fullScreenEmoji: {
-    fontSize: 300,
+  smallGiftImage: {
+    width: 30,
+    height: 30,
+  },
+  smallGiftEmoji: {
+    fontSize: 24,
     textAlign: 'center',
-    opacity: 0.8,
   },
   giftInfoOverlay: {
     position: 'absolute',

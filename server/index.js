@@ -3955,6 +3955,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('send-private-gift', (giftData) => {
+    try {
+      const { from, to, gift, timestamp } = giftData;
+      console.log(`Private gift sent from ${from} to ${to}: ${gift.name}`);
+
+      // Find the target user's socket
+      const targetSocket = [...io.sockets.sockets.values()].find(s => s.username === to);
+      
+      if (targetSocket) {
+        // Send private gift notification to target user only
+        targetSocket.emit('receive-private-gift', {
+          from,
+          gift,
+          timestamp,
+          type: 'private'
+        });
+        console.log(`Private gift delivered to ${to}`);
+      } else {
+        console.log(`Target user ${to} not found or offline`);
+      }
+    } catch (error) {
+      console.error('Error handling send-private-gift:', error);
+    }
+  });
+
   socket.on('send-report', (reportData) => {
     console.log('Report received:', reportData);
 
