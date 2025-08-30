@@ -2210,41 +2210,42 @@ export default function ChatScreen() {
       const duration = selectedGiftForUser.type === 'animated' ? 6000 : 4000;
       setGiftAnimationDuration(duration);
 
-      // Start entrance animation
-      giftScaleAnim.setValue(0);
+      // Start dramatic entrance animation for full-screen effect
+      giftScaleAnim.setValue(0.3);
       giftOpacityAnim.setValue(0);
 
+      // Create a dramatic zoom-in effect like live streaming apps
       Animated.parallel([
         Animated.spring(giftScaleAnim, {
           toValue: 1,
-          tension: 50,
-          friction: 8,
+          tension: 80,
+          friction: 6,
           useNativeDriver: true,
         }),
         Animated.timing(giftOpacityAnim, {
           toValue: 1,
-          duration: 500,
+          duration: 600,
           useNativeDriver: true,
         }),
       ]).start();
 
-      // Start exit animation before hiding
+      // Auto-close with smooth fade out
       setTimeout(() => {
         Animated.parallel([
           Animated.timing(giftScaleAnim, {
-            toValue: 0.8,
-            duration: 300,
+            toValue: 1.1, // Slight zoom out effect
+            duration: 400,
             useNativeDriver: true,
           }),
           Animated.timing(giftOpacityAnim, {
             toValue: 0,
-            duration: 300,
+            duration: 400,
             useNativeDriver: true,
           }),
         ]).start(() => {
           setActiveGiftAnimation(null);
         });
-      }, duration - 300);
+      }, duration);
 
       // Send private gift notification to target user
       if (socket) {
@@ -3181,79 +3182,102 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Gift Animation Overlay - Fixed Full Screen */}
+      {/* Gift Animation Overlay - Live Streaming Style */}
       {activeGiftAnimation && (
-        <View style={styles.giftAnimationOverlay}>
-          <Animated.View style={[
-            styles.giftAnimationModal,
-            {
-              opacity: giftOpacityAnim,
-              transform: [{ scale: giftScaleAnim }]
-            }
-          ]}>
-            <TouchableOpacity 
-              style={styles.closeGiftButton}
-              onPress={() => setActiveGiftAnimation(null)}
-            >
-              <Ionicons name="close" size={24} color="#fff" />
-            </TouchableOpacity>
+        <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
+          {/* Full Screen Video/Animation Layer */}
+          <Animated.View 
+            style={[
+              styles.fullScreenAnimationContainer,
+              {
+                opacity: giftOpacityAnim,
+                transform: [{ scale: giftScaleAnim }]
+              }
+            ]}
+            pointerEvents="box-none"
+          >
+            {/* Full Screen MP4 Video Effect */}
+            {activeGiftAnimation.animation && (
+              (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
+              (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
+            ) && (
+              <Video
+                ref={giftVideoRef}
+                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
+                style={styles.fullScreenVideo}
+                resizeMode="cover"
+                shouldPlay
+                isLooping={false}
+                isMuted={false}
+                volume={0.7}
+                onPlaybackStatusUpdate={(status) => {
+                  // Auto close after video ends (5-8 seconds)
+                  if (status.didJustFinish) {
+                    setTimeout(() => {
+                      setActiveGiftAnimation(null);
+                    }, 1000);
+                  }
+                }}
+              />
+            )}
 
-            <View style={styles.giftAnimationContent}>
-              <View style={styles.giftAnimationMediaContainer}>
-                {/* Base layer - PNG/GIF/Static images */}
-                {activeGiftAnimation.image && (
-                  <Image 
-                    source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
-                    style={styles.giftAnimationBaseImage}
-                    resizeMode="contain"
-                  />
-                )}
-                
-                {/* Static GIF layer */}
-                {activeGiftAnimation.animation && 
-                 !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
-                 !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
-                  <Image 
-                    source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
-                    style={styles.giftAnimationBaseImage}
-                    resizeMode="contain"
-                  />
-                )}
+            {/* Full Screen Static Image/GIF Effect */}
+            {activeGiftAnimation.image && (
+              <Image 
+                source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
+                style={styles.fullScreenImage}
+                resizeMode="cover"
+              />
+            )}
 
-                {/* Overlay layer - MP4 videos with absolute positioning */}
-                {activeGiftAnimation.animation && (
-                  (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
-                  (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
-                ) && (
-                  <Video
-                    ref={giftVideoRef}
-                    source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
-                    style={styles.giftAnimationVideoOverlay}
-                    resizeMode="contain"
-                    shouldPlay
-                    isLooping
-                    isMuted={false}
-                    volume={0.5}
-                  />
-                )}
+            {/* Static GIF layer for non-MP4 animations */}
+            {activeGiftAnimation.animation && 
+             !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
+             !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
+              <Image 
+                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
+                style={styles.fullScreenImage}
+                resizeMode="cover"
+              />
+            )}
 
-                {/* Fallback emoji/icon layer */}
-                {!activeGiftAnimation.animation && !activeGiftAnimation.image && (
-                  <Text style={styles.giftAnimationIcon}>{activeGiftAnimation.icon}</Text>
-                )}
+            {/* Fallback emoji/icon layer */}
+            {!activeGiftAnimation.animation && !activeGiftAnimation.image && (
+              <View style={styles.fullScreenEmojiContainer}>
+                <Text style={styles.fullScreenEmoji}>{activeGiftAnimation.icon}</Text>
               </View>
-
-              <View style={styles.giftAnimationInfo}>
-                <Text style={styles.giftAnimationSender}>
-                  {activeGiftAnimation.sender}
-                </Text>
-                <Text style={styles.giftAnimationText}>
-                  sent {activeGiftAnimation.name} {activeGiftAnimation.icon}
-                  {activeGiftAnimation.recipient && ` to ${activeGiftAnimation.recipient}`}
-                </Text>
-              </View>
-            </View>
+            )}
           </Animated.View>
+
+          {/* Gift Info Overlay - Bottom */}
+          <Animated.View 
+            style={[
+              styles.giftInfoOverlay,
+              {
+                opacity: giftOpacityAnim,
+                transform: [{ translateY: giftScaleAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [50, 0]
+                })}]
+              }
+            ]}
+          >
+            <Text style={styles.giftSenderName}>
+              {activeGiftAnimation.sender}
+            </Text>
+            <Text style={styles.giftDescription}>
+              sent {activeGiftAnimation.name} {activeGiftAnimation.icon}
+              {activeGiftAnimation.recipient && ` to ${activeGiftAnimation.recipient}`}
+            </Text>
+          </Animated.View>
+
+          {/* Close Button - Top Right */}
+          <TouchableOpacity 
+            style={styles.closeGiftButtonTop}
+            onPress={() => setActiveGiftAnimation(null)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
@@ -4445,109 +4469,102 @@ const styles = StyleSheet.create({
     color: '#888',
     marginLeft: 8,
   },
+  // Live Streaming Style Gift Animation Overlay
   giftAnimationOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'transparent', // Fully transparent background
     zIndex: 1000,
   },
-  giftAnimationModal: {
-    position: 'absolute',
-    top: Dimensions.get('window').height / 4, // Start from 25% of screen height
-    height: Dimensions.get('window').height / 2, // 50% of screen height
-    width: '100%',
-    backgroundColor: 'transparent',
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1001,
-  },
-  closeGiftButton: {
-    position: 'absolute',
-    top: 15,
-    right: 15,
-    zIndex: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
-    padding: 8,
-    backdropFilter: 'blur(10px)',
-  },
-  giftAnimationContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 30,
-  },
-  giftAnimationMediaContainer: {
-    position: 'relative',
-    width: Dimensions.get('window').width,
-    maxHeight: Dimensions.get('window').height / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-    backgroundColor: 'transparent',
-    minHeight: 200,
-  },
-  giftAnimationVideo: {
-    width: Dimensions.get('window').width,
-    maxHeight: Dimensions.get('window').height / 2,
-    alignSelf: 'center',
-    borderRadius: 15,
-    backgroundColor: 'transparent',
-  },
-  giftAnimationVideoOverlay: {
+  fullScreenAnimationContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: Dimensions.get('window').width,
-    maxHeight: Dimensions.get('window').height / 2,
-    alignSelf: 'center',
-    borderRadius: 15,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'transparent',
-    zIndex: 999,
+    zIndex: 1001,
+  },
+  fullScreenVideo: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+    opacity: 0.8, // Slight transparency to see chat behind
+  },
+  fullScreenImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+    opacity: 0.7, // More transparency for static images
+  },
+  fullScreenEmojiContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  fullScreenEmoji: {
+    fontSize: 300,
+    textAlign: 'center',
     opacity: 0.8,
   },
-  giftAnimationBaseImage: {
-    width: 200,
-    height: 200,
-    alignSelf: 'center',
+  giftInfoOverlay: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 15,
-    zIndex: 1,
-  },
-  giftAnimationImage: {
-    width: 200,
-    height: 200,
-    alignSelf: 'center',
-    borderRadius: 15,
-  },
-  giftAnimationIcon: {
-    fontSize: 150,
-    textAlign: 'center',
-  },
-  giftAnimationInfo: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    borderRadius: 15,
-    marginTop: 10,
+    alignItems: 'center',
+    backdropFilter: 'blur(10px)',
+    zIndex: 1002,
   },
-  giftAnimationSender: {
-    fontSize: 24,
+  giftSenderName: {
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 8,
+    marginBottom: 5,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
-  giftAnimationText: {
-    fontSize: 18,
+  giftDescription: {
+    fontSize: 16,
     color: '#fff',
     textAlign: 'center',
-    lineHeight: 24,
+    opacity: 0.9,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  closeGiftButtonTop: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1003,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backdropFilter: 'blur(10px)',
   },
   // User Tag Menu Styles
   userTagModalOverlay: {
