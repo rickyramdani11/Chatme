@@ -42,7 +42,7 @@ export default function ChangePasswordScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const response = await fetch(`https://44372427-bfe1-45b1-b97f-db471d902e92-00-2ew9dmgdkdkpb.pike.replit.dev`, {
+      const response = await fetch(`https://950c160d-0426-4b32-9456-4ee6025f9152-00-1phmy8xiqd196.sisko.replit.dev:3001/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
