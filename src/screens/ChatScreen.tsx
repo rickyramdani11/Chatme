@@ -379,45 +379,52 @@ export default function ChatScreen() {
           timestamp: data.timestamp,
         });
 
-        // Set animation duration based on gift type
-        const duration = data.gift.type === 'animated' ? 4000 : 3000;
-        setGiftAnimationDuration(duration);
-
-        // Start entrance animation
-        giftScaleAnim.setValue(0);
+        // Start dramatic entrance animation for full-screen effect
+        giftScaleAnim.setValue(0.3);
         giftOpacityAnim.setValue(0);
 
+        // Create a dramatic zoom-in effect like live streaming apps
         Animated.parallel([
           Animated.spring(giftScaleAnim, {
             toValue: 1,
-            tension: 50,
-            friction: 8,
+            tension: 80,
+            friction: 6,
             useNativeDriver: true,
           }),
           Animated.timing(giftOpacityAnim, {
             toValue: 1,
-            duration: 500,
+            duration: 600,
             useNativeDriver: true,
           }),
         ]).start();
 
-        // Auto close animation after duration
-        setTimeout(() => {
-          Animated.parallel([
-            Animated.timing(giftScaleAnim, {
-              toValue: 0.8,
-              duration: 300,
-              useNativeDriver: true,
-            }),
-            Animated.timing(giftOpacityAnim, {
-              toValue: 0,
-              duration: 300,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            setActiveGiftAnimation(null);
-          });
-        }, duration - 300);
+        // Auto-close timing based on gift type (same logic as private gifts)
+        const isVideoGift = data.gift.animation && (
+          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        );
+
+        // For non-video gifts, use fixed timeout
+        if (!isVideoGift) {
+          const duration = data.gift.type === 'animated' ? 5000 : 3000;
+          setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(giftScaleAnim, {
+                toValue: 1.1, // Slight zoom out effect
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(giftOpacityAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setActiveGiftAnimation(null);
+            });
+          }, duration);
+        }
+        // For video gifts, auto-close is handled by video completion callback
 
         // Add gift message to chat
         const giftMessage: Message = {
@@ -2206,10 +2213,6 @@ export default function ChatScreen() {
         timestamp: new Date(),
       });
 
-      // Set animation duration based on gift type
-      const duration = selectedGiftForUser.type === 'animated' ? 6000 : 4000;
-      setGiftAnimationDuration(duration);
-
       // Start dramatic entrance animation for full-screen effect
       giftScaleAnim.setValue(0.3);
       giftOpacityAnim.setValue(0);
@@ -2229,23 +2232,33 @@ export default function ChatScreen() {
         }),
       ]).start();
 
-      // Auto-close with smooth fade out
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(giftScaleAnim, {
-            toValue: 1.1, // Slight zoom out effect
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          Animated.timing(giftOpacityAnim, {
-            toValue: 0,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setActiveGiftAnimation(null);
-        });
-      }, duration);
+      // Auto-close timing based on gift type
+      const isVideoGift = selectedGiftForUser.animation && (
+        (typeof selectedGiftForUser.animation === 'string' && selectedGiftForUser.animation.toLowerCase().includes('.mp4')) ||
+        (selectedGiftForUser.name && (selectedGiftForUser.name.toLowerCase().includes('love') || selectedGiftForUser.name.toLowerCase().includes('ufo')))
+      );
+
+      // For non-video gifts, use fixed timeout
+      if (!isVideoGift) {
+        const duration = selectedGiftForUser.type === 'animated' ? 5000 : 3000;
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(giftScaleAnim, {
+              toValue: 1.1, // Slight zoom out effect
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(giftOpacityAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            setActiveGiftAnimation(null);
+          });
+        }, duration);
+      }
+      // For video gifts, auto-close is handled by video completion callback
 
       // Send private gift notification to target user
       if (socket) {
@@ -3211,11 +3224,24 @@ export default function ChatScreen() {
                 isMuted={false}
                 volume={0.7}
                 onPlaybackStatusUpdate={(status) => {
-                  // Auto close after video ends (5-8 seconds)
+                  // Auto close after video ends with smooth fade out
                   if (status.didJustFinish) {
                     setTimeout(() => {
-                      setActiveGiftAnimation(null);
-                    }, 1000);
+                      Animated.parallel([
+                        Animated.timing(giftScaleAnim, {
+                          toValue: 1.1, // Slight zoom out effect
+                          duration: 500,
+                          useNativeDriver: true,
+                        }),
+                        Animated.timing(giftOpacityAnim, {
+                          toValue: 0,
+                          duration: 500,
+                          useNativeDriver: true,
+                        }),
+                      ]).start(() => {
+                        setActiveGiftAnimation(null);
+                      });
+                    }, 1500); // Wait 1.5 seconds after video ends
                   }
                 }}
               />
