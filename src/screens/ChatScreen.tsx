@@ -4521,7 +4521,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: 'transparent',
-    opacity: 0.8, // Slight transparency to see chat behind
+    opacity: 0.6, // More transparent for smoother look
   },
   fullScreenImage: {
     position: 'absolute',
@@ -4530,7 +4530,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: 'transparent',
-    opacity: 0.7, // More transparency for static images
+    opacity: 0.5, // More transparent for static images
   },
   fullScreenEmojiContainer: {
     position: 'absolute',
