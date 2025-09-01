@@ -1711,13 +1711,30 @@ export default function ChatScreen() {
             <View style={styles.commandMessageRow}>
               <Text style={[
                 styles.commandMessageText,
-                { color: '#8B4513' } // Coklat untuk semua command
+                { color: '#8B4513', flex: 1 } // Coklat untuk semua command
               ]}>
                 {item.content}
               </Text>
               <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
           )}
+        </TouchableOpacity>
+      );
+    }
+
+    // Handle system messages (from System sender)
+    if (item.sender === 'System' && item.type !== 'roll' && item.type !== 'whois' && item.type !== 'error') {
+      return (
+        <TouchableOpacity 
+          style={styles.systemMessageContainer}
+          onLongPress={() => handleMessageLongPress(item)}
+        >
+          <View style={styles.systemMessageRow}>
+            <Text style={styles.systemMessageText}>
+              {item.content}
+            </Text>
+            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
+          </View>
         </TouchableOpacity>
       );
     }
@@ -4173,17 +4190,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 6,
   },
+  systemMessageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginVertical: 4,
+  },
   systemMessageText: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 14,
+    color: '#666',
     fontStyle: 'italic',
-    textAlign: 'center',
+    textAlign: 'left',
+    flex: 1,
   },
   systemMessageTime: {
-    fontSize: 10,
-    color: '#AAA',
-    textAlign: 'center',
-    marginTop: 2,
+    fontSize: 11,
+    color: '#999',
+    marginLeft: 6,
+    alignSelf: 'flex-start',
   },
   unreadBadge: {
     position: 'absolute',
