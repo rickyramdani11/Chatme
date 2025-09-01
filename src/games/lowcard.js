@@ -293,8 +293,10 @@ function processLowCardCommand(io, room, msg, userId, username) {
     if (!botPresence[room]) {
       botPresence[room] = true;
       io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot is now active! Type !start <bet> to begin playing or !help for commands.', null, room);
+      console.log(`LowCardBot successfully activated in room ${room}`);
     } else {
-      io.to(room).emit('bot_message', 'LowCardBot', '⚠️ LowCardBot is already active in this room!', null, room);
+      io.to(room).emit('bot_message', 'LowCardBot', '⚠️ LowCardBot is already active in this room! Type !help for commands.', null, room);
+      console.log(`LowCardBot already active in room ${room}`);
     }
     return;
   }

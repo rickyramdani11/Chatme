@@ -3781,9 +3781,16 @@ io.on('connection', (socket) => {
 
         console.log(`${type === 'gift' ? 'Gift' : 'Message'} from ${sender} in room ${roomId}: ${content}`);
 
-        // Check if this is an add bot command
-        if (content && typeof content === 'string' && content.toLowerCase().trim() === '/add bot lowcard') {
-          console.log('Processing add bot lowcard command');
+        // Check if this is an add bot command - handle various formats
+        const trimmedContent = content ? content.toString().toLowerCase().trim() : '';
+        const isAddBotCommand = trimmedContent === '/add bot lowcard' || 
+                               trimmedContent === '/addbot lowcard' ||
+                               trimmedContent === 'add bot lowcard' ||
+                               trimmedContent === '/add lowcard bot' ||
+                               trimmedContent.includes('add bot lowcard');
+
+        if (isAddBotCommand) {
+          console.log('Processing add bot lowcard command:', content);
           if (lowCardBot) {
             // Initialize bot in the room
             lowCardBot.processLowCardCommand(io, roomId, '/init_bot', socket.userId || sender, sender);
@@ -3799,6 +3806,8 @@ io.on('connection', (socket) => {
               level: 1,
               type: 'system'
             });
+
+            console.log(`LowCard Bot initialized in room ${roomId} by user ${sender}`);
           } else {
             // Send error message if bot is not available
             io.to(roomId).emit('new-message', {
@@ -3811,6 +3820,7 @@ io.on('connection', (socket) => {
               level: 1,
               type: 'system'
             });
+            console.log(`LowCard Bot not available for room ${roomId}`);
           }
           return; // Don't broadcast as regular message
         }
