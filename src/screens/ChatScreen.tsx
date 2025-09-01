@@ -35,7 +35,8 @@ interface Message {
   roomId: string;
   role?: 'user' | 'merchant' | 'mentor' | 'admin';
   level?: number;
-  type?: 'join' | 'leave' | 'message';
+  type?: 'join' | 'leave' | 'message' | 'command';
+  commandType?: 'system' | 'bot';
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
 }
 
@@ -733,7 +734,8 @@ export default function ChatScreen() {
       roomId: currentRoomId,
       role: user?.role || 'user',
       level: user?.level || 1,
-      type: 'message'
+      type: 'command',
+      commandType: 'system'
     };
 
     setChatTabs(prevTabs =>
@@ -1137,6 +1139,19 @@ export default function ChatScreen() {
         flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
       }, 50);
 
+      // Determine if this is a command
+      let type = 'message';
+      let commandType = null;
+      
+      if (messageContent.startsWith('/')) {
+        type = 'command';
+        if (messageContent.toLowerCase().includes('bot')) {
+          commandType = 'bot';
+        } else {
+          commandType = 'system';
+        }
+      }
+
       // Then emit to server
       const messageData = {
         roomId: currentRoomId,
@@ -1144,7 +1159,8 @@ export default function ChatScreen() {
         content: messageContent,
         role: user.role || 'user',
         level: user.level || 1,
-        type: 'message',
+        type: type,
+        commandType: commandType,
         tempId: optimisticMessage.id // Include temp ID for replacement
       };
 
@@ -1658,7 +1674,52 @@ export default function ChatScreen() {
       return null;
     }
 
-    // Handle user command input (when user types /roll, /whois, etc.)
+    // Handle command messages with different styles based on commandType
+    if (item.type === 'command') {
+      const isUserCommand = item.sender === user?.username;
+      const isBotCommand = item.commandType === 'bot';
+      const isSystemCommand = item.commandType === 'system';
+
+      return (
+        <TouchableOpacity 
+          style={[
+            styles.messageContainer,
+            isBotCommand && styles.botCommandContainer,
+            isSystemCommand && styles.systemCommandContainer
+          ]}
+          onLongPress={() => handleMessageLongPress(item)}
+        >
+          <View style={styles.messageRow}>
+            <View style={styles.messageContentRow}>
+              <LevelBadge level={item.level || 1} />
+              <Text style={styles.messageText}>
+                <Text style={[
+                  styles.senderName,
+                  { 
+                    color: isBotCommand ? '#FF6B35' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                  }
+                ]}>
+                  {item.sender}: 
+                </Text>
+                <Text style={[
+                  styles.messageContent, 
+                  { 
+                    color: isBotCommand ? '#FF6B35' : '#8B4513', 
+                    fontWeight: 'bold',
+                    fontStyle: isBotCommand ? 'italic' : 'normal'
+                  }
+                ]}>
+                  {item.content}
+                </Text>
+              </Text>
+            </View>
+            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    // Handle user command input (when user types /roll, /whois, etc.) - Legacy support
     if (item.content.startsWith('/') && item.sender === user?.username && item.type === 'message') {
       return (
         <TouchableOpacity 
@@ -3656,6 +3717,20 @@ const styles = StyleSheet.create({
   messageContainer: {
     marginBottom: 6,
     paddingHorizontal: 8,
+  },
+  botCommandContainer: {
+    backgroundColor: '#FFF3E0',
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF6B35',
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  systemCommandContainer: {
+    backgroundColor: '#F5F5F5',
+    borderLeftWidth: 3,
+    borderLeftColor: '#8B4513',
+    borderRadius: 8,
+    marginVertical: 2,
   },
   messageRow: {
     flexDirection: 'row',

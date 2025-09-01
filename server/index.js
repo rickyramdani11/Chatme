@@ -3763,11 +3763,11 @@ io.on('connection', (socket) => {
   socket.on('sendMessage', async (messageData) => {
       try {
         // Handle both old format (multiple parameters) and new format (single object)
-        let roomId, sender, content, role, level, type, gift, tempId;
+        let roomId, sender, content, role, level, type, gift, tempId, commandType;
 
         if (typeof messageData === 'object' && messageData.roomId) {
           // New format: single object
-          ({ roomId, sender, content, role, level, type, gift, tempId } = messageData);
+          ({ roomId, sender, content, role, level, type, gift, tempId, commandType } = messageData);
         } else {
           // Old format: multiple parameters
           roomId = messageData;
@@ -3781,8 +3781,10 @@ io.on('connection', (socket) => {
 
         console.log(`${type === 'gift' ? 'Gift' : 'Message'} from ${sender} in room ${roomId}: ${content}`);
 
-        // Check if this is an add bot command - handle various formats
+        // Determine command type based on content
         const trimmedContent = content ? content.toString().toLowerCase().trim() : '';
+        
+        // Check if this is an add bot command - handle various formats
         const isAddBotCommand = trimmedContent === '/add bot lowcard' || 
                                trimmedContent === '/addbot lowcard' ||
                                trimmedContent === 'add bot lowcard' ||
@@ -3796,16 +3798,17 @@ io.on('connection', (socket) => {
             // Initialize bot in the room
             lowCardBot.processLowCardCommand(io, roomId, '/init_bot', socket.userId || sender, sender);
 
-            // Send confirmation message
+            // Send confirmation message with bot command type
             io.to(roomId).emit('new-message', {
               id: `${Date.now()}_system`,
               sender: 'System',
-              content: '🎮 LowCard Bot has been added to this room! Type !help to see available commands.',
+              content: '✅ LowCard Bot berhasil ditambahkan ke room ini! Ketik !help untuk melihat command yang tersedia.',
               timestamp: new Date(),
               roomId,
               role: 'system',
               level: 1,
-              type: 'system'
+              type: 'command',
+              commandType: 'bot'
             });
 
             console.log(`LowCard Bot initialized in room ${roomId} by user ${sender}`);
@@ -3814,27 +3817,38 @@ io.on('connection', (socket) => {
             io.to(roomId).emit('new-message', {
               id: `${Date.now()}_system`,
               sender: 'System',
-              content: '❌ LowCard Bot is not available at the moment.',
+              content: '❌ LowCard Bot tidak tersedia saat ini.',
               timestamp: new Date(),
               roomId,
               role: 'system',
               level: 1,
-              type: 'system'
+              type: 'command',
+              commandType: 'bot'
             });
             console.log(`LowCard Bot not available for room ${roomId}`);
           }
           return; // Don't broadcast as regular message
         }
 
-        // Don't save special command messages to database if they are system messages
-        const shouldSaveToDatabase = !['me', 'roll', 'gift', 'whois', 'error'].includes(type);
-
-        // Check if this is a LowCard command
+        // Check if this is a LowCard command (bot commands)
         if (lowCardBot && content && typeof content === 'string' && content.startsWith('!')) {
           console.log('Processing LowCard command:', content);
           lowCardBot.processLowCardCommand(io, roomId, content, socket.userId || sender, sender);
           return; // Don't broadcast as regular message
         }
+
+        // Determine command type for system commands
+        if (content && typeof content === 'string' && content.startsWith('/')) {
+          if (content.toLowerCase().includes('bot')) {
+            commandType = 'bot';
+          } else {
+            commandType = 'system';
+          }
+          type = 'command';
+        }
+
+        // Don't save special command messages to database if they are system messages
+        const shouldSaveToDatabase = !['me', 'roll', 'gift', 'whois', 'error'].includes(type);
 
         // Create message with unique ID (use tempId if provided for optimistic updates)
         const messageId = tempId ? tempId.replace('temp_', '') + '_confirmed' : `${Date.now()}_${sender}_${Math.random().toString(36).substr(2, 9)}`;
@@ -3848,6 +3862,7 @@ io.on('connection', (socket) => {
           role: role || 'user',
           level: level || 1,
           type: type || 'message',
+          commandType: commandType || null,
           gift: gift || null
         };
 
