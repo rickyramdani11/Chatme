@@ -725,31 +725,36 @@ export default function ChatScreen() {
     const command = parts[0].toLowerCase();
     const args = parts.slice(1);
 
-    // First, show the command message in chat
-    const commandDisplayMessage = {
-      id: `cmd_${Date.now()}_${user?.username}`,
-      sender: user?.username || 'User',
-      content: commandMessage,
-      timestamp: new Date(),
-      roomId: currentRoomId,
-      role: user?.role || 'user',
-      level: user?.level || 1,
-      type: 'command',
-      commandType: 'system'
-    };
+    // Check if this is a bot command - if so, don't show the command message
+    const isBotCommand = commandMessage.toLowerCase().includes('bot');
+    
+    // Only show command message for non-bot commands
+    if (!isBotCommand) {
+      const commandDisplayMessage = {
+        id: `cmd_${Date.now()}_${user?.username}`,
+        sender: user?.username || 'User',
+        content: commandMessage,
+        timestamp: new Date(),
+        roomId: currentRoomId,
+        role: user?.role || 'user',
+        level: user?.level || 1,
+        type: 'command',
+        commandType: 'system'
+      };
 
-    setChatTabs(prevTabs =>
-      prevTabs.map(tab => 
-        tab.id === currentRoomId
-          ? { ...tab, messages: [...tab.messages, commandDisplayMessage] }
-          : tab
-      )
-    );
+      setChatTabs(prevTabs =>
+        prevTabs.map(tab => 
+          tab.id === currentRoomId
+            ? { ...tab, messages: [...tab.messages, commandDisplayMessage] }
+            : tab
+        )
+      );
 
-    // Auto-scroll after showing command
-    setTimeout(() => {
-      flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-    }, 100);
+      // Auto-scroll after showing command
+      setTimeout(() => {
+        flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
+      }, 100);
+    }
 
     switch (command) {
       case '/me': {
