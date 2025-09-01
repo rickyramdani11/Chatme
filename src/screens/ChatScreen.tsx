@@ -1722,8 +1722,8 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle system messages (from System sender)
-    if (item.sender === 'System' && item.type !== 'roll' && item.type !== 'whois' && item.type !== 'error') {
+    // Handle system messages (from System sender) - INCLUDING roll messages
+    if (item.sender === 'System') {
       return (
         <TouchableOpacity 
           style={styles.systemMessageContainer}
