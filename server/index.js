@@ -1808,7 +1808,7 @@ app.get('/api/test', (req, res) => {
 });
 
 // Create room endpoint
-app.post('/api/rooms', (req, res) => {
+app.post('/api/rooms', async (req, res) => {
   console.log('POST /api/rooms -', new Date().toISOString());
   console.log('Headers:', req.headers);
   console.log('Body:', req.body);
@@ -1833,7 +1833,7 @@ app.post('/api/rooms', (req, res) => {
 
   try {
     // Save room to database
-    const result = pool.query(`
+    const result = await pool.query(`
       INSERT INTO rooms (name, description, managed_by, type, members, max_members, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
