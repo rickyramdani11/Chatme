@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
 
-const API_BASE_URL = 'https://950c160d-0426-4b32-9456-4ee6025f9152-00-1phmy8xiqd196.sisko.replit.dev:3001';
+const API_BASE_URL = 'https://0baf305a-98f9-4666-b9f4-ce06c23d9514-00-25nnblcsxijjy.pike.replit.dev:3001';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 

@@ -33,9 +33,9 @@ const getApiUrl = () => {
     if (currentHost && currentHost.includes('replit.dev')) {
       return `${protocol}//${currentHost.replace(':3000', ':5000')}`;
     }
-    return 'https://950c160d-0426-4b32-9456-4ee6025f9152-00-1phmy8xiqd196.sisko.replit.dev:5000';
+    return 'https://0baf305a-98f9-4666-b9f4-ce06c23d9514-00-25nnblcsxijjy.pike.replit.dev:5000';
   }
-  return 'https://950c160d-0426-4b32-9456-4ee6025f9152-00-1phmy8xiqd196.sisko.replit.dev';
+  return 'https://0baf305a-98f9-4666-b9f4-ce06c23d9514-00-25nnblcsxijjy.pike.replit.dev';
 };
 
 export default function MentorScreen() {

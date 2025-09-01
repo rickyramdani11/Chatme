@@ -15,7 +15,7 @@ import { useAuth } from '../hooks';
 
 // Use same API URL logic as other screens
 const getApiUrl = () => {
-  return 'https://950c160d-0426-4b32-9456-4ee6025f9152-00-1phmy8xiqd196.sisko.replit.dev:3001';
+  return 'https://0baf305a-98f9-4666-b9f4-ce06c23d9514-00-25nnblcsxijjy.pike.replit.dev:3001';
 };
 
 const API_BASE_URL = getApiUrl();
