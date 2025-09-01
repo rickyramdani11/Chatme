@@ -295,8 +295,8 @@ export function processLowCardCommand(io: Server, room: string, msg: string, use
     return;
   }
 
-  // Handle /add bot lowcard command specifically
-  if (trimmedMsg === '/add bot lowcard' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
+  // Handle /bot lowcard add command specifically
+  if (trimmedMsg === '/bot lowcard add' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
     console.log(`Add bot command received in room ${room}`);
     if (!botPresence[room]) {
       botPresence[room] = true;
@@ -344,7 +344,7 @@ export function processLowCardCommand(io: Server, room: string, msg: string, use
     }
 
     // Send goodbye message
-    io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot has left the room. Type "/add bot lowcard" to add the bot back.', null, room);
+    io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot has left the room. Type "/bot lowcard add" to add the bot back.', null, room);
     return;
   }
 

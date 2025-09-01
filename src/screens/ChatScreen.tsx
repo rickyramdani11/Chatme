@@ -1142,7 +1142,7 @@ export default function ChatScreen() {
       // Determine if this is a command
       let type = 'message';
       let commandType = null;
-      
+
       if (messageContent.startsWith('/')) {
         type = 'command';
         if (messageContent.toLowerCase().includes('bot')) {

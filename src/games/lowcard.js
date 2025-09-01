@@ -301,8 +301,8 @@ function processLowCardCommand(io, room, msg, userId, username) {
     return;
   }
 
-  // Handle /add bot lowcard command specifically
-  if (trimmedMsg === '/add bot lowcard' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
+  // Handle /bot lowcard add command specifically
+  if (trimmedMsg === '/bot lowcard add' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
     console.log(`Add bot command received in room ${room}`);
     if (!botPresence[room]) {
       botPresence[room] = true;
@@ -310,7 +310,7 @@ function processLowCardCommand(io, room, msg, userId, username) {
       console.log(`LowCardBot successfully added to room ${room}`);
     } else {
       io.to(room).emit('bot_message', 'LowCardBot', '⚠️ LowCardBot is already active in this room! Type !help for commands.', null, room);
-      console.log(`LowCardBot already active in room ${room}`);
+      console.log(`LowCardBot already active in room ${room}`);ole.log(`LowCardBot already active in room ${room}`);
     }
     return;
   }
@@ -344,7 +344,7 @@ function processLowCardCommand(io, room, msg, userId, username) {
     }
 
     // Send goodbye message
-    io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot has left the room. Type "/add bot lowcard" to add the bot back.', null, room);
+    io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot has left the room. Type "/bot lowcard add" to add the bot back.', null, room);
     return;
   }
 

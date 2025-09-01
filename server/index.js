@@ -3785,12 +3785,12 @@ io.on('connection', (socket) => {
         const trimmedContent = content ? content.toString().toLowerCase().trim() : '';
         
         // Check if this is an add bot command - handle various formats
-        const isAddBotCommand = trimmedContent === '/add bot lowcard' || 
+        const isAddBotCommand = trimmedContent === '/bot lowcard add' || 
                                trimmedContent === '/addbot lowcard' ||
-                               trimmedContent === 'add bot lowcard' ||
+                               trimmedContent === 'bot lowcard add' ||
                                trimmedContent === '/add lowcard bot' ||
                                trimmedContent === '/add' ||
-                               trimmedContent.includes('add bot lowcard');
+                               trimmedContent.includes('bot lowcard add');
 
         if (isAddBotCommand) {
           console.log('Processing add bot lowcard command:', content);
