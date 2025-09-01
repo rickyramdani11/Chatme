@@ -3726,7 +3726,7 @@ io.on('connection', (socket) => {
       if (roomParticipants[roomId]) {
         // Remove participant from the array
         roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== username);
-        
+
         // Update room member count
         const roomIndex = rooms.findIndex(r => r.id === roomId);
         if (roomIndex !== -1) {
@@ -3783,7 +3783,7 @@ io.on('connection', (socket) => {
 
         // Determine command type based on content
         const trimmedContent = content ? content.toString().toLowerCase().trim() : '';
-        
+
         // Check if this is an add bot command - handle various formats
         const isAddBotCommand = trimmedContent === '/bot lowcard add' || 
                                trimmedContent === '/addbot lowcard' ||
@@ -3835,6 +3835,13 @@ io.on('connection', (socket) => {
           console.log('Processing LowCard command:', content);
           lowCardBot.processLowCardCommand(io, roomId, content, socket.userId || sender, sender);
           return; // Don't broadcast as regular message
+        }
+
+        // Handle bot commands that are marked as bot type
+        if (lowCardBot && type === 'command' && commandType === 'bot') {
+          console.log(`Processing bot command type: ${content} in room ${roomId}`);
+          lowCardBot.processLowCardCommand(io, roomId, content, socket.userId || 'unknown', sender);
+          return; // Don't process as regular message
         }
 
         // Determine command type for system commands
@@ -3988,7 +3995,7 @@ io.on('connection', (socket) => {
 
       // Find the target user's socket
       const targetSocket = [...io.sockets.sockets.values()].find(s => s.username === to);
-      
+
       if (targetSocket) {
         // Send private gift notification to target user only
         targetSocket.emit('receive-private-gift', {
@@ -4046,7 +4053,7 @@ io.on('connection', (socket) => {
         if (roomParticipants[socket.roomId]) {
           // Remove participant from the array on disconnect
           roomParticipants[socket.roomId] = roomParticipants[socket.roomId].filter(p => p.username !== socket.username);
-          
+
           // Update room member count
           const roomIndex = rooms.findIndex(r => r.id === socket.roomId);
           if (roomIndex !== -1) {
@@ -4054,7 +4061,7 @@ io.on('connection', (socket) => {
           }
 
           console.log(`Participant ${socket.username} removed from room ${socket.roomId} on disconnect. Remaining: ${roomParticipants[socket.roomId].length}`);
-          
+
           // Notify room about updated participant list
           io.to(socket.roomId).emit('participants-updated', roomParticipants[socket.roomId]);
 

@@ -725,36 +725,8 @@ export default function ChatScreen() {
     const command = parts[0].toLowerCase();
     const args = parts.slice(1);
 
-    // Check if this is a bot command - if so, don't show the command message
-    const isBotCommand = commandMessage.toLowerCase().includes('bot');
-    
-    // Only show command message for non-bot commands
-    if (!isBotCommand) {
-      const commandDisplayMessage = {
-        id: `cmd_${Date.now()}_${user?.username}`,
-        sender: user?.username || 'User',
-        content: commandMessage,
-        timestamp: new Date(),
-        roomId: currentRoomId,
-        role: user?.role || 'user',
-        level: user?.level || 1,
-        type: 'command',
-        commandType: 'system'
-      };
-
-      setChatTabs(prevTabs =>
-        prevTabs.map(tab => 
-          tab.id === currentRoomId
-            ? { ...tab, messages: [...tab.messages, commandDisplayMessage] }
-            : tab
-        )
-      );
-
-      // Auto-scroll after showing command
-      setTimeout(() => {
-        flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-      }, 100);
-    }
+    // Don't show command message in UI - only show system responses
+    // This prevents commands like /roll, /me, /whois from appearing as user messages
 
     switch (command) {
       case '/me': {
@@ -897,9 +869,10 @@ export default function ChatScreen() {
       }
 
       case '/gift': {
-        if (args.length >= 2) {
-          const targetUsername = args[0];
-          const giftItem = args.slice(1).join(' ');
+        if (args.length >= 4 && args[0] === 'send' && args[2] === 'to') {
+          // Handle: /gift send rose to username
+          const giftItem = args[1];
+          const targetUsername = args[3];
 
           const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
 
@@ -956,7 +929,212 @@ export default function ChatScreen() {
           const helpMessage = {
             id: `help_${Date.now()}_${user?.username}`,
             sender: 'System',
-            content: '❌ Usage: /gift [username] [item]',
+            content: '❌ Usage: /gift send [item] to [username]',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, helpMessage] }
+                : tab
+            )
+          );
+        }
+        break;
+      }
+
+      case '/ban': {
+        // Check if user has permission to ban
+        const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+        const isOwner = currentRoom && currentRoom.managedBy === user?.username;
+        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isAdmin = user?.role === 'admin';
+
+        if (!isOwner && !isModerator && !isAdmin) {
+          const errorMessage = {
+            id: `error_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Only room owner, moderators, or admins can ban users.',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, errorMessage] }
+                : tab
+            )
+          );
+          break;
+        }
+
+        if (args.length > 0) {
+          const targetUsername = args[0];
+          const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
+
+          if (targetUser) {
+            const banMessage = {
+              id: `ban_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `🚫 ${targetUsername} has been banned from the room by ${user?.username}`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'ban'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, banMessage] }
+                  : tab
+              )
+            );
+
+            socket?.emit('sendMessage', {
+              roomId: currentRoomId,
+              sender: 'System',
+              content: `🚫 ${targetUsername} has been banned from the room by ${user?.username}`,
+              role: 'system',
+              level: 1,
+              type: 'ban'
+            });
+          } else {
+            const errorMessage = {
+              id: `error_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `❌ User '${targetUsername}' not found in this room.`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'error'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, errorMessage] }
+                  : tab
+              )
+            );
+          }
+        } else {
+          const helpMessage = {
+            id: `help_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Usage: /ban [username]',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, helpMessage] }
+                : tab
+            )
+          );
+        }
+        break;
+      }
+
+      case '/kick': {
+        // Check if user has permission to kick
+        const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+        const isOwner = currentRoom && currentRoom.managedBy === user?.username;
+        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isAdmin = user?.role === 'admin';
+
+        if (!isOwner && !isModerator && !isAdmin) {
+          const errorMessage = {
+            id: `error_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Only room owner, moderators, or admins can kick users.',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, errorMessage] }
+                : tab
+            )
+          );
+          break;
+        }
+
+        if (args.length > 0) {
+          const targetUsername = args[0];
+          const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
+
+          if (targetUser) {
+            const kickMessage = {
+              id: `kick_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `👢 ${targetUsername} has been kicked from the room by ${user?.username}`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'kick'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, kickMessage] }
+                  : tab
+              )
+            );
+
+            socket?.emit('kick-user', {
+              roomId: currentRoomId,
+              kickedUser: targetUsername,
+              kickedBy: user?.username
+            });
+          } else {
+            const errorMessage = {
+              id: `error_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `❌ User '${targetUsername}' not found in this room.`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'error'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, errorMessage] }
+                  : tab
+              )
+            );
+          }
+        } else {
+          const helpMessage = {
+            id: `help_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Usage: /kick [username]',
             timestamp: new Date(),
             roomId: currentRoomId,
             role: 'system',
@@ -1064,11 +1242,46 @@ export default function ChatScreen() {
         break;
       }
 
+      case '/bot': {
+        if (args.length >= 2 && args[0] === 'lowcard' && args[1] === 'add') {
+          // Handle: /bot lowcard add
+          socket?.emit('sendMessage', {
+            roomId: currentRoomId,
+            sender: user?.username,
+            content: '/bot lowcard add',
+            role: user?.role || 'user',
+            level: user?.level || 1,
+            type: 'command',
+            commandType: 'bot'
+          });
+        } else {
+          const helpMessage = {
+            id: `help_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Usage: /bot lowcard add',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, helpMessage] }
+                : tab
+            )
+          );
+        }
+        break;
+      }
+
       default: {
         const unknownMessage = {
           id: `unknown_${Date.now()}_${user?.username}`,
           sender: 'System',
-          content: `❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift [username] [item] - Send gift\n/lock [password] - Lock room (moderator/owner/admin only)`,
+          content: `❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user\n/ban [username] - Ban user\n/bot lowcard add - Add LowCard bot\n/lock [password] - Lock room (moderator/owner/admin only)`,
           timestamp: new Date(),
           roomId: currentRoomId,
           role: 'system',
