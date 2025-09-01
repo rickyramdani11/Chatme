@@ -295,6 +295,20 @@ export function processLowCardCommand(io: Server, room: string, msg: string, use
     return;
   }
 
+  // Handle /add bot lowcard command specifically
+  if (trimmedMsg === '/add bot lowcard' || trimmedMsg === '/add') {
+    console.log(`Add bot command received in room ${room}`);
+    if (!botPresence[room]) {
+      botPresence[room] = true;
+      io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot has been added to this room! Type !start <bet> to begin playing or !help for commands.', null, room);
+      console.log(`LowCardBot successfully added to room ${room}`);
+    } else {
+      io.to(room).emit('bot_message', 'LowCardBot', '⚠️ LowCardBot is already active in this room! Type !help for commands.', null, room);
+      console.log(`LowCardBot already active in room ${room}`);
+    }
+    return;
+  }
+
   // Handle /bot off command specifically
   if (trimmedMsg === '/bot off') {
     // Check if bot is already off
