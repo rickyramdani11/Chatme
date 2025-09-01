@@ -302,7 +302,7 @@ function processLowCardCommand(io, room, msg, userId, username) {
   }
 
   // Handle /add bot lowcard command specifically
-  if (trimmedMsg === '/add bot lowcard' || trimmedMsg === '/add') {
+  if (trimmedMsg === '/add bot lowcard' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
     console.log(`Add bot command received in room ${room}`);
     if (!botPresence[room]) {
       botPresence[room] = true;

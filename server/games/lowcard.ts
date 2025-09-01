@@ -296,7 +296,7 @@ export function processLowCardCommand(io: Server, room: string, msg: string, use
   }
 
   // Handle /add bot lowcard command specifically
-  if (trimmedMsg === '/add bot lowcard' || trimmedMsg === '/add') {
+  if (trimmedMsg === '/add bot lowcard' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
     console.log(`Add bot command received in room ${room}`);
     if (!botPresence[room]) {
       botPresence[room] = true;

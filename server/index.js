@@ -3787,6 +3787,7 @@ io.on('connection', (socket) => {
                                trimmedContent === '/addbot lowcard' ||
                                trimmedContent === 'add bot lowcard' ||
                                trimmedContent === '/add lowcard bot' ||
+                               trimmedContent === '/add' ||
                                trimmedContent.includes('add bot lowcard');
 
         if (isAddBotCommand) {
