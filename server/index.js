@@ -3332,6 +3332,13 @@ app.get('/api/lowcard/games', (req, res) => {
   }
 });
 
+// Serve uploaded media files
+app.use('/api/feed/media', express.static(path.join(__dirname, 'uploads/media')));
+
+// Serve card assets for LowCard game
+app.use('/cards', express.static(path.join(__dirname, '..', 'assets', 'card')));
+
+
 // Serve uploaded emoji files
 app.get('/uploads/emojis/:filename', (req, res) => {
   try {
