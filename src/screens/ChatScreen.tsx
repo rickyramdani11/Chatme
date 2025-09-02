@@ -528,6 +528,7 @@ export default function ChatScreen() {
             });
           }, duration);
         }
+        // For video gifts, auto-close is handled by video completion callback
       });
 
       // Listen for gift animations (legacy support)
@@ -1985,6 +1986,24 @@ export default function ChatScreen() {
       );
     }
 
+    // Handle room info messages
+    if (item.type === 'room_info') { // Assuming a new type 'room_info' for these messages
+      return (
+        <TouchableOpacity 
+          style={styles.roomInfoMessageContainer}
+          onLongPress={() => handleMessageLongPress(item)}
+        >
+          <View style={styles.roomInfoMessageRow}>
+            <Text style={styles.roomInfoMessageText}>
+              <Text style={styles.roomInfoContent}>{item.content}</Text>
+            </Text>
+            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+
     // Handle special command messages (me, roll, whois, gift commands, errors)
     if (item.type === 'me' || item.type === 'roll' || item.type === 'whois' || item.type === 'error') {
       return (
@@ -2820,45 +2839,6 @@ export default function ChatScreen() {
 
 
 
-      {/* Room Description - Only show for room chats, not private chats */}
-      {chatTabs[activeTab] && chatTabs[activeTab].type !== 'private' && (
-        <View style={styles.roomDescriptionContainer}>
-          <Text style={styles.roomDescription}>
-            <Text style={styles.roomNameHighlight}>{chatTabs[activeTab].title}</Text> - {chatTabs[activeTab].description || 'Welcome to the chatroom'}
-          </Text>
-          <Text style={styles.managedByText}>
-            <Text style={styles.roomNameHighlight}>{chatTabs[activeTab].title}</Text> This room is managed by {chatTabs[activeTab]?.managedBy || 'admin'}
-          </Text>
-
-          {/* Currently in the room section */}
-          <View style={styles.currentlyInRoomContainer}>
-            <Text style={styles.currentlyInRoomText}>
-              <Text style={[styles.roomNameHighlight, { 
-                color: getRoleColor(user?.role, user?.username, chatTabs[activeTab]?.id) 
-              }]}>
-                {chatTabs[activeTab].title}
-              </Text>
-              <Text style={styles.currentlyText}> currently in the room </Text>
-              {participants.length > 0 ? (
-                participants.map((participant, index) => (
-                  <Text key={index}>
-                    <Text style={[
-                      styles.participantInRoomName,
-                      { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
-                    ]}>
-                      {participant.username}
-                    </Text>
-                    {index < participants.length - 1 && <Text style={styles.participantSeparator}>, </Text>}
-                  </Text>
-                ))
-              ) : (
-                <Text style={styles.noParticipantsInRoom}>No users currently in the room</Text>
-              )}
-            </Text>
-          </View>
-        </View>
-      )}
-
       {/* Tab Navigation with KeyboardAvoidingView */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
@@ -3532,7 +3512,7 @@ export default function ChatScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Message Copy Menu Modal */}
+      {/* Message Context Menu Modal */}
       <Modal
         visible={showMessageMenu}
         transparent={true}
@@ -5154,5 +5134,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+  },
+  // Room Info Message Styles
+  roomInfoMessageContainer: {
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  roomInfoMessageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginVertical: 4,
+  },
+  roomInfoMessageText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  roomInfoContent: {
+    fontSize: 14,
+    color: '#666',
   },
 });
