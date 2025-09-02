@@ -45,14 +45,14 @@ interface AlbumPhoto {
 export default function EditProfileScreen({ navigation }: any) {
   const { user, updateProfile } = useAuth();
   const [profileData, setProfileData] = useState({
-    username: user?.username || 'pengembang',
-    email: user?.email || 'meongkwl@gmail.com',
-    bio: user?.bio || 'there\'s nothing special',
-    phone: user?.phone || '+62 812 3456 7890',
-    gender: user?.gender || 'Pria',
-    birthDate: user?.birthDate || '1995-03-24',
-    country: user?.country || 'Indonesia',
-    signature: user?.signature || 'there\'s nothing special',
+    username: user?.username || '',
+    email: user?.email || '',
+    bio: user?.bio || '',
+    phone: user?.phone || '',
+    gender: user?.gender || '',
+    birthDate: user?.birthDate || '',
+    country: user?.country || '',
+    signature: user?.signature || '',
     avatar: user?.avatar || null
   });
 

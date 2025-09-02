@@ -71,7 +71,7 @@ interface Gift {
 }
 
 export default function ProfileScreen({ navigation, route }: any) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -120,6 +120,24 @@ export default function ProfileScreen({ navigation, route }: any) {
           profileData.gifts = [];
         }
 
+        // Fetch achievements from API
+        try {
+          const achievementsResponse = await fetch(`${API_BASE_URL}/api/users/${userId}/achievements`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'ChatMe-Mobile-App',
+            },
+          });
+          if (achievementsResponse.ok) {
+            profileData.achievements = await achievementsResponse.json();
+          } else {
+            profileData.achievements = [];
+          }
+        } catch (error) {
+          console.error('Error fetching achievements:', error);
+          profileData.achievements = [];
+        }
+
         setProfile(profileData);
         setIsFollowing(profileData.isFollowing || false);
       } else {
@@ -159,7 +177,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           action: isFollowing ? 'unfollow' : 'follow'
@@ -216,11 +234,11 @@ export default function ProfileScreen({ navigation, route }: any) {
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           console.error('Private chat creation failed:', errorData);
-          throw new Error(errorData.error || `HTTP ${response.status}: Failed to create private chat`);
+          throw new Error((errorData as any).error || `HTTP ${response.status}: Failed to create private chat`);
         }
       } catch (error) {
         console.error('Error creating private chat:', error);
-        Alert.alert('Error', error.message || 'Failed to start private chat');
+        Alert.alert('Error', (error as any).message || 'Failed to start private chat');
       }
     }
   };
@@ -238,6 +256,14 @@ export default function ProfileScreen({ navigation, route }: any) {
     <View style={styles.giftItem}>
       <Text style={styles.giftIcon}>{item.icon}</Text>
       <Text style={styles.giftCount}>{item.count}</Text>
+    </View>
+  );
+
+  const renderAchievement = ({ item }: { item: Achievement }) => (
+    <View style={styles.achievementItem}>
+      <Text style={styles.achievementIcon}>{item.icon}</Text>
+      <Text style={styles.achievementName}>{item.name}</Text>
+      {item.count && <Text style={styles.achievementCount}>{item.count}</Text>}
     </View>
   );
 
@@ -344,6 +370,20 @@ export default function ProfileScreen({ navigation, route }: any) {
               <Text style={styles.bio}>{profile.bio}</Text>
             )}
           </View>
+
+          {/* Achievements */}
+          {profile.achievements && profile.achievements.length > 0 && (
+            <View style={styles.achievementsSection}>
+              <Text style={styles.sectionTitle}>Pencapaian</Text>
+              <FlatList
+                data={profile.achievements}
+                renderItem={renderAchievement}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.achievementsContainer}
+              />
+            </View>
+          )}
 
           {/* Action Buttons */}
           {!isOwnProfile && (
@@ -669,5 +709,36 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Achievements styles
+  achievementsSection: {
+    marginBottom: 25,
+  },
+  achievementsContainer: {
+    paddingRight: 20,
+  },
+  achievementItem: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 12,
+    marginRight: 12,
+    alignItems: 'center',
+    minWidth: 80,
+  },
+  achievementIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  achievementName: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+  },
+  achievementCount: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FF69B4',
+    marginTop: 2,
   },
 });
