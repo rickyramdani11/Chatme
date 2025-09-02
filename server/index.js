@@ -12,18 +12,13 @@ const fs = require('fs');
 // Import LowCard bot using CommonJS require
 let lowCardBot = null;
 try {
-  // Try TypeScript version first, then fallback to JavaScript version
-  try {
-    const { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus } = require('./games/lowcard.ts');
-    lowCardBot = { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus };
-    console.log('LowCard bot loaded successfully from TypeScript');
-  } catch (tsError) {
-    const { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus } = require('../src/games/lowcard.js');
-    lowCardBot = { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus };
-    console.log('LowCard bot loaded successfully from JavaScript fallback');
-  }
+  // Load TypeScript version only (JavaScript version removed)
+  const { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus } = require('./games/lowcard.ts');
+  lowCardBot = { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus };
+  console.log('LowCard bot loaded successfully from TypeScript');
 } catch (error) {
-  console.error('Failed to load LowCard bot:', error);
+  console.error('Failed to load LowCard bot from TypeScript:', error);
+  console.error('Error details:', error.message);
 }
 
 const app = express();

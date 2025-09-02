@@ -67,9 +67,14 @@ function ensureBotPresence(io: Server, roomId: string): void {
 }
 
 function startJoinPhase(io: Server, room: string): void {
+  console.log(`[LowCard] startJoinPhase called for room: ${room}`);
   const data = rooms[room];
-  if (!data) return;
+  if (!data) {
+    console.log(`[LowCard] No game data found for room ${room}`);
+    return;
+  }
 
+  console.log(`[LowCard] Sending join phase message for room ${room}, bet: ${data.bet}, started by: ${data.startedBy}`);
   sendBotMessage(io, room, `🎮 LowCard started by ${data.startedBy}! Enter !j to join the game. Cost: ${data.bet} COIN [30s]`);
 
   data.timeout = setTimeout(() => {
@@ -262,12 +267,26 @@ function sendBotMessage(io: Server, room: string, content: string, media: string
   };
 
   console.log(`LowCardBot sending message to room ${room}:`, content);
+  
+  // Send to all clients in the room
   io.to(room).emit('new-message', botMessage);
+  
+  // Also broadcast using sendMessage event for better compatibility
+  io.to(room).emit('sendMessage', {
+    roomId: room,
+    sender: 'LowCardBot',
+    content: content,
+    role: 'bot',
+    level: 999,
+    type: 'message',
+    media: media,
+    timestamp: new Date().toISOString()
+  });
 
-  // Also emit with slight delay to ensure delivery
+  // Ensure delivery with retry
   setTimeout(() => {
     io.to(room).emit('new-message', { ...botMessage, id: botMessage.id + '_retry' });
-  }, 50);
+  }, 100);
 }
 
 export function processLowCardCommand(io: Server, room: string, msg: string, userId: string, username: string): void {
@@ -391,25 +410,34 @@ export function processLowCardCommand(io: Server, room: string, msg: string, use
 
 // Separate command handling logic
 function handleLowCardCommand(io: Server, room: string, command: string, args: string[], userId: string, username: string): void {
+  console.log(`[LowCard] Processing command: ${command} with args: [${args.join(', ')}] from user: ${username} in room: ${room}`);
 
     switch (command) {
     case '!start': {
+      console.log(`[LowCard] START command received - Room: ${room}, User: ${username}, Args: [${args.join(', ')}]`);
+      
       if (rooms[room]) {
+        console.log(`[LowCard] Game already in progress in room ${room}`);
         sendBotMessage(io, room, `🎮 Game already in progress!`);
         return;
       }
 
       const bet = parseInt(args[0]) || 50;
+      console.log(`[LowCard] Parsed bet amount: ${bet}`);
+      
       if (bet <= 0) {
+        console.log(`[LowCard] Invalid bet amount: ${bet}`);
         sendBotMessage(io, room, `❌ Invalid bet amount! Must be greater than 0.`);
         return;
       }
 
       if (bet > 10000) {
+        console.log(`[LowCard] Bet too high: ${bet}`);
         sendBotMessage(io, room, `❌ Bet too high! Maximum bet is 10,000 COIN.`);
         return;
       }
 
+      console.log(`[LowCard] Creating new game in room ${room} with bet ${bet}`);
       rooms[room] = {
         players: [],
         activePlayers: [],
@@ -420,6 +448,7 @@ function handleLowCardCommand(io: Server, room: string, command: string, args: s
         totalRounds: 0
       };
 
+      console.log(`[LowCard] Starting join phase for room ${room}`);
       startJoinPhase(io, room);
       break;
     }
