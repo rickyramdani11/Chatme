@@ -1647,7 +1647,7 @@ export default function ChatScreen() {
                   kickedBy: user?.username
                 });
 
-                Alert.alert('Success', `${selectedParticipant?.username} has been kicked from the room`);
+                Alert.Alert('Success', `${selectedParticipant?.username} has been kicked from the room`);
               } else {
                 Alert.alert('Error', 'User not found in the current room.');
               }
@@ -1697,7 +1697,7 @@ export default function ChatScreen() {
               Alert.alert('Success', `${selectedParticipant?.username} has been unmuted`);
             } else {
               setMutedUsers(prev => [...prev, selectedParticipant?.username]);
-              Alert.alert('Success', `${selectedParticipant?.username} has been muted`);
+              Alert.Alert('Success', `${selectedParticipant?.username} has been muted`);
             }
 
             // Emit mute event via socket
@@ -1890,6 +1890,16 @@ export default function ChatScreen() {
             </Text>
           );
         }
+      } else if (part.startsWith('<card:') && part.endsWith('>')) { // Handle card images
+        const cardImageUrl = part.slice(6, -1); // Extract URL after '<card:'
+        return (
+          <Image
+            key={index}
+            source={{ uri: `${API_BASE_URL}${cardImageUrl}` }}
+            style={styles.cardImage} // Apply the new card image style
+            resizeMode="contain"
+          />
+        );
       }
       return part;
     });
@@ -4048,6 +4058,16 @@ const styles = StyleSheet.create({
     height: 18,
     resizeMode: 'contain',
   },
+  botMessageWithCard: {
+    flex: 1,
+  },
+  cardImage: {
+    width: 80,
+    height: 120,
+    marginTop: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
   inputContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -4458,9 +4478,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  roleBadgeText: {
-    fontSize: 13,
-  },
+  // roleBadgeText is defined above
   actionText: {
     fontSize: 13,
     color: '#666',
@@ -5081,10 +5099,9 @@ const styles = StyleSheet.create({
   },
   // Mention Text Style
   mentionText: {
-    color: '#8B5CF6',
+    color: '#FF6B35',
     fontWeight: 'bold',
   },
-
   // Gift Message Styles
   giftMessageContainer: {
     marginBottom: 8,
