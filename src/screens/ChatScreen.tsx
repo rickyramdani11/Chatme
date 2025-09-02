@@ -4073,8 +4073,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   cardImage: {
-    width: 40,
-    height: 45,
+    width: 16,
+    height: 20,
     marginTop: 8,
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
@@ -4084,8 +4084,8 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   cardMessageImage: {
-    width: 40,
-    height: 45,
+    width: 20,
+    height: 25,
     marginTop: 8,
     borderRadius: 6,
     backgroundColor: '#f0f0f0',
