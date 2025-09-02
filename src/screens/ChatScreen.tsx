@@ -1904,7 +1904,7 @@ export default function ChatScreen() {
     // Handle command messages with different styles based on commandType
     if (item.type === 'command') {
       const isUserCommand = item.sender === user?.username;
-      const isBotCommand = item.commandType === 'bot';
+      const isBotCommand = item.commandType === 'bot' || item.sender === 'LowCardBot';
       const isSystemCommand = item.commandType === 'system';
 
       return (
@@ -2102,11 +2102,14 @@ export default function ChatScreen() {
             <Text style={styles.messageText}>
               <Text style={[
                 styles.senderName,
-                { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                { color: item.sender === 'LowCardBot' ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
               ]}>
                 {item.sender}: 
               </Text>
-              <Text style={styles.messageContent}>
+              <Text style={[
+                styles.messageContent,
+                { color: item.sender === 'LowCardBot' ? '#0f23bd' : '#333' }
+              ]}>
                 {renderMessageContent(item.content)}
               </Text>
             </Text>
