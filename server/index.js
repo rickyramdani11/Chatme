@@ -12,12 +12,11 @@ const fs = require('fs');
 // Import LowCard bot using CommonJS require
 let lowCardBot = null;
 try {
-  // Load TypeScript version only (JavaScript version removed)
-  const { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus } = require('./games/lowcard.ts');
-  lowCardBot = { processLowCardCommand, handleLowCardBot, isBotActiveInRoom, getBotStatus };
-  console.log('LowCard bot loaded successfully from TypeScript');
+  // Load JavaScript version to resolve TypeScript syntax error
+  lowCardBot = require('./games/lowcard.js');
+  console.log('LowCard bot loaded successfully from JavaScript');
 } catch (error) {
-  console.error('Failed to load LowCard bot from TypeScript:', error);
+  console.error('Failed to load LowCard bot from JavaScript:', error);
   console.error('Error details:', error.message);
 }
 
@@ -3889,7 +3888,7 @@ io.on('connection', (socket) => {
           console.log(`Broadcasting ${sender} message to room ${roomId}:`, content);
           // Use io.to() for system messages to ensure all clients receive them
           io.to(roomId).emit('new-message', newMessage);
-          
+
           // Also emit with a slight delay to ensure mobile clients receive it
           setTimeout(() => {
             io.to(roomId).emit('new-message', { ...newMessage, id: messageId + '_retry' });
@@ -3898,7 +3897,7 @@ io.on('connection', (socket) => {
           // Regular message broadcasting
           io.to(roomId).emit('new-message', newMessage);
         }
-        
+
         console.log(`Message broadcasted immediately to room ${roomId} from ${sender}:`, 
           (sender === 'System' || sender === 'LowCardBot') ? '[SYSTEM MESSAGE]' : '[USER MESSAGE]', content.substring(0, 50));
 
@@ -4072,7 +4071,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.username || socket.id}`);
 
-    // Remove participant completely from room if they were in one (for clean reconnection)
+    // Remove participant from room if they were in one (for clean reconnection)
     if (socket.roomId && socket.username) {
       try {
         if (roomParticipants[socket.roomId]) {
@@ -4431,7 +4430,7 @@ app.get('/api/credits/balance', authenticateToken, async (req, res) => {
     console.log('User ID:', userId);
 
     const result = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
-    
+
     let balance = 0;
     if (result.rows.length > 0) {
       balance = result.rows[0].balance;
@@ -4535,7 +4534,7 @@ app.post('/api/credits/transfer', authenticateToken, async (req, res) => {
       // Check sender's balance
       const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [fromUserId]);
       let senderBalance = 0;
-      
+
       if (balanceResult.rows.length > 0) {
         senderBalance = balanceResult.rows[0].balance;
       } else {
