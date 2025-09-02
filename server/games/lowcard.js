@@ -94,7 +94,7 @@ function startRound(io, room) {
     data.activePlayers.forEach(player => {
       if (!player.card) {
         player.card = drawCard();
-        sendBotMessage(io, room, `🎲 ${player.username} auto drew a card.`, `cards/${player.card.filename}`);
+        sendBotMessage(io, room, `🎲 ${player.username} auto drew a card. <card:/cards/${player.card.filename}>`, null);
       }
     });
 
@@ -124,17 +124,17 @@ function processRoundResults(io, room) {
   if (eliminatedCandidates.length > 1) {
     // Tie breaker - random selection
     eliminatedPlayer = eliminatedCandidates[Math.floor(Math.random() * eliminatedCandidates.length)];
-    sendBotMessage(io, room, `⚡ Tie broken! ${eliminatedPlayer.username} is ELIMINATED with the lowest card!`, `cards/${eliminatedPlayer.card.filename}`);
+    sendBotMessage(io, room, `⚡ Tie broken! ${eliminatedPlayer.username} is ELIMINATED with the lowest card! <card:/cards/${eliminatedPlayer.card.filename}>`, null);
   } else {
     eliminatedPlayer = eliminatedCandidates[0];
-    sendBotMessage(io, room, `💀 ${eliminatedPlayer.username} is ELIMINATED with the lowest card!`, `cards/${eliminatedPlayer.card.filename}`);
+    sendBotMessage(io, room, `💀 ${eliminatedPlayer.username} is ELIMINATED with the lowest card! <card:/cards/${eliminatedPlayer.card.filename}>`, null);
   }
 
   // Show round results
   sendBotMessage(io, room, `📊 Round ${data.currentRound} Results:`);
   sorted.forEach(player => {
     const status = player.username === eliminatedPlayer.username ? " ❌ ELIMINATED" : " ✅ SAFE";
-    sendBotMessage(io, room, `${player.username}: ${player.card.value.toUpperCase()}${player.card.suit.toUpperCase()}${status}`, `cards/${player.card.filename}`);
+    sendBotMessage(io, room, `${player.username}: ${player.card.value.toUpperCase()}${player.card.suit.toUpperCase()}${status} <card:/cards/${player.card.filename}>`, null);
   });
 
   // Remove eliminated player from active players
@@ -177,7 +177,7 @@ function finishGame(io, room) {
     tambahCoin(winner.id, winAmount);
 
     sendBotMessage(io, room, `🎉 GAME OVER! 🎉`);
-    sendBotMessage(io, room, `👑 ${winner.username} WINS THE GAME! +${winAmount.toFixed(1)} COIN`, `cards/${winner.card.filename}`);
+    sendBotMessage(io, room, `👑 ${winner.username} WINS THE GAME! +${winAmount.toFixed(1)} COIN <card:/cards/${winner.card.filename}>`, null);
     sendBotMessage(io, room, `💰 House cut: ${housecut.toFixed(1)} COIN`);
   } else {
     // This shouldn't happen, but handle it just in case
@@ -490,7 +490,7 @@ function handleLowCardCommand(io, room, command, args, userId, username) {
       }
 
       player.card = drawCard();
-      sendBotMessage(io, room, `🎴 ${username} drew a card!`, `cards/${player.card.filename}`);
+      sendBotMessage(io, room, `🎴 ${username} drew a card! <card:/cards/${player.card.filename}>`, null);
 
       // Check if all active players have drawn
       const allDrawn = data.activePlayers.every(p => p.card);
