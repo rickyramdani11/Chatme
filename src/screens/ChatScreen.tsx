@@ -1281,7 +1281,7 @@ export default function ChatScreen() {
         const unknownMessage = {
           id: `unknown_${Date.now()}_${user?.username}`,
           sender: 'System',
-          content: `❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user\n/ban [username] - Ban user\n/bot lowcard add - Add LowCard bot\n/lock [password] - Lock room (moderator/owner/admin only)`,
+          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user\n/ban [username] - Ban user\n/bot lowcard add - Add LowCard bot\n/lock [password] - Lock room (moderator/owner/admin only)',
           timestamp: new Date(),
           roomId: currentRoomId,
           role: 'system',
@@ -1388,7 +1388,7 @@ export default function ChatScreen() {
 
   const handleBackPress = () => {
     // Always navigate to Room screen instead of going back to Home
-    navigation.navigate('Room');
+    navigation.goBack();
   };
 
   const handleEllipsisPress = () => {
@@ -4480,26 +4480,27 @@ const styles = StyleSheet.create({
     color: '#8B4513', // Warna coklat untuk content
   },
   systemMessageContainer: {
-    alignItems: 'center',
-    marginVertical: 6,
+    marginVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF9800',
   },
   systemMessageRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginVertical: 4,
   },
   systemMessageText: {
     fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-    textAlign: 'left',
+    color: '#E65100',
+    fontWeight: '500',
     flex: 1,
-  },
-  systemMessageTime: {
-    fontSize: 11,
-    color: '#999',
-    marginLeft: 6,
-    alignSelf: 'flex-start',
+    lineHeight: 20,
+    marginRight: 8,
   },
   unreadBadge: {
     position: 'absolute',
