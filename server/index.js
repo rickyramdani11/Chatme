@@ -3833,8 +3833,25 @@ io.on('connection', (socket) => {
         // Check if this is a LowCard command (bot commands)
         if (lowCardBot && content && typeof content === 'string' && content.startsWith('!')) {
           console.log('Processing LowCard command:', content);
-          lowCardBot.processLowCardCommand(io, roomId, content, socket.userId || sender, sender);
-          return; // Don't broadcast as regular message
+          // Check if bot is active in room before processing command
+          if (lowCardBot.isBotActiveInRoom(roomId)) {
+            lowCardBot.processLowCardCommand(io, roomId, content, socket.userId || sender, sender);
+            return; // Don't broadcast as regular message
+          } else {
+            // Bot not active, send error message
+            const errorMessage = {
+              id: `${Date.now()}_system`,
+              sender: 'System',
+              content: '❌ LowCard Bot is not active in this room. Type "/bot lowcard add" to add the bot first.',
+              timestamp: new Date(),
+              roomId,
+              role: 'system',
+              level: 1,
+              type: 'error'
+            };
+            io.to(roomId).emit('new-message', errorMessage);
+            return;
+          }
         }
 
         // Handle bot commands that are marked as bot type

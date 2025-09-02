@@ -62,7 +62,17 @@ function tambahCoin(userId: string, amount: number): void {
 function ensureBotPresence(io: Server, roomId: string): void {
   if (!botPresence[roomId]) {
     botPresence[roomId] = true;
-    io.to(roomId).emit('bot_message', 'LowCardBot', 'LowCardBot is now active! Type !start <bet> to begin playing.', null, roomId);
+    const botMessage = {
+      id: `${Date.now()}_lowcardbot`,
+      sender: 'LowCardBot',
+      content: 'LowCardBot is now active! Type !start <bet> to begin playing.',
+      timestamp: new Date(),
+      roomId: roomId,
+      role: 'bot',
+      level: 999,
+      type: 'message'
+    };
+    io.to(roomId).emit('new-message', botMessage);
     console.log(`LowCardBot initialized in room: ${roomId}`);
   }
 }
@@ -71,7 +81,17 @@ function startJoinPhase(io: Server, room: string): void {
   const data = rooms[room];
   if (!data) return;
 
-  io.to(room).emit('bot_message', 'LowCardBot', `🎮 LowCard started by ${data.startedBy}! Enter !j to join the game. Cost: ${data.bet} COIN [30s]`, null, room);
+  const startMessage = {
+    id: `${Date.now()}_lowcardbot`,
+    sender: 'LowCardBot',
+    content: `🎮 LowCard started by ${data.startedBy}! Enter !j to join the game. Cost: ${data.bet} COIN [30s]`,
+    timestamp: new Date(),
+    roomId: room,
+    role: 'bot',
+    level: 999,
+    type: 'message'
+  };
+  io.to(room).emit('new-message', startMessage);
 
   data.timeout = setTimeout(() => {
     if (data.players.length < 2) {
@@ -248,6 +268,22 @@ export function getBotStatus(roomId: string): string {
 }
 
 // Direct command processing function
+// Helper function to send bot messages
+function sendBotMessage(io: Server, room: string, content: string, media: string | null = null): void {
+  const botMessage = {
+    id: `${Date.now()}_lowcardbot_${Math.random().toString(36).substr(2, 9)}`,
+    sender: 'LowCardBot',
+    content: content,
+    timestamp: new Date(),
+    roomId: room,
+    role: 'bot',
+    level: 999,
+    type: 'message',
+    media: media
+  };
+  io.to(room).emit('new-message', botMessage);
+}
+
 export function processLowCardCommand(io: Server, room: string, msg: string, userId: string, username: string): void {
   console.log('Processing LowCard command directly:', msg, 'in room:', room, 'for user:', username);
 
@@ -373,18 +409,18 @@ function handleLowCardCommand(io: Server, room: string, command: string, args: s
     switch (command) {
     case '!start': {
       if (rooms[room]) {
-        io.to(room).emit('bot_message', 'LowCardBot', `🎮 Game already in progress!`, null, room);
+        sendBotMessage(io, room, `🎮 Game already in progress!`);
         return;
       }
 
       const bet = parseInt(args[0]) || 50;
       if (bet <= 0) {
-        io.to(room).emit('bot_message', 'LowCardBot', `❌ Invalid bet amount! Must be greater than 0.`, null, room);
+        sendBotMessage(io, room, `❌ Invalid bet amount! Must be greater than 0.`);
         return;
       }
 
       if (bet > 10000) {
-        io.to(room).emit('bot_message', 'LowCardBot', `❌ Bet too high! Maximum bet is 10,000 COIN.`, null, room);
+        sendBotMessage(io, room, `❌ Bet too high! Maximum bet is 10,000 COIN.`);
         return;
       }
 
@@ -522,7 +558,7 @@ function handleLowCardCommand(io: Server, room: string, command: string, args: s
 - Each round, lowest card gets eliminated
 - Game continues until 1 player remains
 - Winner takes the pot (minus 10% house cut)`;
-        io.to(room).emit('bot_message', 'LowCardBot', helpText, null, room);
+        sendBotMessage(io, room, helpText);
         break;
       }
     }
