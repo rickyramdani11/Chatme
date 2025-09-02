@@ -38,6 +38,7 @@ interface Message {
   type?: 'join' | 'leave' | 'message' | 'command';
   commandType?: 'system' | 'bot';
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
+  image?: string;
 }
 
 interface ChatTab {
@@ -2109,20 +2110,30 @@ export default function ChatScreen() {
           {/* Level badge, username, and message content */}
           <View style={styles.messageContentRow}>
             <LevelBadge level={item.level || 1} />
-            <Text style={styles.messageText}>
-              <Text style={[
-                styles.senderName,
-                { color: item.sender === 'LowCardBot' ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-              ]}>
-                {item.sender}: 
+            <View style={styles.messageTextContainer}>
+              <Text style={styles.messageText}>
+                <Text style={[
+                  styles.senderName,
+                  { color: item.sender === 'LowCardBot' ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>
+                  {item.sender}: 
+                </Text>
+                <Text style={[
+                  styles.messageContent,
+                  { color: item.sender === 'LowCardBot' ? '#0f23bd' : '#333' }
+                ]}>
+                  {renderMessageContent(item.content)}
+                </Text>
               </Text>
-              <Text style={[
-                styles.messageContent,
-                { color: item.sender === 'LowCardBot' ? '#0f23bd' : '#333' }
-              ]}>
-                {renderMessageContent(item.content)}
-              </Text>
-            </Text>
+              {/* Display card image if available */}
+              {item.image && (
+                <Image
+                  source={{ uri: `${API_BASE_URL}${item.image}` }}
+                  style={styles.cardMessageImage}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
           </View>
 
           {/* Time */}
@@ -4067,6 +4078,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
+  },
+  messageTextContainer: {
+    flex: 1,
+    marginLeft: 6,
+  },
+  cardMessageImage: {
+    width: 60,
+    height: 90,
+    marginTop: 8,
+    borderRadius: 6,
+    backgroundColor: '#f0f0f0',
+    alignSelf: 'flex-start',
   },
   inputContainer: {
     paddingHorizontal: 16,

@@ -11,7 +11,8 @@ function drawCard() {
   const value = values[Math.floor(Math.random() * values.length)];
   const suit = suits[Math.floor(Math.random() * suits.length)];
   const filename = `lc_${value}${suit}.png`;
-  return { value, suit, filename };
+  const imageUrl = `/cards/${filename}`;
+  return { value, suit, filename, imageUrl };
 }
 
 function getCardValue(card) {
@@ -94,7 +95,7 @@ function startRound(io, room) {
     data.activePlayers.forEach(player => {
       if (!player.card) {
         player.card = drawCard();
-        sendBotMessage(io, room, `🎲 ${player.username} auto drew a card. <card:/cards/${player.card.filename}>`, null);
+        sendBotMessage(io, room, `🎲 ${player.username} auto drew a card.`, null, player.card.imageUrl);
       }
     });
 
@@ -124,17 +125,17 @@ function processRoundResults(io, room) {
   if (eliminatedCandidates.length > 1) {
     // Tie breaker - random selection
     eliminatedPlayer = eliminatedCandidates[Math.floor(Math.random() * eliminatedCandidates.length)];
-    sendBotMessage(io, room, `⚡ Tie broken! ${eliminatedPlayer.username} is ELIMINATED with the lowest card! <card:/cards/${eliminatedPlayer.card.filename}>`, null);
+    sendBotMessage(io, room, `⚡ Tie broken! ${eliminatedPlayer.username} is ELIMINATED with the lowest card!`, null, eliminatedPlayer.card.imageUrl);
   } else {
     eliminatedPlayer = eliminatedCandidates[0];
-    sendBotMessage(io, room, `💀 ${eliminatedPlayer.username} is ELIMINATED with the lowest card! <card:/cards/${eliminatedPlayer.card.filename}>`, null);
+    sendBotMessage(io, room, `💀 ${eliminatedPlayer.username} is ELIMINATED with the lowest card!`, null, eliminatedPlayer.card.imageUrl);
   }
 
   // Show round results
   sendBotMessage(io, room, `📊 Round ${data.currentRound} Results:`);
   sorted.forEach(player => {
     const status = player.username === eliminatedPlayer.username ? " ❌ ELIMINATED" : " ✅ SAFE";
-    sendBotMessage(io, room, `${player.username}: ${player.card.value.toUpperCase()}${player.card.suit.toUpperCase()}${status} <card:/cards/${player.card.filename}>`, null);
+    sendBotMessage(io, room, `${player.username}: ${player.card.value.toUpperCase()}${player.card.suit.toUpperCase()}${status}`, null, player.card.imageUrl);
   });
 
   // Remove eliminated player from active players
@@ -177,7 +178,7 @@ function finishGame(io, room) {
     tambahCoin(winner.id, winAmount);
 
     sendBotMessage(io, room, `🎉 GAME OVER! 🎉`);
-    sendBotMessage(io, room, `👑 ${winner.username} WINS THE GAME! +${winAmount.toFixed(1)} COIN <card:/cards/${winner.card.filename}>`, null);
+    sendBotMessage(io, room, `👑 ${winner.username} WINS THE GAME! +${winAmount.toFixed(1)} COIN`, null, winner.card.imageUrl);
     sendBotMessage(io, room, `💰 House cut: ${housecut.toFixed(1)} COIN`);
   } else {
     // This shouldn't happen, but handle it just in case
@@ -224,7 +225,7 @@ function getBotStatus(roomId) {
 }
 
 // Helper function to send bot messages
-function sendBotMessage(io, room, content, media = null) {
+function sendBotMessage(io, room, content, media = null, image = null) {
   const botMessage = {
     id: `${Date.now()}_lowcardbot_${Math.random().toString(36).substr(2, 9)}`,
     sender: 'LowCardBot',
@@ -234,7 +235,8 @@ function sendBotMessage(io, room, content, media = null) {
     role: 'bot',
     level: 999,
     type: 'message',
-    media: media
+    media: media,
+    image: image
   };
 
   console.log(`LowCardBot sending message to room ${room}:`, content);
@@ -251,6 +253,7 @@ function sendBotMessage(io, room, content, media = null) {
     level: 1,
     type: 'message',
     media: media,
+    image: image,
     timestamp: new Date().toISOString()
   });
 
@@ -490,7 +493,7 @@ function handleLowCardCommand(io, room, command, args, userId, username) {
       }
 
       player.card = drawCard();
-      sendBotMessage(io, room, `🎴 ${username} drew a card! <card:/cards/${player.card.filename}>`, null);
+      sendBotMessage(io, room, `🎴 ${username} drew a card!`, null, player.card.imageUrl);
 
       // Check if all active players have drawn
       const allDrawn = data.activePlayers.every(p => p.card);

@@ -3336,7 +3336,7 @@ app.get('/api/lowcard/games', (req, res) => {
 app.use('/api/feed/media', express.static(path.join(__dirname, 'uploads/media')));
 
 // Serve card assets for LowCard game
-app.use('/cards', express.static(path.join(__dirname, '..', 'assets', 'card')));
+app.use('/cards', express.static(path.join(__dirname, '../assets/card')));
 
 
 // Serve uploaded emoji files
@@ -4364,7 +4364,7 @@ app.get('/api/debug/media-files', (req, res) => {
   }
 });
 
-// Clean up posts with missing media files (admin only)
+// Cleanup missing media files from posts (admin only)
 app.post('/api/admin/cleanup-missing-media', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
