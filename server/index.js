@@ -3844,8 +3844,8 @@ io.on('connection', (socket) => {
           return; // Don't process as regular message
         }
 
-        // Determine command type for system commands
-        if (content && typeof content === 'string' && content.startsWith('/')) {
+        // Determine command type for system commands - but allow system messages through
+        if (content && typeof content === 'string' && content.startsWith('/') && sender !== 'System') {
           if (content.toLowerCase().includes('bot')) {
             commandType = 'bot';
           } else {
@@ -3875,7 +3875,8 @@ io.on('connection', (socket) => {
 
         // Broadcast to ALL users in the room IMMEDIATELY (prioritize speed)
         io.to(roomId).emit('new-message', newMessage);
-        console.log(`Message broadcasted immediately to room ${roomId} from ${sender}`);
+        console.log(`Message broadcasted immediately to room ${roomId} from ${sender}:`, 
+          sender === 'System' ? '[SYSTEM MESSAGE]' : '[USER MESSAGE]', content.substring(0, 50));
 
         // Save to database asynchronously (don't wait for it to complete)
         // Only save certain message types to database

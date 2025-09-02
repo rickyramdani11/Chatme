@@ -266,6 +266,14 @@ export default function ChatScreen() {
   useEffect(() => {
     if (socket) {
       socket.on('new-message', (newMessage: Message) => {
+        console.log('Received new message:', {
+          sender: newMessage.sender,
+          content: newMessage.content,
+          type: newMessage.type,
+          role: newMessage.role,
+          roomId: newMessage.roomId
+        });
+
         setChatTabs(prevTabs =>
           prevTabs.map(tab => {
             if (tab.id === newMessage.roomId) {
@@ -281,8 +289,8 @@ export default function ChatScreen() {
                 updatedMessages = [...tab.messages];
                 updatedMessages[existingIndex] = { ...newMessage };
               } else {
-                // Check for duplicates by content and sender (avoid double messages)
-                const isDuplicate = tab.messages.some(msg => 
+                // For system messages, be less strict about duplicates
+                const isDuplicate = newMessage.sender !== 'System' && tab.messages.some(msg => 
                   msg.sender === newMessage.sender && 
                   msg.content === newMessage.content &&
                   Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 2000
@@ -290,7 +298,9 @@ export default function ChatScreen() {
 
                 if (!isDuplicate) {
                   updatedMessages = [...tab.messages, newMessage];
+                  console.log('Message added to tab:', tab.id, 'Total messages:', updatedMessages.length);
                 } else {
+                  console.log('Duplicate message filtered out');
                   return tab; // Don't update if duplicate
                 }
               }
@@ -769,6 +779,8 @@ export default function ChatScreen() {
           const targetUsername = args[0];
           const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
 
+          console.log('Processing /whois command for:', targetUsername, 'Found user:', !!targetUser);
+
           if (targetUser) {
             const whoisMessage = {
               id: `whois_${Date.now()}_${user?.username}`,
@@ -778,10 +790,10 @@ export default function ChatScreen() {
               roomId: currentRoomId,
               role: 'system',
               level: 1,
-              type: 'whois'
+              type: 'message'
             };
 
-            // Only show to current user (local only)
+            // Add locally for immediate feedback
             setChatTabs(prevTabs =>
               prevTabs.map(tab => 
                 tab.id === currentRoomId
@@ -789,6 +801,8 @@ export default function ChatScreen() {
                   : tab
               )
             );
+
+            console.log('Whois message added locally');
           } else {
             const errorMessage = {
               id: `error_${Date.now()}_${user?.username}`,
@@ -798,7 +812,7 @@ export default function ChatScreen() {
               roomId: currentRoomId,
               role: 'system',
               level: 1,
-              type: 'error'
+              type: 'message'
             };
 
             setChatTabs(prevTabs =>
@@ -818,7 +832,7 @@ export default function ChatScreen() {
             roomId: currentRoomId,
             role: 'system',
             level: 1,
-            type: 'error'
+            type: 'message'
           };
 
           setChatTabs(prevTabs =>
@@ -837,33 +851,16 @@ export default function ChatScreen() {
         const max = 100;
         const rollResult = Math.floor(Math.random() * (max - min + 1)) + min;
 
-        const rollMessage = {
-          id: `roll_${Date.now()}_${user?.username}`,
-          sender: 'System',
-          content: `🎲 ${user?.username} rolled: ${rollResult} (1-100)`,
-          timestamp: new Date(),
-          roomId: currentRoomId,
-          role: 'system',
-          level: 1,
-          type: 'roll'
-        };
+        console.log('Processing /roll command, result:', rollResult);
 
-        // Add locally and emit to server
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab => 
-            tab.id === currentRoomId
-              ? { ...tab, messages: [...tab.messages, rollMessage] }
-              : tab
-          )
-        );
-
+        // Only emit to server, let the server broadcast back to all clients including sender
         socket?.emit('sendMessage', {
           roomId: currentRoomId,
           sender: 'System',
           content: `🎲 ${user?.username} rolled: ${rollResult} (1-100)`,
           role: 'system',
           level: 1,
-          type: 'roll'
+          type: 'message' // Changed from 'roll' to 'message' for better handling
         });
         break;
       }
@@ -2002,7 +1999,7 @@ export default function ChatScreen() {
     }
 
     // Handle system messages (from System sender) - INCLUDING roll messages
-    if (item.sender === 'System') {
+    if (item.sender === 'System' || item.role === 'system') {
       return (
         <TouchableOpacity 
           style={styles.systemMessageContainer}
