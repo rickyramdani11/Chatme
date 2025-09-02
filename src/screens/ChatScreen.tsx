@@ -178,12 +178,57 @@ export default function ChatScreen() {
           }
         }
 
+        // Create room info messages for room types (not private chats)
+        let roomInfoMessages = [];
+        if (type !== 'private') {
+          const currentTime = new Date();
+          
+          // Room description message
+          roomInfoMessages.push({
+            id: `room_info_desc_${roomId}`,
+            sender: roomName,
+            content: roomDescription || `Welcome to ${roomName} official chatroom`,
+            timestamp: new Date(currentTime.getTime() - 3000), // 3 seconds earlier
+            roomId: roomId,
+            role: 'system',
+            level: 1,
+            type: 'room_info'
+          });
+
+          // Managed by message  
+          roomInfoMessages.push({
+            id: `room_info_managed_${roomId}`,
+            sender: roomName,
+            content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
+            timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
+            roomId: roomId,
+            role: 'system',
+            level: 1,
+            type: 'room_info'
+          });
+
+          // Currently in the room message (will be updated with actual participants)
+          roomInfoMessages.push({
+            id: `room_info_current_${roomId}`,
+            sender: roomName,
+            content: `Currently in the room: Loading participants...`,
+            timestamp: new Date(currentTime.getTime() - 1000), // 1 second earlier
+            roomId: roomId,
+            role: 'system',
+            level: 1,
+            type: 'room_info'
+          });
+        }
+
+        // Combine room info messages with existing messages
+        const allMessages = [...roomInfoMessages, ...messages];
+
         // Create new tab for the room or private chat
         const newTab: ChatTab = {
           id: roomId,
           title: roomName,
           type: type || 'room',
-          messages: messages,
+          messages: allMessages,
           managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.createdBy || 'admin'),
           description: roomDescription || (type === 'private' ? `Private chat with ${targetUser?.username}` : `${roomName} room`),
           moderators: roomData?.moderators || []
@@ -365,6 +410,28 @@ export default function ChatScreen() {
       socket.on('participants-updated', (updatedParticipants: any[]) => {
         console.log('Participants updated:', updatedParticipants.length);
         setParticipants(updatedParticipants);
+        
+        // Update the "Currently in the room" message with new participants
+        if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private' && updatedParticipants.length > 0) {
+          const currentRoomId = chatTabs[activeTab].id;
+          const participantNames = updatedParticipants.map(p => p.username).join(', ');
+          const updatedContent = `Currently in the room: ${participantNames}`;
+          
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => {
+              if (tab.id === currentRoomId) {
+                const updatedMessages = tab.messages.map(msg => {
+                  if (msg.id === `room_info_current_${currentRoomId}`) {
+                    return { ...msg, content: updatedContent };
+                  }
+                  return msg;
+                });
+                return { ...tab, messages: updatedMessages };
+              }
+              return tab;
+            })
+          );
+        }
       });
 
       // Listen for user kicked events
@@ -1490,6 +1557,27 @@ export default function ChatScreen() {
             setParticipants(participantData);
             setFilteredParticipants(participantData); // Update filtered list too
             console.log('Participants loaded for room', currentRoomId, ':', participantData.length);
+            
+            // Update the "Currently in the room" message with actual participants
+            if (chatTabs[activeTab].type !== 'private' && participantData.length > 0) {
+              const participantNames = participantData.map(p => p.username).join(', ');
+              const updatedContent = `Currently in the room: ${participantNames}`;
+              
+              setChatTabs(prevTabs =>
+                prevTabs.map(tab => {
+                  if (tab.id === currentRoomId) {
+                    const updatedMessages = tab.messages.map(msg => {
+                      if (msg.id === `room_info_current_${currentRoomId}`) {
+                        return { ...msg, content: updatedContent };
+                      }
+                      return msg;
+                    });
+                    return { ...tab, messages: updatedMessages };
+                  }
+                  return tab;
+                })
+              );
+            }
           }
         } else {
           console.error('Failed to load participants for room', currentRoomId);
@@ -5138,12 +5226,18 @@ const styles = StyleSheet.create({
   // Room Info Message Styles
   roomInfoMessageContainer: {
     marginBottom: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#E8F5E8',
+    marginHorizontal: 8,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
   },
   roomInfoMessageRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginVertical: 4,
+    justifyContent: 'space-between',
   },
   roomInfoMessageText: {
     flex: 1,
@@ -5152,6 +5246,7 @@ const styles = StyleSheet.create({
   },
   roomInfoContent: {
     fontSize: 14,
-    color: '#666',
+    color: '#2E7D32',
+    fontWeight: '500',
   },
 });
