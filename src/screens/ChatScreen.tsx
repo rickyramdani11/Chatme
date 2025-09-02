@@ -1923,7 +1923,7 @@ export default function ChatScreen() {
                 <Text style={[
                   styles.senderName,
                   { 
-                    color: isBotCommand ? '#FF6B35' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                    color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                   }
                 ]}>
                   {item.sender}: 
@@ -1931,7 +1931,7 @@ export default function ChatScreen() {
                 <Text style={[
                   styles.messageContent, 
                   { 
-                    color: isBotCommand ? '#FF6B35' : '#8B4513', 
+                    color: isBotCommand ? '#0f23bd' : '#8B4513', 
                     fontWeight: 'bold',
                     fontStyle: isBotCommand ? 'italic' : 'normal'
                   }
@@ -3949,7 +3949,7 @@ const styles = StyleSheet.create({
   botCommandContainer: {
     backgroundColor: '#FFF3E0',
     borderLeftWidth: 3,
-    borderLeftColor: '#FF6B35',
+    borderLeftColor: '#167027',
     borderRadius: 8,
     marginVertical: 2,
   },
