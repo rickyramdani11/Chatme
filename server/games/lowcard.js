@@ -248,7 +248,7 @@ function sendBotMessage(io, room, content, media = null) {
     sender: 'LowCardBot',
     content: content,
     role: 'bot',
-    level: 999,
+    level: 1,
     type: 'message',
     media: media,
     timestamp: new Date().toISOString()
