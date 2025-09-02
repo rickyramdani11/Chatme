@@ -62,17 +62,7 @@ function tambahCoin(userId: string, amount: number): void {
 function ensureBotPresence(io: Server, roomId: string): void {
   if (!botPresence[roomId]) {
     botPresence[roomId] = true;
-    const botMessage = {
-      id: `${Date.now()}_lowcardbot`,
-      sender: 'LowCardBot',
-      content: 'LowCardBot is now active! Type !start <bet> to begin playing.',
-      timestamp: new Date(),
-      roomId: roomId,
-      role: 'bot',
-      level: 999,
-      type: 'message'
-    };
-    io.to(roomId).emit('new-message', botMessage);
+    sendBotMessage(io, roomId, 'LowCardBot is now active! Type !start <bet> to begin playing.');
     console.log(`LowCardBot initialized in room: ${roomId}`);
   }
 }
@@ -81,28 +71,18 @@ function startJoinPhase(io: Server, room: string): void {
   const data = rooms[room];
   if (!data) return;
 
-  const startMessage = {
-    id: `${Date.now()}_lowcardbot`,
-    sender: 'LowCardBot',
-    content: `🎮 LowCard started by ${data.startedBy}! Enter !j to join the game. Cost: ${data.bet} COIN [30s]`,
-    timestamp: new Date(),
-    roomId: room,
-    role: 'bot',
-    level: 999,
-    type: 'message'
-  };
-  io.to(room).emit('new-message', startMessage);
+  sendBotMessage(io, room, `🎮 LowCard started by ${data.startedBy}! Enter !j to join the game. Cost: ${data.bet} COIN [30s]`);
 
   data.timeout = setTimeout(() => {
     if (data.players.length < 2) {
-      io.to(room).emit('bot_message', 'LowCardBot', `⏰ Joining ends. Not enough players. Need at least 2 players.`, null, room);
-      io.to(room).emit('bot_message', 'LowCardBot', `❌ Game canceled`, null, room);
+      sendBotMessage(io, room, `⏰ Joining ends. Not enough players. Need at least 2 players.`);
+      sendBotMessage(io, room, `❌ Game canceled`);
       delete rooms[room];
     } else {
       data.activePlayers = [...data.players];
       data.totalRounds = data.players.length - 1; // Total rounds = players - 1
       data.currentRound = 1;
-      io.to(room).emit('bot_message', 'LowCardBot', `🎯 Game starting with ${data.players.length} players! Total rounds: ${data.totalRounds}`, null, room);
+      sendBotMessage(io, room, `🎯 Game starting with ${data.players.length} players! Total rounds: ${data.totalRounds}`);
       startRound(io, room);
     }
   }, 30000);
@@ -130,15 +110,15 @@ function startRound(io: Server, room: string): void {
     player.card = undefined;
   });
 
-  io.to(room).emit('bot_message', 'LowCardBot', `🔥 ROUND ${data.currentRound}/${data.totalRounds} - ${data.activePlayers.length} players remaining`, null, room);
-  io.to(room).emit('bot_message', 'LowCardBot', `🎴 Draw phase started! Type !d to draw your card. [20s auto-draw]`, null, room);
+  sendBotMessage(io, room, `🔥 ROUND ${data.currentRound}/${data.totalRounds} - ${data.activePlayers.length} players remaining`);
+  sendBotMessage(io, room, `🎴 Draw phase started! Type !d to draw your card. [20s auto-draw]`);
 
   // Auto-draw after 20 seconds
   data.drawTimeout = setTimeout(() => {
     data.activePlayers.forEach(player => {
       if (!player.card) {
         player.card = drawCard();
-        io.to(room).emit('bot_message', 'LowCardBot', `🎲 ${player.username} auto drew a card.`, `cards/${player.card.filename}`, room);
+        sendBotMessage(io, room, `🎲 ${player.username} auto drew a card.`, `cards/${player.card.filename}`);
       }
     });
 
@@ -274,14 +254,21 @@ function sendBotMessage(io: Server, room: string, content: string, media: string
     id: `${Date.now()}_lowcardbot_${Math.random().toString(36).substr(2, 9)}`,
     sender: 'LowCardBot',
     content: content,
-    timestamp: new Date(),
+    timestamp: new Date().toISOString(),
     roomId: room,
     role: 'bot',
     level: 999,
     type: 'message',
     media: media
   };
+  
+  console.log(`LowCardBot sending message to room ${room}:`, content);
   io.to(room).emit('new-message', botMessage);
+  
+  // Also emit with slight delay to ensure delivery
+  setTimeout(() => {
+    io.to(room).emit('new-message', { ...botMessage, id: botMessage.id + '_retry' });
+  }, 50);
 }
 
 export function processLowCardCommand(io: Server, room: string, msg: string, userId: string, username: string): void {
@@ -441,28 +428,28 @@ function handleLowCardCommand(io: Server, room: string, command: string, args: s
       case '!j': {
         const data = rooms[room];
         if (!data) {
-          io.to(room).emit('bot_message', 'LowCardBot', `❌ No game in progress. Type !start <bet> to start a game.`, null, room);
+          sendBotMessage(io, room, `❌ No game in progress. Type !start <bet> to start a game.`);
           return;
         }
 
         if (data.isRunning) {
-          io.to(room).emit('bot_message', 'LowCardBot', `⚠️ Game already started! Wait for next game.`, null, room);
+          sendBotMessage(io, room, `⚠️ Game already started! Wait for next game.`);
           return;
         }
 
         if (data.players.find(p => p.username === username)) {
-          io.to(room).emit('bot_message', 'LowCardBot', `⚠️ ${username} already joined!`, null, room);
+          sendBotMessage(io, room, `⚠️ ${username} already joined!`);
           return;
         }
 
         if (data.players.length >= 200) {
-          io.to(room).emit('bot_message', 'LowCardBot', `❌ Game is full! Maximum 200 players.`, null, room);
+          sendBotMessage(io, room, `❌ Game is full! Maximum 200 players.`);
           return;
         }
 
         // Check if user has enough coins
         if (!potongCoin(userId, data.bet)) {
-          io.to(room).emit('bot_message', 'LowCardBot', `❌ ${username} doesn't have enough COIN to join.`, null, room);
+          sendBotMessage(io, room, `❌ ${username} doesn't have enough COIN to join.`);
           return;
         }
 
@@ -476,7 +463,7 @@ function handleLowCardCommand(io: Server, room: string, command: string, args: s
         };
 
         data.players.push(player);
-        io.to(room).emit('bot_message', 'LowCardBot', `✅ ${username} joined the game! (${data.players.length} players)`, null, room);
+        sendBotMessage(io, room, `✅ ${username} joined the game! (${data.players.length} players)`);
         break;
       }
 

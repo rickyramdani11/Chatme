@@ -3799,17 +3799,17 @@ io.on('connection', (socket) => {
             lowCardBot.processLowCardCommand(io, roomId, '/init_bot', socket.userId || sender, sender);
 
             // Send confirmation message with bot command type
-            io.to(roomId).emit('new-message', {
-              id: `${Date.now()}_system`,
-              sender: 'System',
+            const confirmMessage = {
+              id: `${Date.now()}_lowcardbot`,
+              sender: 'LowCardBot',
               content: '✅ LowCard Bot berhasil ditambahkan ke room ini! Ketik !help untuk melihat command yang tersedia.',
               timestamp: new Date(),
               roomId,
-              role: 'system',
-              level: 1,
-              type: 'command',
-              commandType: 'bot'
-            });
+              role: 'bot',
+              level: 999,
+              type: 'message'
+            };
+            io.to(roomId).emit('new-message', confirmMessage);
 
             console.log(`LowCard Bot initialized in room ${roomId} by user ${sender}`);
           } else {
@@ -3822,8 +3822,7 @@ io.on('connection', (socket) => {
               roomId,
               role: 'system',
               level: 1,
-              type: 'command',
-              commandType: 'bot'
+              type: 'error'
             });
             console.log(`LowCard Bot not available for room ${roomId}`);
           }
@@ -3841,12 +3840,12 @@ io.on('connection', (socket) => {
             // Bot not active, send error message
             const errorMessage = {
               id: `${Date.now()}_system`,
-              sender: 'System',
+              sender: 'LowCardBot',
               content: '❌ LowCard Bot is not active in this room. Type "/bot lowcard add" to add the bot first.',
               timestamp: new Date(),
               roomId,
-              role: 'system',
-              level: 1,
+              role: 'bot',
+              level: 999,
               type: 'error'
             };
             io.to(roomId).emit('new-message', errorMessage);
@@ -3862,7 +3861,7 @@ io.on('connection', (socket) => {
         }
 
         // Determine command type for system commands - but allow system messages through
-        if (content && typeof content === 'string' && content.startsWith('/') && sender !== 'System') {
+        if (content && typeof content === 'string' && content.startsWith('/') && sender !== 'System' && sender !== 'LowCardBot') {
           if (content.toLowerCase().includes('bot')) {
             commandType = 'bot';
           } else {
@@ -3872,7 +3871,7 @@ io.on('connection', (socket) => {
         }
 
         // Don't save special command messages to database if they are system messages
-        const shouldSaveToDatabase = !['me', 'roll', 'gift', 'whois', 'error'].includes(type);
+        const shouldSaveToDatabase = !['me', 'roll', 'gift', 'whois', 'error'].includes(type) && sender !== 'LowCardBot';
 
         // Create message with unique ID (use tempId if provided for optimistic updates)
         const messageId = tempId ? tempId.replace('temp_', '') + '_confirmed' : `${Date.now()}_${sender}_${Math.random().toString(36).substr(2, 9)}`;
@@ -3883,16 +3882,16 @@ io.on('connection', (socket) => {
           content,
           timestamp: new Date().toISOString(), // Ensure consistent timestamp format
           roomId,
-          role: role || (sender === 'System' ? 'system' : 'user'),
-          level: level || 1,
+          role: role || (sender === 'System' ? 'system' : sender === 'LowCardBot' ? 'bot' : 'user'),
+          level: level || (sender === 'LowCardBot' ? 999 : 1),
           type: type || 'message',
           commandType: commandType || null,
           gift: gift || null
         };
 
-        // Special handling for System messages to ensure they reach all clients
-        if (sender === 'System') {
-          console.log(`Broadcasting SYSTEM message to room ${roomId}:`, content);
+        // Special handling for System and LowCardBot messages to ensure they reach all clients
+        if (sender === 'System' || sender === 'LowCardBot') {
+          console.log(`Broadcasting ${sender} message to room ${roomId}:`, content);
           // Use io.to() for system messages to ensure all clients receive them
           io.to(roomId).emit('new-message', newMessage);
           
@@ -3906,7 +3905,7 @@ io.on('connection', (socket) => {
         }
         
         console.log(`Message broadcasted immediately to room ${roomId} from ${sender}:`, 
-          sender === 'System' ? '[SYSTEM MESSAGE]' : '[USER MESSAGE]', content.substring(0, 50));
+          (sender === 'System' || sender === 'LowCardBot') ? '[SYSTEM MESSAGE]' : '[USER MESSAGE]', content.substring(0, 50));
 
         // Save to database asynchronously (don't wait for it to complete)
         // Only save certain message types to database
