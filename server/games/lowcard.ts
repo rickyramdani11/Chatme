@@ -62,7 +62,7 @@ function tambahCoin(userId: string, amount: number): void {
 function ensureBotPresence(io: Server, roomId: string): void {
   if (!botPresence[roomId]) {
     botPresence[roomId] = true;
-    sendBotMessage(io, roomId, 'LowCardBot is now active! Type !start <bet> to begin playing.');
+    sendBotMessage(io, roomId, 'LowCardBot is now active! Type !start <bet> to begin playing');
     console.log(`LowCardBot initialized in room: ${roomId}`);
   }
 }
@@ -309,10 +309,10 @@ export function processLowCardCommand(io: Server, room: string, msg: string, use
     console.log(`Force initializing LowCardBot in room ${room}`);
     if (!botPresence[room]) {
       botPresence[room] = true;
-      io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot is now active! Type !start <bet> to begin playing or !help for commands.', null, room);
+      sendBotMessage(io, room, 'LowCardBot is now active! Type !start <bet> to begin playing');
       console.log(`LowCardBot successfully activated in room ${room}`);
     } else {
-      io.to(room).emit('bot_message', 'LowCardBot', '⚠️ LowCardBot is already active in this room! Type !help for commands.', null, room);
+      sendBotMessage(io, room, '⚠️ LowCardBot is already active in this room! Type !help for commands.');
       console.log(`LowCardBot already active in room ${room}`);
     }
     return;
@@ -323,10 +323,10 @@ export function processLowCardCommand(io: Server, room: string, msg: string, use
     console.log(`Add bot command received in room ${room}`);
     if (!botPresence[room]) {
       botPresence[room] = true;
-      io.to(room).emit('bot_message', 'LowCardBot', '🎮 LowCardBot has been added to this room! Type !start <bet> to begin playing or !help for commands.', null, room);
+      sendBotMessage(io, room, 'LowCardBot is now active! Type !start <bet> to begin playing');
       console.log(`LowCardBot successfully added to room ${room}`);
     } else {
-      io.to(room).emit('bot_message', 'LowCardBot', '⚠️ LowCardBot is already active in this room! Type !help for commands.', null, room);
+      sendBotMessage(io, room, '⚠️ LowCardBot is already active in this room! Type !help for commands.');
       console.log(`LowCardBot already active in room ${room}`);
     }
     return;

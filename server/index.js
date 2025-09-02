@@ -3802,7 +3802,7 @@ io.on('connection', (socket) => {
             const confirmMessage = {
               id: `${Date.now()}_lowcardbot`,
               sender: 'LowCardBot',
-              content: '✅ LowCard Bot berhasil ditambahkan ke room ini! Ketik !help untuk melihat command yang tersedia.',
+              content: 'LowCardBot is now active! Type !start <bet> to begin playing',
               timestamp: new Date(),
               roomId,
               role: 'bot',
