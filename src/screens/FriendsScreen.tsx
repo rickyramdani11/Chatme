@@ -32,7 +32,7 @@ interface Friend {
 }
 
 export default function FriendsScreen() {
-  const { user, authToken } = useAuth();
+  const { user, token: authToken } = useAuth();
   const navigation = useNavigation();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -49,6 +49,28 @@ export default function FriendsScreen() {
       case 'offline': return '#9E9E9E';
       default: return '#9E9E9E';
     }
+  };
+
+  const getRandomAvatarColor = (name: string) => {
+    const colors = [
+      '#FF6B6B', // Red
+      '#4ECDC4', // Teal
+      '#45B7D1', // Blue
+      '#96CEB4', // Green
+      '#FFEAA7', // Yellow
+      '#DDA0DD', // Plum
+      '#98D8C8', // Mint
+      '#F7DC6F', // Gold
+      '#BB8FCE', // Purple
+      '#85C1E9', // Light Blue
+      '#82E0AA', // Light Green
+      '#F8C471'  // Orange
+    ];
+    
+    // Use first character to determine color consistently
+    const firstChar = name?.charAt(0).toUpperCase() || 'A';
+    const index = firstChar.charCodeAt(0) % colors.length;
+    return colors[index];
   };
 
   const formatLastSeen = (lastSeen?: string) => {
@@ -77,6 +99,7 @@ export default function FriendsScreen() {
         const diffMs = now.getTime() - lastSeenDate.getTime();
         minutes = Math.floor(diffMs / 1000 / 60);
       } else {
+        // Fix the decimal issue by rounding properly
         minutes = Math.round(numericValue);
       }
       
@@ -211,12 +234,12 @@ export default function FriendsScreen() {
   };
 
   const startChat = (friendId: string, friendName: string) => {
-    navigation.navigate('Chat', {
+    navigation.navigate('Chat' as never, {
       roomId: `private_${user?.id}_${friendId}`,
       roomName: friendName,
       type: 'private',
       targetUser: { id: friendId, username: friendName }
-    });
+    } as never);
   };
 
   const handleFriendPress = (friend: Friend) => {
@@ -227,10 +250,10 @@ export default function FriendsScreen() {
   const handleViewProfile = () => {
     if (selectedFriend) {
       setShowFriendMenu(false);
-      navigation.navigate('Profile', { 
+      navigation.navigate('Profile' as never, { 
         userId: selectedFriend.id,
         username: selectedFriend.username 
-      });
+      } as never);
     }
   };
 
@@ -270,11 +293,55 @@ export default function FriendsScreen() {
   const handleSendCredit = () => {
     if (selectedFriend) {
       setShowFriendMenu(false);
-      navigation.navigate('Credit', { 
+      navigation.navigate('Credit' as never, { 
         recipientId: selectedFriend.id,
         recipientName: selectedFriend.name 
-      });
+      } as never);
     }
+  };
+
+  const handleReportUser = async () => {
+    if (!selectedFriend) return;
+
+    Alert.alert(
+      'Report User',
+      `Are you sure you want to report ${selectedFriend.name}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/report`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${authToken}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+                body: JSON.stringify({
+                  reason: 'inappropriate_behavior'
+                })
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', `${selectedFriend.name} has been reported`);
+                setShowFriendMenu(false);
+              } else {
+                Alert.alert('Error', 'Failed to report user');
+              }
+            } catch (error) {
+              console.error('Error reporting user:', error);
+              Alert.alert('Error', 'Failed to report user');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const onRefresh = () => {
@@ -310,7 +377,7 @@ export default function FriendsScreen() {
               onError={() => console.log('Failed to load avatar:', friend.avatar)}
             />
           ) : (
-            <View style={[styles.friendAvatar, { backgroundColor: friend.status === 'online' ? '#FF6B6B' : '#9E9E9E' }]}>
+            <View style={[styles.friendAvatar, { backgroundColor: getRandomAvatarColor(friend.name || friend.username) }]}>
               <Text style={styles.friendAvatarText}>
                 {friend.name?.charAt(0).toUpperCase() || friend.username?.charAt(0).toUpperCase() || 'U'}
               </Text>
@@ -427,7 +494,7 @@ export default function FriendsScreen() {
         >
           <View style={styles.friendContextMenu}>
             <View style={styles.friendMenuHeader}>
-              <View style={styles.friendMenuAvatar}>
+              <View style={[styles.friendMenuAvatar, { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username) : '#9E9E9E' }]}>
                 {selectedFriend?.avatar ? (
                   <Image source={{ uri: selectedFriend.avatar }} style={styles.friendMenuAvatarImage} />
                 ) : (
@@ -461,6 +528,14 @@ export default function FriendsScreen() {
             >
               <Ionicons name="ban-outline" size={20} color="#FF9800" />
               <Text style={[styles.friendMenuText, { color: '#FF9800' }]}>Block</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.friendMenuItem}
+              onPress={handleReportUser}
+            >
+              <Ionicons name="flag-outline" size={20} color="#F44336" />
+              <Text style={[styles.friendMenuText, { color: '#F44336' }]}>Report</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
