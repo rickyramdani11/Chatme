@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 
 const getApiUrl = () => {
-  return 'https://e653981d-8c1d-42e9-ae17-0d92458f6b31-00-35u2atgrulslj.sisko.replit.dev:3001';
+  return 'https://8eb72a49-98f6-40d0-aa6c-9df3233b0bdc-00-lpr3kex6v32o.sisko.replit.dev:3001';
 };
 
 interface Notification {
