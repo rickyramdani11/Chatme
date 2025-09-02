@@ -9,7 +9,8 @@ import {
   Image,
   Alert,
   RefreshControl,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,6 +45,8 @@ const HomeScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showFriendMenu, setShowFriendMenu] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const { token } = useAuth();
 
   // API configuration
@@ -301,6 +304,28 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  const getRandomAvatarColor = (name: string) => {
+    const colors = [
+      '#FF6B6B', // Red
+      '#4ECDC4', // Teal
+      '#45B7D1', // Blue
+      '#96CEB4', // Green
+      '#FFEAA7', // Yellow
+      '#DDA0DD', // Plum
+      '#98D8C8', // Mint
+      '#F7DC6F', // Gold
+      '#BB8FCE', // Purple
+      '#85C1E9', // Light Blue
+      '#82E0AA', // Light Green
+      '#F8C471'  // Orange
+    ];
+    
+    // Use first character to determine color consistently
+    const firstChar = name?.charAt(0).toUpperCase() || 'A';
+    const index = firstChar.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
   const formatLastSeen = (lastSeen?: string) => {
     if (!lastSeen) return 'Active now';
 
@@ -327,6 +352,7 @@ const HomeScreen = ({ navigation }: any) => {
         const diffMs = now.getTime() - lastSeenDate.getTime();
         minutes = Math.floor(diffMs / 1000 / 60);
       } else {
+        // Fix the decimal issue by rounding properly
         minutes = Math.round(numericValue);
       }
 
@@ -424,16 +450,112 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  const handleFriendPress = (friend: Friend) => {
+    setSelectedFriend(friend);
+    setShowFriendMenu(true);
+  };
+
+  const handleViewProfile = () => {
+    if (selectedFriend) {
+      setShowFriendMenu(false);
+      navigation.navigate('Profile' as never, { 
+        userId: selectedFriend.id,
+        username: selectedFriend.name 
+      } as never);
+    }
+  };
+
+  const handleStartChat = () => {
+    if (selectedFriend) {
+      setShowFriendMenu(false);
+      startChat(selectedFriend.id, selectedFriend.name);
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!selectedFriend) return;
+
+    try {
+      const response = await fetch(`${getApiUrl()}/api/users/${selectedFriend.id}/block`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', `${selectedFriend.name} has been blocked`);
+        setShowFriendMenu(false);
+        fetchFriends(); // Refresh friends list
+      } else {
+        Alert.alert('Error', 'Failed to block user');
+      }
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      Alert.alert('Error', 'Failed to block user');
+    }
+  };
+
+  const handleReportUser = async () => {
+    if (!selectedFriend) return;
+
+    Alert.alert(
+      'Report User',
+      `Are you sure you want to report ${selectedFriend.name}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${getApiUrl()}/api/users/${selectedFriend.id}/report`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+                body: JSON.stringify({
+                  reason: 'inappropriate_behavior'
+                })
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', `${selectedFriend.name} has been reported`);
+                setShowFriendMenu(false);
+              } else {
+                Alert.alert('Error', 'Failed to report user');
+              }
+            } catch (error) {
+              console.error('Error reporting user:', error);
+              Alert.alert('Error', 'Failed to report user');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderFriend = (friend: Friend) => (
     <View key={friend.id} style={styles.friendCard}>
-      <View style={styles.friendInfo}>
+      <TouchableOpacity 
+        style={styles.friendInfo}
+        onPress={() => handleFriendPress(friend)}
+        activeOpacity={0.7}
+      >
         <View style={styles.friendAvatarContainer}>
           {friend.avatar?.startsWith('http') ? (
             <Image source={{ uri: friend.avatar }} style={styles.friendAvatar} />
           ) : (
-            <View style={[styles.friendAvatar, { backgroundColor: friend.status === 'online' ? '#FF6B6B' : '#9E9E9E' }]}>
+            <View style={[styles.friendAvatar, { backgroundColor: getRandomAvatarColor(friend.name) }]}>
               <Text style={styles.friendAvatarText}>
-                {friend.avatar || friend.name?.charAt(0).toUpperCase() || 'U'}
+                {friend.name?.charAt(0).toUpperCase() || 'U'}
               </Text>
             </View>
           )}
@@ -443,7 +565,7 @@ const HomeScreen = ({ navigation }: any) => {
           <Text style={styles.friendName}>{friend.name}</Text>
           <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       <View style={styles.actionButtons}>
         {/* Show action buttons only when searching users (not friends) */}
@@ -585,6 +707,67 @@ const HomeScreen = ({ navigation }: any) => {
           )}
         </ScrollView>
       </View>
+
+      {/* Friend Context Menu Modal */}
+      <Modal
+        visible={showFriendMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFriendMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFriendMenu(false)}
+        >
+          <View style={styles.friendContextMenu}>
+            <View style={styles.friendMenuHeader}>
+              <View style={[styles.friendMenuAvatar, { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name) : '#9E9E9E' }]}>
+                {selectedFriend?.avatar ? (
+                  <Image source={{ uri: selectedFriend.avatar }} style={styles.friendMenuAvatarImage} />
+                ) : (
+                  <Text style={styles.friendMenuAvatarText}>
+                    {selectedFriend?.name?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.friendMenuName}>{selectedFriend?.name}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.friendMenuItem}
+              onPress={handleStartChat}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#2196F3" />
+              <Text style={styles.friendMenuText}>Chat</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.friendMenuItem}
+              onPress={handleViewProfile}
+            >
+              <Ionicons name="person-outline" size={20} color="#333" />
+              <Text style={styles.friendMenuText}>Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.friendMenuItem}
+              onPress={handleBlockUser}
+            >
+              <Ionicons name="ban-outline" size={20} color="#FF9800" />
+              <Text style={[styles.friendMenuText, { color: '#FF9800' }]}>Block</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.friendMenuItem, styles.lastFriendMenuItem]}
+              onPress={handleReportUser}
+            >
+              <Ionicons name="flag-outline" size={20} color="#F44336" />
+              <Text style={[styles.friendMenuText, { color: '#F44336' }]}>Report</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -924,6 +1107,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderWidth: 1,
     borderColor: '#fff',
+  },
+  // Friend Context Menu Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  friendContextMenu: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: 280,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  friendMenuHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  friendMenuAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  friendMenuAvatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  friendMenuAvatarText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  friendMenuName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  friendMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  lastFriendMenuItem: {
+    borderBottomWidth: 0,
+  },
+  friendMenuText: {
+    fontSize: 16,
+    marginLeft: 15,
+    color: '#333',
   },
 });
 
