@@ -274,6 +274,11 @@ export default function ChatScreen() {
           roomId: newMessage.roomId
         });
 
+        // Ensure timestamp is a proper Date object
+        if (typeof newMessage.timestamp === 'string') {
+          newMessage.timestamp = new Date(newMessage.timestamp);
+        }
+
         setChatTabs(prevTabs =>
           prevTabs.map(tab => {
             if (tab.id === newMessage.roomId) {
@@ -288,20 +293,27 @@ export default function ChatScreen() {
                 // Replace optimistic message with real message
                 updatedMessages = [...tab.messages];
                 updatedMessages[existingIndex] = { ...newMessage };
+                console.log('Replaced optimistic message with real message');
               } else {
-                // For system messages, be less strict about duplicates
-                const isDuplicate = newMessage.sender !== 'System' && tab.messages.some(msg => 
-                  msg.sender === newMessage.sender && 
-                  msg.content === newMessage.content &&
-                  Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 2000
-                );
-
-                if (!isDuplicate) {
+                // Always add system messages without duplicate check (they're from server and should be shown)
+                if (newMessage.sender === 'System') {
                   updatedMessages = [...tab.messages, newMessage];
-                  console.log('Message added to tab:', tab.id, 'Total messages:', updatedMessages.length);
+                  console.log('System message added to tab:', tab.id, 'Content:', newMessage.content.substring(0, 50));
                 } else {
-                  console.log('Duplicate message filtered out');
-                  return tab; // Don't update if duplicate
+                  // For user messages, still check for duplicates
+                  const isDuplicate = tab.messages.some(msg => 
+                    msg.sender === newMessage.sender && 
+                    msg.content === newMessage.content &&
+                    Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 2000
+                  );
+
+                  if (!isDuplicate) {
+                    updatedMessages = [...tab.messages, newMessage];
+                    console.log('User message added to tab:', tab.id, 'Total messages:', updatedMessages.length);
+                  } else {
+                    console.log('Duplicate user message filtered out');
+                    return tab; // Don't update if duplicate
+                  }
                 }
               }
 
@@ -2000,13 +2012,14 @@ export default function ChatScreen() {
 
     // Handle system messages (from System sender) - INCLUDING roll messages
     if (item.sender === 'System' || item.role === 'system') {
+      console.log('Rendering system message:', item.content);
       return (
         <TouchableOpacity 
           style={styles.systemMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.systemMessageRow}>
-            <Text style={styles.systemMessageText}>
+            <Text style={[styles.systemMessageText, { color: '#8B4513', fontWeight: 'bold' }]}>
               {item.content}
             </Text>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>

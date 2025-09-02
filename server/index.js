@@ -3864,17 +3864,30 @@ io.on('connection', (socket) => {
           id: messageId,
           sender,
           content,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(), // Ensure consistent timestamp format
           roomId,
-          role: role || 'user',
+          role: role || (sender === 'System' ? 'system' : 'user'),
           level: level || 1,
           type: type || 'message',
           commandType: commandType || null,
           gift: gift || null
         };
 
-        // Broadcast to ALL users in the room IMMEDIATELY (prioritize speed)
-        io.to(roomId).emit('new-message', newMessage);
+        // Special handling for System messages to ensure they reach all clients
+        if (sender === 'System') {
+          console.log(`Broadcasting SYSTEM message to room ${roomId}:`, content);
+          // Use io.to() for system messages to ensure all clients receive them
+          io.to(roomId).emit('new-message', newMessage);
+          
+          // Also emit with a slight delay to ensure mobile clients receive it
+          setTimeout(() => {
+            io.to(roomId).emit('new-message', { ...newMessage, id: messageId + '_retry' });
+          }, 100);
+        } else {
+          // Regular message broadcasting
+          io.to(roomId).emit('new-message', newMessage);
+        }
+        
         console.log(`Message broadcasted immediately to room ${roomId} from ${sender}:`, 
           sender === 'System' ? '[SYSTEM MESSAGE]' : '[USER MESSAGE]', content.substring(0, 50));
 
