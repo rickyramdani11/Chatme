@@ -16,7 +16,8 @@ import {
   Keyboard,
   Platform,
   Image,
-  KeyboardAvoidingView, // Added KeyboardAvoidingView
+  KeyboardAvoidingView,
+  AppState, // Added AppState for background reconnection
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ import { Video } from 'expo-av';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 
 const { width } = Dimensions.get('window');
 
@@ -94,6 +96,10 @@ export default function ChatScreen() {
   const [filteredParticipants, setFilteredParticipants] = useState<any[]>([]);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const maxReconnectAttempts = 5;
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { user } = useAuth();
 
   // Static Level Badge Component (no blinking)
@@ -273,13 +279,144 @@ export default function ChatScreen() {
     }
   };
 
+  // Initialize socket with persistent connection and auto-reconnect
   useEffect(() => {
-    // Initialize socket connection
-    const newSocket = io(API_BASE_URL);
-    setSocket(newSocket);
+    const initializeSocket = () => {
+      console.log('Initializing socket connection...');
+      
+      const newSocket = io(API_BASE_URL, {
+        transports: ['websocket'], // Force WebSocket transport for better persistence
+        autoConnect: true,
+        reconnection: true,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
+        reconnectionAttempts: maxReconnectAttempts,
+        timeout: 20000,
+        forceNew: true,
+      });
+
+      // Connection events
+      newSocket.on('connect', () => {
+        console.log('Socket connected successfully');
+        setIsSocketConnected(true);
+        setReconnectAttempts(0);
+        
+        // Rejoin all active rooms after reconnection
+        if (chatTabs.length > 0) {
+          chatTabs.forEach(tab => {
+            if (user?.username) {
+              console.log('Rejoining room after reconnect:', tab.id);
+              newSocket.emit('join-room', {
+                roomId: tab.id,
+                username: user.username,
+                role: user.role || 'user'
+              });
+            }
+          });
+        }
+      });
+
+      newSocket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        setIsSocketConnected(false);
+        
+        // Don't attempt reconnection for intentional disconnects
+        if (reason === 'io client disconnect' || reason === 'io server disconnect') {
+          return;
+        }
+        
+        // Auto-reconnect for unexpected disconnects
+        attemptReconnection();
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.log('Socket connection error:', error);
+        setIsSocketConnected(false);
+        attemptReconnection();
+      });
+
+      newSocket.on('reconnect', (attemptNumber) => {
+        console.log('Socket reconnected after', attemptNumber, 'attempts');
+        setIsSocketConnected(true);
+        setReconnectAttempts(0);
+      });
+
+      newSocket.on('reconnect_failed', () => {
+        console.log('Socket reconnection failed');
+        setIsSocketConnected(false);
+        // Try manual reconnection after a delay
+        setTimeout(() => {
+          if (reconnectAttempts < maxReconnectAttempts) {
+            attemptReconnection();
+          }
+        }, 5000);
+      });
+
+      setSocket(newSocket);
+    };
+
+    const attemptReconnection = () => {
+      if (reconnectAttempts >= maxReconnectAttempts) {
+        console.log('Max reconnection attempts reached');
+        return;
+      }
+
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000); // Exponential backoff
+      console.log(`Attempting reconnection in ${delay}ms (attempt ${reconnectAttempts + 1})`);
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        setReconnectAttempts(prev => prev + 1);
+        
+        if (socket) {
+          socket.disconnect();
+        }
+        
+        initializeSocket();
+      }, delay);
+    };
+
+    // Initialize socket on component mount
+    initializeSocket();
+
+    // AppState listener for reconnection when app becomes active
+    const handleAppStateChange = (nextAppState: string) => {
+      console.log('AppState changed to:', nextAppState);
+      
+      if (nextAppState === 'active') {
+        // Check if socket is disconnected and attempt reconnection
+        if (!isSocketConnected || !socket?.connected) {
+          console.log('App became active - checking socket connection');
+          attemptReconnection();
+        }
+        
+        // Reload participants for current room
+        if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private') {
+          setTimeout(() => {
+            loadParticipants();
+          }, 1000);
+        }
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      newSocket.close();
+      console.log('Cleaning up socket connection');
+      
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      
+      appStateSubscription?.remove();
+      
+      if (socket) {
+        socket.removeAllListeners();
+        socket.disconnect();
+      }
     };
   }, []);
 
@@ -310,7 +447,18 @@ export default function ChatScreen() {
   }, [roomId, autoFocusTab, chatTabs.length]);
 
   useEffect(() => {
-    if (socket) {
+    if (socket && isSocketConnected) {
+      // Clear existing listeners to prevent duplicates
+      socket.removeAllListeners('new-message');
+      socket.removeAllListeners('user-joined');
+      socket.removeAllListeners('user-left');
+      socket.removeAllListeners('participants-updated');
+      socket.removeAllListeners('user-kicked');
+      socket.removeAllListeners('user-muted');
+      socket.removeAllListeners('receiveGift');
+      socket.removeAllListeners('receive-private-gift');
+      socket.removeAllListeners('gift-animation');
+
       socket.on('new-message', (newMessage: Message) => {
         console.log('Received new message:', {
           sender: newMessage.sender,
@@ -606,18 +754,20 @@ export default function ChatScreen() {
       });
 
       return () => {
-        socket.off('new-message');
-        socket.off('user-joined');
-        socket.off('user-left');
-        socket.off('participants-updated');
-        socket.off('user-kicked');
-        socket.off('user-muted');
-        socket.off('receiveGift');
-        socket.off('receive-private-gift');
-        socket.off('gift-animation');
+        if (socket) {
+          socket.off('new-message');
+          socket.off('user-joined');
+          socket.off('user-left');
+          socket.off('participants-updated');
+          socket.off('user-kicked');
+          socket.off('user-muted');
+          socket.off('receiveGift');
+          socket.off('receive-private-gift');
+          socket.off('gift-animation');
+        }
       };
     }
-  }, [socket, autoScrollEnabled, isUserScrolling]); // Include dependencies that affect auto-scroll
+  }, [socket, isSocketConnected, autoScrollEnabled, isUserScrolling, chatTabs, activeTab]); // Include socket connection state
 
   const loadRooms = async () => {
     try {
@@ -1385,6 +1535,12 @@ export default function ChatScreen() {
   };
 
   const handleSendMessage = () => {
+    // Check if socket is connected
+    if (!isSocketConnected || !socket?.connected) {
+      Alert.alert('Connection Lost', 'Reconnecting to server... Please try again in a moment.');
+      return;
+    }
+
     // Check if user is muted (only for rooms, not private chats)
     if (chatTabs[activeTab]?.type !== 'private' && mutedUsers.includes(user?.username || '')) {
       Alert.alert('You are muted', 'You cannot send messages because you have been muted by an admin');
@@ -2804,6 +2960,14 @@ export default function ChatScreen() {
     }
     loadEmojis(); // Load emojis when the component mounts or roomId changes
     loadGifts(); // Load gifts when the component mounts or roomId changes
+    
+    // Register background fetch for maintaining connection
+    registerBackgroundFetch();
+    
+    return () => {
+      // Cleanup background fetch when component unmounts
+      unregisterBackgroundFetch();
+    };
   }, [roomId]);
 
 
@@ -2884,7 +3048,8 @@ export default function ChatScreen() {
             <View style={styles.headerTextContainer}>
               <Text style={[styles.headerTitle, { color: '#fff' }]}>{chatTabs[activeTab]?.title}</Text>
               <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
-                {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'}
+                {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
+                {!isSocketConnected && ' • Reconnecting...'}
               </Text>
             </View>
           )}
@@ -2923,6 +3088,15 @@ export default function ChatScreen() {
           </View>
         </View>
         {renderTabIndicator()}
+        
+        {/* Connection Status Indicator */}
+        <View style={styles.connectionStatusContainer}>
+          <View style={[
+            styles.connectionStatusDot,
+            !isSocketConnected && styles.disconnectedDot,
+            reconnectAttempts > 0 && isSocketConnected && styles.reconnectingDot
+          ]} />
+        </View>
       </LinearGradient>
 
 
@@ -5145,6 +5319,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+  // Connection Status Styles
+  connectionStatusContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1000,
+  },
+  connectionStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4CAF50',
+  },
+  disconnectedDot: {
+    backgroundColor: '#F44336',
+  },
+  reconnectingDot: {
+    backgroundColor: '#FF9800',
   },
   // Message Context Menu Styles
   messageContextMenu: {
