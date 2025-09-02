@@ -73,6 +73,12 @@ export default function AdminScreen({ navigation }: any) {
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
+  // Credit transfer states
+  const [transferUsername, setTransferUsername] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferPin, setTransferPin] = useState('000000');
+  const [transferLoading, setTransferLoading] = useState(false);
+
   // Form states for adding emoji/gift
   const [itemName, setItemName] = useState('');
   const [itemIcon, setItemIcon] = useState('');
@@ -564,6 +570,56 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
+  const handleTransferCredit = async () => {
+    if (!transferUsername.trim()) {
+      Alert.alert('Error', 'Username harus diisi');
+      return;
+    }
+
+    if (!transferAmount.trim() || isNaN(Number(transferAmount)) || Number(transferAmount) <= 0) {
+      Alert.alert('Error', 'Jumlah kredit harus berupa angka positif');
+      return;
+    }
+
+    if (!transferPin.trim()) {
+      Alert.alert('Error', 'PIN harus diisi');
+      return;
+    }
+
+    setTransferLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/credits/transfer`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          toUsername: transferUsername.trim(),
+          amount: Number(transferAmount),
+          pin: transferPin.trim()
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Berhasil', `Kredit berhasil dikirim ke ${transferUsername}!`);
+        setTransferUsername('');
+        setTransferAmount('');
+        setTransferPin('000000');
+      } else {
+        Alert.alert('Error', data.error || 'Gagal mengirim kredit');
+      }
+    } catch (error) {
+      console.error('Error transferring credits:', error);
+      Alert.alert('Error', 'Gagal mengirim kredit. Silakan coba lagi.');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
   const handleDeleteItem = async (id: string, type: 'emoji' | 'gift') => {
     Alert.alert(
       'Confirm Delete',
@@ -760,6 +816,15 @@ export default function AdminScreen({ navigation }: any) {
             Users
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'credit' && styles.activeTab]}
+          onPress={() => setActiveTab('credit')}
+        >
+          <Ionicons name="diamond-outline" size={20} color={activeTab === 'credit' ? '#fff' : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'credit' && styles.activeTabText]}>
+            Credit
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -895,7 +960,7 @@ export default function AdminScreen({ navigation }: any) {
               )}
             </View>
           </ScrollView>
-        ) : (
+        ) : activeTab === 'users' ? (
           <View style={styles.userSearchContainer}>
             {/* Search Input */}
             <View style={styles.searchContainer}>
@@ -944,6 +1009,71 @@ export default function AdminScreen({ navigation }: any) {
               }
             />
           </View>
+        ) : (
+          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.creditTransferCard}>
+              <Text style={styles.creditTransferTitle}>Transfer Credit</Text>
+              
+              {/* Username Input */}
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Username Penerima</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={transferUsername}
+                  onChangeText={setTransferUsername}
+                  placeholder="Masukkan username penerima..."
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {/* Amount Input */}
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Jumlah Credit</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={transferAmount}
+                  onChangeText={setTransferAmount}
+                  placeholder="Masukkan jumlah credit..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* PIN Input */}
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>PIN</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={transferPin}
+                  onChangeText={setTransferPin}
+                  placeholder="000000"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                  maxLength={6}
+                  secureTextEntry
+                />
+              </View>
+
+              {/* Transfer Button */}
+              <View style={styles.transferButtonContainer}>
+                <TouchableOpacity
+                  style={styles.transferButton}
+                  onPress={handleTransferCredit}
+                  disabled={transferLoading}
+                >
+                  {transferLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={20} color="#fff" />
+                      <Text style={styles.transferButtonText}>Transfer Credit</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
         )}
       </View>
 
@@ -1679,5 +1809,75 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 10,
+  },
+  // Credit Transfer Styles
+  creditTransferContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  creditTransferCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  creditTransferTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  creditInputGroup: {
+    marginBottom: 20,
+  },
+  creditInputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  creditInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  transferButtonContainer: {
+    marginTop: 30,
+    alignItems: 'center',
+  },
+  transferButton: {
+    backgroundColor: '#FF6B35',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  transferButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });
