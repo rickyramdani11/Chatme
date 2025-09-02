@@ -52,7 +52,7 @@ interface ChatTab {
 
 // API configuration
 const getApiUrl = () => {
-  return 'https://0baf305a-98f9-4666-b9f4-ce06c23d9514-00-25nnblcsxijjy.pike.replit.dev:3001';
+  return 'https://dcb9cd1d-1699-4552-a217-70b121287868-00-ermh9f51kgoa.kirk.replit.dev:3001';
 };
 
 const API_BASE_URL = getApiUrl();
