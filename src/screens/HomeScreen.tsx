@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 
@@ -49,18 +50,14 @@ const HomeScreen = ({ navigation }: any) => {
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const { token } = useAuth();
 
-  // API configuration
-  const getApiUrl = () => {
-    return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-  };
 
   // Fetch friends from server
   const fetchFriends = async () => {
     try {
       setLoading(true);
-      console.log('Fetching friends from:', `${getApiUrl()}/api/friends`);
+      console.log('Fetching friends from:', `${API_BASE_URL}/api/friends`);
 
-      const response = await fetch(`${getApiUrl()}/api/friends`, {
+      const response = await fetch(`${API_BASE_URL}/api/friends`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -100,9 +97,9 @@ const HomeScreen = ({ navigation }: any) => {
   // Fetch rooms from server (assuming this function exists and is needed)
   const fetchRooms = async () => {
     try {
-      console.log('Fetching rooms from:', `${getApiUrl()}/api/rooms`);
+      console.log('Fetching rooms from:', `${API_BASE_URL}/api/rooms`);
 
-      const response = await fetch(`${getApiUrl()}/api/rooms`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

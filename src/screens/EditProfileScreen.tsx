@@ -17,23 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import * as ImagePicker from 'expo-image-picker';
+import { API_BASE_URL } from '../utils/apiConfig';
 
-// Use different API URLs for web and mobile
-const getApiUrl = () => {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.location) {
-      const currentHost = window.location.host;
-      const protocol = window.location.protocol;
-      if (currentHost && currentHost.includes('replit.dev')) {
-        return `${protocol}//${currentHost.replace(':3000', '')}`;
-      }
-    }
-    return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-  }
-  return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-};
-
-const API_BASE_URL = getApiUrl();
 
 interface AlbumPhoto {
   id: string;

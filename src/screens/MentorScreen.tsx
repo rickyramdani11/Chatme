@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 interface MerchantRecord {
   id: string;
@@ -26,17 +27,6 @@ interface MerchantRecord {
   status: 'active' | 'expired';
 }
 
-const getApiUrl = () => {
-  if (typeof window !== 'undefined' && window.location) {
-    const currentHost = window.location.host;
-    const protocol = window.location.protocol;
-    if (currentHost && currentHost.includes('replit.dev')) {
-      return `${protocol}//${currentHost.replace(':3000', '')}`;
-    }
-    return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-  }
-  return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-};
 
 export default function MentorScreen() {
   const [username, setUsername] = useState('');
@@ -45,7 +35,6 @@ export default function MentorScreen() {
   const [showHistory, setShowHistory] = useState(false);
   const { user } = useAuth();
   const navigation = useNavigation();
-  const API_BASE_URL = getApiUrl();
 
   useEffect(() => {
     fetchMerchants();

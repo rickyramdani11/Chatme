@@ -14,13 +14,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
+import { API_BASE_URL } from '../utils/apiConfig';
 
-// Use same API URL logic as other screens
-const getApiUrl = () => {
-  return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-};
-
-const API_BASE_URL = getApiUrl();
 
 interface FAQCategory {
   id: string;

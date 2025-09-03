@@ -75,12 +75,7 @@ interface MediaItem {
   size?: number;
 }
 
-// API configuration
-const getApiUrl = () => {
-  return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-};
-
-const API_BASE_URL = getApiUrl();
+import { API_BASE_URL } from '../utils/apiConfig';
 
 export default function FeedScreen() {
   const { height } = Dimensions.get('window');
@@ -101,7 +96,6 @@ export default function FeedScreen() {
 
   const { user } = useAuth();
   const navigation = useNavigation();
-  const API_BASE_URL = getApiUrl();
 
   // Helper function to get role color
   const getRoleColor = (role?: string) => {

@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 interface Room {
   id: string;
@@ -31,12 +32,6 @@ interface Room {
 
 
 
-// API configuration
-const getApiUrl = () => {
-  return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-};
-
-const API_BASE_URL = getApiUrl();
 
 export default function RoomScreen() {
   const navigation = useNavigation();

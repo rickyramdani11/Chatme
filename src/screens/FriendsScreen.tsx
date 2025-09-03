@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
+import { API_BASE_URL } from '../utils/apiConfig';
 
-const API_BASE_URL = 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 

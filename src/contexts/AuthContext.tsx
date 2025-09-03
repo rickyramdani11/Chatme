@@ -2,12 +2,7 @@ import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// API configuration
-const getApiUrl = () => {
-  return 'https://8eb5191f-4c55-45a2-ad6c-0559db7971c2-00-dbwwa5r6c02f.pike.replit.dev';
-};
-
-const API_BASE_URL = getApiUrl();
+import { API_BASE_URL } from '../utils/apiConfig';
 
 interface User {
   id: string;
