@@ -5431,6 +5431,16 @@ setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 // Run mentor cleanup every 6 hours
 setInterval(cleanupExpiredMentors, 6 * 60 * 60 * 1000);
 
+// Add test endpoint for external connectivity
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    status: 'success', 
+    message: 'ChatMe backend is running and accessible!',
+    timestamp: new Date().toISOString(),
+    port: PORT 
+  });
+});
+
 // Run initial cleanup on server start
 cleanupExpiredMentors();
 
