@@ -20,8 +20,14 @@
       "supportsTablet": true,
       "backgroundModes": [
         "background-processing",
+        "background-fetch",
+        "background-processing",
         "background-fetch"
-      ]
+      ],
+      "bundleIdentifier": "com.chatme.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -45,6 +51,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "c8ed652b-a93b-4b7e-b07e-2c99e6e1e217"
+      }
     }
   }
 }

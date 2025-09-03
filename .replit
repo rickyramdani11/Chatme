@@ -78,7 +78,7 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node server/index.js"
-waitForPort = 3002
+waitForPort = 3003
 
 [[workflows.workflow]]
 name = "Frontend"
@@ -112,6 +112,10 @@ externalPort = 3001
 [[ports]]
 localPort = 3002
 externalPort = 3003
+
+[[ports]]
+localPort = 3003
+externalPort = 4200
 
 [[ports]]
 localPort = 5000

@@ -29,7 +29,7 @@ const io = socketIo(server, {
   }
 });
 
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3003;
 const API_BASE_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`; // For constructing image URLs
 
 // Multer storage configuration for emojis
