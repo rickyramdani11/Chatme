@@ -55,7 +55,7 @@ interface ChatTab {
 
 // API configuration
 const getApiUrl = () => {
-  return 'https://8eb72a49-98f6-40d0-aa6c-9df3233b0bdc-00-lpr3kex6v32o.sisko.replit.dev:3001';
+  return 'https://0450a11e-b411-4c17-ba6f-818778373ae4-00-j0iiiycgr0e5.sisko.replit.dev:3001';
 };
 
 const API_BASE_URL = getApiUrl();
