@@ -4,7 +4,7 @@ packages = ["nodejs-18_x", "eas-cli"]
 channel = "stable-25_05"
 
 [workflows]
-runButton = "Mobile Only"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Start Expo"
@@ -78,7 +78,7 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node server/index.js"
-waitForPort = 3001
+waitForPort = 3002
 
 [[workflows.workflow]]
 name = "Frontend"
@@ -108,6 +108,10 @@ args = "npx expo start --tunnel --no-web"
 [[ports]]
 localPort = 3001
 externalPort = 3001
+
+[[ports]]
+localPort = 3002
+externalPort = 3003
 
 [[ports]]
 localPort = 5000
