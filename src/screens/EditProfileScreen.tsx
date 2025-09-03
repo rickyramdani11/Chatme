@@ -306,12 +306,12 @@ export default function EditProfileScreen({ navigation }: any) {
           {/* Username */}
           <View style={styles.formItem}>
             <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Username</Text>
+              <Text style={styles.formLabel}>Nama Real</Text>
               <TextInput
                 style={styles.textInput}
                 value={profileData.username}
                 onChangeText={(text) => setProfileData(prev => ({ ...prev, username: text }))}
-                placeholder="Masukkan username"
+                placeholder="Masukkan nama real"
               />
             </View>
           </View>
