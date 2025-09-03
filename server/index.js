@@ -5431,6 +5431,22 @@ setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 // Run mentor cleanup every 6 hours
 setInterval(cleanupExpiredMentors, 6 * 60 * 60 * 1000);
 
+// Add root endpoint for web preview
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'ChatMe API Server is running!',
+    status: 'active',
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    endpoints: [
+      'GET /api/test - Test endpoint',
+      'GET /api/rooms - Get chat rooms',
+      'POST /api/auth/login - User login',
+      'POST /api/auth/register - User registration'
+    ]
+  });
+});
+
 // Add test endpoint for external connectivity
 app.get('/api/test', (req, res) => {
   res.json({ 
