@@ -81,20 +81,17 @@ args = "Backend"
 name = "Backend"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node server/index.js"
-
-[workflows.workflow.metadata]
-outputType = "console"
+waitForPort = 3000
 
 [[ports]]
 localPort = 3000
 externalPort = 3000
-
-[[ports]]
-localPort = 3001
-externalPort = 3001
 
 [[ports]]
 localPort = 3002
