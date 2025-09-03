@@ -141,7 +141,7 @@ const HomeScreen = ({ navigation }: any) => {
         return;
       }
 
-      const response = await fetch(`${getApiUrl()}/api/users/search?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/search?query=${encodeURIComponent(query)}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -176,7 +176,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Search friends
   const searchFriends = async (query: string) => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/friends/search?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_BASE_URL}/api/friends/search?query=${encodeURIComponent(query)}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -199,7 +199,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Update user status
   const updateUserStatus = async (newStatus: StatusType) => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/user/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +228,7 @@ const HomeScreen = ({ navigation }: any) => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/notifications`, {
+      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -393,7 +393,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Add friend function
   const addFriend = async (userId: string, username: string) => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/friends/add`, {
+      const response = await fetch(`${API_BASE_URL}/api/friends/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -419,7 +419,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Start chat function
   const startChat = async (userId: string, username: string) => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -473,7 +473,7 @@ const HomeScreen = ({ navigation }: any) => {
     if (!selectedFriend) return;
 
     try {
-      const response = await fetch(`${getApiUrl()}/api/users/${selectedFriend.id}/block`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/block`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -511,7 +511,7 @@ const HomeScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await fetch(`${getApiUrl()}/api/users/${selectedFriend.id}/report`, {
+              const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/report`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -601,7 +601,7 @@ const HomeScreen = ({ navigation }: any) => {
           <View style={styles.userAvatarContainer}>
             <View style={styles.userAvatar}>
               {user?.avatar ? (
-                <Image source={{ uri: `${getApiUrl()}${user.avatar}` }} style={styles.userAvatarImage} />
+                <Image source={{ uri: `${API_BASE_URL}${user.avatar}` }} style={styles.userAvatarImage} />
               ) : (
                 <Text style={styles.userAvatarText}>
                   {user?.username?.charAt(0).toUpperCase() || 'U'}
@@ -1087,23 +1087,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
-  },
-  notificationButton: {
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#fff',
   },
   // Friend Context Menu Styles
   modalOverlay: {
