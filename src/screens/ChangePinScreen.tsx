@@ -15,7 +15,7 @@ import { useAuth } from '../hooks';
 
 // Use same API URL logic as AuthContext
 const getApiUrl = () => {
-  return 'https://0450a11e-b411-4c17-ba6f-818778373ae4-00-j0iiiycgr0e5.sisko.replit.dev:4200';
+  return 'https://0450a11e-b411-4c17-ba6f-818778373ae4-00-j0iiiycgr0e5.sisko.replit.dev';
 };
 
 const API_BASE_URL = getApiUrl();

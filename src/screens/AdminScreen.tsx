@@ -25,11 +25,11 @@ const getApiUrl = () => {
     const currentHost = window.location.host;
     const protocol = window.location.protocol;
     if (currentHost && currentHost.includes('replit.dev')) {
-      return `${protocol}//${currentHost.replace(':3000', ':4200')}`;
+      return `${protocol}//${currentHost.replace(':3000', '')}`;
     }
-    return 'https://0450a11e-b411-4c17-ba6f-818778373ae4-00-j0iiiycgr0e5.sisko.replit.dev:4200';
+    return 'https://0450a11e-b411-4c17-ba6f-818778373ae4-00-j0iiiycgr0e5.sisko.replit.dev';
   }
-  return 'https://0450a11e-b411-4c17-ba6f-818778373ae4-00-j0iiiycgr0e5.sisko.replit.dev:4200';
+  return 'https://0450a11e-b411-4c17-ba6f-818778373ae4-00-j0iiiycgr0e5.sisko.replit.dev';
 };
 
 const API_BASE_URL = getApiUrl();
