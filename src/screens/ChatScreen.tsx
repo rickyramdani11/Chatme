@@ -3127,7 +3127,7 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         enabled={true}
       >
         <View style={styles.tabContainer}>
@@ -3195,7 +3195,7 @@ export default function ChatScreen() {
         <View
           style={[
             styles.inputContainer,
-            isKeyboardVisible && { paddingBottom: Platform.OS === 'android' ? 10 : 12 }
+            isKeyboardVisible && { paddingBottom: Platform.OS === 'android' ? 8 : 8 }
           ]}
         >
           <View style={styles.inputWrapper}>
@@ -4371,7 +4371,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     backgroundColor: '#f5f5f5',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
+    paddingBottom: 4,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
   },
