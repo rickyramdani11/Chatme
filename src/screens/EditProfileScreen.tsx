@@ -131,7 +131,7 @@ export default function EditProfileScreen({ navigation }: any) {
           
           // Update user context by calling the profile update endpoint directly
           try {
-            const profileResponse = await fetch(`${API_BASE_URL}/api/profile/${user?.id}`, {
+            const profileResponse = await fetch(`${API_BASE_URL}/api/users/${user?.id}/profile`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',

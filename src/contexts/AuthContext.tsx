@@ -243,7 +243,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Otherwise, make API call for partial update
-      const response = await fetch(`${API_BASE_URL}/api/profile/${user.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
