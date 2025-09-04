@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   Modal,
   FlatList,
   Image,
-  ActivityIndicator
+  ActivityIndicator,
+  Animated,
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +22,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { API_BASE_URL } from '../utils/apiConfig';
 
+const { width: screenWidth } = Dimensions.get('window');
 
 interface Emoji {
   id: string;
@@ -47,6 +50,14 @@ interface User {
   verified?: boolean;
 }
 
+interface MenuItem {
+  id: string;
+  title: string;
+  icon: string;
+  color: string;
+  description: string;
+}
+
 export default function AdminScreen({ navigation }: any) {
   const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('emoji');
@@ -54,7 +65,9 @@ export default function AdminScreen({ navigation }: any) {
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+  const [showSideMenu, setShowSideMenu] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-screenWidth * 0.75)).current;
+
   // User search states
   const [searchUsername, setSearchUsername] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -87,6 +100,58 @@ export default function AdminScreen({ navigation }: any) {
   const [uploadedEmojiFile, setUploadedEmojiFile] = useState<any>(null);
   const [uploadedGiftImage, setUploadedGiftImage] = useState<any>(null);
 
+  const menuItems: MenuItem[] = [
+    {
+      id: 'emoji',
+      title: 'Kelola Emoji',
+      icon: 'happy-outline',
+      color: '#4CAF50',
+      description: 'Tambah dan kelola emoji custom'
+    },
+    {
+      id: 'gift',
+      title: 'Kelola Gift',
+      icon: 'gift-outline',
+      color: '#FF6B35',
+      description: 'Tambah dan kelola gift virtual'
+    },
+    {
+      id: 'users',
+      title: 'Kelola User',
+      icon: 'people-outline',
+      color: '#2196F3',
+      description: 'Cari dan promosikan user'
+    },
+    {
+      id: 'credit',
+      title: 'Transfer Credit',
+      icon: 'diamond-outline',
+      color: '#9C27B0',
+      description: 'Transfer credit antar user'
+    },
+    {
+      id: 'admin-credit',
+      title: 'Tambah Credit',
+      icon: 'add-circle-outline',
+      color: '#FF9800',
+      description: 'Tambah credit tanpa batasan'
+    },
+    {
+      id: 'status',
+      title: 'Status User',
+      icon: 'analytics-outline',
+      color: '#F44336',
+      description: 'Monitor status dan aktivitas user'
+    },
+    {
+      id: 'ban-manage',
+      title: 'Ban Management',
+      icon: 'ban-outline',
+      color: '#E91E63',
+      description: 'Kelola banned device dan IP'
+    }
+  ];
+
   useEffect(() => {
     if (token) {
       loadEmojis();
@@ -96,6 +161,22 @@ export default function AdminScreen({ navigation }: any) {
       }
     }
   }, [token, activeTab]);
+
+  const toggleSideMenu = () => {
+    const toValue = showSideMenu ? -screenWidth * 0.75 : 0;
+    setShowSideMenu(!showSideMenu);
+
+    Animated.timing(slideAnim, {
+      toValue,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const selectMenuItem = (itemId: string) => {
+    setActiveTab(itemId);
+    toggleSideMenu();
+  };
 
   const loadEmojis = async () => {
     try {
@@ -171,7 +252,6 @@ export default function AdminScreen({ navigation }: any) {
 
   const handleEmojiFileUpload = async () => {
     try {
-      // Request permission first
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission needed', 'We need camera roll permissions to upload emoji files.');
@@ -190,20 +270,17 @@ export default function AdminScreen({ navigation }: any) {
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
 
-        // Validate base64 data
         if (!asset.base64) {
           Alert.alert('Error', 'Failed to process the image. Please try again.');
           return;
         }
 
-        // Check file type
         const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
         if (!['png', 'gif', 'jpg', 'jpeg'].includes(fileExtension || '')) {
           Alert.alert('Invalid file type', 'Please select PNG, GIF, JPG, or JPEG files only.');
           return;
         }
 
-        // Check file size (limit to 2MB)
         const fileSizeInBytes = (asset.base64.length * 3) / 4;
         if (fileSizeInBytes > 2 * 1024 * 1024) {
           Alert.alert('File too large', 'Please select an image smaller than 2MB.');
@@ -232,7 +309,6 @@ export default function AdminScreen({ navigation }: any) {
 
   const handleGiftImageUpload = async () => {
     try {
-      // Request permission first
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission needed', 'We need camera roll permissions to upload gift images.');
@@ -246,35 +322,30 @@ export default function AdminScreen({ navigation }: any) {
         quality: 0.8,
         base64: true,
         allowsMultipleSelection: false,
-        videoMaxDuration: 10, // Limit WebM videos to 10 seconds
+        videoMaxDuration: 10,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
 
-        // Validate base64 data
         if (!asset.base64) {
           Alert.alert('Error', 'Failed to process the image. Please try again.');
           return;
         }
 
-        // Check file type
         const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
         if (!['png', 'gif', 'jpg', 'jpeg', 'webm'].includes(fileExtension || '')) {
           Alert.alert('Invalid file type', 'Please select PNG, GIF, JPG, JPEG, or WebM files only.');
           return;
         }
 
-        // Check file size (limit to 2MB for images, and 10MB for videos for example)
-        // For simplicity, we'll use a general limit here, adjust as needed.
         const fileSizeInBytes = (asset.base64.length * 3) / 4;
-        const maxSize = fileExtension === 'webm' ? 10 * 1024 * 1024 : 2 * 1024 * 1024; // 10MB for webm, 2MB for images
+        const maxSize = fileExtension === 'webm' ? 10 * 1024 * 1024 : 2 * 1024 * 1024;
 
         if (fileSizeInBytes > maxSize) {
           Alert.alert('File too large', `Please select a file smaller than ${fileExtension === 'webm' ? '10MB' : '2MB'}.`);
           return;
         }
-
 
         setUploadedGiftImage({
           uri: asset.uri,
@@ -310,20 +381,18 @@ export default function AdminScreen({ navigation }: any) {
     try {
       const requestBody: any = {
         name: itemName.trim(),
-        icon: '🎁', // Default icon
+        icon: '🎁',
         price: parseInt(itemPrice),
         type: selectedFile ? 'animated' : 'static',
         category: 'popular'
       };
 
-      // Add gift image if uploaded
       if (uploadedGiftImage) {
         requestBody.giftImage = uploadedGiftImage.base64;
         requestBody.imageType = uploadedGiftImage.type;
         requestBody.imageName = uploadedGiftImage.name;
       }
 
-      // Add animation file if uploaded
       if (selectedFile) {
         requestBody.hasAnimation = true;
       }
@@ -340,7 +409,6 @@ export default function AdminScreen({ navigation }: any) {
 
       if (response.ok) {
         Alert.alert('Berhasil', 'Gift berhasil ditambahkan');
-        // Reset form
         setItemName('');
         setItemPrice('');
         setSelectedFile(null);
@@ -367,7 +435,6 @@ export default function AdminScreen({ navigation }: any) {
     setLoading(true);
     try {
       if (activeTab === 'emoji') {
-        // For emoji, we can either use uploaded file or text emoji
         if (!uploadedEmojiFile && !itemIcon.trim()) {
           Alert.alert('Error', 'Please upload an emoji file or enter emoji character');
           return;
@@ -376,7 +443,6 @@ export default function AdminScreen({ navigation }: any) {
         let requestBody;
 
         if (uploadedEmojiFile) {
-          // Use uploaded file
           requestBody = {
             name: itemName.trim(),
             category: itemCategory?.trim() || 'general',
@@ -385,7 +451,6 @@ export default function AdminScreen({ navigation }: any) {
             fileName: uploadedEmojiFile.name
           };
         } else if (itemIcon.trim()) {
-          // Use text emoji
           requestBody = {
             name: itemName.trim(),
             category: itemCategory?.trim() || 'general',
@@ -421,7 +486,6 @@ export default function AdminScreen({ navigation }: any) {
           throw new Error(errorData.error || 'Failed to add emoji');
         }
       } else {
-        // For gifts
         if (!itemIcon.trim()) {
           Alert.alert('Error', 'Please enter gift icon');
           return;
@@ -439,16 +503,13 @@ export default function AdminScreen({ navigation }: any) {
           category: itemCategory?.trim() || 'popular'
         };
 
-        // Add gift image if uploaded
         if (uploadedGiftImage) {
           requestBody.giftImage = uploadedGiftImage.base64;
-          requestBody.imageType = uploadedGiftImage.type; // Use the determined type
+          requestBody.imageType = uploadedGiftImage.type;
           requestBody.imageName = uploadedGiftImage.name;
         }
 
-        // Add animation file if uploaded
         if (selectedFile) {
-          // Handle animation file separately if needed
           requestBody.hasAnimation = true;
         }
 
@@ -478,7 +539,6 @@ export default function AdminScreen({ navigation }: any) {
         }
       }
 
-      // Reset form
       setItemName('');
       setItemIcon('');
       setItemCategory('');
@@ -554,7 +614,6 @@ export default function AdminScreen({ navigation }: any) {
               if (response.ok) {
                 const data = await response.json();
                 Alert.alert('Success', data.message);
-                // Refresh search results
                 searchUsers();
               } else {
                 const errorData = await response.json();
@@ -841,108 +900,15 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
-  if (user?.role !== 'admin') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.unauthorizedContainer}>
-          <Ionicons name="shield-outline" size={80} color="#ccc" />
-          <Text style={styles.unauthorizedTitle}>Access Denied</Text>
-          <Text style={styles.unauthorizedSubtitle}>You need admin privileges to access this page</Text>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>Go Back</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const getActiveMenuTitle = () => {
+    const activeMenuItem = menuItems.find(item => item.id === activeTab);
+    return activeMenuItem?.title || 'Admin Panel';
+  };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#FF6B35', '#F7931E']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Admin Panel</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowAddModal(true)}
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'emoji' && styles.activeTab]}
-          onPress={() => setActiveTab('emoji')}
-        >
-          <Ionicons name="happy-outline" size={20} color={activeTab === 'emoji' ? '#fff' : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'emoji' && styles.activeTabText]}>
-            Emoji ({emojis.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'gift' && styles.activeTab]}
-          onPress={() => setActiveTab('gift')}
-        >
-          <Ionicons name="gift-outline" size={20} color={activeTab === 'gift' ? '#fff' : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'gift' && styles.activeTabText]}>
-            Gifts ({gifts.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'users' && styles.activeTab]}
-          onPress={() => setActiveTab('users')}
-        >
-          <Ionicons name="people-outline" size={20} color={activeTab === 'users' ? '#fff' : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'users' && styles.activeTabText]}>
-            Users
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'credit' && styles.activeTab]}
-          onPress={() => setActiveTab('credit')}
-        >
-          <Ionicons name="diamond-outline" size={20} color={activeTab === 'credit' ? '#fff' : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'credit' && styles.activeTabText]}>
-            Credit
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'admin-credit' && styles.activeTab]}
-          onPress={() => setActiveTab('admin-credit')}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={activeTab === 'admin-credit' ? '#fff' : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'admin-credit' && styles.activeTabText]}>
-            Add Credit
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'status' && styles.activeTab]}
-          onPress={() => setActiveTab('status')}
-        >
-          <Ionicons name="analytics-outline" size={20} color={activeTab === 'status' ? '#fff' : '#666'} />
-          <Text style={[styles.tabText, activeTab === 'status' && styles.activeTabText]}>
-            User Status
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
-      <View style={styles.content}>
-        {activeTab === 'emoji' ? (
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'emoji':
+        return (
           <FlatList
             data={emojis}
             renderItem={renderEmojiItem}
@@ -958,13 +924,14 @@ export default function AdminScreen({ navigation }: any) {
               </View>
             }
           />
-        ) : activeTab === 'gift' ? (
+        );
+
+      case 'gift':
+        return (
           <ScrollView style={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
-            {/* Gift Form */}
             <View style={styles.giftFormCard}>
               <Text style={styles.formTitle}>Add New Gift</Text>
-              
-              {/* Input Nama Gift */}
+
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Nama Gift</Text>
                 <TextInput
@@ -976,7 +943,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* Input Harga Gift */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Harga Gift</Text>
                 <TextInput
@@ -989,7 +955,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* Upload Gambar Gift PNG */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Upload Gambar Gift (PNG)</Text>
                 <TouchableOpacity
@@ -1014,7 +979,6 @@ export default function AdminScreen({ navigation }: any) {
                 )}
               </View>
 
-              {/* Upload Gift Animasi */}
               <View style={styles.formGroup}>
                 <Text style={styles.formLabel}>Upload Gift Animasi (MP4/GIF/Lottie JSON)</Text>
                 <TouchableOpacity
@@ -1039,7 +1003,6 @@ export default function AdminScreen({ navigation }: any) {
                 )}
               </View>
 
-              {/* Submit Button */}
               <TouchableOpacity
                 style={styles.submitButton}
                 onPress={handleAddGift}
@@ -1053,7 +1016,6 @@ export default function AdminScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            {/* Gift List */}
             <View style={styles.giftListContainer}>
               <Text style={styles.giftListTitle}>Gift yang Sudah Ditambahkan</Text>
               {gifts.length > 0 ? (
@@ -1073,9 +1035,11 @@ export default function AdminScreen({ navigation }: any) {
               )}
             </View>
           </ScrollView>
-        ) : activeTab === 'users' ? (
+        );
+
+      case 'users':
+        return (
           <View style={styles.userSearchContainer}>
-            {/* Search Input */}
             <View style={styles.searchContainer}>
               <TextInput
                 style={styles.searchInput}
@@ -1098,7 +1062,6 @@ export default function AdminScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            {/* Search Results */}
             <FlatList
               data={searchResults}
               renderItem={renderUserItem}
@@ -1122,12 +1085,14 @@ export default function AdminScreen({ navigation }: any) {
               }
             />
           </View>
-        ) : activeTab === 'admin-credit' ? (
+        );
+
+      case 'admin-credit':
+        return (
           <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.creditTransferCard}>
               <Text style={styles.creditTransferTitle}>Add Credits (Admin)</Text>
-              
-              {/* Username Input */}
+
               <View style={styles.creditInputGroup}>
                 <Text style={styles.creditInputLabel}>Username Penerima</Text>
                 <TextInput
@@ -1140,7 +1105,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* Amount Input */}
               <View style={styles.creditInputGroup}>
                 <Text style={styles.creditInputLabel}>Jumlah Credit</Text>
                 <TextInput
@@ -1153,7 +1117,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* Reason Input */}
               <View style={styles.creditInputGroup}>
                 <Text style={styles.creditInputLabel}>Alasan (Opsional)</Text>
                 <TextInput
@@ -1165,7 +1128,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* Add Credit Button */}
               <View style={styles.transferButtonContainer}>
                 <TouchableOpacity
                   style={[styles.transferButton, { backgroundColor: '#4CAF50' }]}
@@ -1184,7 +1146,10 @@ export default function AdminScreen({ navigation }: any) {
               </View>
             </View>
           </ScrollView>
-        ) : activeTab === 'status' ? (
+        );
+
+      case 'status':
+        return (
           <ScrollView style={styles.statusContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.statusHeader}>
               <Text style={styles.statusTitle}>User Status & Information</Text>
@@ -1272,12 +1237,27 @@ export default function AdminScreen({ navigation }: any) {
               </View>
             )}
           </ScrollView>
-        ) : (
+        );
+
+      case 'ban-manage':
+        return (
+          <View style={styles.banManageContainer}>
+            <View style={styles.comingSoonContainer}>
+              <Ionicons name="ban-outline" size={80} color="#E91E63" />
+              <Text style={styles.comingSoonTitle}>Ban Management</Text>
+              <Text style={styles.comingSoonSubtitle}>
+                Fitur ini akan segera tersedia untuk mengelola banned devices dan IP addresses
+              </Text>
+            </View>
+          </View>
+        );
+
+      default:
+        return (
           <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.creditTransferCard}>
               <Text style={styles.creditTransferTitle}>Transfer Credit</Text>
-              
-              {/* Username Input */}
+
               <View style={styles.creditInputGroup}>
                 <Text style={styles.creditInputLabel}>Username Penerima</Text>
                 <TextInput
@@ -1290,7 +1270,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* Amount Input */}
               <View style={styles.creditInputGroup}>
                 <Text style={styles.creditInputLabel}>Jumlah Credit</Text>
                 <TextInput
@@ -1303,7 +1282,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* PIN Input */}
               <View style={styles.creditInputGroup}>
                 <Text style={styles.creditInputLabel}>PIN</Text>
                 <TextInput
@@ -1318,7 +1296,6 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {/* Transfer Button */}
               <View style={styles.transferButtonContainer}>
                 <TouchableOpacity
                   style={styles.transferButton}
@@ -1337,8 +1314,134 @@ export default function AdminScreen({ navigation }: any) {
               </View>
             </View>
           </ScrollView>
-        )}
+        );
+    }
+  };
+
+  if (user?.role !== 'admin') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.unauthorizedContainer}>
+          <Ionicons name="shield-outline" size={80} color="#ccc" />
+          <Text style={styles.unauthorizedTitle}>Access Denied</Text>
+          <Text style={styles.unauthorizedSubtitle}>You need admin privileges to access this page</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <LinearGradient
+        colors={['#FF6B35', '#F7931E']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={toggleSideMenu}>
+            <Ionicons name="menu" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{getActiveMenuTitle()}</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowAddModal(true)}
+          >
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      {/* Main Content */}
+      <View style={styles.content}>
+        {renderContent()}
       </View>
+
+      {/* Side Menu */}
+      <Animated.View
+        style={[
+          styles.sideMenu,
+          {
+            transform: [{ translateX: slideAnim }]
+          }
+        ]}
+      >
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.sideMenuHeader}
+        >
+          <View style={styles.sideMenuProfile}>
+            <View style={styles.adminAvatar}>
+              <Ionicons name="shield-checkmark" size={30} color="#fff" />
+            </View>
+            <Text style={styles.adminName}>{user?.username}</Text>
+            <Text style={styles.adminRole}>Administrator</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.closeMenuButton}
+            onPress={toggleSideMenu}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+        </LinearGradient>
+
+        <ScrollView style={styles.sideMenuContent} showsVerticalScrollIndicator={false}>
+          {menuItems.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                styles.menuItem,
+                activeTab === item.id && styles.activeMenuItem
+              ]}
+              onPress={() => selectMenuItem(item.id)}
+            >
+              <View style={[styles.menuItemIcon, { backgroundColor: item.color }]}>
+                <Ionicons name={item.icon as any} size={20} color="#fff" />
+              </View>
+              <View style={styles.menuItemText}>
+                <Text style={[
+                  styles.menuItemTitle,
+                  activeTab === item.id && styles.activeMenuItemTitle
+                ]}>
+                  {item.title}
+                </Text>
+                <Text style={styles.menuItemDescription}>{item.description}</Text>
+              </View>
+              {activeTab === item.id && (
+                <View style={styles.activeMenuIndicator} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <View style={styles.sideMenuFooter}>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color="#666" />
+            <Text style={styles.logoutButtonText}>Kembali</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* Overlay */}
+      {showSideMenu && (
+        <TouchableOpacity
+          style={styles.overlay}
+          onPress={toggleSideMenu}
+          activeOpacity={1}
+        />
+      )}
 
       {/* Add Item Modal */}
       <Modal
@@ -1544,39 +1647,168 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  tabButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    marginHorizontal: 4,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  activeTab: {
-    backgroundColor: '#FF6B35',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginLeft: 6,
-  },
-  activeTabText: {
-    color: '#fff',
+    textAlign: 'center',
+    marginHorizontal: 16,
   },
   content: {
     flex: 1,
     padding: 16,
   },
+  // Side Menu Styles
+  sideMenu: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: screenWidth * 0.75,
+    height: '100%',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 16,
+    zIndex: 1000,
+  },
+  sideMenuHeader: {
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  sideMenuProfile: {
+    alignItems: 'center',
+  },
+  adminAvatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  adminName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  adminRole: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  closeMenuButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    padding: 8,
+  },
+  sideMenuContent: {
+    flex: 1,
+    paddingTop: 20,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginHorizontal: 12,
+    marginVertical: 2,
+    borderRadius: 12,
+    position: 'relative',
+  },
+  activeMenuItem: {
+    backgroundColor: '#F8F9FA',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF6B35',
+  },
+  menuItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  menuItemText: {
+    flex: 1,
+  },
+  menuItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  activeMenuItemTitle: {
+    color: '#FF6B35',
+  },
+  menuItemDescription: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 16,
+  },
+  activeMenuIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF6B35',
+    position: 'absolute',
+    right: 16,
+  },
+  sideMenuFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  logoutButtonText: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 999,
+  },
+  // Coming Soon Style
+  banManageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  comingSoonContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  comingSoonTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#E91E63',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  comingSoonSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    lineHeight: 24,
+  },
+  // Existing styles remain the same
   listContainer: {
     flexGrow: 1,
   },
@@ -1944,7 +2176,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  // New Gift Form Styles
   giftFormContainer: {
     flex: 1,
     padding: 16,
@@ -2073,7 +2304,6 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 10,
   },
-  // Credit Transfer Styles
   creditTransferContainer: {
     flex: 1,
     padding: 16,
@@ -2143,7 +2373,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
   },
-  // User Status Styles
   statusContainer: {
     flex: 1,
     padding: 16,
