@@ -20,7 +20,7 @@ import {
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
 } from 'react-native';
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
@@ -2105,7 +2105,7 @@ export default function ChatScreen() {
       const messageText = `${selectedMessage.sender}: ${selectedMessage.content}`;
       
       // Copy to clipboard
-      Clipboard.setString(messageText);
+      Clipboard.setStringAsync(messageText);
       
       // Show success feedback
       Alert.alert(
