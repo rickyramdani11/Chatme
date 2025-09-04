@@ -17,6 +17,7 @@ import {
   Platform,
   Image,
   KeyboardAvoidingView,
+  TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -95,6 +96,8 @@ export default function ChatScreen() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const maxReconnectAttempts = 5;
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const { user } = useAuth();
 
   // Static Level Badge Component (no blinking)
@@ -412,6 +415,30 @@ export default function ChatScreen() {
         socket.removeAllListeners();
         socket.disconnect();
       }
+    };
+  }, []);
+
+  // Add keyboard event listeners for better input handling
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setIsKeyboardVisible(true);
+      }
+    );
+
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+        setIsKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardWillShowListener?.remove();
+      keyboardWillHideListener?.remove();
     };
   }, []);
 
@@ -3100,14 +3127,16 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
+        enabled={true}
       >
-        <View style={styles.tabContainer}>
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={styles.tabContainer}>
+            <ScrollView
+              ref={scrollViewRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(event) => {
               const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
               if (newIndex !== activeTab && newIndex >= 0 && newIndex < chatTabs.length) {
@@ -3157,14 +3186,18 @@ export default function ChatScreen() {
               color="white"
             />
           </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableWithoutFeedback>
 
         {/* Message Input */}
         <LinearGradient
           colors={['#8B5CF6', '#3B82F6']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.inputContainer}
+          style={[
+            styles.inputContainer,
+            isKeyboardVisible && { paddingBottom: Platform.OS === 'android' ? 10 : 12 }
+          ]}
         >
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.emojiButton} onPress={handleEmojiPress}>
@@ -3185,6 +3218,14 @@ export default function ChatScreen() {
               multiline
               blurOnSubmit={false}
               returnKeyType="default"
+              onSubmitEditing={(event) => {
+                if (!event.nativeEvent.text.trim()) {
+                  return;
+                }
+                handleSendMessage();
+              }}
+              enablesReturnKeyAutomatically={true}
+              maxLength={2000}
             />
             <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
               <Ionicons name="send" size={24} color="white" />
