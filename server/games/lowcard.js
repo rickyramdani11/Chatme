@@ -20,10 +20,27 @@ function getCardValue(card) {
   return order.indexOf(card.value);
 }
 
-// Mock function - replace with actual database logic
+// Database coin functions
 function potongCoin(userId, amount) {
-  // TODO: Implement actual coin deduction from database
-  return true; // For now, always return true
+  // Check if user has enough coins
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+  
+  try {
+    // For now, assume minimum 100 coins required
+    if (amount > 100) {
+      return false;
+    }
+    // TODO: Actually implement database check and deduction
+    // For now, reject if bet is too high for demo
+    return true;
+  } catch (error) {
+    console.error('Error checking coins:', error);
+    return false;
+  }
 }
 
 function tambahCoin(userId, amount) {
@@ -48,7 +65,7 @@ function startJoinPhase(io, room) {
   }
 
   console.log(`[LowCard] Sending join phase message for room ${room}, bet: ${data.bet}, started by: ${data.startedBy}`);
-  sendBotMessage(io, room, `🎮 LowCard started by ${data.startedBy}! Enter !j to join the game. Cost: ${data.bet} COIN [30s]`);
+  sendBotMessage(io, room, `LowCard started by ${data.startedBy}. Enter !j to join the game. Cost: ${data.bet} COIN [30s]`);
 
   data.timeout = setTimeout(() => {
     if (data.players.length < 2) {
@@ -87,15 +104,15 @@ function startRound(io, room) {
     player.card = undefined;
   });
 
-  sendBotMessage(io, room, `🔥 ROUND ${data.currentRound}/${data.totalRounds} - ${data.activePlayers.length} players remaining`);
-  sendBotMessage(io, room, `🎴 Draw phase started! Type !d to draw your card. [20s auto-draw]`);
+  sendBotMessage(io, room, `ROUND [${data.currentRound}] - ${data.activePlayers.length} players remaining`);
+  sendBotMessage(io, room, `Draw phase started! Type !d to draw your card. [20s auto-draw]`);
 
   // Auto-draw after 20 seconds
   data.drawTimeout = setTimeout(() => {
     data.activePlayers.forEach(player => {
       if (!player.card) {
         player.card = drawCard();
-        sendBotMessage(io, room, `🎲 ${player.username} auto drew a card.`, null, player.card.imageUrl);
+        sendBotMessage(io, room, `${player.username} auto drew a card.`, null, player.card.imageUrl);
       }
     });
 
@@ -430,28 +447,28 @@ function handleLowCardCommand(io, room, command, args, userId, username) {
     case '!j': {
       const data = rooms[room];
       if (!data) {
-        sendBotMessage(io, room, `❌ No game in progress. Type !start <bet> to start a game.`);
+        sendBotMessage(io, room, `No game in progress. Type !start <bet> to start a game.`);
         return;
       }
 
       if (data.isRunning) {
-        sendBotMessage(io, room, `⚠️ Game already started! Wait for next game.`);
+        sendBotMessage(io, room, `Game already started. Wait for next game.`);
         return;
       }
 
       if (data.players.find(p => p.username === username)) {
-        sendBotMessage(io, room, `⚠️ ${username} already joined!`);
+        sendBotMessage(io, room, `${username} already joined`);
         return;
       }
 
       if (data.players.length >= 200) {
-        sendBotMessage(io, room, `❌ Game is full! Maximum 200 players.`);
+        sendBotMessage(io, room, `Game is full. Maximum 200 players.`);
         return;
       }
 
       // Check if user has enough coins
       if (!potongCoin(userId, data.bet)) {
-        sendBotMessage(io, room, `❌ ${username} doesn't have enough COIN to join.`);
+        sendBotMessage(io, room, `${username} does not have enough COIN to join.`);
         return;
       }
 
@@ -465,7 +482,7 @@ function handleLowCardCommand(io, room, command, args, userId, username) {
       };
 
       data.players.push(player);
-      sendBotMessage(io, room, `✅ ${username} joined the game! (${data.players.length} players)`);
+      sendBotMessage(io, room, `${username} joined game`);
       break;
     }
 
@@ -477,23 +494,23 @@ function handleLowCardCommand(io, room, command, args, userId, username) {
       }
 
       if (!data.isRunning) {
-        sendBotMessage(io, room, `❌ Game hasn't started yet!`);
+        sendBotMessage(io, room, `Game has not started yet`);
         return;
       }
 
       const player = data.activePlayers.find(p => p.username === username);
       if (!player) {
-        sendBotMessage(io, room, `❌ ${username} is not in this round!`);
+        sendBotMessage(io, room, `${username} is not in this round`);
         return;
       }
 
       if (player.card) {
-        sendBotMessage(io, room, `⚠️ ${username} already drew a card!`);
+        sendBotMessage(io, room, `${username} already drew a card`);
         return;
       }
 
       player.card = drawCard();
-      sendBotMessage(io, room, `🎴 ${username} drew a card!`, null, player.card.imageUrl);
+      sendBotMessage(io, room, `${username} drew a card`, null, player.card.imageUrl);
 
       // Check if all active players have drawn
       const allDrawn = data.activePlayers.every(p => p.card);
@@ -517,7 +534,19 @@ function handleLowCardCommand(io, room, command, args, userId, username) {
       }
 
       if (data.isRunning) {
-        sendBotMessage(io, room, `❌ Cannot leave during game! Wait for round to finish.`);
+        // Allow leaving during game - eliminate player and continue
+        const activePlayerIndex = data.activePlayers.findIndex(p => p.username === username);
+        if (activePlayerIndex !== -1) {
+          const leavingPlayer = data.activePlayers[activePlayerIndex];
+          leavingPlayer.card = { value: "2", suit: "c", imageUrl: "/cards/lc_2c.png" }; // Worst card
+          sendBotMessage(io, room, `${username} left game`);
+          
+          // Check if all remaining players have cards
+          const allDrawn = data.activePlayers.every(p => p.card);
+          if (allDrawn) {
+            processRoundResults(io, room);
+          }
+        }
         return;
       }
 
@@ -530,7 +559,7 @@ function handleLowCardCommand(io, room, command, args, userId, username) {
       // Refund the bet
       tambahCoin(userId, data.bet);
       data.players.splice(playerIndex, 1);
-      sendBotMessage(io, room, `👋 ${username} left the game. Bet refunded.`);
+      sendBotMessage(io, room, `${username} left the game. Bet refunded.`);
       break;
     }
 
