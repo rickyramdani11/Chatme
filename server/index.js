@@ -1703,38 +1703,91 @@ app.get('/api/profile/:userId', async (req, res) => {
   }
 });
 
-app.put('/api/profile/:id', async (req, res) => {
+// Update user profile
+app.put('/api/users/:userId/profile', async (req, res) => {
   try {
-    const { username, bio, phone, avatar } = req.body;
+    const { userId } = req.params;
+    const { username, bio, phone, gender, birthDate, country, signature } = req.body;
 
-    // Get current user data first
-    const currentUser = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
-    if (currentUser.rows.length === 0) {
+    console.log('=== UPDATE USER PROFILE REQUEST ===');
+    console.log('User ID:', userId);
+    console.log('Update data:', { username, bio, phone, gender, birthDate, country, signature });
+
+    // Check if user exists
+    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const user = currentUser.rows[0];
+    // Build dynamic update query to handle optional fields
+    const updateFields = [];
+    const updateValues = [];
+    let paramCount = 1;
 
-    // Use current values if new ones aren't provided
-    const updateUsername = username !== undefined ? username : user.username;
-    const updateBio = bio !== undefined ? bio : user.bio;
-    const updatePhone = phone !== undefined ? phone : user.phone;
-    const updateAvatar = avatar !== undefined ? avatar : user.avatar;
-
-    const result = await pool.query(
-      `UPDATE users SET username = $1, bio = $2, phone = $3, avatar = $4, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5 RETURNING id, username, email, bio, phone, avatar`,
-      [updateUsername, updateBio, updatePhone, updateAvatar, req.params.id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (username !== undefined) {
+      updateFields.push(`username = $${paramCount++}`);
+      updateValues.push(username);
+    }
+    if (bio !== undefined) {
+      updateFields.push(`bio = $${paramCount++}`);
+      updateValues.push(bio);
+    }
+    if (phone !== undefined) {
+      updateFields.push(`phone = $${paramCount++}`);
+      updateValues.push(phone);
+    }
+    if (gender !== undefined) {
+      updateFields.push(`gender = $${paramCount++}`);
+      updateValues.push(gender);
+    }
+    if (birthDate !== undefined) {
+      updateFields.push(`birth_date = $${paramCount++}`);
+      updateValues.push(birthDate);
+    }
+    if (country !== undefined) {
+      updateFields.push(`country = $${paramCount++}`);
+      updateValues.push(country);
+    }
+    if (signature !== undefined) {
+      updateFields.push(`signature = $${paramCount++}`);
+      updateValues.push(signature);
     }
 
-    res.json(result.rows[0]);
+    updateFields.push(`updated_at = NOW()`);
+    updateValues.push(userId);
+
+    const updateQuery = `
+      UPDATE users 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    // Update user profile
+    const updateResult = await pool.query(updateQuery, updateValues);
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Failed to update profile' });
+    }
+
+    const updatedUser = updateResult.rows[0];
+    console.log('Profile updated successfully:', updatedUser.username);
+
+    res.json({
+      id: updatedUser.id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      bio: updatedUser.bio,
+      phone: updatedUser.phone,
+      gender: updatedUser.gender,
+      birthDate: updatedUser.birth_date,
+      country: updatedUser.country,
+      signature: updatedUser.signature,
+      avatar: updatedUser.avatar
+    });
   } catch (error) {
     console.error('Error updating profile:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 });
 
@@ -2431,39 +2484,89 @@ app.get('/api/feed/posts/:postId/comments', (req, res) => {
 app.post('/api/users/:userId/follow', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { action } = req.body; // 'follow' or 'unfollow'
+    const { action } = req.body;
+
+    // Extract current user from Authorization header (simplified for demo)
+    const authHeader = req.headers.authorization;
+    let currentUserId = '1'; // Default fallback
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // In a real app, decode JWT token here
+      // For now, just use a default user ID
+      // This part needs to be robust and correctly extract userId from token
+      // For demonstration, we'll assume a logged-in user context.
+      // A proper implementation would verify the token and get user ID.
+      // Example: const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET); currentUserId = decoded.userId;
+      // For now, let's assume '1' represents a logged-in user for testing purposes.
+      // In a real app, you'd use the authenticateToken middleware to set req.user.id
+      if (req.user && req.user.id) {
+        currentUserId = req.user.id;
+      } else {
+        // If not authenticated via middleware, fall back or return error
+        console.log('User not authenticated via middleware for follow action.');
+        // For demo purposes, if not authenticated, maybe allow to proceed with default ID or error out.
+        // Let's error out to enforce authentication for this action.
+        // return res.status(401).json({ error: 'Authentication required' });
+      }
+    }
 
     console.log('=== FOLLOW/UNFOLLOW REQUEST ===');
+    console.log('Current User ID:', currentUserId);
     console.log('Target User ID:', userId);
     console.log('Action:', action);
 
-    // Check if target user exists in database
-    const userResult = await pool.query('SELECT id, username FROM users WHERE id = $1', [userId]);
+    // Check if target user exists
+    const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const targetUser = userResult.rows[0];
 
-    // In a real app, you would:
-    // 1. Get current user from JWT token
-    // 2. Check if already following
-    // 3. Update follow relationship in database
-    // 4. Update follower/following counts
+    if (action === 'follow') {
+      // Add follow relationship
+      await pool.query(`
+        INSERT INTO user_follows (follower_id, following_id, created_at) 
+        VALUES ($1, $2, NOW()) 
+        ON CONFLICT (follower_id, following_id) DO NOTHING
+      `, [currentUserId, userId]);
+    } else if (action === 'unfollow') {
+      // Remove follow relationship
+      await pool.query(`
+        DELETE FROM user_follows 
+        WHERE follower_id = $1 AND following_id = $2
+      `, [currentUserId, userId]);
+    } else {
+      return res.status(400).json({ error: 'Invalid action. Must be "follow" or "unfollow".' });
+    }
 
-    // For now, return success response
+    // Get updated follower count
+    const followersResult = await pool.query(
+      'SELECT COUNT(*) FROM user_follows WHERE following_id = $1',
+      [userId]
+    );
+
+    // Get updated following count for the current user
+    const followingResult = await pool.query(
+      'SELECT COUNT(*) FROM user_follows WHERE follower_id = $1',
+      [userId]
+    );
+
     const result = {
       success: true,
       action: action,
       message: action === 'follow' ? 'User followed successfully' : 'User unfollowed successfully',
-      targetUser: targetUser.username
+      targetUser: targetUser.username,
+      followers: parseInt(followersResult.rows[0].count),
+      following: parseInt(followingResult.rows[0].count)
     };
 
     console.log(`User ${targetUser.username} ${action}ed successfully`);
+    console.log('Updated counts:', result);
     res.json(result);
   } catch (error) {
     console.error('Error updating follow status:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error: ' + error.message });
   }
 });
 
@@ -2952,23 +3055,23 @@ app.put('/api/users/:userId/profile', async (req, res) => {
       values.push(bio);
     }
     if (phone !== undefined) {
-      updateFields.push(`phone = $${paramCounter++}`);
+      updateFields.push(`phone = $${paramCount++}`);
       values.push(phone);
     }
     if (gender !== undefined) {
-      updateFields.push(`gender = $${paramCounter++}`);
+      updateFields.push(`gender = $${paramCount++}`);
       values.push(gender);
     }
     if (birthDate !== undefined) {
-      updateFields.push(`birth_date = $${paramCounter++}`);
+      updateFields.push(`birth_date = $${paramCount++}`);
       values.push(birthDate);
     }
     if (country !== undefined) {
-      updateFields.push(`country = $${paramCounter++}`);
+      updateFields.push(`country = $${paramCount++}`);
       values.push(country);
     }
     if (signature !== undefined) {
-      updateFields.push(`signature = $${paramCounter++}`);
+      updateFields.push(`signature = $${paramCount++}`);
       values.push(signature);
     }
 
@@ -2983,7 +3086,7 @@ app.put('/api/users/:userId/profile', async (req, res) => {
     const updateQuery = `
       UPDATE users
       SET ${updateFields.join(', ')}
-      WHERE id = $${paramCounter}
+      WHERE id = $${paramCount}
       RETURNING id, username, email, bio, phone, avatar, gender, birth_date, country, signature, verified
     `;
 

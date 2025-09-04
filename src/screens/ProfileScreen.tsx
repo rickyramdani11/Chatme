@@ -171,14 +171,22 @@ export default function ProfileScreen({ navigation, route }: any) {
       if (response.ok) {
         const result = await response.json();
         setIsFollowing(!isFollowing);
+        
+        // Update profile with the exact counts from server response
         setProfile(prev => prev ? {
           ...prev,
-          followers: isFollowing ? prev.followers - 1 : prev.followers + 1
+          followers: result.followers || (isFollowing ? prev.followers - 1 : prev.followers + 1),
+          following: result.following || prev.following
         } : null);
+        
+        console.log('Follow action completed:', result);
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update follow status');
       }
     } catch (error) {
       console.error('Error following user:', error);
-      Alert.alert('Error', 'Failed to update follow status');
+      Alert.alert('Error', error.message || 'Failed to update follow status');
     }
   };
 
