@@ -52,7 +52,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (typeof storedToken === 'string' && storedToken.split('.').length === 3) {
           console.log('Loading stored token and user');
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+
+          // Refresh user data from server to get latest role information
+          try {
+            const response = await fetch(`${API_BASE_URL}/api/users/${userData.id}/profile`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${storedToken}`,
+              },
+            });
+
+            if (response.ok) {
+              const latestUserData = await response.json();
+              console.log('Refreshed user data:', latestUserData);
+              setUser(latestUserData);
+              await AsyncStorage.setItem('user', JSON.stringify(latestUserData));
+            }
+          } catch (refreshError) {
+            console.log('Failed to refresh user data, using stored data:', refreshError);
+          }
         } else {
           console.log('Invalid stored token format, clearing storage');
           await AsyncStorage.removeItem('token');

@@ -421,7 +421,7 @@ const initDatabase = async () => {
     // Create credit_transactions table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS credit_transactions (
-        id SERIAL PRIMARY KEY,
+        id SERIAL PRIMARYKEY,
         from_user_id INTEGER,
         to_user_id INTEGER,
         amount INTEGER NOT NULL,
@@ -1000,7 +1000,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT * FROM users WHERE username = $1',
+      'SELECT id, username, email, password, bio, phone, gender, birth_date, country, signature, avatar, level, verified, role FROM users WHERE username = $1',
       [username]
     );
 
@@ -1667,127 +1667,157 @@ app.get('/api/verify-email', async (req, res) => {
 });
 
 // Profile routes
-app.get('/api/profile/:userId', async (req, res) => {
+// Get user profile details
+app.get('/api/users/:userId/profile', async (req, res) => {
   try {
     const { userId } = req.params;
-    console.log('=== GET USER PROFILE REQUEST ===');
-    console.log('User ID:', userId);
+
+    console.log(`=== GET USER PROFILE REQUEST ===`);
+    console.log(`User ID: ${userId}`);
 
     const result = await pool.query(
-      'SELECT id, username, email, bio, phone, avatar, country, verified, exp, level FROM users WHERE id = $1',
+      `SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, level, role
+       FROM users 
+       WHERE id = $1`,
       [userId]
     );
 
-    if (!result.rows || result.rows.length === 0) {
-      console.log('User not found:', userId);
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const user = result.rows[0];
-    console.log('Found user:', user.username);
-    res.json({
+
+    // Convert snake_case to camelCase for consistency with frontend
+    const userData = {
       id: user.id,
       username: user.username,
       email: user.email,
-      bio: user.bio,
-      phone: user.phone,
+      bio: user.bio || '',
+      phone: user.phone || '',
+      gender: user.gender || '',
+      birthDate: user.birth_date,
+      country: user.country || '',
+      signature: user.signature || '',
       avatar: user.avatar,
-      country: user.country,
-      verified: user.verified,
-      exp: user.exp || 0,
-      level: user.level || 1
-    });
+      level: user.level || 1,
+      role: user.role || 'user'
+    };
+
+    console.log(`Profile retrieved successfully for user: ${user.username}, role: ${user.role}`);
+    res.json(userData);
+
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Error getting user profile:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Update user profile
-app.put('/api/users/:userId/profile', async (req, res) => {
+app.put('/api/users/:userId/profile', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
     const { username, bio, phone, gender, birthDate, country, signature } = req.body;
 
-    console.log('=== UPDATE USER PROFILE REQUEST ===');
-    console.log('User ID:', userId);
-    console.log('Update data:', { username, bio, phone, gender, birthDate, country, signature });
+    console.log(`=== UPDATE USER PROFILE REQUEST ===`);
+    console.log(`User ID: ${userId}`);
+    console.log(`Update data:`, { username, bio, phone, gender, birthDate, country, signature });
 
-    // Check if user exists
-    const userResult = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
-    if (userResult.rows.length === 0) {
+    // Build the SET clause dynamically
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (username !== undefined) {
+      updates.push(`username = $${paramCount}`);
+      values.push(username);
+      paramCount++;
+    }
+    if (bio !== undefined) {
+      updates.push(`bio = $${paramCount}`);
+      values.push(bio);
+      paramCount++;
+    }
+    if (phone !== undefined) {
+      updates.push(`phone = $${paramCount}`);
+      values.push(phone);
+      paramCount++;
+    }
+    if (gender !== undefined) {
+      updates.push(`gender = $${paramCount}`);
+      values.push(gender);
+      paramCount++;
+    }
+    if (birthDate !== undefined) {
+      updates.push(`birth_date = $${paramCount}`);
+      values.push(birthDate);
+      paramCount++;
+    }
+    if (country !== undefined) {
+      updates.push(`country = $${paramCount}`);
+      values.push(country);
+      paramCount++;
+    }
+    if (signature !== undefined) {
+      updates.push(`signature = $${paramCount}`);
+      values.push(signature);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    // Add the WHERE clause parameter
+    values.push(userId);
+    const whereParam = `$${paramCount}`;
+
+    const query = `
+      UPDATE users 
+      SET ${updates.join(', ')}, updated_at = NOW()
+      WHERE id = ${whereParam}
+      RETURNING id, username, email, bio, phone, gender, birth_date, country, signature, avatar, level, role
+    `;
+
+    console.log('Executing query:', query);
+    console.log('With values:', values);
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Build dynamic update query to handle optional fields
-    const updateFields = [];
-    const updateValues = [];
-    let paramCounter = 1;
+    const updatedUser = result.rows[0];
 
-    if (username !== undefined) {
-      updateFields.push(`username = $${paramCounter++}`);
-      updateValues.push(username);
-    }
-    if (bio !== undefined) {
-      updateFields.push(`bio = $${paramCounter++}`);
-      updateValues.push(bio);
-    }
-    if (phone !== undefined) {
-      updateFields.push(`phone = $${paramCounter++}`);
-      updateValues.push(phone);
-    }
-    if (gender !== undefined) {
-      updateFields.push(`gender = $${paramCounter++}`);
-      updateValues.push(gender);
-    }
-    if (birthDate !== undefined) {
-      updateFields.push(`birth_date = $${paramCounter++}`);
-      updateValues.push(birthDate === null || birthDate === '' ? null : birthDate);
-    }
-    if (country !== undefined) {
-      updateFields.push(`country = $${paramCounter++}`);
-      updateValues.push(country);
-    }
-    if (signature !== undefined) {
-      updateFields.push(`signature = $${paramCounter++}`);
-      updateValues.push(signature);
-    }
-
-    updateFields.push(`updated_at = NOW()`);
-    updateValues.push(userId);
-
-    const updateQuery = `
-      UPDATE users 
-      SET ${updateFields.join(', ')}
-      WHERE id = $${paramCounter}
-      RETURNING *
-    `;
-
-    // Update user profile
-    const updateResult = await pool.query(updateQuery, updateValues);
-
-    if (updateResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Failed to update profile' });
-    }
-
-    const updatedUser = updateResult.rows[0];
-    console.log('Profile updated successfully:', updatedUser.username);
-
-    res.json({
+    // Convert snake_case to camelCase for consistency with frontend
+    const userData = {
       id: updatedUser.id,
       username: updatedUser.username,
       email: updatedUser.email,
-      bio: updatedUser.bio,
-      phone: updatedUser.phone,
-      gender: updatedUser.gender,
+      bio: updatedUser.bio || '',
+      phone: updatedUser.phone || '',
+      gender: updatedUser.gender || '',
       birthDate: updatedUser.birth_date,
-      country: updatedUser.country,
-      signature: updatedUser.signature,
-      avatar: updatedUser.avatar
-    });
+      country: updatedUser.country || '',
+      signature: updatedUser.signature || '',
+      avatar: updatedUser.avatar,
+      level: updatedUser.level || 1,
+      role: updatedUser.role || 'user'
+    };
+
+    console.log(`Profile updated successfully:`, updatedUser.username, `role:`, updatedUser.role);
+    res.json(userData);
+
   } catch (error) {
-    console.error('Error updating profile:', error);
-    res.status(500).json({ error: 'Internal server error: ' + error.message });
+    console.error('Error updating user profile:', error);
+
+    // Handle unique constraint violations
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -3022,7 +3052,7 @@ app.get('/api/users/album/:photoId', (req, res) => {
 });
 
 // Update user profile with extended fields
-app.put('/api/users/:userId/profile', async (req, res) => {
+app.put('/api/users/:userId/profile', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
     const {
@@ -3087,7 +3117,7 @@ app.put('/api/users/:userId/profile', async (req, res) => {
       UPDATE users
       SET ${updateFields.join(', ')}
       WHERE id = $${paramCounter}
-      RETURNING id, username, email, bio, phone, avatar, gender, birth_date, country, signature, verified
+      RETURNING id, username, email, bio, phone, avatar, gender, birth_date, country, signature, verified, role
     `;
 
     const result = await pool.query(updateQuery, values);
@@ -3105,7 +3135,8 @@ app.put('/api/users/:userId/profile', async (req, res) => {
       birthDate: updatedUser.birth_date,
       country: updatedUser.country,
       signature: updatedUser.signature,
-      verified: updatedUser.verified
+      verified: updatedUser.verified,
+      role: updatedUser.role
     });
   } catch (error) {
     console.error('Error updating profile:', error);
@@ -4506,10 +4537,9 @@ app.post('/api/admin/cleanup-missing-media', authenticateToken, async (req, res)
 
       // If no valid media files exist, remove media_files from post
       if (!hasValidMedia && mediaFiles.length > 0) {
-        await pool.query(
-          'UPDATE posts SET media_files = $1 WHERE id = $2',
-          [JSON.stringify([]), post.id]
-        );
+        await pool.query(`      'UPDATE posts SET media_files = $1 WHERE id = $2',
+        [JSON.stringify([]), post.id]
+      );
         cleanedPosts++;
         console.log(`Cleaned post ${post.id} with missing media files`);
       }
@@ -4903,7 +4933,6 @@ app.get('/api/rankings/gifts', async (req, res) => {
   }
 });
 
-// Rankings endpoints without /api prefix
 app.get('/rankings/games', async (req, res) => {
   try {
     console.log('Fetching games rankings (no /api)...');
@@ -5016,7 +5045,7 @@ app.get('/rankings/gifts', async (req, res) => {
   }
 });
 
-// Add backward compatibility endpoints without /api prefix
+// Rankings endpoints without /api prefix
 
 // Friends endpoint without /api prefix
 app.get('/friends', authenticateToken, async (req, res) => {
@@ -5248,7 +5277,7 @@ app.post('/auth/login', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT * FROM users WHERE username = $1',
+      'SELECT id, username, email, password, bio, phone, gender, birth_date, country, signature, avatar, level, verified, role FROM users WHERE username = $1',
       [username]
     );
 
@@ -5543,7 +5572,7 @@ app.get('/', (req, res) => {
     port: PORT,
     endpoints: [
       'GET /api/test - Test endpoint'
-    
+
     ]
   });
 });
