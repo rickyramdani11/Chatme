@@ -20,6 +20,7 @@ import {
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
@@ -1113,7 +1114,7 @@ export default function ChatScreen() {
           content: `🎲 ${user?.username} rolled: ${rollResult} (1-100)`,
           role: 'system',
           level: 1,
-          type: 'message' // Changed from 'roll' to 'message' for better handling
+          type: 'system'
         });
         break;
       }
@@ -2101,11 +2102,15 @@ export default function ChatScreen() {
 
   const handleCopyMessage = () => {
     if (selectedMessage) {
-      // Copy message content to clipboard (React Native doesn't have navigator.clipboard)
-      // We'll show an alert with the message content for now
+      const messageText = `${selectedMessage.sender}: ${selectedMessage.content}`;
+      
+      // Copy to clipboard
+      Clipboard.setString(messageText);
+      
+      // Show success feedback
       Alert.alert(
         'Message Copied',
-        `Content: ${selectedMessage.content}\nFrom: ${selectedMessage.sender}\nTime: ${formatTime(selectedMessage.timestamp)}`,
+        'Message has been copied to clipboard',
         [
           {
             text: 'OK',
