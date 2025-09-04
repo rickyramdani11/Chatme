@@ -5382,6 +5382,167 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
+// Admin credit management endpoints
+app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== ADMIN ADD CREDITS REQUEST ===');
+    console.log('User ID:', req.user.id);
+    console.log('User Role:', req.user.role);
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { username, amount, reason } = req.body;
+
+    if (!username || !amount) {
+      return res.status(400).json({ error: 'Username and amount are required' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be positive' });
+    }
+
+    // Find target user
+    const userResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [username]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // Start transaction
+    await pool.query('BEGIN');
+
+    try {
+      // Add credits to user (create account if doesn't exist)
+      const creditsResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [targetUser.id]);
+      if (creditsResult.rows.length === 0) {
+        await pool.query('INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)', [targetUser.id, amount]);
+      } else {
+        await pool.query(
+          'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+          [amount, targetUser.id]
+        );
+      }
+
+      // Record admin transaction
+      await pool.query(`
+        INSERT INTO credit_transactions (to_user_id, amount, type)
+        VALUES ($1, $2, 'admin_add')
+      `, [targetUser.id, amount]);
+
+      await pool.query('COMMIT');
+
+      console.log(`Admin added ${amount} credits to user ${username}`);
+      res.json({ 
+        success: true, 
+        message: `Successfully added ${amount} credits to ${username}`,
+        reason: reason || 'Admin credit addition'
+      });
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error adding admin credits:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/users/status', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== ADMIN USER STATUS REQUEST ===');
+    console.log('User ID:', req.user.id);
+    console.log('User Role:', req.user.role);
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        u.id, 
+        u.username, 
+        u.email, 
+        u.phone, 
+        u.role,
+        u.verified,
+        u.last_login,
+        COALESCE(uc.balance, 0) as credits,
+        CASE WHEN u.last_login > NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END as status
+      FROM users u
+      LEFT JOIN user_credits uc ON u.id = uc.user_id
+      ORDER BY u.last_login DESC NULLS LAST
+      LIMIT 100
+    `);
+
+    const users = result.rows.map(row => ({
+      id: row.id.toString(),
+      username: row.username,
+      email: row.email,
+      phone: row.phone,
+      role: row.role,
+      verified: row.verified,
+      credits: row.credits,
+      status: row.status,
+      lastLogin: row.last_login,
+      device: 'Mobile App', // Mock data - you can enhance this
+      ip: '192.168.1.' + Math.floor(Math.random() * 255), // Mock IP
+      location: 'Indonesia' // Mock location
+    }));
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Error fetching user status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/credits/history/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { userId } = req.params;
+
+    const result = await pool.query(`
+      SELECT 
+        ct.*,
+        CASE 
+          WHEN ct.from_user_id IS NULL THEN 'admin_add'
+          WHEN ct.from_user_id = $1 THEN 'send'
+          WHEN ct.to_user_id = $1 THEN 'receive'
+        END as transaction_type,
+        CASE 
+          WHEN ct.from_user_id = $1 THEN (SELECT username FROM users WHERE id = ct.to_user_id)
+          WHEN ct.to_user_id = $1 THEN (SELECT username FROM users WHERE id = ct.from_user_id)
+          ELSE 'Admin'
+        END as other_party
+      FROM credit_transactions ct
+      WHERE ct.from_user_id = $1 OR ct.to_user_id = $1
+      ORDER BY ct.created_at DESC
+      LIMIT 50
+    `, [userId]);
+
+    const transactions = result.rows.map(row => ({
+      id: row.id,
+      amount: row.amount,
+      type: row.transaction_type,
+      otherParty: row.other_party,
+      createdAt: row.created_at
+    }));
+
+    res.json({ transactions });
+  } catch (error) {
+    console.error('Error fetching credit history:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Admin user management endpoints
 app.get('/api/admin/users/search', authenticateToken, async (req, res) => {
   try {

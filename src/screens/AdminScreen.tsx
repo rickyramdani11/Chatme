@@ -66,6 +66,18 @@ export default function AdminScreen({ navigation }: any) {
   const [transferPin, setTransferPin] = useState('000000');
   const [transferLoading, setTransferLoading] = useState(false);
 
+  // Admin credit states
+  const [adminCreditUsername, setAdminCreditUsername] = useState('');
+  const [adminCreditAmount, setAdminCreditAmount] = useState('');
+  const [adminCreditReason, setAdminCreditReason] = useState('');
+  const [adminCreditLoading, setAdminCreditLoading] = useState(false);
+
+  // User status states
+  const [userStatusList, setUserStatusList] = useState([]);
+  const [selectedUserForHistory, setSelectedUserForHistory] = useState(null);
+  const [userCreditHistory, setUserCreditHistory] = useState([]);
+  const [statusLoading, setStatusLoading] = useState(false);
+
   // Form states for adding emoji/gift
   const [itemName, setItemName] = useState('');
   const [itemIcon, setItemIcon] = useState('');
@@ -79,8 +91,11 @@ export default function AdminScreen({ navigation }: any) {
     if (token) {
       loadEmojis();
       loadGifts();
+      if (activeTab === 'status') {
+        loadUserStatus();
+      }
     }
-  }, [token]);
+  }, [token, activeTab]);
 
   const loadEmojis = async () => {
     try {
@@ -557,6 +572,99 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
+  const handleAdminAddCredit = async () => {
+    if (!adminCreditUsername.trim()) {
+      Alert.alert('Error', 'Username harus diisi');
+      return;
+    }
+
+    if (!adminCreditAmount.trim() || isNaN(Number(adminCreditAmount)) || Number(adminCreditAmount) <= 0) {
+      Alert.alert('Error', 'Jumlah kredit harus berupa angka positif');
+      return;
+    }
+
+    setAdminCreditLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/credits/add`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: adminCreditUsername.trim(),
+          amount: Number(adminCreditAmount),
+          reason: adminCreditReason.trim() || 'Admin credit addition'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Berhasil', `Kredit berhasil ditambahkan ke ${adminCreditUsername}!`);
+        setAdminCreditUsername('');
+        setAdminCreditAmount('');
+        setAdminCreditReason('');
+      } else {
+        Alert.alert('Error', data.error || 'Gagal menambahkan kredit');
+      }
+    } catch (error) {
+      console.error('Error adding admin credits:', error);
+      Alert.alert('Error', 'Gagal menambahkan kredit. Silakan coba lagi.');
+    } finally {
+      setAdminCreditLoading(false);
+    }
+  };
+
+  const loadUserStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/status`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserStatusList(data.users || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load user status: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading user status:', error);
+      Alert.alert('Error', 'Network error loading user status');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const loadUserCreditHistory = async (userId) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/credits/history/${userId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserCreditHistory(data.transactions || []);
+      } else {
+        Alert.alert('Error', 'Failed to load credit history');
+      }
+    } catch (error) {
+      console.error('Error loading credit history:', error);
+      Alert.alert('Error', 'Network error loading credit history');
+    }
+  };
+
   const handleTransferCredit = async () => {
     if (!transferUsername.trim()) {
       Alert.alert('Error', 'Username harus diisi');
@@ -812,6 +920,24 @@ export default function AdminScreen({ navigation }: any) {
             Credit
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'admin-credit' && styles.activeTab]}
+          onPress={() => setActiveTab('admin-credit')}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={activeTab === 'admin-credit' ? '#fff' : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'admin-credit' && styles.activeTabText]}>
+            Add Credit
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'status' && styles.activeTab]}
+          onPress={() => setActiveTab('status')}
+        >
+          <Ionicons name="analytics-outline" size={20} color={activeTab === 'status' ? '#fff' : '#666'} />
+          <Text style={[styles.tabText, activeTab === 'status' && styles.activeTabText]}>
+            User Status
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -996,6 +1122,156 @@ export default function AdminScreen({ navigation }: any) {
               }
             />
           </View>
+        ) : activeTab === 'admin-credit' ? (
+          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.creditTransferCard}>
+              <Text style={styles.creditTransferTitle}>Add Credits (Admin)</Text>
+              
+              {/* Username Input */}
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Username Penerima</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={adminCreditUsername}
+                  onChangeText={setAdminCreditUsername}
+                  placeholder="Masukkan username penerima..."
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {/* Amount Input */}
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Jumlah Credit</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={adminCreditAmount}
+                  onChangeText={setAdminCreditAmount}
+                  placeholder="Masukkan jumlah credit..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              {/* Reason Input */}
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Alasan (Opsional)</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={adminCreditReason}
+                  onChangeText={setAdminCreditReason}
+                  placeholder="Alasan penambahan credit..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              {/* Add Credit Button */}
+              <View style={styles.transferButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.transferButton, { backgroundColor: '#4CAF50' }]}
+                  onPress={handleAdminAddCredit}
+                  disabled={adminCreditLoading}
+                >
+                  {adminCreditLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle" size={20} color="#fff" />
+                      <Text style={styles.transferButtonText}>Add Credit</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        ) : activeTab === 'status' ? (
+          <ScrollView style={styles.statusContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.statusHeader}>
+              <Text style={styles.statusTitle}>User Status & Information</Text>
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={loadUserStatus}
+                disabled={statusLoading}
+              >
+                {statusLoading ? (
+                  <ActivityIndicator size="small" color="#FF6B35" />
+                ) : (
+                  <Ionicons name="refresh" size={20} color="#FF6B35" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {userStatusList.map((user, index) => (
+              <View key={user.id} style={styles.userStatusCard}>
+                <View style={styles.userStatusHeader}>
+                  <View style={styles.userBasicInfo}>
+                    <Text style={styles.userStatusName}>{user.username}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: user.status === 'online' ? '#4CAF50' : '#999' }]}>
+                      <Text style={styles.statusBadgeText}>{user.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.userRole}>{user.role}</Text>
+                </View>
+
+                <View style={styles.userDetailInfo}>
+                  <Text style={styles.infoLabel}>Email: <Text style={styles.infoValue}>{user.email}</Text></Text>
+                  <Text style={styles.infoLabel}>Phone: <Text style={styles.infoValue}>{user.phone || 'N/A'}</Text></Text>
+                  <Text style={styles.infoLabel}>Credits: <Text style={styles.infoValue}>{user.credits}</Text></Text>
+                  <Text style={styles.infoLabel}>Device: <Text style={styles.infoValue}>{user.device}</Text></Text>
+                  <Text style={styles.infoLabel}>IP: <Text style={styles.infoValue}>{user.ip}</Text></Text>
+                  <Text style={styles.infoLabel}>Location: <Text style={styles.infoValue}>{user.location}</Text></Text>
+                  <Text style={styles.infoLabel}>Last Login: <Text style={styles.infoValue}>
+                    {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
+                  </Text></Text>
+                </View>
+
+                <View style={styles.userActions}>
+                  <TouchableOpacity
+                    style={styles.historyButton}
+                    onPress={() => {
+                      setSelectedUserForHistory(user);
+                      loadUserCreditHistory(user.id);
+                    }}
+                  >
+                    <Ionicons name="time-outline" size={16} color="#FF6B35" />
+                    <Text style={styles.historyButtonText}>Credit History</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.banButton}
+                    onPress={() => Alert.alert('Feature Coming Soon', 'Ban functionality will be implemented soon')}
+                  >
+                    <Ionicons name="ban-outline" size={16} color="#F44336" />
+                    <Text style={styles.banButtonText}>Ban Device/IP</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+
+            {selectedUserForHistory && (
+              <View style={styles.historyModal}>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyTitle}>Credit History - {selectedUserForHistory.username}</Text>
+                  <TouchableOpacity onPress={() => setSelectedUserForHistory(null)}>
+                    <Ionicons name="close" size={24} color="#333" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={styles.historyList}>
+                  {userCreditHistory.map((transaction, index) => (
+                    <View key={index} style={styles.historyItem}>
+                      <Text style={styles.historyAmount}>
+                        {transaction.type === 'receive' ? '+' : '-'}{transaction.amount}
+                      </Text>
+                      <Text style={styles.historyType}>{transaction.type}</Text>
+                      <Text style={styles.historyOther}>{transaction.otherParty}</Text>
+                      <Text style={styles.historyDate}>
+                        {new Date(transaction.createdAt).toLocaleString()}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </ScrollView>
         ) : (
           <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.creditTransferCard}>
@@ -1866,5 +2142,172 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  // User Status Styles
+  statusContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  statusTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFF5F2',
+  },
+  userStatusCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  userStatusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  userBasicInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userStatusName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginRight: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  userRole: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  userDetailInfo: {
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  infoValue: {
+    color: '#333',
+    fontWeight: '500',
+  },
+  userActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  historyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  historyButtonText: {
+    color: '#FF6B35',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  banButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+  },
+  banButtonText: {
+    color: '#F44336',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  historyModal: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    margin: 16,
+    maxHeight: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  historyList: {
+    maxHeight: 300,
+    padding: 16,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  historyAmount: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    width: 60,
+  },
+  historyType: {
+    fontSize: 12,
+    color: '#666',
+    width: 60,
+  },
+  historyOther: {
+    fontSize: 12,
+    color: '#333',
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 10,
+    color: '#999',
+    width: 80,
   },
 });
