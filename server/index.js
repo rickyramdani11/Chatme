@@ -1722,34 +1722,34 @@ app.put('/api/users/:userId/profile', async (req, res) => {
     // Build dynamic update query to handle optional fields
     const updateFields = [];
     const updateValues = [];
-    let paramCount = 1;
+    let paramCounter = 1;
 
     if (username !== undefined) {
-      updateFields.push(`username = $${paramCount++}`);
+      updateFields.push(`username = $${paramCounter++}`);
       updateValues.push(username);
     }
     if (bio !== undefined) {
-      updateFields.push(`bio = $${paramCount++}`);
+      updateFields.push(`bio = $${paramCounter++}`);
       updateValues.push(bio);
     }
     if (phone !== undefined) {
-      updateFields.push(`phone = $${paramCount++}`);
+      updateFields.push(`phone = $${paramCounter++}`);
       updateValues.push(phone);
     }
     if (gender !== undefined) {
-      updateFields.push(`gender = $${paramCount++}`);
+      updateFields.push(`gender = $${paramCounter++}`);
       updateValues.push(gender);
     }
     if (birthDate !== undefined) {
-      updateFields.push(`birth_date = $${paramCount++}`);
-      updateValues.push(birthDate);
+      updateFields.push(`birth_date = $${paramCounter++}`);
+      updateValues.push(birthDate === null || birthDate === '' ? null : birthDate);
     }
     if (country !== undefined) {
-      updateFields.push(`country = $${paramCount++}`);
+      updateFields.push(`country = $${paramCounter++}`);
       updateValues.push(country);
     }
     if (signature !== undefined) {
-      updateFields.push(`signature = $${paramCount++}`);
+      updateFields.push(`signature = $${paramCounter++}`);
       updateValues.push(signature);
     }
 
@@ -1759,7 +1759,7 @@ app.put('/api/users/:userId/profile', async (req, res) => {
     const updateQuery = `
       UPDATE users 
       SET ${updateFields.join(', ')}
-      WHERE id = $${paramCount}
+      WHERE id = $${paramCounter}
       RETURNING *
     `;
 
@@ -3055,23 +3055,23 @@ app.put('/api/users/:userId/profile', async (req, res) => {
       values.push(bio);
     }
     if (phone !== undefined) {
-      updateFields.push(`phone = $${paramCount++}`);
+      updateFields.push(`phone = $${paramCounter++}`);
       values.push(phone);
     }
     if (gender !== undefined) {
-      updateFields.push(`gender = $${paramCount++}`);
+      updateFields.push(`gender = $${paramCounter++}`);
       values.push(gender);
     }
     if (birthDate !== undefined) {
-      updateFields.push(`birth_date = $${paramCount++}`);
-      values.push(birthDate);
+      updateFields.push(`birth_date = $${paramCounter++}`);
+      values.push(birthDate === null || birthDate === '' ? null : birthDate);
     }
     if (country !== undefined) {
-      updateFields.push(`country = $${paramCount++}`);
+      updateFields.push(`country = $${paramCounter++}`);
       values.push(country);
     }
     if (signature !== undefined) {
-      updateFields.push(`signature = $${paramCount++}`);
+      updateFields.push(`signature = $${paramCounter++}`);
       values.push(signature);
     }
 
@@ -3086,7 +3086,7 @@ app.put('/api/users/:userId/profile', async (req, res) => {
     const updateQuery = `
       UPDATE users
       SET ${updateFields.join(', ')}
-      WHERE id = $${paramCount}
+      WHERE id = $${paramCounter}
       RETURNING id, username, email, bio, phone, avatar, gender, birth_date, country, signature, verified
     `;
 

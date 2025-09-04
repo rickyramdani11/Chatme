@@ -186,34 +186,37 @@ export default function EditProfileScreen({ navigation }: any) {
 
   const handleSave = async () => {
     try {
+      // Prepare data with proper null handling for dates
+      const updateData = {
+        bio: profileData.bio,
+        phone: profileData.phone,
+        gender: profileData.gender || null,
+        birthDate: profileData.birthDate && profileData.birthDate.trim() !== '' ? profileData.birthDate : null,
+        country: profileData.country || null,
+        signature: profileData.signature
+      };
+
       const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          username: profileData.username,
-          bio: profileData.bio,
-          phone: profileData.phone,
-          gender: profileData.gender,
-          birthDate: profileData.birthDate,
-          country: profileData.country,
-          signature: profileData.signature
-        }),
+        body: JSON.stringify(updateData),
       });
 
       if (response.ok) {
         await updateProfile({
-          username: profileData.username,
           bio: profileData.bio,
           phone: profileData.phone
         });
         Alert.alert('Success', 'Profile berhasil diperbarui!');
         navigation.goBack();
       } else {
-        Alert.alert('Error', 'Gagal memperbarui profile');
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Gagal memperbarui profile');
       }
     } catch (error) {
+      console.error('Error updating profile:', error);
       Alert.alert('Error', 'Gagal memperbarui profile');
     }
   };
@@ -288,19 +291,6 @@ export default function EditProfileScreen({ navigation }: any) {
 
         {/* Profile Form */}
         <View style={styles.section}>
-          {/* Username */}
-          <View style={styles.formItem}>
-            <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Username</Text>
-              <TextInput
-                style={styles.textInput}
-                value={profileData.username}
-                onChangeText={(text) => setProfileData(prev => ({ ...prev, username: text }))}
-                placeholder="Masukkan username"
-              />
-            </View>
-          </View>
-
           {/* Bio */}
           <View style={styles.formItem}>
             <View style={styles.formHeader}>
