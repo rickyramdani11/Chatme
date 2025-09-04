@@ -3130,13 +3130,14 @@ export default function ChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 20}
         enabled={true}
       >
-        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-          <View style={styles.tabContainer}>
-            <ScrollView
-              ref={scrollViewRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
+        <View style={styles.tabContainer}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={true}
+            decelerationRate="fast"
             onMomentumScrollEnd={(event) => {
               const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
               if (newIndex !== activeTab && newIndex >= 0 && newIndex < chatTabs.length) {
@@ -3155,24 +3156,26 @@ export default function ChatScreen() {
             scrollEventThrottle={16}
           >
             {chatTabs.map((tab, index) => (
-              <View key={tab.id} style={styles.tabContent}>
-                <FlatList
-                  ref={(ref) => { flatListRefs.current[tab.id] = ref; }} // Assign ref to the FlatList
-                  data={tab.messages}
-                  renderItem={renderMessage}
-                  keyExtractor={(item) => item.id}
-                  style={styles.messagesList}
-                  contentContainerStyle={styles.messagesContainer}
-                  scrollEnabled={true}
-                  onScroll={({ nativeEvent }) => {
-                    // Check if user is scrolling manually
-                    const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
-                    const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 50; // Threshold for "at bottom"
-                    setIsUserScrolling(!isScrolledToBottom);
-                  }}
-                  maintainVisibleContentPosition={{ minIndexForVisible: 0 }} // Optimization for FlatList
-                />
-              </View>
+              <TouchableWithoutFeedback key={tab.id} onPress={() => Keyboard.dismiss()}>
+                <View style={styles.tabContent}>
+                  <FlatList
+                    ref={(ref) => { flatListRefs.current[tab.id] = ref; }} // Assign ref to the FlatList
+                    data={tab.messages}
+                    renderItem={renderMessage}
+                    keyExtractor={(item) => item.id}
+                    style={styles.messagesList}
+                    contentContainerStyle={styles.messagesContainer}
+                    scrollEnabled={true}
+                    onScroll={({ nativeEvent }) => {
+                      // Check if user is scrolling manually
+                      const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+                      const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 50; // Threshold for "at bottom"
+                      setIsUserScrolling(!isScrolledToBottom);
+                    }}
+                    maintainVisibleContentPosition={{ minIndexForVisible: 0 }} // Optimization for FlatList
+                  />
+                </View>
+              </TouchableWithoutFeedback>
             ))}
           </ScrollView>
           {/* Auto Scroll Toggle Button */}
@@ -3186,14 +3189,10 @@ export default function ChatScreen() {
               color="white"
             />
           </TouchableOpacity>
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
 
         {/* Message Input */}
-        <LinearGradient
-          colors={['#8B5CF6', '#3B82F6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+        <View
           style={[
             styles.inputContainer,
             isKeyboardVisible && { paddingBottom: Platform.OS === 'android' ? 10 : 12 }
@@ -3201,7 +3200,7 @@ export default function ChatScreen() {
         >
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.emojiButton} onPress={handleEmojiPress}>
-              <Ionicons name="happy-outline" size={24} color="#666" />
+              <Ionicons name="happy-outline" size={24} color="white" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.giftButton} onPress={() => {
               loadGifts();
@@ -3231,7 +3230,7 @@ export default function ChatScreen() {
               <Ionicons name="send" size={24} color="white" />
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
       </KeyboardAvoidingView>
 
       {/* Popup Menu Modal */}
@@ -4370,24 +4369,32 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   inputContainer: {
+    backgroundColor: '#f5f5f5',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    borderRadius: 25,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    elevation: 2,
+    borderRadius: 24,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    marginHorizontal: 4,
   },
   emojiButton: {
+    padding: 10,
+    backgroundColor: '#FFA726',
+    borderRadius: 20,
     marginRight: 8,
+    marginLeft: 4,
   },
   giftButton: {
     marginRight: 12,
@@ -4396,13 +4403,25 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#333',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     maxHeight: 100,
+    minHeight: 40,
   },
   sendButton: {
-    backgroundColor: '#229c93',
-    borderRadius: 20,
-    padding: 8,
-    marginLeft: 12,
+    backgroundColor: '#FF7043',
+    borderRadius: 24,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+    marginRight: 4,
+    elevation: 2,
+    shadowColor: '#FF7043',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   modalOverlay: {
     flex: 1,
