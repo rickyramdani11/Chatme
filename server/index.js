@@ -4537,9 +4537,9 @@ app.post('/api/admin/cleanup-missing-media', authenticateToken, async (req, res)
 
       // If no valid media files exist, remove media_files from post
       if (!hasValidMedia && mediaFiles.length > 0) {
-        await pool.query(`      'UPDATE posts SET media_files = $1 WHERE id = $2',
-        [JSON.stringify([]), post.id]
-      );
+        await pool.query(`
+          UPDATE posts SET media_files = $1 WHERE id = $2
+        `, [JSON.stringify([]), post.id]);
         cleanedPosts++;
         console.log(`Cleaned post ${post.id} with missing media files`);
       }
