@@ -5542,10 +5542,8 @@ app.get('/', (req, res) => {
     timestamp: new Date().toISOString(),
     port: PORT,
     endpoints: [
-      'GET /api/test - Test endpoint',
-      'GET /api/rooms - Get chat rooms',
-      'POST /api/auth/login - User login',
-      'POST /api/auth/register - User registration'
+      'GET /api/test - Test endpoint'
+    
     ]
   });
 });
