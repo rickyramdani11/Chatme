@@ -116,7 +116,7 @@ export default function ChatScreen() {
   // Function to join a specific room (called when navigating from RoomScreen)
   const joinSpecificRoom = async (roomId: string, roomName: string) => {
     try {
-      console.log('Joining specific room/chat:', roomId, roomName, type);
+      console.log('Joining specific room/chat:', roomId, roomName, type, 'User:', user?.username);
 
       // Check if room already exists in tabs
       const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
@@ -280,6 +280,313 @@ export default function ChatScreen() {
 
   // Initialize socket with persistent connection and auto-reconnect
   useEffect(() => {
+    const setupSocketListeners = (socketInstance) => {
+      // Clear existing listeners to prevent duplicates
+      socketInstance.removeAllListeners('new-message');
+      socketInstance.removeAllListeners('user-joined');
+      socketInstance.removeAllListeners('user-left');
+      socketInstance.removeAllListeners('participants-updated');
+      socketInstance.removeAllListeners('user-kicked');
+      socketInstance.removeAllListeners('user-muted');
+      socketInstance.removeAllListeners('receiveGift');
+      socketInstance.removeAllListeners('receive-private-gift');
+      socketInstance.removeAllListeners('gift-animation');
+
+      socketInstance.on('new-message', (newMessage: Message) => {
+        console.log('Received new message:', {
+          sender: newMessage.sender,
+          content: newMessage.content,
+          type: newMessage.type,
+          role: newMessage.role,
+          roomId: newMessage.roomId
+        });
+
+        // Ensure timestamp is a proper Date object
+        if (typeof newMessage.timestamp === 'string') {
+          newMessage.timestamp = new Date(newMessage.timestamp);
+        }
+
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab => {
+            if (tab.id === newMessage.roomId) {
+              // Replace optimistic message if it exists, otherwise add new message
+              const existingIndex = tab.messages.findIndex(msg => 
+                msg.id === newMessage.id || 
+                (msg.sender === newMessage.sender && msg.content === newMessage.content && msg.id.startsWith('temp_'))
+              );
+
+              let updatedMessages;
+              if (existingIndex !== -1) {
+                // Replace optimistic message with real message
+                updatedMessages = [...tab.messages];
+                updatedMessages[existingIndex] = { ...newMessage };
+                console.log('Replaced optimistic message with real message');
+              } else {
+                // Always add system messages without duplicate check (they're from server and should be shown)
+                if (newMessage.sender === 'System') {
+                  updatedMessages = [...tab.messages, newMessage];
+                  console.log('System message added to tab:', tab.id, 'Content:', newMessage.content.substring(0, 50));
+                } else {
+                  // For user messages, still check for duplicates
+                  const isDuplicate = tab.messages.some(msg => 
+                    msg.sender === newMessage.sender && 
+                    msg.content === newMessage.content &&
+                    Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 2000
+                  );
+
+                  if (!isDuplicate) {
+                    updatedMessages = [...tab.messages, newMessage];
+                    console.log('User message added to tab:', tab.id, 'Total messages:', updatedMessages.length);
+                  } else {
+                    console.log('Duplicate user message filtered out');
+                    return tab; // Don't update if duplicate
+                  }
+                }
+              }
+
+              // Auto-scroll immediately for better UX
+              if (autoScrollEnabled && !isUserScrolling && newMessage.roomId === chatTabs[activeTab]?.id) {
+                setTimeout(() => {
+                  flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
+                }, 30);
+              }
+
+              return { ...tab, messages: updatedMessages };
+            }
+            return tab;
+          })
+        );
+
+        // Track unread messages for other tabs
+        const currentRoomId = chatTabs[activeTab]?.id;
+        if (newMessage.roomId !== currentRoomId && newMessage.sender !== user?.username) {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
+          }));
+        }
+      });
+
+      socketInstance.on('user-joined', (joinMessage: Message) => {
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === joinMessage.roomId
+              ? { ...tab, messages: [...tab.messages, joinMessage] }
+              : tab
+          )
+        );
+      });
+
+      socketInstance.on('user-left', (leaveMessage: Message) => {
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === leaveMessage.roomId
+              ? { ...tab, messages: [...tab.messages, leaveMessage] }
+              : tab
+          )
+        );
+      });
+
+      // Listen for participant updates
+      socketInstance.on('participants-updated', (updatedParticipants: any[]) => {
+        console.log('Participants updated:', updatedParticipants.length);
+        setParticipants(updatedParticipants);
+        
+        // Update the "Currently in the room" message with new participants
+        if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private' && updatedParticipants.length > 0) {
+          const currentRoomId = chatTabs[activeTab].id;
+          const participantNames = updatedParticipants.map(p => p.username).join(', ');
+          const updatedContent = `Currently in the room: ${participantNames}`;
+          
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => {
+              if (tab.id === currentRoomId) {
+                const updatedMessages = tab.messages.map(msg => {
+                  if (msg.id === `room_info_current_${currentRoomId}`) {
+                    return { ...msg, content: updatedContent };
+                  }
+                  return msg;
+                });
+                return { ...tab, messages: updatedMessages };
+              }
+              return tab;
+            })
+          );
+        }
+      });
+
+      // Listen for user kicked events
+      socketInstance.on('user-kicked', (data: any) => {
+        if (data.kickedUser === user?.username) {
+          Alert.alert('You have been kicked', `You were kicked from ${data.roomName} by ${data.kickedBy}`);
+          // Remove the room tab
+          setChatTabs(prevTabs => prevTabs.filter(tab => tab.id !== data.roomId));
+        } else {
+          // Update participant list
+          setParticipants(prev => prev.filter(p => p.username !== data.kickedUser));
+        }
+      });
+
+      // Listen for user muted events
+      socketInstance.on('user-muted', (data: any) => {
+        if (data.mutedUser === user?.username) {
+          if (data.action === 'mute') {
+            setMutedUsers(prev => [...prev, data.mutedUser]);
+            Alert.alert('You have been muted', `You were muted by ${data.mutedBy}`);
+          } else {
+            setMutedUsers(prev => prev.filter(username => username !== data.mutedUser));
+            Alert.alert('You have been unmuted', `You were unmuted by ${data.mutedBy}`);
+          }
+        }
+      });
+
+      // Listen for gift broadcasts from server
+      socketInstance.on('receiveGift', (data: any) => {
+        console.log('Received gift broadcast:', data);
+
+        // Show animation for all users (including sender for consistency)
+        setActiveGiftAnimation({
+          ...data.gift,
+          sender: data.sender,
+          timestamp: data.timestamp,
+        });
+
+        // Start dramatic entrance animation for full-screen effect
+        giftScaleAnim.setValue(0.3);
+        giftOpacityAnim.setValue(0);
+
+        // Create a dramatic zoom-in effect like live streaming apps
+        Animated.parallel([
+          Animated.spring(giftScaleAnim, {
+            toValue: 1,
+            tension: 80,
+            friction: 6,
+            useNativeDriver: true,
+          }),
+          Animated.timing(giftOpacityAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Auto-close timing based on gift type (same logic as private gifts)
+        const isVideoGift = data.gift.animation && (
+          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        );
+
+        // For non-video gifts, use fixed timeout
+        if (!isVideoGift) {
+          const duration = data.gift.type === 'animated' ? 5000 : 3000;
+          setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(giftScaleAnim, {
+                toValue: 1.1, // Slight zoom out effect
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(giftOpacityAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setActiveGiftAnimation(null);
+            });
+          }, duration);
+        }
+        // For video gifts, auto-close is handled by video completion callback
+
+        // Add gift message to chat
+        const giftMessage: Message = {
+          id: `gift_${Date.now()}_${data.sender}`,
+          sender: data.sender,
+          content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
+          timestamp: new Date(data.timestamp),
+          roomId: chatTabs[activeTab]?.id || data.roomId,
+          role: data.role || 'user',
+          level: data.level || 1,
+          type: 'gift'
+        };
+
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === (chatTabs[activeTab]?.id || data.roomId)
+              ? { ...tab, messages: [...tab.messages, giftMessage] }
+              : tab
+          )
+        );
+      });
+
+      // Listen for private gift notifications
+      socketInstance.on('receive-private-gift', (data: any) => {
+        console.log('Received private gift:', data);
+
+        // Show animation for recipient
+        setActiveGiftAnimation({
+          ...data.gift,
+          sender: data.from,
+          recipient: user?.username,
+          timestamp: data.timestamp,
+          isPrivate: true
+        });
+
+        // Start dramatic entrance animation
+        giftScaleAnim.setValue(0.3);
+        giftOpacityAnim.setValue(0);
+
+        Animated.parallel([
+          Animated.spring(giftScaleAnim, {
+            toValue: 1,
+            tension: 80,
+            friction: 6,
+            useNativeDriver: true,
+          }),
+          Animated.timing(giftOpacityAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+
+        // Auto-close timing based on gift type
+        const isVideoGift = data.gift.animation && (
+          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        );
+
+        // For non-video gifts, use fixed timeout
+        if (!isVideoGift) {
+          const duration = data.gift.type === 'animated' ? 5000 : 3000;
+          setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(giftScaleAnim, {
+                toValue: 1.1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(giftOpacityAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setActiveGiftAnimation(null);
+            });
+          }, duration);
+        }
+        // For video gifts, auto-close is handled by video completion callback
+      });
+
+      // Listen for gift animations (legacy support)
+      socketInstance.on('gift-animation', (data: any) => {
+        console.log('Received legacy gift animation:', data);
+        // Redirect to receiveGift handler for consistency
+        socketInstance.emit('receiveGift', data);
+      });
+    };
+
     const initializeSocket = () => {
       console.log('Initializing socket connection...');
       
@@ -300,11 +607,14 @@ export default function ChatScreen() {
         setIsSocketConnected(true);
         setReconnectAttempts(0);
         
+        // Setup all socket listeners after connection
+        setupSocketListeners(newSocket);
+        
         // Rejoin all active rooms after reconnection
         if (chatTabs.length > 0) {
           chatTabs.forEach(tab => {
             if (user?.username) {
-              console.log('Rejoining room after reconnect:', tab.id);
+              console.log('Rejoining room after reconnect:', tab.id, user.username);
               newSocket.emit('join-room', {
                 roomId: tab.id,
                 username: user.username,
@@ -386,10 +696,29 @@ export default function ChatScreen() {
       console.log('AppState changed to:', nextAppState);
       
       if (nextAppState === 'active') {
-        // Check if socket is disconnected and attempt reconnection
-        if (!isSocketConnected || !socket?.connected) {
-          console.log('App became active - checking socket connection');
-          attemptReconnection();
+        // Force reconnection when app becomes active
+        console.log('App became active - forcing socket reconnection');
+        if (socket) {
+          if (!socket.connected) {
+            console.log('Socket not connected, attempting reconnection');
+            socket.connect();
+          } else {
+            console.log('Socket already connected, re-setup listeners and rejoin rooms');
+            // Re-setup listeners to ensure they're working
+            setupSocketListeners(socket);
+            
+            // Rejoin all rooms to ensure we're still in them
+            chatTabs.forEach(tab => {
+              if (user?.username) {
+                console.log('Rejoining room after app resume:', tab.id, user.username);
+                socket.emit('join-room', {
+                  roomId: tab.id,
+                  username: user.username,
+                  role: user.role || 'user'
+                });
+              }
+            });
+          }
         }
         
         // Reload participants for current room
@@ -398,6 +727,8 @@ export default function ChatScreen() {
             loadParticipants();
           }, 1000);
         }
+      } else if (nextAppState === 'background') {
+        console.log('App moved to background');
       }
     };
 
@@ -469,328 +800,7 @@ export default function ChatScreen() {
     }
   }, [roomId, autoFocusTab, chatTabs.length]);
 
-  useEffect(() => {
-    if (socket && isSocketConnected) {
-      // Clear existing listeners to prevent duplicates
-      socket.removeAllListeners('new-message');
-      socket.removeAllListeners('user-joined');
-      socket.removeAllListeners('user-left');
-      socket.removeAllListeners('participants-updated');
-      socket.removeAllListeners('user-kicked');
-      socket.removeAllListeners('user-muted');
-      socket.removeAllListeners('receiveGift');
-      socket.removeAllListeners('receive-private-gift');
-      socket.removeAllListeners('gift-animation');
-
-      socket.on('new-message', (newMessage: Message) => {
-        console.log('Received new message:', {
-          sender: newMessage.sender,
-          content: newMessage.content,
-          type: newMessage.type,
-          role: newMessage.role,
-          roomId: newMessage.roomId
-        });
-
-        // Ensure timestamp is a proper Date object
-        if (typeof newMessage.timestamp === 'string') {
-          newMessage.timestamp = new Date(newMessage.timestamp);
-        }
-
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab => {
-            if (tab.id === newMessage.roomId) {
-              // Replace optimistic message if it exists, otherwise add new message
-              const existingIndex = tab.messages.findIndex(msg => 
-                msg.id === newMessage.id || 
-                (msg.sender === newMessage.sender && msg.content === newMessage.content && msg.id.startsWith('temp_'))
-              );
-
-              let updatedMessages;
-              if (existingIndex !== -1) {
-                // Replace optimistic message with real message
-                updatedMessages = [...tab.messages];
-                updatedMessages[existingIndex] = { ...newMessage };
-                console.log('Replaced optimistic message with real message');
-              } else {
-                // Always add system messages without duplicate check (they're from server and should be shown)
-                if (newMessage.sender === 'System') {
-                  updatedMessages = [...tab.messages, newMessage];
-                  console.log('System message added to tab:', tab.id, 'Content:', newMessage.content.substring(0, 50));
-                } else {
-                  // For user messages, still check for duplicates
-                  const isDuplicate = tab.messages.some(msg => 
-                    msg.sender === newMessage.sender && 
-                    msg.content === newMessage.content &&
-                    Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 2000
-                  );
-
-                  if (!isDuplicate) {
-                    updatedMessages = [...tab.messages, newMessage];
-                    console.log('User message added to tab:', tab.id, 'Total messages:', updatedMessages.length);
-                  } else {
-                    console.log('Duplicate user message filtered out');
-                    return tab; // Don't update if duplicate
-                  }
-                }
-              }
-
-              // Auto-scroll immediately for better UX
-              if (autoScrollEnabled && !isUserScrolling && newMessage.roomId === chatTabs[activeTab]?.id) {
-                setTimeout(() => {
-                  flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
-                }, 30);
-              }
-
-              return { ...tab, messages: updatedMessages };
-            }
-            return tab;
-          })
-        );
-
-        // Track unread messages for other tabs
-        const currentRoomId = chatTabs[activeTab]?.id;
-        if (newMessage.roomId !== currentRoomId && newMessage.sender !== user?.username) {
-          setUnreadCounts(prev => ({
-            ...prev,
-            [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
-          }));
-        }
-      });
-
-      socket.on('user-joined', (joinMessage: Message) => {
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === joinMessage.roomId
-              ? { ...tab, messages: [...tab.messages, joinMessage] }
-              : tab
-          )
-        );
-      });
-
-      socket.on('user-left', (leaveMessage: Message) => {
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === leaveMessage.roomId
-              ? { ...tab, messages: [...tab.messages, leaveMessage] }
-              : tab
-          )
-        );
-      });
-
-      // Listen for participant updates
-      socket.on('participants-updated', (updatedParticipants: any[]) => {
-        console.log('Participants updated:', updatedParticipants.length);
-        setParticipants(updatedParticipants);
-        
-        // Update the "Currently in the room" message with new participants
-        if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private' && updatedParticipants.length > 0) {
-          const currentRoomId = chatTabs[activeTab].id;
-          const participantNames = updatedParticipants.map(p => p.username).join(', ');
-          const updatedContent = `Currently in the room: ${participantNames}`;
-          
-          setChatTabs(prevTabs =>
-            prevTabs.map(tab => {
-              if (tab.id === currentRoomId) {
-                const updatedMessages = tab.messages.map(msg => {
-                  if (msg.id === `room_info_current_${currentRoomId}`) {
-                    return { ...msg, content: updatedContent };
-                  }
-                  return msg;
-                });
-                return { ...tab, messages: updatedMessages };
-              }
-              return tab;
-            })
-          );
-        }
-      });
-
-      // Listen for user kicked events
-      socket.on('user-kicked', (data: any) => {
-        if (data.kickedUser === user?.username) {
-          Alert.alert('You have been kicked', `You were kicked from ${data.roomName} by ${data.kickedBy}`);
-          // Remove the room tab
-          setChatTabs(prevTabs => prevTabs.filter(tab => tab.id !== data.roomId));
-        } else {
-          // Update participant list
-          setParticipants(prev => prev.filter(p => p.username !== data.kickedUser));
-        }
-      });
-
-      // Listen for user muted events
-      socket.on('user-muted', (data: any) => {
-        if (data.mutedUser === user?.username) {
-          if (data.action === 'mute') {
-            setMutedUsers(prev => [...prev, data.mutedUser]);
-            Alert.alert('You have been muted', `You were muted by ${data.mutedBy}`);
-          } else {
-            setMutedUsers(prev => prev.filter(username => username !== data.mutedUser));
-            Alert.alert('You have been unmuted', `You were unmuted by ${data.mutedBy}`);
-          }
-        }
-      });
-
-      // Listen for gift broadcasts from server
-      socket.on('receiveGift', (data: any) => {
-        console.log('Received gift broadcast:', data);
-
-        // Show animation for all users (including sender for consistency)
-        setActiveGiftAnimation({
-          ...data.gift,
-          sender: data.sender,
-          timestamp: data.timestamp,
-        });
-
-        // Start dramatic entrance animation for full-screen effect
-        giftScaleAnim.setValue(0.3);
-        giftOpacityAnim.setValue(0);
-
-        // Create a dramatic zoom-in effect like live streaming apps
-        Animated.parallel([
-          Animated.spring(giftScaleAnim, {
-            toValue: 1,
-            tension: 80,
-            friction: 6,
-            useNativeDriver: true,
-          }),
-          Animated.timing(giftOpacityAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ]).start();
-
-        // Auto-close timing based on gift type (same logic as private gifts)
-        const isVideoGift = data.gift.animation && (
-          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
-        );
-
-        // For non-video gifts, use fixed timeout
-        if (!isVideoGift) {
-          const duration = data.gift.type === 'animated' ? 5000 : 3000;
-          setTimeout(() => {
-            Animated.parallel([
-              Animated.timing(giftScaleAnim, {
-                toValue: 1.1, // Slight zoom out effect
-                duration: 400,
-                useNativeDriver: true,
-              }),
-              Animated.timing(giftOpacityAnim, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-              }),
-            ]).start(() => {
-              setActiveGiftAnimation(null);
-            });
-          }, duration);
-        }
-        // For video gifts, auto-close is handled by video completion callback
-
-        // Add gift message to chat
-        const giftMessage: Message = {
-          id: `gift_${Date.now()}_${data.sender}`,
-          sender: data.sender,
-          content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
-          timestamp: new Date(data.timestamp),
-          roomId: chatTabs[activeTab]?.id || data.roomId,
-          role: data.role || 'user',
-          level: data.level || 1,
-          type: 'gift'
-        };
-
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === (chatTabs[activeTab]?.id || data.roomId)
-              ? { ...tab, messages: [...tab.messages, giftMessage] }
-              : tab
-          )
-        );
-      });
-
-      // Listen for private gift notifications
-      socket.on('receive-private-gift', (data: any) => {
-        console.log('Received private gift:', data);
-
-        // Show animation for recipient
-        setActiveGiftAnimation({
-          ...data.gift,
-          sender: data.from,
-          recipient: user?.username,
-          timestamp: data.timestamp,
-          isPrivate: true
-        });
-
-        // Start dramatic entrance animation
-        giftScaleAnim.setValue(0.3);
-        giftOpacityAnim.setValue(0);
-
-        Animated.parallel([
-          Animated.spring(giftScaleAnim, {
-            toValue: 1,
-            tension: 80,
-            friction: 6,
-            useNativeDriver: true,
-          }),
-          Animated.timing(giftOpacityAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ]).start();
-
-        // Auto-close timing based on gift type
-        const isVideoGift = data.gift.animation && (
-          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
-        );
-
-        // For non-video gifts, use fixed timeout
-        if (!isVideoGift) {
-          const duration = data.gift.type === 'animated' ? 5000 : 3000;
-          setTimeout(() => {
-            Animated.parallel([
-              Animated.timing(giftScaleAnim, {
-                toValue: 1.1,
-                duration: 400,
-                useNativeDriver: true,
-              }),
-              Animated.timing(giftOpacityAnim, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-              }),
-            ]).start(() => {
-              setActiveGiftAnimation(null);
-            });
-          }, duration);
-        }
-        // For video gifts, auto-close is handled by video completion callback
-      });
-
-      // Listen for gift animations (legacy support)
-      socket.on('gift-animation', (data: any) => {
-        console.log('Received legacy gift animation:', data);
-        // Redirect to receiveGift handler for consistency
-        socket.emit('receiveGift', data);
-      });
-
-      return () => {
-        if (socket) {
-          socket.off('new-message');
-          socket.off('user-joined');
-          socket.off('user-left');
-          socket.off('participants-updated');
-          socket.off('user-kicked');
-          socket.off('user-muted');
-          socket.off('receiveGift');
-          socket.off('receive-private-gift');
-          socket.off('gift-animation');
-        }
-      };
-    }
-  }, [socket, isSocketConnected, autoScrollEnabled, isUserScrolling, chatTabs, activeTab]); // Include socket connection state
+  // Socket listeners are now managed in the main socket initialization useEffect above
 
   const loadRooms = async () => {
     try {
