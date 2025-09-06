@@ -1862,6 +1862,7 @@ export default function ChatScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
           'User-Agent': 'ChatMe-Mobile-App',
         },
         body: JSON.stringify({

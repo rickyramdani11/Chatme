@@ -171,14 +171,14 @@ export default function ProfileScreen({ navigation, route }: any) {
       if (response.ok) {
         const result = await response.json();
         setIsFollowing(!isFollowing);
-        
+
         // Update profile with the exact counts from server response
         setProfile(prev => prev ? {
           ...prev,
           followers: result.followers || (isFollowing ? prev.followers - 1 : prev.followers + 1),
           following: result.following || prev.following
         } : null);
-        
+
         console.log('Follow action completed:', result);
       } else {
         const errorData = await response.json();
@@ -194,17 +194,17 @@ export default function ProfileScreen({ navigation, route }: any) {
     if (profile && user) {
       try {
         console.log('Creating private chat between:', user.username, 'and', profile.username);
-        
+
         // Create private chat via API
         const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
             'User-Agent': 'ChatMe-Mobile-App',
           },
           body: JSON.stringify({
-            participants: [user.username, profile.username],
-            initiatedBy: user.username
+            targetUserId: profile.id
           }),
         });
 
