@@ -166,6 +166,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
       });
 

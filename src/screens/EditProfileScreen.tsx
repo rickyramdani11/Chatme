@@ -28,7 +28,7 @@ interface AlbumPhoto {
 }
 
 export default function EditProfileScreen({ navigation }: any) {
-  const { user, updateProfile } = useAuth();
+  const { user, token, updateProfile } = useAuth();
   const [profileData, setProfileData] = useState({
     username: user?.username || '',
     email: user?.email || '',
@@ -54,7 +54,12 @@ export default function EditProfileScreen({ navigation }: any) {
 
   const fetchAlbumPhotos = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/album`);
+      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/album`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
       if (response.ok) {
         const photos = await response.json();
         setAlbumPhotos(photos);
@@ -116,6 +121,7 @@ export default function EditProfileScreen({ navigation }: any) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
           },
           body: JSON.stringify({
             avatar: base64Data,
@@ -135,6 +141,7 @@ export default function EditProfileScreen({ navigation }: any) {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : '',
               },
               body: JSON.stringify({
                 avatar: result.avatarUrl
@@ -161,6 +168,7 @@ export default function EditProfileScreen({ navigation }: any) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
           },
           body: JSON.stringify({
             photo: base64Data,
@@ -200,6 +208,7 @@ export default function EditProfileScreen({ navigation }: any) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
         },
         body: JSON.stringify(updateData),
       });
