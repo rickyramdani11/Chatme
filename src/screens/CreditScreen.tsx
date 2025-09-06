@@ -31,6 +31,16 @@ export default function CreditScreen({ navigation }: any) {
     fetchTransactionHistory();
   }, []);
 
+  useEffect(() => {
+    // Listen for navigation focus to refresh balance
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchBalance();
+      fetchTransactionHistory();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
   const fetchBalance = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {

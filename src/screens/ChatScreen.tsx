@@ -99,7 +99,7 @@ export default function ChatScreen() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   // Static Level Badge Component (no blinking)
   const LevelBadge = ({ level }: { level: number }) => {
@@ -187,7 +187,7 @@ export default function ChatScreen() {
         let roomInfoMessages = [];
         if (type !== 'private') {
           const currentTime = new Date();
-          
+
           // Room description message
           roomInfoMessages.push({
             id: `room_info_desc_${roomId}`,
@@ -391,13 +391,13 @@ export default function ChatScreen() {
       socketInstance.on('participants-updated', (updatedParticipants: any[]) => {
         console.log('Participants updated:', updatedParticipants.length);
         setParticipants(updatedParticipants);
-        
+
         // Update the "Currently in the room" message with new participants
         if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private' && updatedParticipants.length > 0) {
           const currentRoomId = chatTabs[activeTab].id;
           const participantNames = updatedParticipants.map(p => p.username).join(', ');
           const updatedContent = `Currently in the room: ${participantNames}`;
-          
+
           setChatTabs(prevTabs =>
             prevTabs.map(tab => {
               if (tab.id === currentRoomId) {
@@ -589,7 +589,7 @@ export default function ChatScreen() {
 
     const initializeSocket = () => {
       console.log('Initializing socket connection...');
-      
+
       const newSocket = io(API_BASE_URL, {
         transports: ['websocket'], // Force WebSocket transport for better persistence
         autoConnect: true,
@@ -606,10 +606,10 @@ export default function ChatScreen() {
         console.log('Socket connected successfully');
         setIsSocketConnected(true);
         setReconnectAttempts(0);
-        
+
         // Setup all socket listeners after connection
         setupSocketListeners(newSocket);
-        
+
         // Rejoin all active rooms after reconnection
         if (chatTabs.length > 0) {
           chatTabs.forEach(tab => {
@@ -628,12 +628,12 @@ export default function ChatScreen() {
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
         setIsSocketConnected(false);
-        
+
         // Don't attempt reconnection for intentional disconnects
         if (reason === 'io client disconnect' || reason === 'io server disconnect') {
           return;
         }
-        
+
         // Auto-reconnect for unexpected disconnects
         attemptReconnection();
       });
@@ -679,11 +679,11 @@ export default function ChatScreen() {
 
       reconnectTimeoutRef.current = setTimeout(() => {
         setReconnectAttempts(prev => prev + 1);
-        
+
         if (socket) {
           socket.disconnect();
         }
-        
+
         initializeSocket();
       }, delay);
     };
@@ -694,7 +694,7 @@ export default function ChatScreen() {
     // AppState listener for reconnection when app becomes active
     const handleAppStateChange = (nextAppState: string) => {
       console.log('AppState changed to:', nextAppState);
-      
+
       if (nextAppState === 'active') {
         // Force reconnection when app becomes active
         console.log('App became active - forcing socket reconnection');
@@ -706,7 +706,7 @@ export default function ChatScreen() {
             console.log('Socket already connected, re-setup listeners and rejoin rooms');
             // Re-setup listeners to ensure they're working
             setupSocketListeners(socket);
-            
+
             // Rejoin all rooms to ensure we're still in them
             chatTabs.forEach(tab => {
               if (user?.username) {
@@ -720,7 +720,7 @@ export default function ChatScreen() {
             });
           }
         }
-        
+
         // Reload participants for current room
         if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private') {
           setTimeout(() => {
@@ -736,13 +736,13 @@ export default function ChatScreen() {
 
     return () => {
       console.log('Cleaning up socket connection');
-      
+
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      
+
       appStateSubscription?.remove();
-      
+
       if (socket) {
         socket.removeAllListeners();
         socket.disconnect();
@@ -1746,12 +1746,12 @@ export default function ChatScreen() {
             setParticipants(participantData);
             setFilteredParticipants(participantData); // Update filtered list too
             console.log('Participants loaded for room', currentRoomId, ':', participantData.length);
-            
+
             // Update the "Currently in the room" message with actual participants
             if (chatTabs[activeTab].type !== 'private' && participantData.length > 0) {
               const participantNames = participantData.map(p => p.username).join(', ');
               const updatedContent = `Currently in the room: ${participantNames}`;
-              
+
               setChatTabs(prevTabs =>
                 prevTabs.map(tab => {
                   if (tab.id === currentRoomId) {
@@ -2114,10 +2114,10 @@ export default function ChatScreen() {
   const handleCopyMessage = () => {
     if (selectedMessage) {
       const messageText = `${selectedMessage.sender}: ${selectedMessage.content}`;
-      
+
       // Copy to clipboard
       Clipboard.setStringAsync(messageText);
-      
+
       // Show success feedback
       Alert.alert(
         'Message Copied',
@@ -2840,47 +2840,89 @@ export default function ChatScreen() {
   };
 
   // Function to send gift to room
-  const handleGiftSend = async (gift: any) => {
+  const handleGiftSend = async (gift: any, recipientUsername?: string) => {
     try {
-      if (!user || !chatTabs[activeTab]) return;
-
-      const currentRoomId = chatTabs[activeTab].id;
-      const isPrivateChat = chatTabs[activeTab].type === 'private';
-
-      // For private chats, gifts are sent via sendMessage with a special flag
-      if (isPrivateChat) {
-        if (socket) {
-          socket.emit('sendMessage', {
-            roomId: currentRoomId,
-            sender: user.username,
-            content: `🎁 Gift: ${gift.name} ${gift.icon}`,
-            role: user.role || 'user',
-            level: user.level || 1,
-            type: 'gift',
-            gift: gift
-          });
-        }
-        setShowGiftPicker(false);
+      if (!socket) {
+        console.log('Socket not connected, cannot send gift');
+        Alert.alert('Error', 'Connection lost. Please try again.');
         return;
       }
 
-      // Send gift via socket - this will trigger animation for ALL users
-      if (socket) {
-        socket.emit('sendGift', {
-          roomId: currentRoomId,
-          sender: user.username,
-          gift: gift,
-          timestamp: new Date(),
-          role: user.role || 'user',
-          level: user.level || 1
+      // Check balance first
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/gifts/check-balance`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            giftPrice: gift.price
+          }),
         });
-      }
 
-      setShowGiftPicker(false);
+        if (response.ok) {
+          const balanceData = await response.json();
+
+          if (!balanceData.canAfford) {
+            Alert.alert(
+              'Saldo Tidak Cukup', 
+              `Anda memerlukan ${gift.price} coins untuk mengirim gift ini. Saldo Anda: ${balanceData.currentBalance} coins.`
+            );
+            return;
+          }
+
+          // Show cost breakdown confirmation
+          const recipientText = recipientUsername ? `ke ${recipientUsername}` : 'ke room';
+          Alert.alert(
+            'Konfirmasi Gift',
+            `Kirim ${gift.name} ${recipientText}?\n\n` +
+            `Total: ${gift.price} coins\n` +
+            `${recipientUsername ? `${recipientUsername} mendapat: ${balanceData.recipientShare} coins\n` : ''}` +
+            `System fee: ${balanceData.systemShare} coins\n` +
+            `Sisa saldo: ${balanceData.remainingBalance} coins`,
+            [
+              { text: 'Batal', style: 'cancel' },
+              { 
+                text: 'Kirim', 
+                onPress: () => {
+                  const giftData = {
+                    roomId: chatTabs[activeTab]?.id,
+                    sender: user?.username,
+                    gift,
+                    recipient: recipientUsername,
+                    timestamp: new Date().toISOString(),
+                    role: user?.role || 'user',
+                    level: user?.level || 1
+                  };
+
+                  console.log('Sending gift via socket:', giftData);
+                  socket.emit('sendGift', giftData);
+
+                  setShowGiftPicker(false);
+                  setSelectedGift(null);
+                  // Close the user gift picker if it was open
+                  if (showUserGiftPicker) {
+                    setShowUserGiftPicker(false);
+                    setSelectedGiftForUser(null);
+                  }
+                }
+              }
+            ]
+          );
+
+        } else {
+          Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
+        }
+
+      } catch (balanceError) {
+        console.error('Error checking balance:', balanceError);
+        Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
+      }
 
     } catch (error) {
       console.error('Error sending gift:', error);
-      Alert.alert('Error', 'Failed to send gift');
+      Alert.alert('Error', 'Gagal mengirim gift. Silakan coba lagi.');
     }
   };
 
@@ -2896,94 +2938,10 @@ export default function ChatScreen() {
     try {
       if (!user || !selectedGiftForUser || !targetUser) return;
 
-      // Show animation for sender
-      setActiveGiftAnimation({
-        ...selectedGiftForUser,
-        sender: user.username,
-        recipient: targetUser.username,
-        timestamp: new Date(),
-      });
-
-      // Start dramatic entrance animation for full-screen effect
-      giftScaleAnim.setValue(0.3);
-      giftOpacityAnim.setValue(0);
-
-      // Create a dramatic zoom-in effect like live streaming apps
-      Animated.parallel([
-        Animated.spring(giftScaleAnim, {
-          toValue: 1,
-          tension: 80,
-          friction: 6,
-          useNativeDriver: true,
-        }),
-        Animated.timing(giftOpacityAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Auto-close timing based on gift type
-      const isVideoGift = selectedGiftForUser.animation && (
-        (typeof selectedGiftForUser.animation === 'string' && selectedGiftForUser.animation.toLowerCase().includes('.mp4')) ||
-        (selectedGiftForUser.name && (selectedGiftForUser.name.toLowerCase().includes('love') || selectedGiftForUser.name.toLowerCase().includes('ufo')))
-      );
-
-      // For non-video gifts, use fixed timeout
-      if (!isVideoGift) {
-        const duration = selectedGiftForUser.type === 'animated' ? 5000 : 3000;
-        setTimeout(() => {
-          Animated.parallel([
-            Animated.timing(giftScaleAnim, {
-              toValue: 1.1, // Slight zoom out effect
-              duration: 400,
-              useNativeDriver: true,
-            }),
-            Animated.timing(giftOpacityAnim, {
-              toValue: 0,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            setActiveGiftAnimation(null);
-          });
-        }, duration);
-      }
-      // For video gifts, auto-close is handled by video completion callback
-
-      // Send private gift notification to target user
-      if (socket) {
-        socket.emit('send-private-gift', {
-          from: user.username,
-          to: targetUser.username,
-          gift: selectedGiftForUser,
-          timestamp: new Date()
-        });
-      }
-
-      // Add gift to local messages as a notification
-      const giftMessage: Message = {
-        id: `private_gift_${Date.now()}_${user.username}`,
-        sender: 'System',
-        content: `🎁 You sent ${selectedGiftForUser.name} ${selectedGiftForUser.icon} to ${targetUser.username}`,
-        timestamp: new Date(),
-        roomId: chatTabs[activeTab]?.id || 'system',
-        role: 'system',
-        level: 1,
-        type: 'gift'
-      };
-
-      setChatTabs(prevTabs =>
-        prevTabs.map(tab =>
-          tab.id === chatTabs[activeTab]?.id
-            ? { ...tab, messages: [...tab.messages, giftMessage] }
-            : tab
-        )
-      );
-
-      setShowUserGiftPicker(false);
-      setSelectedGiftForUser(null);
-      // Removed Alert popup - animation provides enough feedback
+      // Call the main handleGiftSend function with the recipient username
+      handleGiftSend(selectedGiftForUser, targetUser.username);
+      
+      // No need to set activeGiftAnimation here, handleGiftSend will do it if successful
 
     } catch (error) {
       console.error('Error sending gift to user:', error);
@@ -2998,10 +2956,10 @@ export default function ChatScreen() {
     }
     loadEmojis(); // Load emojis when the component mounts or roomId changes
     loadGifts(); // Load gifts when the component mounts or roomId changes
-    
+
     // Register background fetch for maintaining connection
     registerBackgroundFetch();
-    
+
     return () => {
       // Cleanup background fetch when component unmounts
       unregisterBackgroundFetch();
@@ -3126,7 +3084,7 @@ export default function ChatScreen() {
           </View>
         </View>
         {renderTabIndicator()}
-        
+
         {/* Connection Status Indicator */}
         <View style={styles.connectionStatusContainer}>
           <View style={[

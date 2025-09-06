@@ -4211,22 +4211,115 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('new-message', muteMessage);
   });
 
-  socket.on('sendGift', (giftData) => {
+  socket.on('sendGift', async (giftData) => {
     try {
-      const { roomId, sender, gift, timestamp, role, level } = giftData;
-      console.log(`Gift sent by ${sender} in room ${roomId}: ${gift.name}`);
+      const { roomId, sender, gift, timestamp, role, level, recipient } = giftData;
+      console.log(`Gift sent by ${sender} in room ${roomId}: ${gift.name} (Price: ${gift.price})`);
 
-      // Broadcast gift to ALL users in the room (including sender)
-      io.to(roomId).emit('receiveGift', {
-        roomId,
-        sender,
-        gift,
-        timestamp,
-        role: role || 'user',
-        level: level || 1
-      });
+      // Process gift cost distribution
+      try {
+        // Get sender's user ID
+        const senderResult = await pool.query('SELECT id FROM users WHERE username = $1', [sender]);
+        if (senderResult.rows.length === 0) {
+          socket.emit('gift-error', { error: 'Sender not found' });
+          return;
+        }
+        const senderId = senderResult.rows[0].id;
 
-      console.log(`Gift broadcasted to all users in room ${roomId}`);
+        // Check sender's balance
+        const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [senderId]);
+        const senderBalance = balanceResult.rows.length > 0 ? balanceResult.rows[0].balance : 0;
+
+        if (senderBalance < gift.price) {
+          socket.emit('gift-error', { error: 'Insufficient balance' });
+          return;
+        }
+
+        // Calculate distribution
+        const recipientShare = Math.floor(gift.price * 0.3); // 30% to recipient
+        const systemShare = gift.price - recipientShare; // 70% to system
+
+        // Start transaction
+        await pool.query('BEGIN');
+
+        try {
+          // Deduct full amount from sender
+          await pool.query(
+            'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+            [gift.price, senderId]
+          );
+
+          // Add to recipient if specified and exists
+          if (recipient && recipient !== sender) {
+            const recipientResult = await pool.query('SELECT id FROM users WHERE username = $1', [recipient]);
+            if (recipientResult.rows.length > 0) {
+              const recipientId = recipientResult.rows[0].id;
+              
+              // Check if recipient has credits account, create if not
+              const recipientCreditsResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [recipientId]);
+              if (recipientCreditsResult.rows.length === 0) {
+                await pool.query('INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)', [recipientId, recipientShare]);
+              } else {
+                await pool.query(
+                  'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+                  [recipientShare, recipientId]
+                );
+              }
+
+              // Record gift transaction
+              await pool.query(`
+                INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
+                VALUES ($1, $2, $3, 'gift')
+              `, [senderId, recipientId, recipientShare]);
+
+              // Record system transaction
+              await pool.query(`
+                INSERT INTO credit_transactions (from_user_id, amount, type)
+                VALUES ($1, $2, 'system_fee')
+              `, [senderId, systemShare]);
+
+              console.log(`Gift processed: ${sender} -> ${recipient}, Recipient gets: ${recipientShare}, System gets: ${systemShare}`);
+            }
+          } else {
+            // No specific recipient, all goes to system
+            await pool.query(`
+              INSERT INTO credit_transactions (from_user_id, amount, type)
+              VALUES ($1, $2, 'system_fee')
+            `, [senderId, gift.price]);
+            
+            console.log(`Gift processed: ${sender} (room gift), All ${gift.price} goes to system`);
+          }
+
+          await pool.query('COMMIT');
+
+          // Broadcast gift to ALL users in the room (including sender)
+          io.to(roomId).emit('receiveGift', {
+            roomId,
+            sender,
+            gift: {
+              ...gift,
+              recipientShare,
+              systemShare
+            },
+            recipient,
+            timestamp,
+            role: role || 'user',
+            level: level || 1
+          });
+
+          console.log(`Gift broadcasted to all users in room ${roomId}`);
+
+        } catch (error) {
+          await pool.query('ROLLBACK');
+          throw error;
+        }
+
+      } catch (error) {
+        console.error('Error processing gift payment:', error);
+        socket.emit('gift-error', { error: 'Failed to process gift payment' });
+        return;
+      }
+
     } catch (error) {
       console.error('Error handling sendGift:', error);
     }
@@ -4537,6 +4630,39 @@ app.delete('/api/messages/:messageId', authenticateToken, async (req, res) => {
     res.json({ message: 'Message deleted successfully' });
   } catch (error) {
     console.error('Error deleting message:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Check if user can afford gift
+app.post('/api/gifts/check-balance', authenticateToken, async (req, res) => {
+  try {
+    const { giftPrice } = req.body;
+    const userId = req.user.id;
+
+    if (!giftPrice || giftPrice <= 0) {
+      return res.status(400).json({ error: 'Invalid gift price' });
+    }
+
+    // Get user's balance
+    const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
+    const balance = balanceResult.rows.length > 0 ? balanceResult.rows[0].balance : 0;
+
+    const canAfford = balance >= giftPrice;
+    const recipientShare = Math.floor(giftPrice * 0.3);
+    const systemShare = giftPrice - recipientShare;
+
+    res.json({
+      canAfford,
+      currentBalance: balance,
+      giftPrice,
+      recipientShare,
+      systemShare,
+      remainingBalance: balance - giftPrice
+    });
+
+  } catch (error) {
+    console.error('Error checking gift balance:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
