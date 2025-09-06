@@ -2296,21 +2296,37 @@ app.get('/api/feed/posts', async (req, res) => {
       ORDER BY p.created_at DESC
     `);
 
-    const postsWithComments = result.rows.map(row => ({
-      id: row.id.toString(),
-      user: row.username,
-      username: row.username,
-      content: row.content,
-      timestamp: row.created_at,
-      likes: row.likes,
-      comments: row.comments || [],
-      shares: row.shares,
-      level: row.level || 1,
-      avatar: row.avatar || row.username?.charAt(0).toUpperCase(),
-      role: row.role,
-      verified: row.verified,
-      mediaFiles: row.media_files || []
-    }));
+    const postsWithComments = result.rows.map(row => {
+      // Process avatar URL properly
+      let avatarUrl = row.avatar;
+      if (avatarUrl && avatarUrl.startsWith('/api/')) {
+        avatarUrl = `${API_BASE_URL}${avatarUrl}`;
+      } else if (!avatarUrl || avatarUrl.length <= 2) {
+        // If no avatar or just single character, use first letter
+        avatarUrl = row.username?.charAt(0).toUpperCase() || 'U';
+      }
+
+      return {
+        id: row.id.toString(),
+        user: row.username,
+        username: row.username,
+        content: row.content,
+        timestamp: row.created_at,
+        likes: row.likes,
+        comments: row.comments || [],
+        shares: row.shares,
+        level: row.level || 1,
+        avatar: avatarUrl,
+        role: row.role,
+        verified: row.verified,
+        mediaFiles: row.media_files || []
+      };
+    });
+
+    console.log('Processed avatars for posts:', postsWithComments.slice(0, 3).map(p => ({ 
+      username: p.username, 
+      avatar: p.avatar 
+    })));
 
     res.json(postsWithComments);
   } catch (error) {
@@ -5184,21 +5200,32 @@ app.get('/feed/posts', async (req, res) => {
       ORDER BY p.created_at DESC
     `);
 
-    const postsWithComments = result.rows.map(row => ({
-      id: row.id.toString(),
-      user: row.username,
-      username: row.username,
-      content: row.content,
-      timestamp: row.created_at,
-      likes: row.likes,
-      comments: row.comments || [],
-      shares: row.shares,
-      level: row.level || 1,
-      avatar: row.avatar || row.username?.charAt(0).toUpperCase(),
-      role: row.role,
-      verified: row.verified,
-      mediaFiles: row.media_files || []
-    }));
+    const postsWithComments = result.rows.map(row => {
+      // Process avatar URL properly
+      let avatarUrl = row.avatar;
+      if (avatarUrl && avatarUrl.startsWith('/api/')) {
+        avatarUrl = `${API_BASE_URL}${avatarUrl}`;
+      } else if (!avatarUrl || avatarUrl.length <= 2) {
+        // If no avatar or just single character, use first letter
+        avatarUrl = row.username?.charAt(0).toUpperCase() || 'U';
+      }
+
+      return {
+        id: row.id.toString(),
+        user: row.username,
+        username: row.username,
+        content: row.content,
+        timestamp: row.created_at,
+        likes: row.likes,
+        comments: row.comments || [],
+        shares: row.shares,
+        level: row.level || 1,
+        avatar: avatarUrl,
+        role: row.role,
+        verified: row.verified,
+        mediaFiles: row.media_files || []
+      };
+    });
 
     res.json(postsWithComments);
   } catch (error) {

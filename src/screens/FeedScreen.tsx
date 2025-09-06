@@ -614,15 +614,20 @@ export default function FeedScreen() {
             onPress={() => handleUserClick(post)}
           >
             <View style={[styles.avatar, { borderColor: getRoleColor(post.role), borderWidth: 2 }]}>
-              {post.avatar && post.avatar.startsWith('http') ? (
+              {post.avatar && (post.avatar.startsWith('http') || post.avatar.startsWith('/api/')) ? (
                 <Image 
                   source={{ uri: post.avatar }} 
                   style={styles.avatarImage}
-                  onError={() => console.log('Avatar failed to load:', post.avatar)}
+                  onError={(error) => {
+                    console.log('Avatar failed to load:', post.avatar, error.nativeEvent);
+                  }}
+                  onLoad={() => {
+                    console.log('Avatar loaded successfully:', post.avatar);
+                  }}
                 />
               ) : (
                 <Text style={styles.avatarText}>
-                  {post.avatar || post.username?.charAt(0)?.toUpperCase() || 'U'}
+                  {(post.avatar && post.avatar.length <= 2) ? post.avatar : (post.username?.charAt(0)?.toUpperCase() || 'U')}
                 </Text>
               )}
             </View>
