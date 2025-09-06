@@ -48,7 +48,7 @@ export default function MentorScreen() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/mentor/merchants`, {
+      const response = await fetch(`${API_BASE_URL}/mentor/merchants`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export default function MentorScreen() {
       const requestBody = { username: username.trim() };
       console.log('Request body:', requestBody);
 
-      const response = await fetch(`${API_BASE_URL}/api/mentor/add-merchant`, {
+      const response = await fetch(`${API_BASE_URL}/mentor/add-merchant`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
