@@ -2832,7 +2832,13 @@ app.post('/api/users/:userId/avatar', async (req, res) => {
     const avatarId = `avatar_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const avatarUrl = `/api/users/avatar/${avatarId}`;
 
-    // Store avatar data in memory
+    // Store avatar data in database
+    await pool.query(`
+      INSERT INTO user_album (user_id, filename, file_data) 
+      VALUES ($1, $2, $3)
+    `, [userId, `${avatarId}_${filename}`, cleanBase64]);
+
+    // Store avatar data in memory for immediate access
     if (!global.avatars) {
       global.avatars = {};
     }
@@ -2845,7 +2851,7 @@ app.post('/api/users/:userId/avatar', async (req, res) => {
       uploadedAt: new Date().toISOString()
     };
 
-    console.log(`Avatar stored in memory with ID: ${avatarId}`);
+    console.log(`Avatar stored in database and memory with ID: ${avatarId}`);
 
     // Update user avatar in database
     await pool.query('UPDATE users SET avatar = $1 WHERE id = $2', [avatarUrl, userId]);
@@ -2869,8 +2875,41 @@ app.get('/api/users/avatar/:avatarId', (req, res) => {
     console.log(`Serving avatar: ${avatarId}`);
 
     if (!global.avatars || !global.avatars[avatarId]) {
-      console.log(`Avatar not found in memory: ${avatarId}`);
-      return res.status(404).json({ error: 'Avatar not found' });
+      console.log(`Avatar not found in memory: ${avatarId}, checking database...`);
+      
+      // Try to load from database
+      try {
+        const dbResult = await pool.query(
+          'SELECT file_data, filename FROM user_album WHERE filename LIKE $1 LIMIT 1',
+          [`${avatarId}_%`]
+        );
+        
+        if (dbResult.rows.length > 0) {
+          const dbAvatar = dbResult.rows[0];
+          console.log(`Avatar found in database: ${dbAvatar.filename}`);
+          
+          // Restore to memory for faster access next time
+          if (!global.avatars) {
+            global.avatars = {};
+          }
+          
+          global.avatars[avatarId] = {
+            id: avatarId,
+            filename: dbAvatar.filename,
+            data: dbAvatar.file_data,
+            uploadedBy: 'unknown',
+            uploadedAt: new Date().toISOString()
+          };
+          
+          // Continue with serving the avatar
+        } else {
+          console.log(`Avatar not found in database: ${avatarId}`);
+          return res.status(404).json({ error: 'Avatar not found' });
+        }
+      } catch (dbError) {
+        console.error('Error loading avatar from database:', dbError);
+        return res.status(404).json({ error: 'Avatar not found' });
+      }
     }
 
     const avatar = global.avatars[avatarId];

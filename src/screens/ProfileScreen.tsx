@@ -81,9 +81,14 @@ export default function ProfileScreen({ navigation, route }: any) {
 
       if (response.ok) {
         const profileData = await response.json();
-        // Process avatar URL
-        if (profileData.avatar && profileData.avatar.startsWith('/api/')) {
-          profileData.avatar = `${API_BASE_URL}${profileData.avatar}`;
+        // Process avatar URL - handle both full URLs and relative paths
+        if (profileData.avatar) {
+          if (profileData.avatar.startsWith('/api/')) {
+            profileData.avatar = `${API_BASE_URL}${profileData.avatar}`;
+          } else if (!profileData.avatar.startsWith('http')) {
+            // Handle case where avatar might be stored as relative path
+            profileData.avatar = `${API_BASE_URL}${profileData.avatar}`;
+          }
         }
 
         // Check if current user is following this profile (only if not own profile and user is authenticated)
@@ -349,7 +354,15 @@ export default function ProfileScreen({ navigation, route }: any) {
             <View style={styles.avatarFrame}>
               <View style={styles.avatarInner}>
                 {profile.avatar ? (
-                  <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+                  <Image 
+                    source={{ uri: profile.avatar }} 
+                    style={styles.avatar}
+                    onError={(error) => {
+                      console.log('Avatar loading failed:', error.nativeEvent.error);
+                      // Reset avatar to null so fallback renders
+                      setProfile(prev => prev ? { ...prev, avatar: null } : null);
+                    }}
+                  />
                 ) : (
                   <View style={styles.defaultAvatar}>
                     <Text style={styles.avatarText}>
