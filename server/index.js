@@ -435,7 +435,7 @@ const initDatabase = async () => {
     // Create credit_transactions table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS credit_transactions (
-        id SERIAL PRIMARYKEY,
+        id SERIAL PRIMARY KEY,
         from_user_id INTEGER,
         to_user_id INTEGER,
         amount INTEGER NOT NULL,
