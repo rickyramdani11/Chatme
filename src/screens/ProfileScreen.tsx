@@ -86,6 +86,26 @@ export default function ProfileScreen({ navigation, route }: any) {
           profileData.avatar = `${API_BASE_URL}${profileData.avatar}`;
         }
 
+        // Check if current user is following this profile (only if not own profile and user is authenticated)
+        if (!isOwnProfile && token && user?.id) {
+          try {
+            const followCheckResponse = await fetch(`${API_BASE_URL}/api/users/${userId}/follow-status`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'User-Agent': 'ChatMe-Mobile-App',
+              },
+            });
+            if (followCheckResponse.ok) {
+              const followStatus = await followCheckResponse.json();
+              profileData.isFollowing = followStatus.isFollowing || false;
+            }
+          } catch (error) {
+            console.error('Error checking follow status:', error);
+            profileData.isFollowing = false;
+          }
+        }
+
         // Fetch gifts from API
         try {
           const giftsResponse = await fetch(`${API_BASE_URL}/api/users/${userId}/gifts`, {
@@ -154,19 +174,28 @@ export default function ProfileScreen({ navigation, route }: any) {
   };
 
   const handleFollow = async () => {
-    if (!profile || isOwnProfile) return;
+    if (!profile || isOwnProfile || !token) return;
 
     try {
+      console.log('Follow request:', {
+        userId,
+        action: isFollowing ? 'unfollow' : 'follow',
+        token: token ? 'Present' : 'Missing'
+      });
+
       const response = await fetch(`${API_BASE_URL}/api/users/${userId}/follow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
         },
         body: JSON.stringify({
           action: isFollowing ? 'unfollow' : 'follow'
         }),
       });
+
+      console.log('Follow response status:', response.status);
 
       if (response.ok) {
         const result = await response.json();
@@ -182,11 +211,12 @@ export default function ProfileScreen({ navigation, route }: any) {
         console.log('Follow action completed:', result);
       } else {
         const errorData = await response.json();
+        console.error('Follow request failed:', errorData);
         throw new Error(errorData.error || 'Failed to update follow status');
       }
     } catch (error) {
       console.error('Error following user:', error);
-      Alert.alert('Error', error.message || 'Failed to update follow status');
+      Alert.alert('Error', (error as any).message || 'Failed to update follow status');
     }
   };
 

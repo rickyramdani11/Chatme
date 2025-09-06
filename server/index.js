@@ -2511,39 +2511,21 @@ app.get('/api/feed/posts/:postId/comments', (req, res) => {
 
 
 // Follow/Unfollow user
-app.post('/api/users/:userId/follow', async (req, res) => {
+app.post('/api/users/:userId/follow', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
     const { action } = req.body;
-
-    // Extract current user from Authorization header (simplified for demo)
-    const authHeader = req.headers.authorization;
-    let currentUserId = '1'; // Default fallback
-
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      // In a real app, decode JWT token here
-      // For now, just use a default user ID
-      // This part needs to be robust and correctly extract userId from token
-      // For demonstration, we'll assume a logged-in user context.
-      // A proper implementation would verify the token and get user ID.
-      // Example: const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET); currentUserId = decoded.userId;
-      // For now, let's assume '1' represents a logged-in user for testing purposes.
-      // In a real app, you'd use the authenticateToken middleware to set req.user.id
-      if (req.user && req.user.id) {
-        currentUserId = req.user.id;
-      } else {
-        // If not authenticated via middleware, fall back or return error
-        console.log('User not authenticated via middleware for follow action.');
-        // For demo purposes, if not authenticated, maybe allow to proceed with default ID or error out.
-        // Let's error out to enforce authentication for this action.
-        // return res.status(401).json({ error: 'Authentication required' });
-      }
-    }
+    const currentUserId = req.user.id;
 
     console.log('=== FOLLOW/UNFOLLOW REQUEST ===');
     console.log('Current User ID:', currentUserId);
     console.log('Target User ID:', userId);
     console.log('Action:', action);
+
+    // Validate input
+    if (!action || !['follow', 'unfollow'].includes(action)) {
+      return res.status(400).json({ error: 'Invalid action. Must be "follow" or "unfollow".' });
+    }
 
     // Check if target user exists
     const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
@@ -2553,47 +2535,63 @@ app.post('/api/users/:userId/follow', async (req, res) => {
 
     const targetUser = userResult.rows[0];
 
-    if (action === 'follow') {
-      // Add follow relationship
-      await pool.query(`
-        INSERT INTO user_follows (follower_id, following_id, created_at) 
-        VALUES ($1, $2, NOW()) 
-        ON CONFLICT (follower_id, following_id) DO NOTHING
-      `, [currentUserId, userId]);
-    } else if (action === 'unfollow') {
-      // Remove follow relationship
-      await pool.query(`
-        DELETE FROM user_follows 
-        WHERE follower_id = $1 AND following_id = $2
-      `, [currentUserId, userId]);
-    } else {
-      return res.status(400).json({ error: 'Invalid action. Must be "follow" or "unfollow".' });
+    // Cannot follow yourself
+    if (currentUserId.toString() === userId.toString()) {
+      return res.status(400).json({ error: 'Cannot follow yourself' });
     }
 
-    // Get updated follower count
-    const followersResult = await pool.query(
-      'SELECT COUNT(*) FROM user_follows WHERE following_id = $1',
-      [userId]
-    );
+    // Start transaction to ensure data consistency
+    await pool.query('BEGIN');
 
-    // Get updated following count for the current user
-    const followingResult = await pool.query(
-      'SELECT COUNT(*) FROM user_follows WHERE follower_id = $1',
-      [userId]
-    );
+    try {
+      if (action === 'follow') {
+        // Add follow relationship
+        await pool.query(`
+          INSERT INTO user_follows (follower_id, following_id, created_at) 
+          VALUES ($1, $2, NOW()) 
+          ON CONFLICT (follower_id, following_id) DO NOTHING
+        `, [currentUserId, userId]);
+        console.log(`Added follow relationship: ${currentUserId} -> ${userId}`);
+      } else if (action === 'unfollow') {
+        // Remove follow relationship
+        const deleteResult = await pool.query(`
+          DELETE FROM user_follows 
+          WHERE follower_id = $1 AND following_id = $2
+        `, [currentUserId, userId]);
+        console.log(`Removed follow relationship: ${currentUserId} -> ${userId}, rows affected: ${deleteResult.rowCount}`);
+      }
 
-    const result = {
-      success: true,
-      action: action,
-      message: action === 'follow' ? 'User followed successfully' : 'User unfollowed successfully',
-      targetUser: targetUser.username,
-      followers: parseInt(followersResult.rows[0].count),
-      following: parseInt(followingResult.rows[0].count)
-    };
+      // Get updated follower count for target user
+      const followersResult = await pool.query(
+        'SELECT COUNT(*) FROM user_follows WHERE following_id = $1',
+        [userId]
+      );
 
-    console.log(`User ${targetUser.username} ${action}ed successfully`);
-    console.log('Updated counts:', result);
-    res.json(result);
+      // Get updated following count for current user
+      const followingResult = await pool.query(
+        'SELECT COUNT(*) FROM user_follows WHERE follower_id = $1',
+        [currentUserId]
+      );
+
+      await pool.query('COMMIT');
+
+      const result = {
+        success: true,
+        action: action,
+        message: action === 'follow' ? 'User followed successfully' : 'User unfollowed successfully',
+        targetUser: targetUser.username,
+        followers: parseInt(followersResult.rows[0].count),
+        following: parseInt(followingResult.rows[0].count)
+      };
+
+      console.log(`User ${targetUser.username} ${action}ed successfully`);
+      console.log('Updated counts:', result);
+      res.json(result);
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
   } catch (error) {
     console.error('Error updating follow status:', error);
     res.status(500).json({ error: 'Internal server error: ' + error.message });
@@ -2656,6 +2654,32 @@ app.get('/api/users/:userId/following', (req, res) => {
     res.json(following);
   } catch (error) {
     console.error('Error fetching following:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Check follow status
+app.get('/api/users/:userId/follow-status', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user.id;
+
+    console.log('=== CHECK FOLLOW STATUS REQUEST ===');
+    console.log('Current User ID:', currentUserId);
+    console.log('Target User ID:', userId);
+
+    // Check if current user is following the target user
+    const result = await pool.query(
+      'SELECT COUNT(*) FROM user_follows WHERE follower_id = $1 AND following_id = $2',
+      [currentUserId, userId]
+    );
+
+    const isFollowing = parseInt(result.rows[0].count) > 0;
+
+    console.log('Follow status:', isFollowing);
+    res.json({ isFollowing });
+  } catch (error) {
+    console.error('Error checking follow status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
