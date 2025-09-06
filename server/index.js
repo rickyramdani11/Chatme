@@ -2869,7 +2869,7 @@ app.post('/api/users/:userId/avatar', async (req, res) => {
 });
 
 // Serve avatar files
-app.get('/api/users/avatar/:avatarId', (req, res) => {
+app.get('/api/users/avatar/:avatarId', async (req, res) => {
   try {
     const { avatarId } = req.params;
     console.log(`Serving avatar: ${avatarId}`);
