@@ -299,8 +299,22 @@ const initDatabase = async () => {
         location_sharing BOOLEAN DEFAULT false,
         biometric_auth BOOLEAN DEFAULT false,
         two_factor_auth BOOLEAN DEFAULT false,
+        active_sessions BOOLEAN DEFAULT true,
+        data_download BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_activity_logs (
+        id BIGSERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        activity_type VARCHAR(50) NOT NULL,
+        description TEXT,
+        ip_address INET,
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -3242,6 +3256,137 @@ app.post('/api/feed/upload', (req, res) => {
         received: typeof req.body
       });
     }
+
+// Privacy Settings API Endpoints
+app.get('/api/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Check if user exists and has permission
+    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM privacy_settings WHERE user_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      // Create default privacy settings if none exist
+      const defaultSettings = {
+        user_id: userId,
+        profile_visibility: 'public',
+        privacy_notifications: true,
+        location_sharing: true,
+        biometric_auth: false,
+        two_factor_auth: true,
+        active_sessions: true,
+        data_download: true
+      };
+
+      const insertResult = await pool.query(
+        `INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [userId, defaultSettings.profile_visibility, defaultSettings.privacy_notifications, 
+         defaultSettings.location_sharing, defaultSettings.biometric_auth, 
+         defaultSettings.two_factor_auth, defaultSettings.active_sessions, defaultSettings.data_download]
+      );
+
+      res.json(insertResult.rows[0]);
+    } else {
+      res.json(result.rows[0]);
+    }
+  } catch (error) {
+    console.error('Error fetching privacy settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put('/api/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Check if user has permission
+    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const allowedFields = [
+      'profile_visibility', 'privacy_notifications', 'location_sharing',
+      'biometric_auth', 'two_factor_auth', 'active_sessions', 'data_download'
+    ];
+
+    const updates = {};
+    const values = [userId];
+    let paramCount = 2;
+
+    for (const [key, value] of Object.entries(req.body)) {
+      if (allowedFields.includes(key)) {
+        updates[key] = `$${paramCount}`;
+        values.push(value);
+        paramCount++;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    const setClause = Object.entries(updates)
+      .map(([key, placeholder]) => `${key} = ${placeholder}`)
+      .join(', ');
+
+    const query = `
+      UPDATE privacy_settings 
+      SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
+      WHERE user_id = $1 
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Privacy settings not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating privacy settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/users/:userId/download-data', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Check if user has permission
+    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Log the data download request
+    await pool.query(
+      `INSERT INTO user_activity_logs (user_id, activity_type, description, created_at)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
+      [userId, 'data_download_request', 'User requested data download']
+    );
+
+    // In a real implementation, you would:
+    // 1. Queue a background job to collect user data
+    // 2. Generate a downloadable file
+    // 3. Send an email/notification when ready
+    
+    res.json({ 
+      message: 'Data download request received. You will be notified when your data is ready.',
+      request_id: `download_${userId}_${Date.now()}`
+    });
+  } catch (error) {
+    console.error('Error processing data download request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // LowCard Bot API Endpoints
 app.get('/api/lowcard/status/:roomId', (req, res) => {

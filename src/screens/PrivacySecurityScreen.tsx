@@ -1,16 +1,91 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
   ScrollView,
-  Alert 
+  Alert,
+  Switch
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../hooks';
+import { API_BASE_URL } from '../utils/apiConfig';
+
+interface PrivacySettings {
+  profile_visibility: 'public' | 'private' | 'friends_only';
+  privacy_notifications: boolean;
+  location_sharing: boolean;
+  biometric_auth: boolean;
+  two_factor_auth: boolean;
+  active_sessions: boolean;
+  data_download: boolean;
+}
 
 export default function PrivacySecurityScreen({ navigation }: any) {
+  const { user, token } = useAuth();
+  const [settings, setSettings] = useState<PrivacySettings>({
+    profile_visibility: 'public',
+    privacy_notifications: true,
+    location_sharing: true,
+    biometric_auth: false,
+    two_factor_auth: true,
+    active_sessions: true,
+    data_download: true
+  });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchPrivacySettings();
+  }, []);
+
+  const fetchPrivacySettings = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/privacy-settings`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(data);
+      }
+    } catch (error) {
+      console.error('Error fetching privacy settings:', error);
+    }
+  };
+
+  const updatePrivacySetting = async (key: keyof PrivacySettings, value: any) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/privacy-settings`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          [key]: value
+        }),
+      });
+
+      if (response.ok) {
+        setSettings(prev => ({ ...prev, [key]: value }));
+        Alert.alert('Berhasil', 'Pengaturan privasi berhasil diperbarui');
+      } else {
+        Alert.alert('Error', 'Gagal memperbarui pengaturan');
+      }
+    } catch (error) {
+      console.error('Error updating privacy setting:', error);
+      Alert.alert('Error', 'Terjadi kesalahan saat memperbarui pengaturan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChangePassword = () => {
     navigation.navigate('ChangePassword');
   };
@@ -19,20 +94,63 @@ export default function PrivacySecurityScreen({ navigation }: any) {
     navigation.navigate('ChangePin');
   };
 
+  const handleDownloadData = async () => {
+    Alert.alert(
+      'Unduh Data',
+      'Permintaan unduh data akan diproses. Anda akan menerima notifikasi ketika data siap diunduh.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Lanjutkan', 
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/download-data`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': token ? `Bearer ${token}` : '',
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Berhasil', 'Permintaan unduh data telah dikirim');
+              } else {
+                Alert.alert('Error', 'Gagal memproses permintaan');
+              }
+            } catch (error) {
+              console.error('Error requesting data download:', error);
+              Alert.alert('Error', 'Terjadi kesalahan');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const SecurityItem = ({ 
     icon, 
     title, 
     description,
     onPress,
-    iconColor = '#9C27B0'
+    iconColor = '#9C27B0',
+    hasSwitch = false,
+    switchValue,
+    onSwitchChange
   }: {
     icon: string;
     title: string;
     description?: string;
     onPress?: () => void;
     iconColor?: string;
+    hasSwitch?: boolean;
+    switchValue?: boolean;
+    onSwitchChange?: (value: boolean) => void;
   }) => (
-    <TouchableOpacity style={styles.securityItem} onPress={onPress}>
+    <TouchableOpacity 
+      style={styles.securityItem} 
+      onPress={onPress}
+      disabled={hasSwitch}
+    >
       <View style={styles.securityItemLeft}>
         <View style={[styles.iconContainer, { backgroundColor: iconColor + '20' }]}>
           <Ionicons name={icon as any} size={24} color={iconColor} />
@@ -44,7 +162,17 @@ export default function PrivacySecurityScreen({ navigation }: any) {
           )}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#999" />
+      {hasSwitch ? (
+        <Switch
+          value={switchValue}
+          onValueChange={onSwitchChange}
+          trackColor={{ false: '#E0E0E0', true: iconColor }}
+          thumbColor={switchValue ? '#fff' : '#fff'}
+          disabled={loading}
+        />
+      ) : (
+        <Ionicons name="chevron-forward" size={20} color="#999" />
+      )}
     </TouchableOpacity>
   );
 
@@ -92,8 +220,11 @@ export default function PrivacySecurityScreen({ navigation }: any) {
             <SecurityItem
               icon="eye"
               title="Visibilitas Profil"
-              description="Kontrol siapa yang dapat melihat profil Anda"
+              description={`Profil ${settings.profile_visibility === 'public' ? 'publik' : settings.profile_visibility === 'private' ? 'privat' : 'teman saja'}`}
               iconColor="#2196F3"
+              hasSwitch={true}
+              switchValue={settings.profile_visibility === 'public'}
+              onSwitchChange={(value) => updatePrivacySetting('profile_visibility', value ? 'public' : 'private')}
             />
             
             <SecurityItem
@@ -101,6 +232,9 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               title="Notifikasi Privasi"
               description="Kelola notifikasi terkait privasi"
               iconColor="#9C27B0"
+              hasSwitch={true}
+              switchValue={settings.privacy_notifications}
+              onSwitchChange={(value) => updatePrivacySetting('privacy_notifications', value)}
             />
             
             <SecurityItem
@@ -108,6 +242,9 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               title="Berbagi Lokasi"
               description="Pengaturan berbagi lokasi"
               iconColor="#FF9800"
+              hasSwitch={true}
+              switchValue={settings.location_sharing}
+              onSwitchChange={(value) => updatePrivacySetting('location_sharing', value)}
             />
           </View>
         </View>
@@ -117,17 +254,13 @@ export default function PrivacySecurityScreen({ navigation }: any) {
           <Text style={styles.sectionTitle}>Fitur Keamanan</Text>
           <View style={styles.sectionContent}>
             <SecurityItem
-              icon="finger-print"
-              title="Autentikasi Biometrik"
-              description="Login dengan sidik jari atau Face ID"
-              iconColor="#E91E63"
-            />
-            
-            <SecurityItem
               icon="shield-checkmark"
               title="Verifikasi Dua Langkah"
               description="Tingkatkan keamanan dengan 2FA"
               iconColor="#00BCD4"
+              hasSwitch={true}
+              switchValue={settings.two_factor_auth}
+              onSwitchChange={(value) => updatePrivacySetting('two_factor_auth', value)}
             />
             
             <SecurityItem
@@ -135,6 +268,9 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               title="Sesi Aktif"
               description="Lihat dan kelola sesi login aktif"
               iconColor="#795548"
+              hasSwitch={true}
+              switchValue={settings.active_sessions}
+              onSwitchChange={(value) => updatePrivacySetting('active_sessions', value)}
             />
           </View>
         </View>
@@ -148,6 +284,14 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               title="Unduh Data Saya"
               description="Unduh salinan data pribadi Anda"
               iconColor="#607D8B"
+              hasSwitch={true}
+              switchValue={settings.data_download}
+              onSwitchChange={(value) => {
+                updatePrivacySetting('data_download', value);
+                if (value) {
+                  handleDownloadData();
+                }
+              }}
             />
             
             <SecurityItem
