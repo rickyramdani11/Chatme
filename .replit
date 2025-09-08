@@ -16,24 +16,6 @@ task = "shell.exec"
 args = "npx expo start --host tunnel"
 
 [[workflows.workflow]]
-name = "Start Expo Tunnel"
-author = 46482010
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel"
-
-[[workflows.workflow]]
-name = "Start Expo Tunnel"
-author = 46482010
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel"
-
-[[workflows.workflow]]
 name = "Start Full Stack"
 author = 46482010
 mode = "parallel"
@@ -45,28 +27,6 @@ args = "cd server && npm install && npm start"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx expo start --host tunnel"
-
-[[workflows.workflow]]
-name = "Start Server Only"
-author = 46482010
-mode = "sequential"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd server && npm install && npm start"
-
-[[workflows.workflow]]
-name = "Mobile Only"
-author = 47108426
-mode = "parallel"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node server/index.js"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel --no-web"
 
 [[workflows.workflow]]
 name = "Project"
