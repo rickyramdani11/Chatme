@@ -2546,23 +2546,24 @@ export default function ChatScreen() {
         >
           <View style={styles.giftMessageBubble}>
             <View style={styles.messageRow}>
-            <View style={styles.messageContentRow}>
-              <LevelBadge level={item.level || 1} />
-              <View style={styles.messageTextContainer}>
-                <Text style={styles.messageText}>
-                  <Text style={[
-                    styles.senderName,
-                    { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                  ]}>
-                    {item.sender}
+              <View style={styles.messageContentRow}>
+                <LevelBadge level={item.level || 1} />
+                <View style={styles.messageTextContainer}>
+                  <Text style={styles.messageText}>
+                    <Text style={[
+                      styles.senderName,
+                      { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                    ]}>
+                      {item.sender}
+                    </Text>
+                    <Text style={styles.giftMessageInline}>
+                      {renderMessageContent(item.content)}
+                    </Text>
                   </Text>
-                  <Text style={styles.giftMessageInline}>
-                    {renderMessageContent(item.content)}
-                  </Text>
-                </Text>
+                </View>
               </View>
+              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
