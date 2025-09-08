@@ -1,2 +1,116 @@
+modules = ["nodejs-20", "postgresql-16"]
+[nix]
+packages = ["nodejs-18_x", "eas-cli"]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Start Expo"
+author = 46482010
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --host tunnel"
+
+[[workflows.workflow]]
+name = "Start Expo Tunnel"
+author = 46482010
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel"
+
+[[workflows.workflow]]
+name = "Start Expo Tunnel"
+author = 46482010
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel"
+
+[[workflows.workflow]]
+name = "Start Full Stack"
+author = 46482010
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd server && npm install && npm start"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --host tunnel"
+
+[[workflows.workflow]]
+name = "Start Server Only"
+author = 46482010
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd server && npm install && npm start"
+
+[[workflows.workflow]]
+name = "Mobile Only"
+author = 47108426
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel --no-web"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Backend"
+
+[[workflows.workflow]]
+name = "Backend"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
+localPort = 4200
+externalPort = 5000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 3000
+
+[deployment]
+run = ["sh", "-c", "cd server && npm start"]
+
 [agent]
 expertMode = true
