@@ -102,7 +102,7 @@ export default function ChatScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const { user, token } = useAuth();
-  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null); // To track the current active room ID
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null); // To track the current active room ID
 
   // Static Level Badge Component (no blinking)
   const LevelBadge = ({ level }: { level: number }) => {
@@ -114,12 +114,12 @@ export default function ChatScreen() {
   };
 
   // Get room data from navigation params
-  const { roomId, roomName, roomDescription, autoFocusTab, type, targetUser, isSupport } = route.params || {};
+  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = route.params || {};
 
   // Function to join a specific room (called when navigating from RoomScreen)
   const joinSpecificRoom = async (roomId: string, roomName: string) => {
     try {
-      console.log('Joining specific room/chat:', roomId, roomName, type, 'User:', user?.username);
+      console.log('Joining specific room/chat:', roomId, roomName, type || 'room', 'User:', user?.username);
 
       // Check if room already exists in tabs
       const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
@@ -689,14 +689,16 @@ export default function ChatScreen() {
       console.log('Initializing socket connection...');
 
       const newSocket = io(API_BASE_URL, {
-        transports: ['websocket'], // Force WebSocket transport for better persistence
+        transports: ['websocket', 'polling'], // Allow fallback to polling
         autoConnect: true,
         reconnection: true,
-        reconnectionDelay: 2000,
-        reconnectionDelayMax: 10000,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
         reconnectionAttempts: maxReconnectAttempts,
-        timeout: 20000,
-        forceNew: true,
+        timeout: 10000,
+        forceNew: false, // Don't force new connection
+        upgrade: true,
+        rememberUpgrade: true,
       });
 
       // Connection events
@@ -744,8 +746,14 @@ export default function ChatScreen() {
       });
 
       newSocket.on('connect_error', (error) => {
-        console.log('Socket connection error:', error);
+        console.log('Socket connection error:', error.message || error);
         setIsSocketConnected(false);
+        
+        // Don't attempt reconnection if it's a network issue
+        if (error.message && error.message.includes('websocket error')) {
+          console.log('WebSocket specific error detected, will retry with polling');
+        }
+        
         attemptReconnection();
       });
 
@@ -990,6 +998,12 @@ export default function ChatScreen() {
   const handleTabPress = (index: number) => {
     setActiveTab(index);
 
+    // Update current room ID
+    const selectedRoomId = chatTabs[index]?.id;
+    if (selectedRoomId) {
+      setCurrentRoomId(selectedRoomId);
+    }
+
     // Scroll to the selected tab
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({
@@ -999,7 +1013,6 @@ export default function ChatScreen() {
     }
 
     // Clear unread count for the selected tab
-    const selectedRoomId = chatTabs[index]?.id;
     if (selectedRoomId && unreadCounts[selectedRoomId]) {
       setUnreadCounts(prev => ({
         ...prev,
@@ -3313,13 +3326,13 @@ export default function ChatScreen() {
             scrollEventThrottle={16}
           >
             {chatTabs.map((tab, index) => (
-              <TouchableWithoutFeedback key={tab.id} onPress={() => Keyboard.dismiss()}>
+              <TouchableWithoutFeedback key={`${tab.id}-${index}`} onPress={() => Keyboard.dismiss()}>
                 <View style={styles.tabContent}>
                   <FlatList
                     ref={(ref) => { flatListRefs.current[tab.id] = ref; }} // Assign ref to the FlatList
                     data={tab.messages}
                     renderItem={renderMessage}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item, itemIndex) => `${item.id}-${itemIndex}`}
                     style={styles.messagesList}
                     contentContainerStyle={styles.messagesContainer}
                     scrollEnabled={true}
@@ -3565,7 +3578,7 @@ export default function ChatScreen() {
               {participants.length > 0 ? (
                 participants.map((participant, index) => (
                   <TouchableOpacity
-                    key={index}
+                    key={`${participant.username}-${participant.id || index}`}
                     style={[
                       styles.participantItem,
                       { backgroundColor: getRoleBackgroundColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
@@ -3744,7 +3757,7 @@ export default function ChatScreen() {
                   >
                     {emojiList.map((emoji, index) => (
                       <TouchableOpacity
-                        key={index}
+                        key={`${emoji.name || emoji.emoji}-${index}`}
                         style={styles.emojiItem}
                         onPress={() => handleEmojiSelect(emoji)}
                       >
@@ -3793,8 +3806,8 @@ export default function ChatScreen() {
 
             <ScrollView style={styles.giftPickerContent} showsVerticalScrollIndicator={false}>
               <View style={styles.giftGrid}>
-                {giftList.map((gift) => (
-                  <View key={gift.id} style={styles.giftItemContainer}>
+                {giftList.map((gift, index) => (
+                  <View key={`${gift.id}-${index}`} style={styles.giftItemContainer}>
                     <TouchableOpacity
                       style={styles.giftItem}
                       onPress={() => handleGiftSend(gift)}
@@ -3885,7 +3898,7 @@ export default function ChatScreen() {
               <Text style={styles.sectionTitle}>Select User:</Text>
               {participants.map((participant, index) => (
                 <TouchableOpacity
-                  key={index}
+                  key={`gift-${participant.username}-${participant.id || index}`}
                   style={styles.userGiftItem}
                   onPress={() => sendGiftToUser(participant)}
                   disabled={participant.username === user?.username}
@@ -3950,7 +3963,7 @@ export default function ChatScreen() {
             <ScrollView style={styles.userTagList} showsVerticalScrollIndicator={false}>
               {filteredParticipants.map((participant, index) => (
                 <TouchableOpacity
-                  key={index}
+                  key={`tag-${participant.username}-${participant.id || index}`}
                   style={styles.userTagItem}
                   onPress={() => handleUserTag(participant.username)}
                 >
