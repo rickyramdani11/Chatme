@@ -28,7 +28,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 
 const { width } = Dimensions.get('window');
 
@@ -689,16 +689,19 @@ export default function ChatScreen() {
       console.log('Initializing socket connection...');
 
       const newSocket = io(API_BASE_URL, {
-        transports: ['websocket', 'polling'], // Allow fallback to polling
+        transports: ['polling', 'websocket'], // Start with polling first for better Replit compatibility
         autoConnect: true,
         reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 10000,
         reconnectionAttempts: maxReconnectAttempts,
-        timeout: 10000,
-        forceNew: false, // Don't force new connection
+        timeout: 20000,
+        forceNew: false,
         upgrade: true,
-        rememberUpgrade: true,
+        rememberUpgrade: false, // Don't remember upgrade for better compatibility
+        auth: {
+          token: token
+        }
       });
 
       // Connection events

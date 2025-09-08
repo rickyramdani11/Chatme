@@ -4,7 +4,7 @@ packages = ["nodejs-18_x", "eas-cli"]
 channel = "stable-25_05"
 
 [workflows]
-runButton = "Project"
+runButton = "Integrated Server"
 
 [[workflows.workflow]]
 name = "Start Expo"
@@ -114,6 +114,15 @@ args = "node server/socket-gateway.js"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx expo start --tunnel --no-web"
+
+[[workflows.workflow]]
+name = "Integrated Server"
+author = 47179222
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
 
 [[ports]]
 localPort = 3000
