@@ -5,6 +5,9 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
+// Import LowCard bot
+const { processLowCardCommand } = require('./games/lowcard.js');
+
 const app = express();
 const server = http.createServer(app);
 
@@ -88,6 +91,10 @@ io.on('connection', (socket) => {
       userInfo.username = username;
       userInfo.role = role;
     }
+    
+    // Store socket info for bot commands
+    socket.userId = socket.userId || userInfo?.userId;
+    socket.username = username;
 
     // Add participant to room
     if (!roomParticipants[roomId]) {
@@ -171,6 +178,28 @@ io.on('connection', (socket) => {
       }
 
       console.log(`📨 Gateway relaying message from ${sender} in room ${roomId}: "${content}"`);
+
+      // Check if this is a bot command that needs special handling
+      const trimmedContent = content.trim();
+      if (trimmedContent.startsWith('/bot lowcard add') || 
+          trimmedContent.startsWith('/add') || 
+          trimmedContent.startsWith('/init_bot') ||
+          trimmedContent.startsWith('!')) {
+        
+        console.log(`🤖 Processing bot command: ${trimmedContent}`);
+        
+        // Get user info from connected users
+        const userInfo = connectedUsers.get(socket.id);
+        if (userInfo && userInfo.userId) {
+          // Process the command through LowCard bot
+          processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender);
+        }
+        
+        // Don't broadcast bot commands as regular messages
+        if (trimmedContent.startsWith('/bot') || trimmedContent.startsWith('/init_bot')) {
+          return;
+        }
+      }
 
       // Create message with unique ID
       const messageId = tempId ? tempId.replace('temp_', '') + '_confirmed' : `${Date.now()}_${sender}_${Math.random().toString(36).substr(2, 9)}`;
