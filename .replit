@@ -89,6 +89,32 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Start Gateway"
+author = 47179222
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/socket-gateway.js"
+
+[[workflows.workflow]]
+name = "Full Stack with Gateway"
+author = 47179222
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/socket-gateway.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel --no-web"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000
