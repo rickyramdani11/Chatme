@@ -2448,7 +2448,7 @@ export default function ChatScreen() {
 
 
     // Handle special command messages (me, roll, whois, gift commands, errors)
-    if (item.type === 'me' || item.type === 'roll' || item.type === '      item.type === 'whois' || item.type === 'error') {
+    if (item.type === 'me' || item.type === 'roll' || item.type === 'whois' || item.type === 'error') {
       return (
         <TouchableOpacity 
           style={styles.commandMessageContainer}
