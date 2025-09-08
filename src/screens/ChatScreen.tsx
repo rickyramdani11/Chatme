@@ -81,8 +81,6 @@ export default function ChatScreen() {
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [giftList, setGiftList] = useState<any[]>([]);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
-  const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
-  const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
   const giftOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -687,8 +685,16 @@ export default function ChatScreen() {
 
     const initializeSocket = () => {
       console.log('Initializing socket connection...');
+      console.log('Gateway URL:', SOCKET_URL); // Use SOCKET_URL which points to the gateway
 
-      const newSocket = io(API_BASE_URL, {
+      const token = AuthContext.getToken(); // Ensure AuthContext is correctly imported and used
+      if (!token) {
+        console.error('No authentication token available');
+        return;
+      }
+
+      // Initialize socket connection to gateway
+      const newSocket = io(SOCKET_URL, { // Use SOCKET_URL
         transports: ['polling', 'websocket'], // Start with polling first for better Replit compatibility
         autoConnect: true,
         reconnection: true,
@@ -706,7 +712,8 @@ export default function ChatScreen() {
 
       // Connection events
       newSocket.on('connect', () => {
-        console.log('Socket connected successfully');
+        console.log('Socket connected successfully to gateway');
+        console.log('Socket ID:', newSocket.id);
         setIsSocketConnected(true);
         setReconnectAttempts(0);
 
@@ -736,7 +743,7 @@ export default function ChatScreen() {
       });
 
       newSocket.on('disconnect', (reason) => {
-        console.log('Socket disconnected:', reason);
+        console.log('Socket disconnected from gateway:', reason);
         setIsSocketConnected(false);
 
         // Don't attempt reconnection for intentional disconnects
@@ -749,19 +756,20 @@ export default function ChatScreen() {
       });
 
       newSocket.on('connect_error', (error) => {
-        console.log('Socket connection error:', error.message || error);
+        console.error('Socket connection error:', error.message);
+        console.error('Gateway URL:', SOCKET_URL);
         setIsSocketConnected(false);
-        
+
         // Don't attempt reconnection if it's a network issue
         if (error.message && error.message.includes('websocket error')) {
           console.log('WebSocket specific error detected, will retry with polling');
         }
-        
+
         attemptReconnection();
       });
 
       newSocket.on('reconnect', (attemptNumber) => {
-        console.log('Socket reconnected after', attemptNumber, 'attempts');
+        console.log(`Socket reconnected to gateway after ${attemptNumber} attempts`);
         setIsSocketConnected(true);
         setReconnectAttempts(0);
       });
@@ -2349,7 +2357,7 @@ export default function ChatScreen() {
     // Handle command messages with different styles based on commandType
     if (item.type === 'command') {
       const isUserCommand = item.sender === user?.username;
-      const isBotCommand = item.commandType === 'bot' || item.sender === 'LowCardBot';
+      const isBotCommand = item.commandType === 'bot';
       const isSystemCommand = item.commandType === 'system';
 
       return (
@@ -2535,18 +2543,24 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.giftMessageBubble}>
-            <View style={styles.giftMessageHeader}>
-              <Text style={[styles.senderName, { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }]}>
-                {item.sender}
-              </Text>
-              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
-            </View>
-            <View style={styles.giftMessageContent}>
-              <Ionicons name="gift" size={20} color="#FF69B4" />
-              <View style={styles.giftMessageInline}>
-                <Text style={styles.giftInlineText}>{item.content}</Text>
+            <View style={styles.messageRow}>
+            <View style={styles.messageContentRow}>
+              <LevelBadge level={item.level || 1} />
+              <View style={styles.messageTextContainer}>
+                <Text style={styles.messageText}>
+                  <Text style={[
+                    styles.senderName,
+                    { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                  ]}>
+                    {item.sender}
+                  </Text>
+                  <Text style={styles.giftMessageInline}>
+                    {renderMessageContent(item.content)}
+                  </Text>
+                </Text>
               </View>
             </View>
+            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -4731,8 +4745,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-  },
-  participantsList: {
+  },  participantsList: {
     maxHeight: 400,
   },
   participantItem: {

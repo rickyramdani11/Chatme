@@ -63,7 +63,8 @@ io.use(authenticateSocket);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
-  console.log(`User connected to gateway: ${socket.id}, User ID: ${socket.userId}`);
+  console.log(`✅ User connected to gateway: ${socket.id}, User ID: ${socket.userId}`);
+  console.log(`📊 Total connections: ${io.sockets.sockets.size}`);
 
   // Store connected user info
   connectedUsers.set(socket.id, { userId: socket.userId });
@@ -73,12 +74,12 @@ io.on('connection', (socket) => {
     const { roomId, username, role } = data;
     
     if (!roomId || !username) {
-      console.log('Invalid join-room data:', data);
+      console.log('❌ Invalid join-room data:', data);
       return;
     }
 
     socket.join(roomId);
-    console.log(`${username} joined room ${roomId} via gateway`);
+    console.log(`🚪 ${username} joined room ${roomId} via gateway`);
 
     // Update connected user info
     const userInfo = connectedUsers.get(socket.id);
@@ -165,11 +166,11 @@ io.on('connection', (socket) => {
       let { roomId, sender, content, role, level, type, gift, tempId, commandType } = messageData;
       
       if (!roomId || !sender || !content) {
-        console.log('Invalid message data:', messageData);
+        console.log('❌ Invalid message data:', messageData);
         return;
       }
 
-      console.log(`Gateway relaying message from ${sender} in room ${roomId}`);
+      console.log(`📨 Gateway relaying message from ${sender} in room ${roomId}: "${content}"`);
 
       // Create message with unique ID
       const messageId = tempId ? tempId.replace('temp_', '') + '_confirmed' : `${Date.now()}_${sender}_${Math.random().toString(36).substr(2, 9)}`;
