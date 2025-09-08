@@ -689,7 +689,6 @@ export default function ChatScreen() {
       console.log('Initializing socket connection...');
       console.log('Gateway URL:', SOCKET_URL); // Use SOCKET_URL which points to the gateway
 
-      const token = AuthContext.getToken(); // Ensure AuthContext is correctly imported and used
       if (!token) {
         console.error('No authentication token available');
         return;
