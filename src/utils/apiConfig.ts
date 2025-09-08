@@ -1,4 +1,6 @@
 // Central API configuration for the app
+const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV === 'development';
+
 export const getApiUrl = (): string => {
   // Use Replit domain with HTTPS/WSS support
   return 'https://7f6884e2-7b1d-424f-ae50-4ca71e6a78a3-00-hvqr41f78xg8.sisko.replit.dev';
@@ -14,7 +16,7 @@ export const SOCKET_URL = getSocketUrl();
 
 // Socket.IO configuration - Using dedicated gateway
 export const SOCKET_CONFIG = {
-  url: IS_DEVELOPMENT ? 'http://0.0.0.0:5001' : `${API_BASE_URL.replace(':5000', ':5001')}`,
+  url: IS_DEVELOPMENT ? 'ws://0.0.0.0:5001' : 'wss://7f6884e2-7b1d-424f-ae50-4ca71e6a78a3-00-hvqr41f78xg8.sisko.replit.dev:5001',
   options: {
     transports: ['websocket', 'polling'],
     timeout: 20000,
