@@ -101,6 +101,8 @@ export default function ChatScreen() {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const { user, token } = useAuth();
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null); // To track the current active room ID
+  const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
+  const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
 
   // Static Level Badge Component (no blinking)
   const LevelBadge = ({ level }: { level: number }) => {
@@ -2446,7 +2448,7 @@ export default function ChatScreen() {
 
 
     // Handle special command messages (me, roll, whois, gift commands, errors)
-    if (item.type === 'me' || item.type === 'roll' || item.type === 'whois' || item.type === 'error') {
+    if (item.type === 'me' || item.type === 'roll' || item.type === '      item.type === 'whois' || item.type === 'error') {
       return (
         <TouchableOpacity 
           style={styles.commandMessageContainer}
@@ -4375,7 +4377,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 8,
-    borderRadius: 20,
+    borderRadius:    20,
     backgroundColor: '#F5F5F5',
   },
   activeTabNavItem: {
