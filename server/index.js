@@ -30,7 +30,9 @@ const io = socketIo(server, {
     methods: ["GET", "POST"]
   },
   transports: ['websocket', 'polling'],
-  allowEIO3: true
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 const PORT = process.env.PORT || 5000;

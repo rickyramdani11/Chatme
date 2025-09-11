@@ -7,17 +7,17 @@ export const getApiUrl = (): string => {
 };
 
 export const getSocketUrl = (): string => {
-  // Use same domain for WebSocket with secure connection
+  // Use main server for WebSocket connection
   return 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev';
 };
 
 export const API_BASE_URL = getApiUrl();
 export const SOCKET_URL = getSocketUrl();
 
-// Socket.IO configuration - Using dedicated gateway
+// Socket.IO configuration - Using main server (integrated gateway)
 export const SOCKET_CONFIG = {
-  // Direct connection to gateway on internal port 5001
-  url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:3001',
+  // Connect to main server for Socket.IO
+  url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev',
   options: {
     transports: ['websocket'], // Only websocket
     timeout: 20000,
@@ -29,7 +29,7 @@ export const SOCKET_CONFIG = {
     autoConnect: false,
     upgrade: false,
     rememberUpgrade: false,
-    path: '/socket.io/', // Explicit path
+    path: '/socket.io/',
     withCredentials: false
   }
 };
