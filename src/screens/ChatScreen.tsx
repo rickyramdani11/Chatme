@@ -79,6 +79,7 @@ export default function ChatScreen() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [isUserScrolling, setIsUserScrolling] = useState(false); // Track if user is manually scrolling
   const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const [selectedGift, setSelectedGift] = useState<any>(null);
   const [giftList, setGiftList] = useState<any[]>([]);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
@@ -1249,20 +1250,18 @@ export default function ChatScreen() {
       }
 
       case '/roll': {
-        const min = 1;
-        const max = 100;
-        const rollResult = Math.floor(Math.random() * (max - min + 1)) + min;
+        const max = args[0] ? parseInt(args[0]) : 100;
+        
+        console.log('Processing /roll command, max:', max);
 
-        console.log('Processing /roll command, result:', rollResult);
-
-        // Only emit to server, let the server broadcast back to all clients including sender
+        // Just emit the command to server, let server handle rolling and broadcasting
         socket?.emit('sendMessage', {
           roomId: currentRoomId,
-          sender: 'System',
-          content: `🎲 ${user?.username} rolled: ${rollResult} (1-100)`,
-          role: 'system',
-          level: 1,
-          type: 'system'
+          sender: user?.username || 'Guest',
+          content: `/roll ${max}`,
+          role: user?.role || 'user',
+          level: user?.level || 1,
+          type: 'command'
         });
         break;
       }

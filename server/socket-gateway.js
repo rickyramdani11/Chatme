@@ -249,8 +249,47 @@ io.on('connection', (socket) => {
 
       console.log(`📨 Gateway relaying message from ${sender} in room ${roomId}: "${content}"`);
 
-      // Check if this is a bot command that needs special handling
+      // Check if this is a special command that needs server-side handling
       const trimmedContent = content.trim();
+      
+      // Handle /roll command
+      if (trimmedContent.startsWith('/roll')) {
+        console.log(`🎲 Processing /roll command: ${trimmedContent}`);
+        const args = trimmedContent.split(' ');
+        const max = args[1] ? parseInt(args[1]) : 100;
+        const rolled = Math.floor(Math.random() * max) + 1;
+        
+        // Create roll result message
+        const rollMessage = {
+          id: `roll_${Date.now()}_${sender}_${Math.random().toString(36).substr(2, 9)}`,
+          sender: 'System',
+          content: `🎲 ${sender} rolled: ${rolled} (1-${max})`,
+          timestamp: new Date().toISOString(),
+          roomId,
+          role: 'system',
+          level: 1,
+          type: 'system'
+        };
+
+        // Save roll result to database
+        await saveChatMessage(
+          roomId,
+          'System',
+          rollMessage.content,
+          null,
+          'system',
+          'system',
+          1,
+          false
+        );
+
+        // Broadcast roll result to room
+        io.to(roomId).emit('new-message', rollMessage);
+        console.log(`Roll result broadcasted to room ${roomId}: ${rolled}`);
+        return; // Don't process as regular message
+      }
+      
+      // Handle bot commands
       if (trimmedContent.startsWith('/bot lowcard add') || 
           trimmedContent.startsWith('/add') || 
           trimmedContent.startsWith('/init_bot') ||
