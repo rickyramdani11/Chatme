@@ -38,9 +38,9 @@ interface Message {
   content: string;
   timestamp: Date;
   roomId: string;
-  role?: 'user' | 'merchant' | 'mentor' | 'admin';
+  role?: 'user' | 'merchant' | 'mentor' | 'admin' | 'system';
   level?: number;
-  type?: 'join' | 'leave' | 'message' | 'command' | 'me' | 'room_info' | 'report' | 'ban' | 'kick' | 'lock' | 'support';
+  type?: 'join' | 'leave' | 'message' | 'command' | 'me' | 'room_info' | 'report' | 'ban' | 'kick' | 'lock' | 'support' | 'gift' | 'error' | 'system';
   commandType?: 'system' | 'bot';
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
   image?: string;
@@ -114,7 +114,8 @@ export default function ChatScreen() {
   };
 
   // Get room data from navigation params
-  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = route.params || {};
+  const routeParams = (route.params as any) || {};
+  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
 
   // Function to join a specific room (called when navigating from RoomScreen)
   const joinSpecificRoom = async (roomId: string, roomName: string) => {

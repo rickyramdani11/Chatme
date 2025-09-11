@@ -15,6 +15,8 @@ interface User {
   birthDate?: string;
   country?: string;
   signature?: string;
+  role?: 'user' | 'merchant' | 'mentor' | 'admin';
+  level?: number;
 }
 
 interface AuthContextType {
