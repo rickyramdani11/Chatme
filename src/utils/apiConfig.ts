@@ -3,12 +3,12 @@ const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV === 'development';
 
 export const getApiUrl = (): string => {
   // Use Replit domain with HTTPS/WSS support
-  return 'https://7f6884e2-7b1d-424f-ae50-4ca71e6a78a3-00-hvqr41f78xg8.sisko.replit.dev';
+  return 'https://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev';
 };
 
 export const getSocketUrl = (): string => {
   // Use same domain for WebSocket with secure connection
-  return 'wss://7f6884e2-7b1d-424f-ae50-4ca71e6a78a3-00-hvqr41f78xg8.sisko.replit.dev';
+  return 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev';
 };
 
 export const API_BASE_URL = getApiUrl();
@@ -16,7 +16,7 @@ export const SOCKET_URL = getSocketUrl();
 
 // Socket.IO configuration - Using dedicated gateway
 export const SOCKET_CONFIG = {
-  url: IS_DEVELOPMENT ? 'ws://0.0.0.0:5001' : 'wss://7f6884e2-7b1d-424f-ae50-4ca71e6a78a3-00-hvqr41f78xg8.sisko.replit.dev:5001',
+  url: IS_DEVELOPMENT ? 'ws://0.0.0.0:5001' : 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:5001',
   options: {
     transports: ['websocket', 'polling'],
     timeout: 20000,
