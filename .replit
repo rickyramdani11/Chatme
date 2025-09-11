@@ -138,12 +138,12 @@ localPort = 8082
 externalPort = 3000
 
 [[ports]]
-localPort = 43543
-externalPort = 3003
+localPort = 38497
+externalPort = 3002
 
 [[ports]]
-localPort = 44787
-externalPort = 3002
+localPort = 43543
+externalPort = 3003
 
 [deployment]
 run = ["sh", "-c", "cd server && npm start"]

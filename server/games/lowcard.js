@@ -20,8 +20,8 @@ function getCardValue(card) {
 }
 
 // Database coin functions
-function potongCoin(userId, amount) {
-  // Check if user has enough coins
+async function potongCoin(userId, amount) {
+  // Check if user has enough coins and deduct from balance
   const { Pool } = require('pg');
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -29,21 +29,58 @@ function potongCoin(userId, amount) {
   });
 
   try {
-    // For now, assume minimum 100 coins required
-    if (amount > 100) {
+    // First check user's current balance
+    const balanceResult = await pool.query(
+      'SELECT balance FROM user_credits WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (balanceResult.rows.length === 0) {
+      console.log(`[LowCard] User ${userId} has no credit record`);
       return false;
     }
-    // TODO: Actually implement database check and deduction
-    // For now, reject if bet is too high for demo
+    
+    const currentBalance = balanceResult.rows[0].balance;
+    console.log(`[LowCard] User ${userId} has ${currentBalance} coins, needs ${amount}`);
+    
+    if (currentBalance < amount) {
+      console.log(`[LowCard] User ${userId} insufficient balance: ${currentBalance} < ${amount}`);
+      return false;
+    }
+    
+    // Deduct coins from user's balance
+    await pool.query(
+      'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+      [amount, userId]
+    );
+    
+    console.log(`[LowCard] Deducted ${amount} coins from user ${userId}, new balance: ${currentBalance - amount}`);
     return true;
   } catch (error) {
-    console.error('Error checking coins:', error);
+    console.error('Error checking/deducting coins:', error);
     return false;
   }
 }
 
-function tambahCoin(userId, amount) {
-  // TODO: Implement actual coin addition to database
+async function tambahCoin(userId, amount) {
+  // Add coins to user's database balance
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+
+  try {
+    // Add coins to user's balance
+    await pool.query(
+      'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+      [amount, userId]
+    );
+    
+    console.log(`[LowCard] Added ${amount} coins to user ${userId}`);
+  } catch (error) {
+    console.error('Error adding coins:', error);
+  }
 }
 
 // Initialize bot presence in a room
@@ -175,7 +212,7 @@ function processRoundResults(io, room) {
   }
 }
 
-function finishGame(io, room) {
+async function finishGame(io, room) {
   const data = rooms[room];
   if (!data) return;
 
@@ -191,7 +228,7 @@ function finishGame(io, room) {
 
   if (data.activePlayers.length === 1) {
     const winner = data.activePlayers[0];
-    tambahCoin(winner.id, winAmount);
+    await tambahCoin(winner.id, winAmount);
 
     sendBotMessage(io, room, `LowCard game over! ${winner.username} WINS ${winAmount.toFixed(1)} COIN! CONGRATS!`);
   } else {
@@ -277,7 +314,7 @@ function sendBotMessage(io, room, content, media = null, image = null) {
   }, 100);
 }
 
-function processLowCardCommand(io, room, msg, userId, username) {
+async function processLowCardCommand(io, room, msg, userId, username) {
   console.log('Processing LowCard command directly:', msg, 'in room:', room, 'for user:', username);
 
   // Comprehensive validation of all parameters
@@ -353,9 +390,9 @@ function processLowCardCommand(io, room, msg, userId, username) {
     const data = rooms[room];
     if (data) {
       // Refund all players if game exists
-      data.players.forEach(player => {
-        tambahCoin(player.id, player.bet);
-      });
+      for (const player of data.players) {
+        await tambahCoin(player.id, player.bet);
+      }
 
       // Clear timeouts
       if (data.timeout) {
@@ -464,7 +501,7 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
       }
 
       // Check if user has enough coins
-      if (!potongCoin(userId, data.bet)) {
+      if (!(await potongCoin(userId, data.bet))) {
         sendBotMessage(io, room, `${username} doesn't have enough COIN to join.`);
         return;
       }
@@ -554,7 +591,7 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
       }
 
       // Refund the bet
-      tambahCoin(userId, data.bet);
+      await tambahCoin(userId, data.bet);
       data.players.splice(playerIndex, 1);
       sendBotMessage(io, room, `${username} left the game. Bet refunded.`);
       break;
@@ -613,16 +650,16 @@ function handleLowCardBot(io, socket) {
     handleLowCardCommand(io, room, command, args, userId, username);
   });
 
-  socket.on('disconnecting', () => {
+  socket.on('disconnecting', async () => {
     // Handle player disconnect
-    Object.entries(rooms).forEach(([room, data]) => {
+    for (const [room, data] of Object.entries(rooms)) {
       const playerIndex = data.players.findIndex(p => p.id === socket.userId);
       if (playerIndex !== -1) {
         const player = data.players[playerIndex];
 
         if (!data.isRunning) {
           // Refund bet if game hasn't started
-          tambahCoin(player.id, player.bet);
+          await tambahCoin(player.id, player.bet);
           data.players.splice(playerIndex, 1);
           sendBotMessage(io, room, `${player.username} disconnected and left the game. Bet refunded.`);
 
@@ -648,7 +685,7 @@ function handleLowCardBot(io, socket) {
           }
         }
       }
-    });
+    }
   });
 }
 
