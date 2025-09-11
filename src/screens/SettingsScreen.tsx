@@ -193,6 +193,13 @@ export default function SettingsScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Credit')}
           />
 
+          <SettingsItem
+            icon="wallet"
+            title="Withdraw"
+            iconColor="#4CAF50"
+            onPress={() => navigation.navigate('Withdraw')}
+          />
+
           {/* Mentor Menu Item */}
           <SettingsItem
             icon="school"
