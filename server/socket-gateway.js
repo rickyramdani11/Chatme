@@ -1,4 +1,3 @@
-
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -43,7 +42,7 @@ const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
 // Socket authentication middleware
 const authenticateSocket = (socket, next) => {
   const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-  
+
   if (!token) {
     console.log('Socket connection rejected: No token provided');
     return next(new Error('Authentication error: No token provided'));
@@ -64,7 +63,14 @@ const authenticateSocket = (socket, next) => {
 // Apply authentication middleware
 io.use(authenticateSocket);
 
-// Socket.IO connection handling
+// Handle connection errors
+io.engine.on("connection_error", (err) => {
+  console.log('❌ Socket connection error:', err.req);
+  console.log('❌ Error code:', err.code);
+  console.log('❌ Error message:', err.message);
+  console.log('❌ Error context:', err.context);
+});
+
 io.on('connection', (socket) => {
   console.log(`✅ User connected to gateway: ${socket.id}, User ID: ${socket.userId}`);
   console.log(`📊 Total connections: ${io.sockets.sockets.size}`);
@@ -75,7 +81,7 @@ io.on('connection', (socket) => {
   // Join room event
   socket.on('join-room', (data) => {
     const { roomId, username, role } = data;
-    
+
     if (!roomId || !username) {
       console.log('❌ Invalid join-room data:', data);
       return;
@@ -100,7 +106,7 @@ io.on('connection', (socket) => {
       };
       connectedUsers.set(socket.id, userInfo);
     }
-    
+
     // Store socket info for bot commands
     socket.userId = socket.userId || userInfo?.userId;
     socket.username = username;
@@ -146,7 +152,7 @@ io.on('connection', (socket) => {
   // Leave room event
   socket.on('leave-room', (data) => {
     const { roomId, username, role } = data;
-    
+
     socket.leave(roomId);
     console.log(`${username} left room ${roomId} via gateway`);
 
@@ -180,7 +186,7 @@ io.on('connection', (socket) => {
   socket.on('sendMessage', (messageData) => {
     try {
       let { roomId, sender, content, role, level, type, gift, tempId, commandType } = messageData;
-      
+
       if (!roomId || !sender || !content) {
         console.log('❌ Invalid message data:', messageData);
         return;
@@ -195,9 +201,9 @@ io.on('connection', (socket) => {
           trimmedContent.startsWith('/init_bot') ||
           trimmedContent.startsWith('/bot off') ||
           trimmedContent.startsWith('!')) {
-        
+
         console.log(`🤖 Processing bot command: ${trimmedContent}`);
-        
+
         // Get user info from connected users
         const userInfo = connectedUsers.get(socket.id);
         if (userInfo && userInfo.userId) {
@@ -206,7 +212,7 @@ io.on('connection', (socket) => {
         } else {
           console.error('User info not found for socket:', socket.id);
         }
-        
+
         // Don't broadcast bot commands as regular messages
         if (trimmedContent.startsWith('/bot') || trimmedContent.startsWith('/init_bot')) {
           return;
@@ -252,7 +258,7 @@ io.on('connection', (socket) => {
   socket.on('sendGift', (giftData) => {
     try {
       const { roomId, sender, gift, timestamp, role, level, recipient } = giftData;
-      
+
       if (!roomId || !sender || !gift) {
         console.log('Invalid gift data:', giftData);
         return;
@@ -282,7 +288,7 @@ io.on('connection', (socket) => {
   socket.on('send-private-gift', (giftData) => {
     try {
       const { from, to, gift, timestamp } = giftData;
-      
+
       if (!from || !to || !gift) {
         console.log('Invalid private gift data:', giftData);
         return;
@@ -386,7 +392,7 @@ io.on('connection', (socket) => {
   // Notification events
   socket.on('send-notification', (notificationData) => {
     const { targetUserId, targetUsername, notification } = notificationData;
-    
+
     if (!targetUserId && !targetUsername) {
       console.log('Invalid notification data: no target specified');
       return;
@@ -438,7 +444,7 @@ io.on('connection', (socket) => {
         roomParticipants[userInfo.roomId] = roomParticipants[userInfo.roomId].filter(
           p => p.socketId !== socket.id
         );
-        
+
         // Notify room about updated participants
         io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
 

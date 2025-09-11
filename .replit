@@ -84,6 +84,15 @@ mode = "sequential"
 task = "shell.exec"
 args = "node server/index.js"
 
+[[workflows.workflow]]
+name = "Start Gateway Only"
+author = 47427675
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/socket-gateway.js"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000

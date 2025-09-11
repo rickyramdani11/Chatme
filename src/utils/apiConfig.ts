@@ -16,7 +16,7 @@ export const SOCKET_URL = getSocketUrl();
 
 // Socket.IO configuration - Using dedicated gateway
 export const SOCKET_CONFIG = {
-  url: IS_DEVELOPMENT ? 'ws://0.0.0.0:5001' : 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:5001',
+  url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:5001',
   options: {
     transports: ['websocket', 'polling'],
     timeout: 20000,
