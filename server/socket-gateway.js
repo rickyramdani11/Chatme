@@ -271,17 +271,17 @@ io.on('connection', (socket) => {
           type: 'system'
         };
 
-        // Save roll result to database
-        await saveChatMessage(
-          roomId,
-          'System',
-          rollMessage.content,
-          null,
-          'system',
-          'system',
-          1,
-          false
-        );
+        // Skip database save for temporary chat
+        // await saveChatMessage(
+        //   roomId,
+        //   'System',
+        //   rollMessage.content,
+        //   null,
+        //   'system',
+        //   'system',
+        //   1,
+        //   false
+        // );
 
         // Broadcast roll result to room
         io.to(roomId).emit('new-message', rollMessage);
@@ -329,17 +329,17 @@ io.on('connection', (socket) => {
         gift: gift || null
       };
 
-      // Save message to database
-      await saveChatMessage(
-        roomId,
-        sender,
-        content,
-        gift, // media data (for gifts)
-        type || 'message',
-        role || 'user',
-        level || 1,
-        false // isPrivate
-      );
+      // Skip database save for temporary chat (real-time only)
+      // await saveChatMessage(
+      //   roomId,
+      //   sender,
+      //   content,
+      //   gift, // media data (for gifts)
+      //   type || 'message',
+      //   role || 'user',
+      //   level || 1,
+      //   false // isPrivate
+      // );
 
       // Broadcast message to room
       io.to(roomId).emit('new-message', newMessage);
