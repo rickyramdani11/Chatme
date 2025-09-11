@@ -175,8 +175,7 @@ export default function AppNavigator() {
             name="Chat"
             component={ChatScreen}
             options={{
-              headerShown: false,
-              tabBarStyle: { display: 'none' }
+              headerShown: false
             }}
           />
           <Stack.Screen

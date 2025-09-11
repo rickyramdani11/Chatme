@@ -7,17 +7,17 @@ export const getApiUrl = (): string => {
 };
 
 export const getSocketUrl = (): string => {
-  // Connect to GATEWAY server on port 8000
-  return 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:8000';
+  // Connect to GATEWAY server on port 8000 (use https for Socket.IO)
+  return 'https://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:8000';
 };
 
 export const API_BASE_URL = getApiUrl();
 export const SOCKET_URL = getSocketUrl();
 
-// Socket.IO configuration - Using dedicated GATEWAY server
+// Socket.IO configuration - Using dedicated GATEWAY server  
 export const SOCKET_CONFIG = {
-  // Connect to GATEWAY server on port 8000
-  url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:8000',
+  // Connect to GATEWAY server on port 8000 (use https for Socket.IO)
+  url: 'https://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:8000',
   options: {
     transports: ['websocket'], // Only websocket
     timeout: 20000,
@@ -26,7 +26,7 @@ export const SOCKET_CONFIG = {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    autoConnect: false,
+    autoConnect: true,
     upgrade: false,
     rememberUpgrade: false,
     path: '/socket.io/',
