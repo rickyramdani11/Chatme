@@ -16,16 +16,18 @@ export const SOCKET_URL = getSocketUrl();
 
 // Socket.IO configuration - Using dedicated gateway
 export const SOCKET_CONFIG = {
-  // Use the external port mapping for gateway (port 5001 -> 3001)
+  // Force connection to gateway using external port mapping
   url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:3001',
   options: {
-    transports: ['websocket', 'polling'],
+    transports: ['websocket'], // Only use websocket to avoid fallback to main server
     timeout: 20000,
     forceNew: true,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-    autoConnect: false
+    autoConnect: false,
+    upgrade: false, // Prevent transport upgrade that might redirect
+    rememberUpgrade: false
   }
 };

@@ -72,11 +72,12 @@ io.engine.on("connection_error", (err) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(`🔥 ===========================================`);
-  console.log(`🔥 GATEWAY CONNECTION ESTABLISHED!`);
-  console.log(`✅ User connected to gateway: ${socket.id}, User ID: ${socket.userId}`);
-  console.log(`📊 Total connections: ${io.sockets.sockets.size}`);
-  console.log(`🔥 ===========================================`);
+  console.log(`🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀`);
+  console.log(`🚀 GATEWAY CONNECTION ESTABLISHED! THIS IS THE GATEWAY SERVER!`);
+  console.log(`🚀 User connected to DEDICATED GATEWAY: ${socket.id}, User ID: ${socket.userId}`);
+  console.log(`🚀 Total gateway connections: ${io.sockets.sockets.size}`);
+  console.log(`🚀 Time: ${new Date().toISOString()}`);
+  console.log(`🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀`);
 
   // Store connected user info
   connectedUsers.set(socket.id, { userId: socket.userId });
