@@ -76,6 +76,7 @@ export default function ChatScreen() {
   const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [mutedUsers, setMutedUsers] = useState<string[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<string[]>([]);
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [isUserScrolling, setIsUserScrolling] = useState(false); // Track if user is manually scrolling
   const [showGiftPicker, setShowGiftPicker] = useState(false);
@@ -104,6 +105,17 @@ export default function ChatScreen() {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null); // To track the current active room ID
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
   const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
+
+  // Helper functions for role checking
+  const isRoomOwner = () => {
+    const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+    return currentRoom && currentRoom.managedBy === user?.username;
+  };
+
+  const isRoomModerator = () => {
+    const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+    return currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+  };
 
   // Static Level Badge Component (no blinking)
   const LevelBadge = ({ level }: { level: number }) => {
@@ -474,6 +486,26 @@ export default function ChatScreen() {
           } else {
             setMutedUsers(prev => prev.filter(username => username !== data.mutedUser));
             Alert.alert('You have been unmuted', `You were unmuted by ${data.mutedBy}`);
+          }
+        }
+      });
+
+      // Listen for user banned events
+      socketInstance.on('user-banned', (data: any) => {
+        if (data.bannedUser === user?.username) {
+          if (data.action === 'ban') {
+            setBannedUsers(prev => [...prev, data.bannedUser]);
+            Alert.alert('You have been banned', `You were banned from ${data.roomName} by ${data.bannedBy}`);
+            // Remove the room tab for banned user
+            setChatTabs(prevTabs => prevTabs.filter(tab => tab.id !== data.roomId));
+          } else {
+            setBannedUsers(prev => prev.filter(username => username !== data.bannedUser));
+            Alert.alert('You have been unbanned', `You were unbanned from ${data.roomName} by ${data.bannedBy}`);
+          }
+        } else {
+          // Update participant list for other users
+          if (data.action === 'ban') {
+            setParticipants(prev => prev.filter(p => p.username !== data.bannedUser));
           }
         }
       });
@@ -1640,6 +1672,213 @@ export default function ChatScreen() {
         break;
       }
 
+      case '/ban': {
+        // Check if user has permission to ban user
+        const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+        const isOwner = currentRoom && currentRoom.managedBy === user?.username;
+        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isAdmin = user?.role === 'admin';
+
+        if (!isOwner && !isModerator && !isAdmin) {
+          const errorMessage = {
+            id: `error_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Only room owner, moderators, or admins can ban users.',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, errorMessage] }
+                : tab
+            )
+          );
+          break;
+        }
+
+        if (args.length > 0) {
+          const targetUsername = args[0];
+          const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
+
+          if (targetUser) {
+            const banMessage = {
+              id: `ban_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `🚫 ${targetUsername} has been banned from the room by ${user?.username}`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'ban'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, banMessage] }
+                  : tab
+              )
+            );
+
+            setBannedUsers(prev => [...prev, targetUsername]);
+
+            socket?.emit('ban-user', {
+              roomId: currentRoomId,
+              bannedUser: targetUsername,
+              bannedBy: user?.username,
+              action: 'ban'
+            });
+          } else {
+            const errorMessage = {
+              id: `error_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `❌ User '${targetUsername}' not found in this room.`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'error'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, errorMessage] }
+                  : tab
+              )
+            );
+          }
+        } else {
+          const helpMessage = {
+            id: `help_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Usage: /ban [username]',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, helpMessage] }
+                : tab
+            )
+          );
+        }
+        break;
+      }
+
+      case '/unban': {
+        // Check if user has permission to unban user
+        const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+        const isOwner = currentRoom && currentRoom.managedBy === user?.username;
+        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isAdmin = user?.role === 'admin';
+
+        if (!isOwner && !isModerator && !isAdmin) {
+          const errorMessage = {
+            id: `error_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Only room owner, moderators, or admins can unban users.',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, errorMessage] }
+                : tab
+            )
+          );
+          break;
+        }
+
+        if (args.length > 0) {
+          const targetUsername = args[0];
+          
+          if (bannedUsers.includes(targetUsername)) {
+            const unbanMessage = {
+              id: `unban_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `✅ ${targetUsername} has been unbanned from the room by ${user?.username}`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'unban'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, unbanMessage] }
+                  : tab
+              )
+            );
+
+            setBannedUsers(prev => prev.filter(username => username !== targetUsername));
+
+            socket?.emit('ban-user', {
+              roomId: currentRoomId,
+              bannedUser: targetUsername,
+              bannedBy: user?.username,
+              action: 'unban'
+            });
+          } else {
+            const errorMessage = {
+              id: `error_${Date.now()}_${user?.username}`,
+              sender: 'System',
+              content: `❌ User '${targetUsername}' is not banned from this room.`,
+              timestamp: new Date(),
+              roomId: currentRoomId,
+              role: 'system',
+              level: 1,
+              type: 'error'
+            };
+
+            setChatTabs(prevTabs =>
+              prevTabs.map(tab => 
+                tab.id === currentRoomId
+                  ? { ...tab, messages: [...tab.messages, errorMessage] }
+                  : tab
+              )
+            );
+          }
+        } else {
+          const helpMessage = {
+            id: `help_${Date.now()}_${user?.username}`,
+            sender: 'System',
+            content: '❌ Usage: /unban [username]',
+            timestamp: new Date(),
+            roomId: currentRoomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab => 
+              tab.id === currentRoomId
+                ? { ...tab, messages: [...tab.messages, helpMessage] }
+                : tab
+            )
+          );
+        }
+        break;
+      }
+
       case '/bot': {
         if (args.length >= 2 && args[0] === 'lowcard' && args[1] === 'add') {
           // Handle: /bot lowcard add
@@ -2147,6 +2386,83 @@ export default function ChatScreen() {
               mutedBy: user?.username,
               action: isMuted ? 'unmute' : 'mute'
             });
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBanUser = async () => {
+    if (!isRoomOwner() && !isRoomModerator() && user?.role !== 'admin') {
+      Alert.alert('Error', 'Only room owner, moderators, or admins can ban users');
+      return;
+    }
+
+    setShowParticipantMenu(false);
+
+    const isBanned = bannedUsers.includes(selectedParticipant?.username);
+
+    Alert.alert(
+      isBanned ? 'Unban User' : 'Ban User',
+      `Are you sure you want to ${isBanned ? 'unban' : 'ban'} ${selectedParticipant?.username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: isBanned ? 'Unban' : 'Ban',
+          style: 'destructive',
+          onPress: () => {
+            if (isBanned) {
+              setBannedUsers(prev => prev.filter(username => username !== selectedParticipant?.username));
+              Alert.alert('Success', `${selectedParticipant?.username} has been unbanned`);
+            } else {
+              setBannedUsers(prev => [...prev, selectedParticipant?.username]);
+              Alert.alert('Success', `${selectedParticipant?.username} has been banned from this room`);
+            }
+
+            // Emit ban/unban event to server
+            socket?.emit('ban-user', {
+              roomId: currentRoomId,
+              bannedUser: selectedParticipant?.username,
+              bannedBy: user?.username,
+              action: isBanned ? 'unban' : 'ban'
+            });
+          }
+        }
+      ]
+    );
+  };
+
+  const handleLockRoom = async () => {
+    if (!isRoomOwner() && !isRoomModerator() && user?.role !== 'admin') {
+      Alert.alert('Error', 'Only room owner, moderators, or admins can lock the room');
+      return;
+    }
+
+    setShowParticipantMenu(false);
+
+    Alert.alert(
+      'Lock Room',
+      'Enter password to lock this room:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Lock',
+          onPress: () => {
+            Alert.prompt(
+              'Room Password',
+              'Enter a password for this room:',
+              (password) => {
+                if (password && password.trim()) {
+                  socket?.emit('lock-room', {
+                    roomId: currentRoomId,
+                    password: password.trim(),
+                    lockedBy: user?.username
+                  });
+                  Alert.alert('Success', 'Room has been locked with password');
+                }
+              },
+              'plain-text'
+            );
           }
         }
       ]
@@ -3736,6 +4052,28 @@ export default function ChatScreen() {
                   {mutedUsers.includes(selectedParticipant?.username) ? 'Unmute User' : 'Mute User'}
                 </Text>
               </TouchableOpacity>
+            )}
+
+            {(isRoomOwner() || isRoomModerator() || user?.role === 'admin') && (
+              <>
+                <TouchableOpacity
+                  style={styles.participantMenuItem}
+                  onPress={handleBanUser}
+                >
+                  <Ionicons name="remove-circle-outline" size={20} color="#E91E63" />
+                  <Text style={[styles.participantMenuText, { color: '#E91E63' }]}>
+                    {bannedUsers.includes(selectedParticipant?.username) ? 'Unban User' : 'Ban User'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.participantMenuItem}
+                  onPress={handleLockRoom}
+                >
+                  <Ionicons name="lock-closed-outline" size={20} color="#FF5722" />
+                  <Text style={[styles.participantMenuText, { color: '#FF5722' }]}>Lock Room</Text>
+                </TouchableOpacity>
+              </>
             )}
 
             <TouchableOpacity
