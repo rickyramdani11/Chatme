@@ -1,6 +1,6 @@
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
+// const socketIo = require('socket.io'); // Removed - handled by gateway
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
@@ -23,17 +23,7 @@ try {
 const app = express();
 const server = http.createServer(app);
 
-// Socket.IO setup with CORS for Replit
-const io = socketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  },
-  transports: ['websocket', 'polling'],
-  allowEIO3: true,
-  pingTimeout: 60000,
-  pingInterval: 25000
-});
+// Socket.IO removed - now handled by dedicated gateway server
 
 const PORT = process.env.PORT || 5000;
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:${PORT}`); // For constructing image URLs
@@ -818,232 +808,9 @@ const rooms = [
 // Initialize participant data structure
 const roomParticipants = {}; // { roomId: [ { id, username, role, isOnline, joinedAt, lastSeen }, ... ], ... }
 
-// Socket.IO connection handling
-const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
+// Socket.IO handling removed - now handled by dedicated gateway server
 
-// Socket authentication middleware
-const authenticateSocket = (socket, next) => {
-  const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-  
-  if (!token) {
-    console.log('Socket connection rejected: No token provided');
-    return next(new Error('Authentication error: No token provided'));
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    socket.userId = decoded.userId;
-    socket.authenticated = true;
-    console.log(`Socket authenticated for user ID: ${decoded.userId}`);
-    next();
-  } catch (error) {
-    console.log('Socket authentication failed:', error.message);
-    return next(new Error('Authentication error: Invalid token'));
-  }
-};
-
-// Apply authentication middleware
-io.use(authenticateSocket);
-
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}, User ID: ${socket.userId}`);
-
-  // Store connected user info
-  connectedUsers.set(socket.id, { userId: socket.userId });
-
-  // Join room event
-  socket.on('join-room', (data) => {
-    const { roomId, username, role } = data;
-    
-    if (!roomId || !username) {
-      console.log('Invalid join-room data:', data);
-      return;
-    }
-
-    socket.join(roomId);
-    console.log(`${username} joined room ${roomId}`);
-
-    // Update connected user info
-    const userInfo = connectedUsers.get(socket.id);
-    if (userInfo) {
-      userInfo.roomId = roomId;
-      userInfo.username = username;
-      userInfo.role = role;
-    }
-
-    // Add participant to room
-    if (!roomParticipants[roomId]) {
-      roomParticipants[roomId] = [];
-    }
-
-    let participant = roomParticipants[roomId].find(p => p.username === username);
-    if (participant) {
-      participant.isOnline = true;
-      participant.socketId = socket.id;
-      participant.lastSeen = new Date().toISOString();
-    } else {
-      participant = {
-        id: Date.now().toString(),
-        username,
-        role: role || 'user',
-        isOnline: true,
-        socketId: socket.id,
-        joinedAt: new Date().toISOString(),
-        lastSeen: new Date().toISOString()
-      };
-      roomParticipants[roomId].push(participant);
-    }
-
-    // Broadcast join message
-    const joinMessage = {
-      id: Date.now().toString(),
-      sender: username,
-      content: `${username} joined the room`,
-      timestamp: new Date().toISOString(),
-      roomId: roomId,
-      type: 'join',
-      userRole: role
-    };
-
-    socket.to(roomId).emit('user-joined', joinMessage);
-    io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
-  });
-
-  // Send message event
-  socket.on('sendMessage', (messageData) => {
-    try {
-      let { roomId, sender, content, role, level, type, gift, tempId, commandType } = messageData;
-      
-      if (!roomId || !sender || !content) {
-        console.log('Invalid message data:', messageData);
-        return;
-      }
-
-      console.log(`Message from ${sender} in room ${roomId}`);
-
-      // Create message with unique ID
-      const messageId = tempId ? tempId.replace('temp_', '') + '_confirmed' : `${Date.now()}_${sender}_${Math.random().toString(36).substr(2, 9)}`;
-
-      const newMessage = {
-        id: messageId,
-        sender,
-        content,
-        timestamp: new Date().toISOString(),
-        roomId,
-        role: role || 'user',
-        level: level || 1,
-        type: type || 'message',
-        commandType: commandType || null,
-        gift: gift || null
-      };
-
-      // Broadcast message to room
-      io.to(roomId).emit('new-message', newMessage);
-
-      console.log(`Message broadcasted to room ${roomId} from ${sender}`);
-
-    } catch (error) {
-      console.error('Error handling sendMessage:', error);
-    }
-  });
-
-  // Send gift event
-  socket.on('sendGift', (giftData) => {
-    try {
-      const { roomId, sender, gift, timestamp, role, level, recipient } = giftData;
-      
-      if (!roomId || !sender || !gift) {
-        console.log('Invalid gift data:', giftData);
-        return;
-      }
-
-      console.log(`Gift from ${sender} in room ${roomId}: ${gift.name}`);
-
-      // Broadcast gift to all users in the room
-      io.to(roomId).emit('receiveGift', {
-        roomId,
-        sender,
-        gift,
-        recipient,
-        timestamp: timestamp || new Date().toISOString(),
-        role: role || 'user',
-        level: level || 1
-      });
-
-      console.log(`Gift broadcasted to room ${roomId} from ${sender}`);
-
-    } catch (error) {
-      console.error('Error handling sendGift:', error);
-    }
-  });
-
-  // Leave room event
-  socket.on('leave-room', (data) => {
-    const { roomId, username, role } = data;
-    
-    socket.leave(roomId);
-    console.log(`${username} left room ${roomId}`);
-
-    // Remove participant from room
-    if (roomParticipants[roomId]) {
-      roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== username);
-      io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
-    }
-
-    // Update connected user info
-    const userInfo = connectedUsers.get(socket.id);
-    if (userInfo) {
-      userInfo.roomId = null;
-    }
-
-    // Broadcast leave message
-    const leaveMessage = {
-      id: Date.now().toString(),
-      sender: username,
-      content: `${username} left the room`,
-      timestamp: new Date().toISOString(),
-      roomId: roomId,
-      type: 'leave',
-      userRole: role
-    };
-
-    socket.to(roomId).emit('user-left', leaveMessage);
-  });
-
-  // Disconnect event
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-
-    const userInfo = connectedUsers.get(socket.id);
-    if (userInfo && userInfo.roomId && userInfo.username) {
-      // Remove from room participants
-      if (roomParticipants[userInfo.roomId]) {
-        roomParticipants[userInfo.roomId] = roomParticipants[userInfo.roomId].filter(
-          p => p.socketId !== socket.id
-        );
-        
-        // Notify room about updated participants
-        io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
-
-        // Broadcast leave message
-        const leaveMessage = {
-          id: Date.now().toString(),
-          sender: userInfo.username,
-          content: `${userInfo.username} left the room`,
-          timestamp: new Date().toISOString(),
-          roomId: userInfo.roomId,
-          type: 'leave',
-          userRole: userInfo.role || 'user'
-        };
-
-        socket.to(userInfo.roomId).emit('user-left', leaveMessage);
-      }
-    }
-
-    // Remove from connected users
-    connectedUsers.delete(socket.id);
-  });
-});
+// All Socket.IO connection handling moved to dedicated gateway server
 
 // Function to generate room description
 const generateRoomDescription = (roomName, creatorUsername) => {
@@ -1062,7 +829,7 @@ const sendVerificationEmail = (email, token) => {
   return true;
 };
 
-const JWT_SECRET = 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Middleware to authenticate JWT token
 const authenticateToken = (req, res, next) => {

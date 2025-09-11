@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const { Pool } = require('pg');
 
 // Import LowCard bot
 const { processLowCardCommand } = require('./games/lowcard.js');
@@ -21,6 +22,56 @@ const io = socketIo(server, {
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://0.0.0.0:5000';
+
+// Database configuration
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+// Test database connection
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('Gateway: Error connecting to database:', err);
+  } else {
+    console.log('Gateway: Successfully connected to PostgreSQL database');
+    release();
+  }
+});
+
+// Function to save chat message to database
+const saveChatMessage = async (roomId, username, content, media = null, messageType = 'message', userRole = 'user', userLevel = 1, isPrivate = false) => {
+  try {
+    // Get user ID by username
+    const userResult = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : null;
+
+    const result = await pool.query(`
+      INSERT INTO chat_messages (
+        room_id, user_id, username, content, media_data,
+        message_type, user_role, user_level, is_private
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [
+      roomId,
+      userId,
+      username,
+      content,
+      media ? JSON.stringify(media) : null,
+      messageType,
+      userRole,
+      userLevel,
+      isPrivate
+    ]);
+
+    console.log(`💾 Gateway: Message saved to database from ${username} in room ${roomId}`);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Gateway: Error saving chat message:', error);
+    return null;
+  }
+};
 
 // Middleware
 app.use(cors());
@@ -187,7 +238,7 @@ io.on('connection', (socket) => {
   });
 
   // Send message event
-  socket.on('sendMessage', (messageData) => {
+  socket.on('sendMessage', async (messageData) => {
     try {
       let { roomId, sender, content, role, level, type, gift, tempId, commandType } = messageData;
 
@@ -239,6 +290,18 @@ io.on('connection', (socket) => {
         gift: gift || null
       };
 
+      // Save message to database
+      await saveChatMessage(
+        roomId,
+        sender,
+        content,
+        gift, // media data (for gifts)
+        type || 'message',
+        role || 'user',
+        level || 1,
+        false // isPrivate
+      );
+
       // Broadcast message to room
       io.to(roomId).emit('new-message', newMessage);
 
@@ -259,7 +322,7 @@ io.on('connection', (socket) => {
   });
 
   // Send gift event
-  socket.on('sendGift', (giftData) => {
+  socket.on('sendGift', async (giftData) => {
     try {
       const { roomId, sender, gift, timestamp, role, level, recipient } = giftData;
 
@@ -269,6 +332,19 @@ io.on('connection', (socket) => {
       }
 
       console.log(`Gateway relaying gift from ${sender} in room ${roomId}: ${gift.name}`);
+
+      // Save gift message to database
+      const giftContent = recipient ? `sent a ${gift.name} to ${recipient}` : `sent a ${gift.name}`;
+      await saveChatMessage(
+        roomId,
+        sender,
+        giftContent,
+        gift, // media data for the gift
+        'gift',
+        role || 'user',
+        level || 1,
+        false // isPrivate
+      );
 
       // Broadcast gift to all users in the room
       io.to(roomId).emit('receiveGift', {

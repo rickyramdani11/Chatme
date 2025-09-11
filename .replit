@@ -81,6 +81,10 @@ author = "agent"
 task = "workflow.run"
 args = "Gateway"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API Server"
+
 [[workflows.workflow]]
 name = "Gateway"
 author = "agent"
@@ -92,6 +96,18 @@ outputType = "console"
 task = "shell.exec"
 args = "node server/socket-gateway.js"
 waitForPort = 8000
+
+[[workflows.workflow]]
+name = "API Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 3000
@@ -106,10 +122,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 5001
-externalPort = 3001
-
-[[ports]]
 localPort = 8000
 externalPort = 8000
 
@@ -122,7 +134,7 @@ localPort = 8082
 externalPort = 3000
 
 [[ports]]
-localPort = 36041
+localPort = 34559
 externalPort = 3002
 
 [deployment]
