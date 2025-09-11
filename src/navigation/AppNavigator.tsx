@@ -30,6 +30,8 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import AdminScreen from '../screens/AdminScreen';
 // Import TopRankScreen
 import TopRankScreen from '../screens/TopRankScreen';
+// Import WithdrawScreen
+import WithdrawScreen from '../screens/WithdrawScreen';
 
 
 import { useAuth } from '../hooks';
@@ -181,6 +183,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="Room"
             component={RoomScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Withdraw"
+            component={WithdrawScreen}
             options={{ headerShown: false }}
           />
         </>
