@@ -72,8 +72,11 @@ io.engine.on("connection_error", (err) => {
 });
 
 io.on('connection', (socket) => {
+  console.log(`🔥 ===========================================`);
+  console.log(`🔥 GATEWAY CONNECTION ESTABLISHED!`);
   console.log(`✅ User connected to gateway: ${socket.id}, User ID: ${socket.userId}`);
   console.log(`📊 Total connections: ${io.sockets.sockets.size}`);
+  console.log(`🔥 ===========================================`);
 
   // Store connected user info
   connectedUsers.set(socket.id, { userId: socket.userId });
@@ -435,7 +438,11 @@ io.on('connection', (socket) => {
 
   // Disconnect event
   socket.on('disconnect', () => {
-    console.log(`User disconnected from gateway: ${socket.id}`);
+    console.log(`🔴 ===========================================`);
+    console.log(`🔴 GATEWAY DISCONNECT!`);
+    console.log(`❌ User disconnected from gateway: ${socket.id}`);
+    console.log(`📊 Remaining connections: ${io.sockets.sockets.size - 1}`);
+    console.log(`🔴 ===========================================`);
 
     const userInfo = connectedUsers.get(socket.id);
     if (userInfo && userInfo.roomId && userInfo.username) {
