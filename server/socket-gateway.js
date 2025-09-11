@@ -20,7 +20,15 @@ const io = socketIo(server, {
 });
 
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Generate a secure random secret if JWT_SECRET is not provided
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  const crypto = require('crypto');
+  const randomSecret = crypto.randomBytes(64).toString('hex');
+  console.warn('⚠️  WARNING: JWT_SECRET not set in environment. Using randomly generated secret.');
+  console.warn('⚠️  Set JWT_SECRET environment variable for production use.');
+  console.warn(`⚠️  Generated secret: ${randomSecret}`);
+  return randomSecret;
+})();
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://0.0.0.0:5000';
 
 // Database configuration
@@ -38,6 +46,306 @@ pool.connect((err, client, release) => {
     release();
   }
 });
+
+// Initialize room security tables
+const initRoomSecurityTables = async () => {
+  try {
+    // Table for banned users per room
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS room_banned_users (
+        id BIGSERIAL PRIMARY KEY,
+        room_id VARCHAR(50) NOT NULL,
+        banned_user_id INTEGER,
+        banned_username VARCHAR(50) NOT NULL,
+        banned_by_id INTEGER NOT NULL,
+        banned_by_username VARCHAR(50) NOT NULL,
+        ban_reason TEXT,
+        banned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        UNIQUE(room_id, banned_username)
+      )
+    `);
+
+    // Table for room locks and passwords
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS room_security (
+        room_id VARCHAR(50) PRIMARY KEY,
+        is_locked BOOLEAN DEFAULT false,
+        password_hash TEXT,
+        locked_by_id INTEGER,
+        locked_by_username VARCHAR(50),
+        locked_at TIMESTAMP,
+        max_members INTEGER DEFAULT 100,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Table for room moderators and permissions
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS room_moderators (
+        id BIGSERIAL PRIMARY KEY,
+        room_id VARCHAR(50) NOT NULL,
+        user_id INTEGER NOT NULL,
+        username VARCHAR(50) NOT NULL,
+        role VARCHAR(20) DEFAULT 'moderator',
+        assigned_by_id INTEGER,
+        assigned_by_username VARCHAR(50),
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        can_ban BOOLEAN DEFAULT true,
+        can_kick BOOLEAN DEFAULT true,
+        can_mute BOOLEAN DEFAULT true,
+        can_lock_room BOOLEAN DEFAULT false,
+        UNIQUE(room_id, user_id)
+      )
+    `);
+
+    console.log('✅ Room security tables initialized successfully');
+  } catch (error) {
+    console.error('❌ Error initializing room security tables:', error);
+  }
+};
+
+// Initialize tables on startup
+initRoomSecurityTables();
+
+// Server-side permission verification functions
+const hasPermission = async (userId, username, roomId, action) => {
+  try {
+    // Get user's role from database (authoritative source)
+    const userResult = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return false;
+    }
+    
+    const userRole = userResult.rows[0].role;
+    
+    // Global admins can do anything
+    if (userRole === 'admin') {
+      return true;
+    }
+    
+    // Check if user is room moderator
+    const moderatorResult = await pool.query(`
+      SELECT * FROM room_moderators 
+      WHERE room_id = $1 AND user_id = $2 AND is_active = true
+    `, [roomId, userId]);
+    
+    if (moderatorResult.rows.length > 0) {
+      const moderator = moderatorResult.rows[0];
+      
+      // Check specific permissions for this moderator
+      switch (action) {
+        case 'ban':
+          return moderator.can_ban;
+        case 'kick':
+          return moderator.can_kick;
+        case 'mute':
+          return moderator.can_mute;
+        case 'lock_room':
+          return moderator.can_lock_room;
+        default:
+          return false;
+      }
+    }
+    
+    // Check if user is room owner (created the room)
+    const roomResult = await pool.query('SELECT created_by FROM rooms WHERE id = $1', [roomId]);
+    if (roomResult.rows.length > 0 && roomResult.rows[0].created_by === username) {
+      return true; // Room owners have all permissions
+    }
+    
+    return false; // Regular users have no moderation permissions
+  } catch (error) {
+    console.error('Error checking permissions:', error);
+    return false;
+  }
+};
+
+const isUserBanned = async (roomId, userId, username) => {
+  try {
+    const result = await pool.query(`
+      SELECT * FROM room_banned_users 
+      WHERE room_id = $1 AND (banned_user_id = $2 OR banned_username = $3) 
+      AND is_active = true 
+      AND (expires_at IS NULL OR expires_at > NOW())
+    `, [roomId, userId, username]);
+    
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('Error checking ban status:', error);
+    return false;
+  }
+};
+
+const isRoomLocked = async (roomId) => {
+  try {
+    const result = await pool.query('SELECT is_locked, password_hash FROM room_security WHERE room_id = $1', [roomId]);
+    
+    if (result.rows.length === 0) {
+      return { locked: false, passwordRequired: false };
+    }
+    
+    const roomSecurity = result.rows[0];
+    return {
+      locked: roomSecurity.is_locked,
+      passwordRequired: roomSecurity.is_locked && roomSecurity.password_hash !== null
+    };
+  } catch (error) {
+    console.error('Error checking room lock status:', error);
+    return { locked: false, passwordRequired: false };
+  }
+};
+
+const verifyRoomPassword = async (roomId, password) => {
+  try {
+    const bcrypt = require('bcrypt');
+    
+    const result = await pool.query('SELECT password_hash FROM room_security WHERE room_id = $1', [roomId]);
+    
+    if (result.rows.length === 0 || !result.rows[0].password_hash) {
+      return false;
+    }
+    
+    return await bcrypt.compare(password, result.rows[0].password_hash);
+  } catch (error) {
+    console.error('Error verifying room password:', error);
+    return false;
+  }
+};
+
+// Ban management functions
+const addBanToDatabase = async (roomId, bannedUserId, bannedUsername, bannedById, bannedByUsername, reason = null, expiresInHours = null) => {
+  try {
+    let expiresAt = null;
+    if (expiresInHours) {
+      expiresAt = new Date(Date.now() + (expiresInHours * 60 * 60 * 1000));
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO room_banned_users (
+        room_id, banned_user_id, banned_username, banned_by_id, banned_by_username, 
+        ban_reason, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (room_id, banned_username) 
+      DO UPDATE SET 
+        banned_by_id = $4,
+        banned_by_username = $5,
+        ban_reason = $6,
+        expires_at = $7,
+        banned_at = NOW(),
+        is_active = true
+      RETURNING *
+    `, [roomId, bannedUserId, bannedUsername, bannedById, bannedByUsername, reason, expiresAt]);
+    
+    console.log(`✅ User ${bannedUsername} banned from room ${roomId} by ${bannedByUsername}`);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error adding ban to database:', error);
+    return null;
+  }
+};
+
+const removeBanFromDatabase = async (roomId, unbannedUsername, unbannedById, unbannedByUsername) => {
+  try {
+    const result = await pool.query(`
+      UPDATE room_banned_users 
+      SET is_active = false 
+      WHERE room_id = $1 AND banned_username = $2 AND is_active = true
+      RETURNING *
+    `, [roomId, unbannedUsername]);
+    
+    if (result.rows.length > 0) {
+      console.log(`✅ User ${unbannedUsername} unbanned from room ${roomId} by ${unbannedByUsername}`);
+      return result.rows[0];
+    } else {
+      console.log(`⚠️  No active ban found for ${unbannedUsername} in room ${roomId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error removing ban from database:', error);
+    return null;
+  }
+};
+
+const cleanupExpiredBans = async () => {
+  try {
+    const result = await pool.query(`
+      UPDATE room_banned_users 
+      SET is_active = false 
+      WHERE expires_at IS NOT NULL AND expires_at <= NOW() AND is_active = true
+      RETURNING room_id, banned_username
+    `);
+    
+    if (result.rows.length > 0) {
+      console.log(`✅ Cleaned up ${result.rows.length} expired bans`);
+      return result.rows;
+    }
+    return [];
+  } catch (error) {
+    console.error('Error cleaning up expired bans:', error);
+    return [];
+  }
+};
+
+// Run cleanup every hour
+setInterval(cleanupExpiredBans, 60 * 60 * 1000);
+
+// Room lock management functions
+const lockRoom = async (roomId, lockingUserId, lockingUsername, password = null) => {
+  try {
+    const bcrypt = require('bcrypt');
+    let passwordHash = null;
+    
+    if (password) {
+      passwordHash = await bcrypt.hash(password, 10);
+    }
+    
+    const result = await pool.query(`
+      INSERT INTO room_security (room_id, is_locked, password_hash, locked_by_id, locked_by_username, locked_at)
+      VALUES ($1, true, $2, $3, $4, NOW())
+      ON CONFLICT (room_id) 
+      DO UPDATE SET 
+        is_locked = true,
+        password_hash = $2,
+        locked_by_id = $3,
+        locked_by_username = $4,
+        locked_at = NOW(),
+        updated_at = NOW()
+      RETURNING *
+    `, [roomId, passwordHash, lockingUserId, lockingUsername]);
+    
+    console.log(`🔒 Room ${roomId} locked by ${lockingUsername}${password ? ' with password' : ''}`);
+    return result.rows[0];
+  } catch (error) {
+    console.error('Error locking room:', error);
+    return null;
+  }
+};
+
+const unlockRoom = async (roomId, unlockingUserId, unlockingUsername) => {
+  try {
+    const result = await pool.query(`
+      UPDATE room_security 
+      SET is_locked = false, password_hash = null, updated_at = NOW()
+      WHERE room_id = $1
+      RETURNING *
+    `, [roomId]);
+    
+    if (result.rows.length > 0) {
+      console.log(`🔓 Room ${roomId} unlocked by ${unlockingUsername}`);
+      return result.rows[0];
+    } else {
+      console.log(`⚠️  Room ${roomId} was not locked`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error unlocking room:', error);
+    return null;
+  }
+};
 
 // Function to save chat message to database
 const saveChatMessage = async (roomId, username, content, media = null, messageType = 'message', userRole = 'user', userLevel = 1, isPrivate = false) => {
@@ -91,7 +399,7 @@ const roomParticipants = {}; // { roomId: [ { id, username, role, socketId }, ..
 const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
 
 // Socket authentication middleware
-const authenticateSocket = (socket, next) => {
+const authenticateSocket = async (socket, next) => {
   const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
 
   if (!token) {
@@ -101,9 +409,24 @@ const authenticateSocket = (socket, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    socket.userId = decoded.userId;
+    
+    // Get complete user information from database
+    const userResult = await pool.query('SELECT id, username, role FROM users WHERE id = $1', [decoded.userId]);
+    
+    if (userResult.rows.length === 0) {
+      console.log('Socket authentication failed: User not found in database');
+      return next(new Error('Authentication error: User not found'));
+    }
+
+    const user = userResult.rows[0];
+    
+    // Store authenticated user information on socket
+    socket.userId = user.id;
+    socket.username = user.username;
+    socket.userRole = user.role; // This is the authoritative role from database
     socket.authenticated = true;
-    console.log(`Socket authenticated for user ID: ${decoded.userId}`);
+    
+    console.log(`Socket authenticated for user: ${user.username} (ID: ${user.id}, Role: ${user.role})`);
     next();
   } catch (error) {
     console.log('Socket authentication failed:', error.message);
@@ -134,74 +457,137 @@ io.on('connection', (socket) => {
   connectedUsers.set(socket.id, { userId: socket.userId });
 
   // Join room event
-  socket.on('join-room', (data) => {
-    const { roomId, username, role } = data;
+  socket.on('join-room', async (data) => {
+    const { roomId, username, role, password } = data;
 
     if (!roomId || !username) {
       console.log('❌ Invalid join-room data:', data);
+      socket.emit('join-room-error', { error: 'Invalid room data provided' });
       return;
     }
 
-    socket.join(roomId);
-    console.log(`🚪 ${username} joined room ${roomId} via gateway`);
+    try {
+      // 1. Check if user is banned from this room
+      const isBanned = await isUserBanned(roomId, socket.userId, socket.username);
+      if (isBanned) {
+        console.log(`🚫 Banned user ${socket.username} attempted to join room ${roomId}`);
+        socket.emit('join-room-error', { 
+          error: 'You are banned from this room',
+          reason: 'banned'
+        });
+        return;
+      }
 
-    // Update connected user info
-    let userInfo = connectedUsers.get(socket.id);
-    if (userInfo) {
-      userInfo.roomId = roomId;
-      userInfo.username = username;
-      userInfo.role = role;
-    } else {
-      // Create user info if it doesn't exist
-      userInfo = {
-        userId: socket.userId,
-        roomId: roomId,
-        username: username,
-        role: role
-      };
-      connectedUsers.set(socket.id, userInfo);
-    }
+      // 2. Check if room is locked
+      const roomLockStatus = await isRoomLocked(roomId);
+      if (roomLockStatus.locked) {
+        if (roomLockStatus.passwordRequired) {
+          // Password is required
+          if (!password) {
+            console.log(`🔒 User ${socket.username} attempted to join locked room ${roomId} without password`);
+            socket.emit('join-room-error', { 
+              error: 'This room is locked and requires a password',
+              reason: 'password_required'
+            });
+            return;
+          }
 
-    // Store socket info for bot commands
-    socket.userId = socket.userId || userInfo?.userId;
-    socket.username = username;
+          // Verify password
+          const passwordValid = await verifyRoomPassword(roomId, password);
+          if (!passwordValid) {
+            console.log(`🔒 User ${socket.username} provided incorrect password for room ${roomId}`);
+            socket.emit('join-room-error', { 
+              error: 'Incorrect room password',
+              reason: 'invalid_password'
+            });
+            return;
+          }
+        } else {
+          // Room is locked but no password required (admin only)
+          const canBypassLock = await hasPermission(socket.userId, socket.username, roomId, 'lock_room');
+          if (!canBypassLock && socket.userRole !== 'admin') {
+            console.log(`🔒 User ${socket.username} attempted to join locked room ${roomId} without permission`);
+            socket.emit('join-room-error', { 
+              error: 'This room is locked',
+              reason: 'room_locked'
+            });
+            return;
+          }
+        }
+      }
 
-    // Add participant to room
-    if (!roomParticipants[roomId]) {
-      roomParticipants[roomId] = [];
-    }
+      // 3. All security checks passed - allow join
+      socket.join(roomId);
+      console.log(`🚪 ${socket.username} joined room ${roomId} via gateway (passed security checks)`);
 
-    let participant = roomParticipants[roomId].find(p => p.username === username);
-    if (participant) {
-      participant.isOnline = true;
-      participant.socketId = socket.id;
-      participant.lastSeen = new Date().toISOString();
-    } else {
-      participant = {
+      // Update connected user info
+      let userInfo = connectedUsers.get(socket.id);
+      if (userInfo) {
+        userInfo.roomId = roomId;
+        userInfo.username = username;
+        userInfo.role = role;
+      } else {
+        // Create user info if it doesn't exist
+        userInfo = {
+          userId: socket.userId,
+          roomId: roomId,
+          username: username,
+          role: role
+        };
+        connectedUsers.set(socket.id, userInfo);
+      }
+
+      // Store socket info for bot commands
+      socket.userId = socket.userId || userInfo?.userId;
+      socket.username = username;
+
+      // Add participant to room
+      if (!roomParticipants[roomId]) {
+        roomParticipants[roomId] = [];
+      }
+
+      let participant = roomParticipants[roomId].find(p => p.username === username);
+      if (participant) {
+        participant.isOnline = true;
+        participant.socketId = socket.id;
+        participant.lastSeen = new Date().toISOString();
+      } else {
+        participant = {
+          id: Date.now().toString(),
+          username,
+          role: role || 'user',
+          isOnline: true,
+          socketId: socket.id,
+          joinedAt: new Date().toISOString(),
+          lastSeen: new Date().toISOString()
+        };
+        roomParticipants[roomId].push(participant);
+      }
+
+      // Broadcast join message
+      const joinMessage = {
         id: Date.now().toString(),
-        username,
-        role: role || 'user',
-        isOnline: true,
-        socketId: socket.id,
-        joinedAt: new Date().toISOString(),
-        lastSeen: new Date().toISOString()
+        sender: username,
+        content: `${username} joined the room`,
+        timestamp: new Date().toISOString(),
+        roomId: roomId,
+        type: 'join',
+        userRole: role
       };
-      roomParticipants[roomId].push(participant);
+
+      socket.to(roomId).emit('user-joined', joinMessage);
+      io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
+      
+      // Emit successful join confirmation to the user
+      socket.emit('join-room-success', { roomId, username });
+      
+    } catch (error) {
+      console.error('Error in join-room handler:', error);
+      socket.emit('join-room-error', { 
+        error: 'Internal server error',
+        reason: 'server_error'
+      });
     }
-
-    // Broadcast join message
-    const joinMessage = {
-      id: Date.now().toString(),
-      sender: username,
-      content: `${username} joined the room`,
-      timestamp: new Date().toISOString(),
-      roomId: roomId,
-      type: 'join',
-      userRole: role
-    };
-
-    socket.to(roomId).emit('user-joined', joinMessage);
-    io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
   });
 
   // Leave room event
@@ -235,6 +621,106 @@ io.on('connection', (socket) => {
     };
 
     socket.to(roomId).emit('user-left', leaveMessage);
+  });
+
+  // Lock/Unlock room event
+  socket.on('lock-room', async (data) => {
+    try {
+      const { roomId, action, password } = data; // action: 'lock' or 'unlock'
+
+      if (!roomId || !action) {
+        console.log('❌ Invalid lock-room data:', data);
+        socket.emit('lock-room-error', { error: 'Invalid lock data provided' });
+        return;
+      }
+
+      // Verify user has permission to lock/unlock rooms
+      const hasLockPermission = await hasPermission(socket.userId, socket.username, roomId, 'lock_room');
+      
+      if (!hasLockPermission) {
+        console.log(`🚫 User ${socket.username} attempted to ${action} room ${roomId} without permission`);
+        socket.emit('lock-room-error', { 
+          error: 'You do not have permission to lock/unlock this room',
+          reason: 'no_permission'
+        });
+        return;
+      }
+
+      if (action === 'lock') {
+        // Lock the room
+        const result = await lockRoom(roomId, socket.userId, socket.username, password);
+        
+        if (result) {
+          // Broadcast lock event to room
+          io.to(roomId).emit('room-locked', {
+            roomId,
+            lockedBy: socket.username,
+            hasPassword: !!password,
+            timestamp: new Date().toISOString()
+          });
+
+          // Send system message
+          const lockMessage = {
+            id: Date.now().toString(),
+            sender: 'System',
+            content: `🔒 Room locked by ${socket.username}${password ? ' with password' : ''}`,
+            timestamp: new Date().toISOString(),
+            roomId: roomId,
+            type: 'lock'
+          };
+
+          io.to(roomId).emit('new-message', lockMessage);
+          socket.emit('lock-room-success', { action: 'lock', roomId });
+          
+          console.log(`🔒 Room ${roomId} locked by ${socket.username}`);
+        } else {
+          socket.emit('lock-room-error', { 
+            error: 'Failed to lock room',
+            reason: 'server_error'
+          });
+        }
+        
+      } else if (action === 'unlock') {
+        // Unlock the room
+        const result = await unlockRoom(roomId, socket.userId, socket.username);
+        
+        if (result) {
+          // Broadcast unlock event to room
+          io.to(roomId).emit('room-unlocked', {
+            roomId,
+            unlockedBy: socket.username,
+            timestamp: new Date().toISOString()
+          });
+
+          // Send system message
+          const unlockMessage = {
+            id: Date.now().toString(),
+            sender: 'System',
+            content: `🔓 Room unlocked by ${socket.username}`,
+            timestamp: new Date().toISOString(),
+            roomId: roomId,
+            type: 'unlock'
+          };
+
+          io.to(roomId).emit('new-message', unlockMessage);
+          socket.emit('lock-room-success', { action: 'unlock', roomId });
+          
+          console.log(`🔓 Room ${roomId} unlocked by ${socket.username}`);
+        } else {
+          socket.emit('lock-room-error', { 
+            error: 'Failed to unlock room or room was not locked',
+            reason: 'not_locked_or_error'
+          });
+        }
+      }
+
+    } catch (error) {
+      console.error('Error in lock-room handler:', error);
+      socket.emit('lock-room-error', { 
+        error: 'Internal server error',
+        reason: 'server_error'
+      });
+    }
   });
 
   // Send message event
@@ -453,59 +939,377 @@ io.on('connection', (socket) => {
     }
   });
 
-  // User moderation events
-  socket.on('kick-user', (data) => {
-    const { roomId, kickedUser, kickedBy } = data;
-    console.log(`Gateway relaying kick: ${kickedBy} kicked ${kickedUser} from room ${roomId}`);
+  // User moderation events - SECURE VERSION with server-side verification
+  socket.on('kick-user', async (data) => {
+    try {
+      const { roomId, targetUsername, reason } = data;
 
-    // Remove from participants
-    if (roomParticipants[roomId]) {
-      roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== kickedUser);
+      if (!roomId || !targetUsername) {
+        console.log('❌ Invalid kick-user data:', data);
+        socket.emit('kick-user-error', { error: 'Invalid kick data provided' });
+        return;
+      }
+
+      // 1. SERVER-SIDE PERMISSION VERIFICATION - Use authoritative JWT data
+      const hasKickPermission = await hasPermission(socket.userId, socket.username, roomId, 'kick');
+      
+      if (!hasKickPermission) {
+        console.log(`🚫 User ${socket.username} (ID: ${socket.userId}) attempted to kick ${targetUsername} without permission in room ${roomId}`);
+        socket.emit('kick-user-error', { 
+          error: 'You do not have permission to kick users in this room',
+          reason: 'no_permission'
+        });
+        return;
+      }
+
+      // 2. Get target user information from database (authoritative source)
+      const targetUserResult = await pool.query('SELECT id, username, role FROM users WHERE username = $1', [targetUsername]);
+      
+      if (targetUserResult.rows.length === 0) {
+        socket.emit('kick-user-error', { 
+          error: 'Target user not found',
+          reason: 'user_not_found'
+        });
+        return;
+      }
+
+      const targetUser = targetUserResult.rows[0];
+
+      // 3. Prevent kicking admins or yourself
+      if (targetUser.id === socket.userId) {
+        socket.emit('kick-user-error', { 
+          error: 'You cannot kick yourself',
+          reason: 'cannot_kick_self'
+        });
+        return;
+      }
+
+      if (targetUser.role === 'admin') {
+        socket.emit('kick-user-error', { 
+          error: 'Cannot kick administrators',
+          reason: 'cannot_kick_admin'
+        });
+        return;
+      }
+
+      // 4. AUTHORITATIVE ENFORCEMENT - Remove from participants
+      if (roomParticipants[roomId]) {
+        roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== targetUsername);
+        io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
+      }
+
+      // 5. Force disconnect kicked user from room if they're online
+      const kickedUserSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+        userInfo.username === targetUsername && userInfo.roomId === roomId
+      );
+
+      if (kickedUserSocket) {
+        const [kickedSocketId] = kickedUserSocket;
+        io.to(kickedSocketId).emit('user-kicked', {
+          roomId,
+          kickedUser: targetUsername,
+          kickedBy: socket.username,
+          reason: reason || 'No reason provided'
+        });
+        
+        // Force leave the room
+        io.to(kickedSocketId).emit('force-leave-room', { 
+          roomId, 
+          reason: 'kicked',
+          kickedBy: socket.username 
+        });
+      }
+
+      // 6. Broadcast verified kick event to room
+      io.to(roomId).emit('user-kicked', {
+        roomId,
+        kickedUser: targetUsername,
+        kickedBy: socket.username // Use server-side authoritative username
+      });
+
+      // 7. Send verified system message
+      const kickMessage = {
+        id: Date.now().toString(),
+        sender: 'System',
+        content: `${targetUsername} was kicked by ${socket.username}${reason ? ` (${reason})` : ''}`,
+        timestamp: new Date().toISOString(),
+        roomId: roomId,
+        type: 'kick'
+      };
+
+      io.to(roomId).emit('new-message', kickMessage);
+      
+      // 8. Confirm success to requesting user
+      socket.emit('kick-user-success', { targetUsername, roomId });
+      
+      console.log(`✅ User ${targetUsername} kicked from room ${roomId} by ${socket.username} (verified)`);
+
+    } catch (error) {
+      console.error('Error in kick-user handler:', error);
+      socket.emit('kick-user-error', { 
+        error: 'Internal server error',
+        reason: 'server_error'
+      });
     }
-
-    // Broadcast kick event
-    io.to(roomId).emit('user-kicked', {
-      roomId,
-      kickedUser,
-      kickedBy
-    });
-
-    // Send system message
-    const kickMessage = {
-      id: Date.now().toString(),
-      sender: 'System',
-      content: `${kickedUser} was kicked by ${kickedBy}`,
-      timestamp: new Date().toISOString(),
-      roomId: roomId,
-      type: 'kick'
-    };
-
-    io.to(roomId).emit('new-message', kickMessage);
   });
 
-  socket.on('mute-user', (data) => {
-    const { roomId, mutedUser, mutedBy, action } = data;
-    console.log(`Gateway relaying mute: ${mutedBy} ${action}d ${mutedUser} in room ${roomId}`);
+  socket.on('mute-user', async (data) => {
+    try {
+      const { roomId, targetUsername, action, reason, durationMinutes } = data; // action: 'mute' or 'unmute'
 
-    // Broadcast mute event
-    io.to(roomId).emit('user-muted', {
-      roomId,
-      mutedUser,
-      mutedBy,
-      action
-    });
+      if (!roomId || !targetUsername || !action) {
+        console.log('❌ Invalid mute-user data:', data);
+        socket.emit('mute-user-error', { error: 'Invalid mute data provided' });
+        return;
+      }
 
-    // Send system message
-    const muteMessage = {
-      id: Date.now().toString(),
-      sender: 'System',
-      content: `${mutedUser} was ${action}d by ${mutedBy}`,
-      timestamp: new Date().toISOString(),
-      roomId: roomId,
-      type: 'mute'
-    };
+      // 1. SERVER-SIDE PERMISSION VERIFICATION - Use authoritative JWT data
+      const hasMutePermission = await hasPermission(socket.userId, socket.username, roomId, 'mute');
+      
+      if (!hasMutePermission) {
+        console.log(`🚫 User ${socket.username} (ID: ${socket.userId}) attempted to ${action} ${targetUsername} without permission in room ${roomId}`);
+        socket.emit('mute-user-error', { 
+          error: `You do not have permission to ${action} users in this room`,
+          reason: 'no_permission'
+        });
+        return;
+      }
 
-    io.to(roomId).emit('new-message', muteMessage);
+      // 2. Get target user information from database (authoritative source)
+      const targetUserResult = await pool.query('SELECT id, username, role FROM users WHERE username = $1', [targetUsername]);
+      
+      if (targetUserResult.rows.length === 0) {
+        socket.emit('mute-user-error', { 
+          error: 'Target user not found',
+          reason: 'user_not_found'
+        });
+        return;
+      }
+
+      const targetUser = targetUserResult.rows[0];
+
+      // 3. Prevent muting admins or yourself
+      if (targetUser.id === socket.userId) {
+        socket.emit('mute-user-error', { 
+          error: 'You cannot mute yourself',
+          reason: 'cannot_mute_self'
+        });
+        return;
+      }
+
+      if (targetUser.role === 'admin') {
+        socket.emit('mute-user-error', { 
+          error: 'Cannot mute administrators',
+          reason: 'cannot_mute_admin'
+        });
+        return;
+      }
+
+      // 4. Notify the target user if they're online
+      const targetUserSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+        userInfo.username === targetUsername && userInfo.roomId === roomId
+      );
+
+      if (targetUserSocket) {
+        const [targetSocketId] = targetUserSocket;
+        io.to(targetSocketId).emit('user-muted', {
+          roomId,
+          mutedUser: targetUsername,
+          mutedBy: socket.username,
+          action,
+          reason: reason || 'No reason provided',
+          duration: durationMinutes || null
+        });
+      }
+
+      // 5. Broadcast verified mute event to room
+      io.to(roomId).emit('user-muted', {
+        roomId,
+        mutedUser: targetUsername,
+        mutedBy: socket.username, // Use server-side authoritative username
+        action
+      });
+
+      // 6. Send verified system message
+      const muteMessage = {
+        id: Date.now().toString(),
+        sender: 'System',
+        content: `${targetUsername} was ${action}d by ${socket.username}${reason ? ` (${reason})` : ''}${durationMinutes ? ` for ${durationMinutes} minutes` : ''}`,
+        timestamp: new Date().toISOString(),
+        roomId: roomId,
+        type: 'mute'
+      };
+
+      io.to(roomId).emit('new-message', muteMessage);
+      
+      // 7. Confirm success to requesting user
+      socket.emit('mute-user-success', { action, targetUsername, roomId });
+      
+      console.log(`✅ User ${targetUsername} ${action}d in room ${roomId} by ${socket.username} (verified)`);
+
+    } catch (error) {
+      console.error('Error in mute-user handler:', error);
+      socket.emit('mute-user-error', { 
+        error: 'Internal server error',
+        reason: 'server_error'
+      });
+    }
+  });
+
+  // Ban/unban user event - SECURE VERSION with server-side verification
+  socket.on('ban-user', async (data) => {
+    try {
+      const { roomId, targetUsername, action, reason, durationHours } = data; // action: 'ban' or 'unban'
+
+      if (!roomId || !targetUsername || !action) {
+        console.log('❌ Invalid ban-user data:', data);
+        socket.emit('ban-user-error', { error: 'Invalid ban data provided' });
+        return;
+      }
+
+      // 1. SERVER-SIDE PERMISSION VERIFICATION - Use authoritative JWT data
+      const hasBanPermission = await hasPermission(socket.userId, socket.username, roomId, 'ban');
+      
+      if (!hasBanPermission) {
+        console.log(`🚫 User ${socket.username} (ID: ${socket.userId}) attempted to ${action} ${targetUsername} without permission in room ${roomId}`);
+        socket.emit('ban-user-error', { 
+          error: `You do not have permission to ${action} users in this room`,
+          reason: 'no_permission'
+        });
+        return;
+      }
+
+      // 2. Get target user information from database (authoritative source)
+      const targetUserResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [targetUsername]);
+      
+      if (targetUserResult.rows.length === 0) {
+        socket.emit('ban-user-error', { 
+          error: 'Target user not found',
+          reason: 'user_not_found'
+        });
+        return;
+      }
+
+      const targetUser = targetUserResult.rows[0];
+
+      // 3. Prevent banning admins or room owners
+      if (targetUser.id === socket.userId) {
+        socket.emit('ban-user-error', { 
+          error: 'You cannot ban yourself',
+          reason: 'cannot_ban_self'
+        });
+        return;
+      }
+
+      // Check if target is admin
+      const targetUserRoleResult = await pool.query('SELECT role FROM users WHERE id = $1', [targetUser.id]);
+      if (targetUserRoleResult.rows.length > 0 && targetUserRoleResult.rows[0].role === 'admin') {
+        socket.emit('ban-user-error', { 
+          error: 'Cannot ban administrators',
+          reason: 'cannot_ban_admin'
+        });
+        return;
+      }
+
+      if (action === 'ban') {
+        // 4. PERSISTENT BAN STORAGE - Add to database
+        const banResult = await addBanToDatabase(
+          roomId, 
+          targetUser.id, 
+          targetUser.username, 
+          socket.userId, 
+          socket.username, 
+          reason,
+          durationHours
+        );
+
+        if (!banResult) {
+          socket.emit('ban-user-error', { 
+            error: 'Failed to ban user',
+            reason: 'database_error'
+          });
+          return;
+        }
+
+        // 5. AUTHORITATIVE ENFORCEMENT - Remove from participants and disconnect if online
+        if (roomParticipants[roomId]) {
+          roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== targetUsername);
+          io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
+        }
+
+        // Force disconnect banned user from room if they're online
+        const bannedUserSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+          userInfo.username === targetUsername && userInfo.roomId === roomId
+        );
+
+        if (bannedUserSocket) {
+          const [bannedSocketId] = bannedUserSocket;
+          io.to(bannedSocketId).emit('user-banned', {
+            roomId,
+            bannedUser: targetUsername,
+            bannedBy: socket.username,
+            action: 'ban',
+            reason: reason || 'No reason provided',
+            roomName: `Room ${roomId}`
+          });
+          
+          // Force leave the room
+          io.to(bannedSocketId).emit('force-leave-room', { 
+            roomId, 
+            reason: 'banned',
+            bannedBy: socket.username 
+          });
+        }
+
+        console.log(`✅ User ${targetUsername} banned from room ${roomId} by ${socket.username} (verified)`);
+
+      } else if (action === 'unban') {
+        // 6. PERSISTENT UNBAN - Remove from database
+        const unbanResult = await removeBanFromDatabase(roomId, targetUsername, socket.userId, socket.username);
+
+        if (!unbanResult) {
+          socket.emit('ban-user-error', { 
+            error: 'User was not banned or failed to unban',
+            reason: 'not_banned_or_error'
+          });
+          return;
+        }
+
+        console.log(`✅ User ${targetUsername} unbanned from room ${roomId} by ${socket.username} (verified)`);
+      }
+
+      // 7. Broadcast verified ban/unban event to room
+      io.to(roomId).emit('user-banned', {
+        roomId,
+        bannedUser: targetUsername,
+        bannedBy: socket.username, // Use server-side authoritative username
+        action,
+        reason: reason || 'No reason provided',
+        roomName: `Room ${roomId}`
+      });
+
+      // 8. Send verified system message
+      const banMessage = {
+        id: Date.now().toString(),
+        sender: 'System',
+        content: `${targetUsername} was ${action}ned by ${socket.username}${reason ? ` (${reason})` : ''}`,
+        timestamp: new Date().toISOString(),
+        roomId: roomId,
+        type: action
+      };
+
+      io.to(roomId).emit('new-message', banMessage);
+      
+      // 9. Confirm success to requesting user
+      socket.emit('ban-user-success', { action, targetUsername, roomId });
+
+    } catch (error) {
+      console.error('Error in ban-user handler:', error);
+      socket.emit('ban-user-error', { 
+        error: 'Internal server error',
+        reason: 'server_error'
+      });
+    }
   });
 
   // Notification events

@@ -1918,7 +1918,7 @@ export default function ChatScreen() {
         const unknownMessage = {
           id: `unknown_${Date.now()}_${user?.username}`,
           sender: 'System',
-          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user\n/ban [username] - Ban user\n/bot lowcard add - Add LowCard bot\n/lock [password] - Lock room (moderator/owner/admin only)',
+          content: `❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot`,
           timestamp: new Date(),
           roomId: currentRoomId,
           role: 'system',
