@@ -7,17 +7,17 @@ export const getApiUrl = (): string => {
 };
 
 export const getSocketUrl = (): string => {
-  // Use main server for WebSocket connection
-  return 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev';
+  // Connect to GATEWAY server on port 8000
+  return 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:8000';
 };
 
 export const API_BASE_URL = getApiUrl();
 export const SOCKET_URL = getSocketUrl();
 
-// Socket.IO configuration - Using main server (integrated gateway)
+// Socket.IO configuration - Using dedicated GATEWAY server
 export const SOCKET_CONFIG = {
-  // Connect to main server for Socket.IO
-  url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev',
+  // Connect to GATEWAY server on port 8000
+  url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:8000',
   options: {
     transports: ['websocket'], // Only websocket
     timeout: 20000,

@@ -18,7 +18,7 @@ const io = socketIo(server, {
   }
 });
 
-const GATEWAY_PORT = process.env.GATEWAY_PORT || 5001;
+const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://0.0.0.0:5000';
 
