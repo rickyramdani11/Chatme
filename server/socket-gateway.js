@@ -85,11 +85,20 @@ io.on('connection', (socket) => {
     console.log(`🚪 ${username} joined room ${roomId} via gateway`);
 
     // Update connected user info
-    const userInfo = connectedUsers.get(socket.id);
+    let userInfo = connectedUsers.get(socket.id);
     if (userInfo) {
       userInfo.roomId = roomId;
       userInfo.username = username;
       userInfo.role = role;
+    } else {
+      // Create user info if it doesn't exist
+      userInfo = {
+        userId: socket.userId,
+        roomId: roomId,
+        username: username,
+        role: role
+      };
+      connectedUsers.set(socket.id, userInfo);
     }
     
     // Store socket info for bot commands
@@ -184,6 +193,7 @@ io.on('connection', (socket) => {
       if (trimmedContent.startsWith('/bot lowcard add') || 
           trimmedContent.startsWith('/add') || 
           trimmedContent.startsWith('/init_bot') ||
+          trimmedContent.startsWith('/bot off') ||
           trimmedContent.startsWith('!')) {
         
         console.log(`🤖 Processing bot command: ${trimmedContent}`);
@@ -193,6 +203,8 @@ io.on('connection', (socket) => {
         if (userInfo && userInfo.userId) {
           // Process the command through LowCard bot
           processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender);
+        } else {
+          console.error('User info not found for socket:', socket.id);
         }
         
         // Don't broadcast bot commands as regular messages

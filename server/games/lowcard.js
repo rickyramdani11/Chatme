@@ -326,13 +326,13 @@ function processLowCardCommand(io, room, msg, userId, username) {
 
   // Handle /bot lowcard add command specifically
   if (trimmedMsg === '/bot lowcard add' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
-    console.log(`Add bot command received in room ${room}`);
+    console.log(`Add bot command received in room ${room} from user ${username}`);
     if (!botPresence[room]) {
       botPresence[room] = true;
-      sendBotMessage(io, room, 'LowCardBot is now active! Type !start <bet> to begin playing');
+      sendBotMessage(io, room, '🎮 LowCardBot is now active! Type !start <bet> to begin playing');
       console.log(`LowCardBot successfully added to room ${room}`);
     } else {
-      sendBotMessage(io, room, 'LowCardBot is already active in this room! Type !help for commands.');
+      sendBotMessage(io, room, '⚠️ LowCardBot is already active in this room! Type !help for commands.');
       console.log(`LowCardBot already active in room ${room}`);
     }
     return;
