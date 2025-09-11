@@ -16,10 +16,10 @@ export const SOCKET_URL = getSocketUrl();
 
 // Socket.IO configuration - Using dedicated gateway
 export const SOCKET_CONFIG = {
-  // Force connection to gateway using external port mapping
+  // Direct connection to gateway on internal port 5001
   url: 'wss://f04796f8-b5cf-4198-88aa-fca437b208bf-00-1l5hkok1g68yq.sisko.replit.dev:3001',
   options: {
-    transports: ['websocket'], // Only use websocket to avoid fallback to main server
+    transports: ['websocket'], // Only websocket
     timeout: 20000,
     forceNew: true,
     reconnection: true,
@@ -27,7 +27,9 @@ export const SOCKET_CONFIG = {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
     autoConnect: false,
-    upgrade: false, // Prevent transport upgrade that might redirect
-    rememberUpgrade: false
+    upgrade: false,
+    rememberUpgrade: false,
+    path: '/socket.io/', // Explicit path
+    withCredentials: false
   }
 };
