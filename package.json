@@ -29,6 +29,8 @@
     "expo-blur": "~14.1.5",
     "expo-clipboard": "~7.1.5",
     "expo-constants": "~17.1.7",
+    "expo-dev-client": "~5.2.4",
+    "expo-device": "^8.0.6",
     "expo-document-picker": "^13.1.6",
     "expo-font": "~13.3.2",
     "expo-haptics": "~14.1.4",
@@ -62,8 +64,7 @@
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
-    "expo-dev-client": "~5.2.4"
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

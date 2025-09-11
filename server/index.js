@@ -619,7 +619,43 @@ const initDatabase = async () => {
       )
     `);
 
-    console.log('Database tables initialized successfully');
+    // Create room_banned_users table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS room_banned_users (
+        id SERIAL PRIMARY KEY,
+        room_id VARCHAR(50) NOT NULL,
+        banned_user_id VARCHAR(50),
+        banned_username VARCHAR(255) NOT NULL,
+        banned_by_id VARCHAR(50) NOT NULL,
+        banned_by_username VARCHAR(255) NOT NULL,
+        ban_reason TEXT,
+        banned_at TIMESTAMP DEFAULT NOW(),
+        expires_at TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        UNIQUE(room_id, banned_username)
+      )
+    `);
+
+    // Create banned_devices_ips table for device and IP bans
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS banned_devices_ips (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(50),
+        ban_type VARCHAR(10) NOT NULL CHECK (ban_type IN ('device', 'ip')),
+        target_value VARCHAR(255) NOT NULL,
+        ban_reason TEXT,
+        banned_by_id VARCHAR(50) NOT NULL,
+        banned_by_username VARCHAR(255) NOT NULL,
+        banned_at TIMESTAMP DEFAULT NOW(),
+        unbanned_at TIMESTAMP,
+        unbanned_by_id VARCHAR(50),
+        unbanned_by_username VARCHAR(255),
+        is_active BOOLEAN DEFAULT true,
+        UNIQUE(target_value, ban_type)
+      )
+    `);
+
+    console.log('✅ Room security and ban management tables initialized successfully');
 
     // Add default admin user 'asu' if not exists
     try {
@@ -4379,7 +4415,7 @@ app.post('/api/admin/cleanup-missing-avatars', authenticateToken, async (req, re
         [`%${avatarId}%`]
       );
 
-      if (avatarResult.rows.length === 0) {
+      if (avatarResult.rows.length === 0){
         // Avatar not found, clear the avatar field
         await pool.query('UPDATE users SET avatar = NULL WHERE id = $1', [user.id]);
         cleanedUsers++;

@@ -20,6 +20,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Device from 'expo-device';
+import * as Location from 'expo-location';
 import { API_BASE_URL } from '../utils/apiConfig';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -91,6 +93,10 @@ export default function AdminScreen({ navigation }: any) {
   const [userCreditHistory, setUserCreditHistory] = useState([]);
   const [statusLoading, setStatusLoading] = useState(false);
 
+  // Ban management states
+  const [bannedDevicesList, setBannedDevicesList] = useState([]);
+  const [banLoading, setBanLoading] = useState(false);
+
   // Form states for adding emoji/gift
   const [itemName, setItemName] = useState('');
   const [itemIcon, setItemIcon] = useState('');
@@ -158,6 +164,10 @@ export default function AdminScreen({ navigation }: any) {
       loadGifts();
       if (activeTab === 'status') {
         loadUserStatus();
+      }
+      if (activeTab === 'ban-manage') {
+        loadUserStatus();
+        loadBannedDevices();
       }
     }
   }, [token, activeTab]);
@@ -679,6 +689,30 @@ export default function AdminScreen({ navigation }: any) {
   const loadUserStatus = async () => {
     setStatusLoading(true);
     try {
+      // Get device info
+      const deviceInfo = await Device.getDeviceTypeAsync();
+      const deviceName = `${Device.brand || 'Unknown'} ${Device.modelName || deviceInfo}`;
+      
+      // Get location info (request permission first)
+      let locationString = 'Unknown';
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          const reverseGeocode = await Location.reverseGeocodeAsync({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+          
+          if (reverseGeocode.length > 0) {
+            const address = reverseGeocode[0];
+            locationString = `${address.city || address.region || address.country || 'Unknown'}`;
+          }
+        }
+      } catch (locationError) {
+        console.log('Location permission denied or unavailable');
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/admin/users/status`, {
         headers: {
           'Content-Type': 'application/json',
@@ -689,7 +723,14 @@ export default function AdminScreen({ navigation }: any) {
 
       if (response.ok) {
         const data = await response.json();
-        setUserStatusList(data.users || []);
+        // Enhance user data with device info for current user
+        const enhancedUsers = data.users?.map(user => ({
+          ...user,
+          device: user.device || deviceName,
+          location: user.location || locationString
+        })) || [];
+        
+        setUserStatusList(enhancedUsers);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         Alert.alert('Error', `Failed to load user status: ${errorData.error || response.statusText}`);
@@ -722,6 +763,164 @@ export default function AdminScreen({ navigation }: any) {
       console.error('Error loading credit history:', error);
       Alert.alert('Error', 'Network error loading credit history');
     }
+  };
+
+  const loadBannedDevices = async () => {
+    setBanLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/banned-devices`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBannedDevicesList(data.bannedList || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load banned devices: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading banned devices:', error);
+      Alert.alert('Error', 'Network error loading banned devices');
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  const handleBanDevice = async (userId, username, deviceId, userIp) => {
+    Alert.alert(
+      'Ban Device',
+      `Are you sure you want to ban the device used by ${username}?\n\nDevice: ${deviceId}\nIP: ${userIp}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Ban Device',
+          style: 'destructive',
+          onPress: () => {
+            Alert.prompt(
+              'Ban Reason',
+              'Enter reason for banning this device:',
+              (reason) => {
+                if (reason) {
+                  executeBan('device', userId, username, deviceId, reason);
+                }
+              },
+              'plain-text',
+              'Suspicious activity'
+            );
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBanIP = async (userId, username, userIp) => {
+    Alert.alert(
+      'Ban IP Address',
+      `Are you sure you want to ban the IP address used by ${username}?\n\nIP: ${userIp}\n\nThis will affect all users from this IP.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Ban IP',
+          style: 'destructive',
+          onPress: () => {
+            Alert.prompt(
+              'Ban Reason',
+              'Enter reason for banning this IP address:',
+              (reason) => {
+                if (reason) {
+                  executeBan('ip', userId, username, userIp, reason);
+                }
+              },
+              'plain-text',
+              'Suspicious activity'
+            );
+          }
+        }
+      ]
+    );
+  };
+
+  const executeBan = async (banType, userId, username, target, reason) => {
+    setBanLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/ban-${banType}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({
+          userId,
+          username,
+          target,
+          reason,
+          banType
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', `${banType.toUpperCase()} banned successfully`);
+        loadBannedDevices();
+        loadUserStatus();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to ban ${banType}`);
+      }
+    } catch (error) {
+      console.error(`Error banning ${banType}:`, error);
+      Alert.alert('Error', error.message || `Failed to ban ${banType}`);
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  const handleUnban = async (banId, banType, target) => {
+    Alert.alert(
+      'Confirm Unban',
+      `Are you sure you want to unban this ${banType}?\n\nTarget: ${target}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unban',
+          onPress: async () => {
+            setBanLoading(true);
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/admin/unban`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+                body: JSON.stringify({
+                  banId,
+                  banType
+                }),
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', `${banType.toUpperCase()} unbanned successfully`);
+                loadBannedDevices();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to unban');
+              }
+            } catch (error) {
+              console.error('Error unbanning:', error);
+              Alert.alert('Error', error.message || 'Failed to unban');
+            } finally {
+              setBanLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleTransferCredit = async () => {
@@ -1241,15 +1440,132 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'ban-manage':
         return (
-          <View style={styles.banManageContainer}>
-            <View style={styles.comingSoonContainer}>
-              <Ionicons name="ban-outline" size={80} color="#E91E63" />
-              <Text style={styles.comingSoonTitle}>Ban Management</Text>
-              <Text style={styles.comingSoonSubtitle}>
-                Fitur ini akan segera tersedia untuk mengelola banned devices dan IP addresses
-              </Text>
+          <ScrollView style={styles.banManageContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.banManageHeader}>
+              <Text style={styles.banManageTitle}>Ban Management System</Text>
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={loadBannedDevices}
+                disabled={banLoading}
+              >
+                {banLoading ? (
+                  <ActivityIndicator size="small" color="#E91E63" />
+                ) : (
+                  <Ionicons name="refresh" size={20} color="#E91E63" />
+                )}
+              </TouchableOpacity>
             </View>
-          </View>
+
+            {/* Active Users with Device Info */}
+            <View style={styles.activeUsersSection}>
+              <Text style={styles.sectionTitle}>Active Users</Text>
+              {userStatusList.map((user, index) => (
+                <View key={user.id} style={styles.deviceInfoCard}>
+                  <View style={styles.userDeviceHeader}>
+                    <View style={styles.userBasicInfo}>
+                      <Text style={styles.userDeviceName}>{user.username}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: user.status === 'online' ? '#4CAF50' : '#999' }]}>
+                        <Text style={styles.statusBadgeText}>{user.status}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.userRole}>{user.role}</Text>
+                  </View>
+
+                  <View style={styles.deviceDetailInfo}>
+                    <View style={styles.deviceInfoRow}>
+                      <Ionicons name="phone-portrait-outline" size={16} color="#666" />
+                      <Text style={styles.deviceInfoLabel}>Device:</Text>
+                      <Text style={styles.deviceInfoValue}>{user.device || 'Unknown'}</Text>
+                    </View>
+                    
+                    <View style={styles.deviceInfoRow}>
+                      <Ionicons name="globe-outline" size={16} color="#666" />
+                      <Text style={styles.deviceInfoLabel}>IP Address:</Text>
+                      <Text style={styles.deviceInfoValue}>{user.ip || 'Unknown'}</Text>
+                    </View>
+                    
+                    <View style={styles.deviceInfoRow}>
+                      <Ionicons name="location-outline" size={16} color="#666" />
+                      <Text style={styles.deviceInfoLabel}>Location:</Text>
+                      <Text style={styles.deviceInfoValue}>{user.location || 'Unknown'}</Text>
+                    </View>
+                    
+                    <View style={styles.deviceInfoRow}>
+                      <Ionicons name="time-outline" size={16} color="#666" />
+                      <Text style={styles.deviceInfoLabel}>Last Login:</Text>
+                      <Text style={styles.deviceInfoValue}>
+                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.banActions}>
+                    <TouchableOpacity
+                      style={[styles.banActionButton, styles.banDeviceButton]}
+                      onPress={() => handleBanDevice(user.id, user.username, user.device, user.ip)}
+                    >
+                      <Ionicons name="phone-portrait" size={16} color="#fff" />
+                      <Text style={styles.banActionText}>Ban Device</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.banActionButton, styles.banIpButton]}
+                      onPress={() => handleBanIP(user.id, user.username, user.ip)}
+                    >
+                      <Ionicons name="shield-outline" size={16} color="#fff" />
+                      <Text style={styles.banActionText}>Ban IP</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Banned Devices and IPs List */}
+            <View style={styles.bannedListSection}>
+              <Text style={styles.sectionTitle}>Banned Devices & IPs</Text>
+              
+              {bannedDevicesList.map((banned, index) => (
+                <View key={index} style={styles.bannedItemCard}>
+                  <View style={styles.bannedItemHeader}>
+                    <View style={styles.bannedItemInfo}>
+                      <Text style={styles.bannedUsername}>{banned.username}</Text>
+                      <Text style={styles.bannedType}>{banned.type} Ban</Text>
+                    </View>
+                    <Text style={styles.bannedDate}>
+                      {new Date(banned.bannedAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.bannedDetails}>
+                    <Text style={styles.bannedDetailText}>
+                      <Text style={styles.bannedDetailLabel}>Target:</Text> {banned.target}
+                    </Text>
+                    <Text style={styles.bannedDetailText}>
+                      <Text style={styles.bannedDetailLabel}>Reason:</Text> {banned.reason || 'No reason provided'}
+                    </Text>
+                    <Text style={styles.bannedDetailText}>
+                      <Text style={styles.bannedDetailLabel}>Banned By:</Text> {banned.bannedBy}
+                    </Text>
+                  </View>
+                  
+                  <TouchableOpacity
+                    style={styles.unbanButton}
+                    onPress={() => handleUnban(banned.id, banned.type, banned.target)}
+                  >
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.unbanButtonText}>Unban</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              
+              {bannedDevicesList.length === 0 && (
+                <View style={styles.emptyBannedList}>
+                  <Ionicons name="shield-checkmark" size={40} color="#ccc" />
+                  <Text style={styles.emptyBannedText}>No banned devices or IPs</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
         );
 
       default:
@@ -2538,5 +2854,174 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
     width: 80,
+  },
+  // Ban Management Styles
+  banManageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  banManageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  activeUsersSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deviceInfoCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#E91E63',
+  },
+  userDeviceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  userDeviceName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginRight: 8,
+  },
+  deviceDetailInfo: {
+    marginBottom: 12,
+  },
+  deviceInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  deviceInfoLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+    marginRight: 8,
+    minWidth: 80,
+  },
+  deviceInfoValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    flex: 1,
+  },
+  banActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  banActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 4,
+    justifyContent: 'center',
+  },
+  banDeviceButton: {
+    backgroundColor: '#FF5722',
+  },
+  banIpButton: {
+    backgroundColor: '#F44336',
+  },
+  banActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  bannedListSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bannedItemCard: {
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F44336',
+  },
+  bannedItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  bannedItemInfo: {
+    flex: 1,
+  },
+  bannedUsername: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  bannedType: {
+    fontSize: 12,
+    color: '#F44336',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  bannedDate: {
+    fontSize: 12,
+    color: '#666',
+  },
+  bannedDetails: {
+    marginBottom: 12,
+  },
+  bannedDetailText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  bannedDetailLabel: {
+    fontWeight: '600',
+    color: '#333',
+  },
+  unbanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E8',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  unbanButtonText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  emptyBannedList: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  emptyBannedText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 10,
   },
 });
