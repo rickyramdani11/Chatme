@@ -29,6 +29,7 @@ import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
+import ZegoUIKitPrebuiltCall, { ONE_ON_ONE_VIDEO_CALL_CONFIG, ONE_ON_ONE_VOICE_CALL_CONFIG } from 'zego-uikit-prebuilt-call-rn';
 
 const { width } = Dimensions.get('window');
 
@@ -92,7 +93,7 @@ export default function ChatScreen() {
   const giftVideoRef = useRef<Video>(null);
   const [showUserTagMenu, setShowUserTagMenu] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
-  const [filteredParticipants, setFilteredParticipants] = useState<any[]>([]);
+  const [filteredParticipants, setFiltereredParticipants] = useState<any[]>([]);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
@@ -105,6 +106,12 @@ export default function ChatScreen() {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null); // To track the current active room ID
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
   const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
+  const [isInCall, setIsInCall] = useState(false);
+  const [callType, setCallType] = useState<'video' | 'audio' | null>(null);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callTimer, setCallTimer] = useState(0);
+  const [callCost, setCallCost] = useState(0);
+  const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Helper functions for role checking
   const isRoomOwner = () => {
@@ -115,6 +122,162 @@ export default function ChatScreen() {
   const isRoomModerator = () => {
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
     return currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+  };
+
+  // Call handling functions
+  const checkUserBalance = async (requiredAmount: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/balance`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.balance >= requiredAmount;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking balance:', error);
+      return false;
+    }
+  };
+
+  const deductCoins = async (amount: number, type: string, callDuration: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount,
+          type: `${type}_call`,
+          description: `${type} call for ${callDuration} minutes`,
+          recipientUsername: targetUser?.username
+        }),
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error deducting coins:', error);
+      return false;
+    }
+  };
+
+  const startCallTimer = (type: 'video' | 'audio') => {
+    setIsInCall(true);
+    setCallType(type);
+    setCallTimer(0);
+    setCallCost(0);
+
+    callIntervalRef.current = setInterval(() => {
+      setCallTimer(prev => {
+        const newTime = prev + 1;
+        const minutes = Math.floor(newTime / 60);
+        
+        // Calculate cost based on duration
+        let costPerMinute = 2500;
+        if (minutes >= 1) {
+          costPerMinute = 2000;
+        }
+        
+        const totalCost = minutes * costPerMinute;
+        setCallCost(totalCost);
+
+        // Deduct coins every minute
+        if (newTime % 60 === 0 && newTime > 0) {
+          deductCoins(costPerMinute, type, Math.floor(newTime / 60));
+        }
+
+        return newTime;
+      });
+    }, 1000);
+  };
+
+  const endCall = () => {
+    if (callIntervalRef.current) {
+      clearInterval(callIntervalRef.current);
+      callIntervalRef.current = null;
+    }
+
+    // Final coin deduction for partial minute
+    const finalMinutes = Math.ceil(callTimer / 60);
+    if (finalMinutes > 0 && callTimer % 60 !== 0) {
+      const costPerMinute = finalMinutes === 1 ? 2500 : 2000;
+      deductCoins(costPerMinute, callType!, finalMinutes);
+    }
+
+    setIsInCall(false);
+    setCallType(null);
+    setCallTimer(0);
+    setCallCost(0);
+    setShowCallModal(false);
+  };
+
+  const handleVideoCall = async () => {
+    if (!targetUser) {
+      Alert.alert('Error', 'No target user for call');
+      return;
+    }
+
+    const hasBalance = await checkUserBalance(2500);
+    if (!hasBalance) {
+      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start a video call');
+      return;
+    }
+
+    Alert.alert(
+      'Start Video Call',
+      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 30% of each payment\n\nStart call with ${targetUser.username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Start Call', 
+          onPress: () => {
+            setShowCallModal(true);
+            startCallTimer('video');
+          }
+        }
+      ]
+    );
+  };
+
+  const handleAudioCall = async () => {
+    if (!targetUser) {
+      Alert.alert('Error', 'No target user for call');
+      return;
+    }
+
+    const hasBalance = await checkUserBalance(2500);
+    if (!hasBalance) {
+      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start an audio call');
+      return;
+    }
+
+    Alert.alert(
+      'Start Audio Call',
+      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 30% of each payment\n\nStart call with ${targetUser.username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Start Call', 
+          onPress: () => {
+            setShowCallModal(true);
+            startCallTimer('audio');
+          }
+        }
+      ]
+    );
+  };
+
+  const formatCallTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Static Level Badge Component (no blinking)
@@ -3575,10 +3738,10 @@ export default function ChatScreen() {
             {chatTabs[activeTab]?.type === 'private' ? (
               // Private Chat Icons
               <>
-                <TouchableOpacity style={styles.headerIcon}>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
                   <Ionicons name="videocam-outline" size={24} color="#fff" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIcon}>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
                   <Ionicons name="call-outline" size={24} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
@@ -4525,6 +4688,58 @@ export default function ChatScreen() {
           
         </View>
       )}
+
+      {/* Call Modal */}
+      <Modal
+        visible={showCallModal}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={endCall}
+      >
+        <View style={styles.callModalContainer}>
+          <View style={styles.callHeader}>
+            <Text style={styles.callHeaderText}>
+              {callType === 'video' ? 'Video Call' : 'Audio Call'}
+            </Text>
+            <Text style={styles.callTargetName}>
+              {targetUser?.username}
+            </Text>
+            <Text style={styles.callTimer}>
+              {formatCallTime(callTimer)}
+            </Text>
+            <Text style={styles.callCost}>
+              Cost: {callCost} coins
+            </Text>
+          </View>
+
+          <View style={styles.zegoCallContainer}>
+            {isInCall && (
+              <ZegoUIKitPrebuiltCall
+                appID={875964062}
+                appSign="your_app_sign_here" // You need to get this from Zego console
+                userID={user?.id?.toString() || ''}
+                userName={user?.username || ''}
+                callID={`call_${currentRoomId}_${Date.now()}`}
+                config={{
+                  ...(callType === 'video' ? ONE_ON_ONE_VIDEO_CALL_CONFIG : ONE_ON_ONE_VOICE_CALL_CONFIG),
+                  onCallEnd: () => {
+                    endCall();
+                  },
+                }}
+              />
+            )}
+          </View>
+
+          <View style={styles.callControls}>
+            <TouchableOpacity 
+              style={[styles.callButton, styles.endCallButton]} 
+              onPress={endCall}
+            >
+              <Ionicons name="call" size={30} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -6008,6 +6223,60 @@ const styles = StyleSheet.create({
   mentionText: {
     color: '#FF6B35',
     fontWeight: 'bold',
+  },
+  // Call Modal Styles
+  callModalContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
+  callHeader: {
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    alignItems: 'center',
+  },
+  callHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 5,
+  },
+  callTargetName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 10,
+  },
+  callTimer: {
+    fontSize: 16,
+    color: '#4CAF50',
+    marginBottom: 5,
+  },
+  callCost: {
+    fontSize: 14,
+    color: '#FFD700',
+  },
+  zegoCallContainer: {
+    flex: 1,
+  },
+  callControls: {
+    position: 'absolute',
+    bottom: 50,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  callButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 15,
+  },
+  endCallButton: {
+    backgroundColor: '#F44336',
   },
   // Gift Message Styles
   giftMessageContainer: {

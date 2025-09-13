@@ -4449,6 +4449,110 @@ app.post('/api/feed/posts/with-media', async (req, res) => {
 const SOCKET_GATEWAY_URL = process.env.SOCKET_GATEWAY_URL || 'http://0.0.0.0:5001';
 
 
+// Deduct coins for calls with recipient share
+app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { amount, type, description, recipientUsername } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    // Check user balance
+    const userResult = await pool.query('SELECT balance FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const currentBalance = userResult.rows[0].balance;
+    if (currentBalance < amount) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
+
+    // Calculate recipient share (30%)
+    const recipientShare = Math.floor(amount * 0.3);
+    const systemShare = amount - recipientShare;
+
+    // Start transaction
+    await pool.query('BEGIN');
+
+    try {
+      // Deduct from caller
+      await pool.query(
+        'UPDATE users SET balance = balance - $1 WHERE id = $2',
+        [amount, userId]
+      );
+
+      // Add to recipient if exists
+      if (recipientUsername) {
+        const recipientResult = await pool.query(
+          'SELECT id FROM users WHERE username = $1',
+          [recipientUsername]
+        );
+
+        if (recipientResult.rows.length > 0) {
+          const recipientId = recipientResult.rows[0].id;
+          await pool.query(
+            'UPDATE users SET balance = balance + $1 WHERE id = $2',
+            [recipientShare, recipientId]
+          );
+
+          // Record recipient transaction
+          await pool.query(`
+            INSERT INTO transactions (user_id, type, amount, description, status)
+            VALUES ($1, $2, $3, $4, $5)
+          `, [recipientId, 'call_earning', recipientShare, `Received from ${type}: ${description}`, 'completed']);
+        }
+      }
+
+      // Record caller transaction
+      await pool.query(`
+        INSERT INTO transactions (user_id, type, amount, description, status)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [userId, type, -amount, description, 'completed']);
+
+      await pool.query('COMMIT');
+
+      // Get updated balance
+      const updatedUser = await pool.query('SELECT balance FROM users WHERE id = $1', [userId]);
+      
+      res.json({
+        success: true,
+        newBalance: updatedUser.rows[0].balance,
+        deducted: amount,
+        recipientShare,
+        systemShare
+      });
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error deducting coins:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user balance
+app.get('/api/user/balance', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const result = await pool.query('SELECT balance FROM users WHERE id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ balance: result.rows[0].balance });
+  } catch (error) {
+    console.error('Error getting balance:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Route for creating private chats
 // Create private chat
 app.post('/api/chat/private', authenticateToken, async (req, res) => {
