@@ -28,8 +28,14 @@ interface BankAccount {
 }
 
 export default function WithdrawScreen({ navigation }: any) {
-  const { user } = useAuth();
-  const [balance, setBalance] = useState(0);
+  const { user, token } = useAuth();
+  const [giftEarningsBalance, setGiftEarningsBalance] = useState({
+    balance: 0,
+    totalEarned: 0,
+    totalWithdrawn: 0,
+    balanceUSD: 0,
+    canWithdraw: false
+  });
   const [loading, setLoading] = useState(true);
   const [showBankModal, setShowBankModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -37,6 +43,12 @@ export default function WithdrawScreen({ navigation }: any) {
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showAccountLinkModal, setShowAccountLinkModal] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<any>(null);
+  const [selectedType, setSelectedType] = useState<'bank' | 'ewallet'>('bank');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountHolderName, setAccountHolderName] = useState('');
+  const [isLinking, setIsLinking] = useState(false);
 
   const ewalletOptions = [
     { id: 'dana', name: 'DANA', icon: 'wallet' },
@@ -60,8 +72,8 @@ export default function WithdrawScreen({ navigation }: any) {
 
   const fetchUserBalance = async () => {
     try {
-      const token = await user?.getIdToken();
-      const response = await fetch(`${API_BASE_URL}/api/user/balance`, {
+
+      const response = await fetch(`${API_BASE_URL}/api/user/gift-earnings-balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -70,10 +82,16 @@ export default function WithdrawScreen({ navigation }: any) {
 
       if (response.ok) {
         const data = await response.json();
-        setBalance(data.balance || 0);
+        setGiftEarningsBalance({
+          balance: data.balance || 0,
+          totalEarned: data.totalEarned || 0,
+          totalWithdrawn: data.totalWithdrawn || 0,
+          balanceUSD: data.balanceUSD || 0,
+          canWithdraw: data.canWithdraw || false
+        });
       }
     } catch (error) {
-      console.error('Error fetching balance:', error);
+      console.error('Error fetching gift earnings balance:', error);
     } finally {
       setLoading(false);
     }
@@ -81,7 +99,7 @@ export default function WithdrawScreen({ navigation }: any) {
 
   const fetchLinkedAccounts = async () => {
     try {
-      const token = await user?.getIdToken();
+
       const response = await fetch(`${API_BASE_URL}/api/user/linked-accounts`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -99,37 +117,52 @@ export default function WithdrawScreen({ navigation }: any) {
   };
 
   const handleLinkAccount = (option: any, type: 'bank' | 'ewallet') => {
-    Alert.prompt(
-      `Link ${option.name} Account`,
-      `Enter your ${option.name} account number:`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Next', 
-          onPress: (accountNumber) => {
-            if (accountNumber) {
-              Alert.prompt(
-                'Account Name',
-                'Enter account holder name:',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Link', 
-                    onPress: (accountName) => {
-                      if (accountName) {
-                        linkAccountToServer(option.id, option.name, accountNumber, accountName, type);
-                      }
-                    }
-                  }
-                ]
-              );
-            }
-          }
-        }
-      ],
-      'plain-text'
-    );
+    setSelectedOption(option);
+    setSelectedType(type);
+    setAccountNumber('');
+    setAccountHolderName('');
     setShowBankModal(false);
+    setShowAccountLinkModal(true);
+  };
+
+  const handleSubmitAccountLink = async () => {
+    if (!accountNumber.trim()) {
+      Alert.alert('Error', 'Please enter account number');
+      return;
+    }
+    if (!accountHolderName.trim()) {
+      Alert.alert('Error', 'Please enter account holder name');
+      return;
+    }
+    if (accountNumber.length < 8) {
+      Alert.alert('Error', 'Account number must be at least 8 digits');
+      return;
+    }
+
+    setIsLinking(true);
+    try {
+      await linkAccountToServer(
+        selectedOption.id,
+        selectedOption.name,
+        accountNumber.trim(),
+        accountHolderName.trim(),
+        selectedType
+      );
+      setShowAccountLinkModal(false);
+      setAccountNumber('');
+      setAccountHolderName('');
+    } catch (error) {
+      // Error handling is done in linkAccountToServer
+    } finally {
+      setIsLinking(false);
+    }
+  };
+
+  const formatAccountNumber = (text: string) => {
+    // Remove all non-numeric characters
+    const cleaned = text.replace(/\D/g, '');
+    // Limit to 20 digits (reasonable max for account numbers)
+    return cleaned.substring(0, 20);
   };
 
   const linkAccountToServer = async (
@@ -140,7 +173,6 @@ export default function WithdrawScreen({ navigation }: any) {
     type: 'bank' | 'ewallet'
   ) => {
     try {
-      const token = await user?.getIdToken();
       const response = await fetch(`${API_BASE_URL}/api/user/link-account`, {
         method: 'POST',
         headers: {
@@ -160,11 +192,18 @@ export default function WithdrawScreen({ navigation }: any) {
         Alert.alert('Success', 'Account linked successfully!');
         fetchLinkedAccounts();
       } else {
-        Alert.alert('Error', 'Failed to link account');
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.message || 'Failed to link account');
+        throw new Error('Failed to link account');
       }
     } catch (error) {
       console.error('Error linking account:', error);
-      Alert.alert('Error', 'Failed to link account');
+      if (error instanceof TypeError) {
+        Alert.alert('Error', 'Network error. Please check your connection.');
+      } else if (!error.message.includes('Failed to link account')) {
+        Alert.alert('Error', 'An unexpected error occurred');
+      }
+      throw error;
     }
   };
 
@@ -181,11 +220,18 @@ export default function WithdrawScreen({ navigation }: any) {
       return;
     }
 
-    const requiredCoins = amount * USD_TO_IDR;
-    if (balance < requiredCoins) {
+    if (!giftEarningsBalance.canWithdraw) {
+      Alert.alert(
+        'Insufficient Gift Earnings',
+        `You need at least 155,000 coins from gift earnings to withdraw.\nYour current gift earnings: ${giftEarningsBalance.balance.toLocaleString()} coins ($${giftEarningsBalance.balanceUSD.toFixed(2)} USD)`
+      );
+      return;
+    }
+
+    if (amount > giftEarningsBalance.balanceUSD) {
       Alert.alert(
         'Insufficient Balance',
-        `You need ${requiredCoins.toLocaleString()} coins to withdraw $${amount} USD.\nYour current balance: ${balance.toLocaleString()} coins`
+        `You only have $${giftEarningsBalance.balanceUSD.toFixed(2)} USD available for withdrawal.\nRequested: $${amount} USD`
       );
       return;
     }
@@ -193,7 +239,7 @@ export default function WithdrawScreen({ navigation }: any) {
     const idrAmount = amount * USD_TO_IDR;
     Alert.alert(
       'Confirm Withdrawal',
-      `Withdraw $${amount} USD (Rp${idrAmount.toLocaleString()}) to ${selectedAccount.name}?\n\nAccount: ${selectedAccount.accountNumber}\nFee: 3% (Rp${(idrAmount * 0.03).toLocaleString()})\nYou'll receive: Rp${(idrAmount * 0.97).toLocaleString()}`,
+      `Withdraw $${amount} USD (Rp${idrAmount.toLocaleString()}) from gift earnings to ${selectedAccount.name}?\n\nAccount: ${selectedAccount.accountNumber}\nFee: 3% (Rp${(idrAmount * 0.03).toLocaleString()})\nYou'll receive: Rp${(idrAmount * 0.97).toLocaleString()}`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Confirm', onPress: processWithdrawal }
@@ -204,7 +250,7 @@ export default function WithdrawScreen({ navigation }: any) {
   const processWithdrawal = async () => {
     setIsProcessing(true);
     try {
-      const token = await user?.getIdToken();
+
       const response = await fetch(`${API_BASE_URL}/api/user/withdraw`, {
         method: 'POST',
         headers: {
@@ -267,17 +313,25 @@ export default function WithdrawScreen({ navigation }: any) {
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Balance Card */}
+        {/* Gift Earnings Balance Card */}
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceTitle}>Koin saya</Text>
+          <Text style={styles.balanceTitle}>Gift Earnings (Withdrawable)</Text>
           <View style={styles.balanceRow}>
             <View style={styles.coinIcon} />
-            <Text style={styles.balanceAmount}>{balance.toLocaleString()}</Text>
-            <Text style={styles.balanceIdr}>≈Rp{(balance).toLocaleString()}</Text>
+            <Text style={styles.balanceAmount}>{giftEarningsBalance.balance.toLocaleString()}</Text>
+            <Text style={styles.balanceIdr}>≈${giftEarningsBalance.balanceUSD.toFixed(2)} USD</Text>
+          </View>
+          <View style={styles.earningsInfo}>
+            <Text style={styles.earningsText}>Total Earned: {giftEarningsBalance.totalEarned.toLocaleString()} coins</Text>
+            <Text style={styles.earningsText}>Total Withdrawn: {giftEarningsBalance.totalWithdrawn.toLocaleString()} coins</Text>
           </View>
           <TouchableOpacity 
-            style={styles.withdrawButton}
+            style={[styles.withdrawButton, !giftEarningsBalance.canWithdraw && styles.disabledWithdrawButton]}
             onPress={() => {
+              if (!giftEarningsBalance.canWithdraw) {
+                Alert.alert('Minimum Not Met', 'You need at least 155,000 coins (from gift earnings) to withdraw');
+                return;
+              }
               if (linkedAccounts.length === 0) {
                 Alert.alert('No Linked Accounts', 'Please link a bank account or e-wallet first');
                 return;
@@ -285,8 +339,10 @@ export default function WithdrawScreen({ navigation }: any) {
               setShowWithdrawModal(true);
             }}
           >
-            <Ionicons name="lock-closed" size={16} color="#666" />
-            <Text style={styles.withdrawButtonText}>Tarik saldo</Text>
+            <Ionicons name={giftEarningsBalance.canWithdraw ? "cash" : "lock-closed"} size={16} color="#666" />
+            <Text style={styles.withdrawButtonText}>
+              {giftEarningsBalance.canWithdraw ? 'Tarik saldo' : 'Minimal 155k coins'}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -449,6 +505,68 @@ export default function WithdrawScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* Account Linking Modal */}
+      <Modal
+        visible={showAccountLinkModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAccountLinkModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Link {selectedOption?.name} Account
+              </Text>
+              <TouchableOpacity onPress={() => setShowAccountLinkModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.accountTypeInfo}>
+                {selectedType === 'bank' ? 'Bank Account' : 'E-Wallet'}: {selectedOption?.name}
+              </Text>
+
+              <Text style={styles.label}>Account Number</Text>
+              <TextInput
+                style={styles.input}
+                value={accountNumber}
+                onChangeText={(text) => setAccountNumber(formatAccountNumber(text))}
+                placeholder="Enter account number"
+                keyboardType="numeric"
+                maxLength={20}
+              />
+
+              <Text style={styles.label}>Account Holder Name</Text>
+              <TextInput
+                style={styles.input}
+                value={accountHolderName}
+                onChangeText={setAccountHolderName}
+                placeholder="Enter account holder name"
+                autoCapitalize="words"
+                maxLength={50}
+              />
+
+              <TouchableOpacity
+                style={[styles.linkSubmitButton, isLinking && styles.disabledButton]}
+                onPress={handleSubmitAccountLink}
+                disabled={isLinking}
+              >
+                {isLinking ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="link" size={16} color="#fff" />
+                    <Text style={styles.linkSubmitText}>Link Account</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -529,6 +647,18 @@ const styles = StyleSheet.create({
     color: '#666',
     fontWeight: '500',
     marginLeft: 8,
+  },
+  earningsInfo: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  earningsText: {
+    color: '#E1BEE7',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  disabledWithdrawButton: {
+    backgroundColor: '#rgba(255,255,255,0.3)',
   },
   menuSection: {
     backgroundColor: '#fff',
@@ -697,5 +827,31 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  accountTypeInfo: {
+    fontSize: 16,
+    color: '#9C27B0',
+    fontWeight: '600',
+    marginBottom: 20,
+    textAlign: 'center',
+    backgroundColor: '#F3E5F5',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+  },
+  linkSubmitButton: {
+    backgroundColor: '#9C27B0',
+    borderRadius: 8,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    marginTop: 30,
+  },
+  linkSubmitText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
   },
 });

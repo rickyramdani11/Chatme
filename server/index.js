@@ -723,6 +723,23 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create user_linked_accounts table for withdrawal account management
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_linked_accounts (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        account_id VARCHAR(50) NOT NULL,
+        account_name VARCHAR(100) NOT NULL,
+        account_number VARCHAR(100) NOT NULL,
+        holder_name VARCHAR(255) NOT NULL,
+        account_type VARCHAR(20) NOT NULL CHECK (account_type IN ('bank', 'ewallet')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE(user_id, account_id)
+      )
+    `);
+
     console.log('✅ Gift earnings and withdrawal tables initialized successfully');
 
     // Add CHECK constraints to existing tables if they don't exist
@@ -4634,8 +4651,9 @@ app.get('/api/user/gift-earnings-balance', authenticateToken, async (req, res) =
     }
 
     const giftBalance = result.rows[0];
-    const balanceUSD = giftBalance.balance / 15500; // 1 USD = 15,500 IDR = 15,500 coins
-    const minWithdrawCoins = 155000; // 10 USD = 155,000 coins
+    const exchangeRate = await getExchangeRate();
+    const balanceUSD = giftBalance.balance / exchangeRate;
+    const minWithdrawCoins = Math.floor(10 * exchangeRate); // 10 USD equivalent
     const canWithdraw = giftBalance.balance >= minWithdrawCoins;
 
     res.json({
@@ -4645,12 +4663,614 @@ app.get('/api/user/gift-earnings-balance', authenticateToken, async (req, res) =
       balanceUSD: Number(balanceUSD.toFixed(2)),
       minWithdrawCoins,
       minWithdrawUSD: 10,
+      exchangeRate,
       canWithdraw
     });
 
   } catch (error) {
     console.error('Error fetching gift earnings balance:', error);
     res.status(500).json({ error: 'Failed to fetch gift earnings balance' });
+  }
+});
+
+// ==================== XENDIT WITHDRAWAL SYSTEM ====================
+
+const { Xendit } = require('xendit-node');
+const crypto = require('crypto');
+const https = require('https');
+
+const xendit = new Xendit({
+  secretKey: process.env.XENDIT_SECRET_KEY,
+});
+
+// Xendit channel code mapping
+const CHANNEL_CODE_MAPPING = {
+  // Banks
+  'bca': 'BCA',
+  'bri': 'BRI',
+  'bni': 'BNI',
+  'mandiri': 'MANDIRI',
+  'cimb': 'CIMB',
+  'permata': 'PERMATA',
+  'danamon': 'DANAMON',
+  'maybank': 'MAYBANK',
+  'btn': 'BTN',
+  'panin': 'PANIN',
+  'bukopin': 'BUKOPIN',
+  'mega': 'MEGA',
+  'ocbc': 'OCBC',
+  'hsbc': 'HSBC',
+  'uob': 'UOB',
+  'mayapada': 'MAYAPADA',
+  'dbs': 'DBS',
+  'bjb': 'BJB',
+  'bsi': 'BSI',
+  // E-wallets
+  'dana': 'DANA',
+  'ovo': 'OVO',
+  'gopay': 'GOPAY',
+  'linkaja': 'LINKAJA',
+  'shopeepay': 'SHOPEEPAY',
+  'sakuku': 'SAKUKU',
+  'astrapay': 'ASTRAPAY',
+  'jeniuspay': 'JENIUSPAY'
+};
+
+// Currency conversion cache
+let exchangeRateCache = {
+  rate: 15500, // fallback rate
+  lastUpdated: null
+};
+
+// Function to get current USD to IDR exchange rate
+const getExchangeRate = async () => {
+  try {
+    // Check if cache is still valid (refresh every 6 hours)
+    const now = new Date();
+    if (exchangeRateCache.lastUpdated && 
+        (now - exchangeRateCache.lastUpdated) < 6 * 60 * 60 * 1000) {
+      return exchangeRateCache.rate;
+    }
+
+    // Fetch fresh rate from free API
+    const response = await new Promise((resolve, reject) => {
+      const req = https.get('https://api.exchangerate-api.com/v4/latest/USD', (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+      req.on('error', reject);
+      req.setTimeout(5000, () => {
+        req.abort();
+        reject(new Error('Request timeout'));
+      });
+    });
+
+    if (response.rates && response.rates.IDR) {
+      exchangeRateCache.rate = Math.floor(response.rates.IDR);
+      exchangeRateCache.lastUpdated = now;
+      console.log('Updated USD/IDR exchange rate:', exchangeRateCache.rate);
+    }
+  } catch (error) {
+    console.error('Failed to fetch exchange rate, using cached/fallback:', error.message);
+  }
+  
+  return exchangeRateCache.rate;
+};
+
+// Function to verify Xendit webhook signature
+const verifyXenditSignature = (payload, signature, webhookToken) => {
+  if (!signature || !webhookToken) {
+    console.warn('Missing signature or webhook token');
+    return false;
+  }
+
+  try {
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookToken)
+      .update(payload, 'utf8')
+      .digest('hex');
+    
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    );
+  } catch (error) {
+    console.error('Signature verification error:', error);
+    return false;
+  }
+};
+
+// Generate idempotency key
+const generateIdempotencyKey = (userId, withdrawalId, timestamp) => {
+  return crypto.createHash('sha256')
+    .update(`${userId}-${withdrawalId}-${timestamp}`)
+    .digest('hex')
+    .substring(0, 32);
+};
+
+// Link user account for withdrawals
+app.post('/api/user/link-account', authenticateToken, async (req, res) => {
+  try {
+    const { accountId, accountName, accountNumber, holderName, type } = req.body;
+    const userId = req.user.id;
+
+    if (!accountId || !accountName || !accountNumber || !holderName || !type) {
+      return res.status(400).json({ error: 'All account details are required' });
+    }
+
+    // Save linked account to database
+    const result = await pool.query(`
+      INSERT INTO user_linked_accounts (user_id, account_id, account_name, account_number, holder_name, account_type)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (user_id, account_id) 
+      DO UPDATE SET 
+        account_name = EXCLUDED.account_name,
+        account_number = EXCLUDED.account_number,
+        holder_name = EXCLUDED.holder_name,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `, [userId, accountId, accountName, accountNumber, holderName, type]);
+
+    res.json({
+      success: true,
+      account: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error linking account:', error);
+    res.status(500).json({ error: 'Failed to link account' });
+  }
+});
+
+// Get user's linked accounts
+app.get('/api/user/linked-accounts', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT account_id as id, account_type as type, account_name as name, 
+             account_number as "accountNumber", holder_name as "accountName"
+      FROM user_linked_accounts 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC
+    `, [userId]);
+
+    res.json({
+      accounts: result.rows
+    });
+
+  } catch (error) {
+    console.error('Error fetching linked accounts:', error);
+    res.status(500).json({ error: 'Failed to fetch linked accounts' });
+  }
+});
+
+// Process withdrawal request using Xendit
+app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { amount, accountId, currency } = req.body;
+    const userId = req.user.id;
+    const username = req.user.username;
+
+    if (!amount || !accountId || amount < 10) {
+      return res.status(400).json({ error: 'Invalid withdrawal amount (minimum $10 USD)' });
+    }
+
+    await client.query('BEGIN');
+
+    try {
+      // Check user's gift earnings balance
+      const balanceResult = await client.query(`
+        SELECT balance FROM user_gift_earnings_balance WHERE user_id = $1 FOR UPDATE
+      `, [userId]);
+
+      if (balanceResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No gift earnings balance found' });
+      }
+
+      const giftBalance = balanceResult.rows[0].balance;
+      
+      // Get current exchange rate
+      const exchangeRate = await getExchangeRate();
+      const amountIDR = Math.floor(amount * exchangeRate);
+      const balanceUSD = giftBalance / exchangeRate;
+      const minWithdrawCoins = Math.floor(10 * exchangeRate); // 10 USD equivalent
+
+      if (giftBalance < minWithdrawCoins) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Minimum withdrawal is ${minWithdrawCoins.toLocaleString()} coins ($10 USD)`,
+          currentRate: exchangeRate
+        });
+      }
+
+      if (amount > balanceUSD) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient gift earnings balance' });
+      }
+
+      // Get linked account details
+      const accountResult = await client.query(`
+        SELECT * FROM user_linked_accounts WHERE user_id = $1 AND account_id = $2
+      `, [userId, accountId]);
+
+      if (accountResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Linked account not found' });
+      }
+
+      const linkedAccount = accountResult.rows[0];
+
+      // Get channel code for Xendit
+      const channelCode = CHANNEL_CODE_MAPPING[linkedAccount.account_id.toLowerCase()];
+      if (!channelCode) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Unsupported account type: ${linkedAccount.account_id}`,
+          supportedTypes: Object.keys(CHANNEL_CODE_MAPPING)
+        });
+      }
+
+      // Calculate Xendit fees (3-5% depending on method)
+      const feeRate = linkedAccount.account_type === 'bank' ? 0.03 : 0.05;
+      const netAmount = Math.floor(amountIDR * (1 - feeRate));
+
+      // Create withdrawal request record
+      const withdrawalResult = await client.query(`
+        INSERT INTO withdrawal_requests (
+          user_id, amount, amount_usd, withdrawal_method, account_type, 
+          account_name, account_number, status
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
+        RETURNING id
+      `, [
+        userId, 
+        amountIDR, 
+        amount, 
+        linkedAccount.account_type,
+        linkedAccount.account_name,
+        linkedAccount.account_number,
+        'pending'
+      ]);
+
+      const withdrawalId = withdrawalResult.rows[0].id;
+      const timestamp = Date.now();
+      const externalID = `withdrawal_${withdrawalId}_${timestamp}`;
+      const idempotencyKey = generateIdempotencyKey(userId, withdrawalId, timestamp);
+
+      // Create Xendit disbursement/charge request
+      let xenditResponse;
+      try {
+        if (linkedAccount.account_type === 'bank') {
+          // Bank transfer via Xendit Disbursements API
+          xenditResponse = await xendit.Disbursement.create({
+            external_id: externalID,
+            bank_code: channelCode,
+            account_holder_name: linkedAccount.holder_name,
+            account_number: linkedAccount.account_number,
+            description: `Gift earnings withdrawal - User: ${username}`,
+            amount: netAmount,
+            currency: 'IDR',
+            x_idempotency_key: idempotencyKey,
+            email_to: [],
+            email_cc: [],
+            email_bcc: []
+          });
+        } else if (linkedAccount.account_type === 'ewallet') {
+          // E-wallet charge via Xendit EWallet Charges API
+          const { EWalletCharge } = xendit;
+          
+          let chargeRequest = {
+            reference_id: externalID,
+            currency: 'IDR',
+            amount: netAmount,
+            checkout_method: 'ONE_TIME_PAYMENT',
+            channel_code: channelCode,
+            channel_properties: {
+              success_redirect_url: `${process.env.BASE_URL || 'https://localhost:3000'}/withdrawal/success`,
+              failure_redirect_url: `${process.env.BASE_URL || 'https://localhost:3000'}/withdrawal/failed`,
+              cancel_redirect_url: `${process.env.BASE_URL || 'https://localhost:3000'}/withdrawal/cancelled`
+            },
+            customer: {
+              reference_id: `user_${userId}`,
+              type: 'INDIVIDUAL',
+              given_names: linkedAccount.holder_name,
+              mobile_number: linkedAccount.account_number.startsWith('+') ? linkedAccount.account_number : `+62${linkedAccount.account_number.replace(/^0/, '')}`
+            },
+            metadata: {
+              user_id: userId,
+              username: username,
+              withdrawal_id: withdrawalId
+            }
+          };
+
+          // Channel-specific properties
+          if (channelCode === 'DANA' || channelCode === 'OVO' || channelCode === 'LINKAJA') {
+            chargeRequest.channel_properties.mobile_number = chargeRequest.customer.mobile_number;
+          }
+
+          xenditResponse = await EWalletCharge.createEWalletCharge({
+            data: chargeRequest,
+            idempotencyKey: idempotencyKey
+          });
+        }
+
+        console.log('Xendit Response:', JSON.stringify(xenditResponse, null, 2));
+
+        // Update withdrawal request with Xendit transaction ID
+        const transactionId = xenditResponse.id || xenditResponse.charge_id || xenditResponse.reference_id;
+        await client.query(`
+          UPDATE withdrawal_requests 
+          SET xendit_transaction_id = $1, status = 'processing', processed_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `, [transactionId, withdrawalId]);
+
+        // Deduct from user's gift earnings balance
+        await client.query(`
+          UPDATE user_gift_earnings_balance 
+          SET 
+            balance = balance - $1,
+            total_withdrawn = total_withdrawn + $1,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = $2
+        `, [amountIDR, userId]);
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          withdrawalId,
+          xenditTransactionId: transactionId,
+          amount: amountIDR,
+          amountUSD: amount,
+          netAmount,
+          exchangeRate,
+          channelCode,
+          feeRate: linkedAccount.account_type === 'bank' ? '3%' : '5%',
+          status: 'processing',
+          message: 'Withdrawal request submitted successfully to Xendit',
+          actionUrl: xenditResponse.actions?.desktop_web_checkout_url || xenditResponse.checkout_url
+        });
+
+        console.log(`Withdrawal processed: User ${username} withdrew $${amount} USD (${amountIDR} coins) to ${linkedAccount.account_name}`);
+
+      } catch (xenditError) {
+        await client.query('ROLLBACK');
+        console.error('Xendit API Error:', {
+          message: xenditError.message,
+          response: xenditError.response?.data,
+          status: xenditError.response?.status
+        });
+        
+        // Update withdrawal request status to failed
+        await pool.query(`
+          UPDATE withdrawal_requests 
+          SET status = 'failed', failure_reason = $1, processed_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `, [xenditError.message || 'Xendit API error', withdrawalId]);
+
+        return res.status(500).json({ 
+          error: 'Payment processing failed', 
+          details: xenditError.message || 'Unknown Xendit error',
+          errorCode: xenditError.response?.data?.error_code,
+          exchangeRate
+        });
+      }
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error processing withdrawal:', error);
+    res.status(500).json({ error: 'Failed to process withdrawal' });
+  } finally {
+    client.release();
+  }
+});
+
+// Xendit webhook callback for withdrawal status updates
+app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const payload = req.body.toString();
+    const signature = req.headers['x-callback-token'];
+    const webhookToken = process.env.XENDIT_WEBHOOK_TOKEN;
+    
+    // Verify webhook signature if webhook token is configured
+    if (webhookToken && signature) {
+      const isValidSignature = verifyXenditSignature(payload, signature, webhookToken);
+      if (!isValidSignature) {
+        console.error('Invalid Xendit webhook signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    } else if (webhookToken) {
+      console.warn('Webhook token configured but no signature provided');
+      return res.status(401).json({ error: 'Missing signature' });
+    }
+
+    const data = JSON.parse(payload);
+    console.log('Xendit Callback received:', {
+      type: data.event_type || 'unknown',
+      id: data.id || data.charge_id,
+      status: data.status,
+      external_id: data.external_id || data.reference_id
+    });
+
+    // Handle different webhook types
+    let externalId, status, transactionId, failureReason;
+    
+    if (data.event_type === 'disbursement.completed' || data.event_type === 'disbursement.failed') {
+      // Bank disbursement webhook
+      externalId = data.external_id;
+      status = data.status;
+      transactionId = data.id;
+      failureReason = data.failure_code || data.failure_reason;
+    } else if (data.event_type && data.event_type.startsWith('ewallet.charge')) {
+      // E-wallet charge webhook
+      externalId = data.data?.reference_id || data.reference_id;
+      status = data.data?.status || data.status;
+      transactionId = data.data?.id || data.id;
+      failureReason = data.data?.failure_reason || data.failure_reason;
+    } else {
+      // Fallback for direct webhook data (legacy format)
+      externalId = data.external_id || data.reference_id;
+      status = data.status;
+      transactionId = data.id || data.charge_id;
+      failureReason = data.failure_reason || data.failure_code;
+    }
+
+    // Extract withdrawal ID from external_id
+    const withdrawalId = externalId?.split('_')[1];
+    
+    if (!withdrawalId || !status) {
+      console.error('Invalid callback data:', { externalId, status, transactionId });
+      return res.status(400).json({ error: 'Invalid callback data' });
+    }
+
+    await client.query('BEGIN');
+
+    try {
+      // Get withdrawal info for validation and potential refund
+      const withdrawalInfo = await client.query(
+        'SELECT id, amount, user_id, status as current_status, xendit_transaction_id FROM withdrawal_requests WHERE id = $1',
+        [withdrawalId]
+      );
+
+      if (withdrawalInfo.rows.length === 0) {
+        await client.query('ROLLBACK');
+        console.error(`Withdrawal not found: ${withdrawalId}`);
+        return res.status(404).json({ error: 'Withdrawal not found' });
+      }
+
+      const withdrawal = withdrawalInfo.rows[0];
+      
+      // Validate transaction ID matches (security check)
+      if (withdrawal.xendit_transaction_id !== transactionId) {
+        await client.query('ROLLBACK');
+        console.error(`Transaction ID mismatch: expected ${withdrawal.xendit_transaction_id}, got ${transactionId}`);
+        return res.status(400).json({ error: 'Transaction ID mismatch' });
+      }
+
+      // Don't update if already in final state
+      if (['completed', 'failed', 'cancelled'].includes(withdrawal.current_status)) {
+        await client.query('COMMIT');
+        console.log(`Withdrawal ${withdrawalId} already in final state: ${withdrawal.current_status}`);
+        return res.json({ success: true, message: 'Already processed' });
+      }
+
+      let updateQuery, updateParams;
+
+      if (status === 'COMPLETED' || status === 'SUCCEEDED' || status === 'SUCCESS_COMPLETED') {
+        // Success - mark as completed
+        updateQuery = `
+          UPDATE withdrawal_requests 
+          SET status = 'completed', processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `;
+        updateParams = [withdrawalId];
+        
+        console.log(`✅ Withdrawal ${withdrawalId} completed successfully`);
+        
+      } else if (status === 'FAILED' || status === 'EXPIRED' || status === 'CANCELLED') {
+        // Failed - mark as failed and refund user
+        updateQuery = `
+          UPDATE withdrawal_requests 
+          SET status = 'failed', failure_reason = $1, processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `;
+        updateParams = [failureReason || `Payment ${status.toLowerCase()}`, withdrawalId];
+        
+        // Refund the user's balance
+        await client.query(`
+          UPDATE user_gift_earnings_balance 
+          SET 
+            balance = balance + $1,
+            total_withdrawn = GREATEST(0, total_withdrawn - $1),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = $2
+        `, [withdrawal.amount, withdrawal.user_id]);
+        
+        console.log(`❌ Withdrawal ${withdrawalId} failed, refunded ${withdrawal.amount} coins to user ${withdrawal.user_id}`);
+        
+      } else {
+        // Unknown status - just log it
+        console.log(`ℹ️  Withdrawal ${withdrawalId} status update: ${status}`);
+        await client.query('COMMIT');
+        return res.json({ success: true, message: `Status updated: ${status}` });
+      }
+
+      // Execute the update
+      const result = await client.query(updateQuery, updateParams);
+      
+      if (result.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Withdrawal not found for update' });
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true, withdrawalId, status });
+
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      throw dbError;
+    }
+
+  } catch (error) {
+    console.error('Error processing Xendit callback:', {
+      message: error.message,
+      stack: error.stack,
+      body: req.body?.toString?.()?.substring(0, 500)
+    });
+    res.status(500).json({ error: 'Failed to process callback' });
+  } finally {
+    client.release();
+  }
+});
+
+// Get withdrawal history
+app.get('/api/user/withdrawal-history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT 
+        id,
+        amount,
+        amount_usd as "amountUSD",
+        withdrawal_method as "method",
+        account_type as "accountType",
+        account_name as "accountName",
+        account_number as "accountNumber",
+        status,
+        failure_reason as "failureReason",
+        created_at as "createdAt",
+        processed_at as "processedAt"
+      FROM withdrawal_requests 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC
+      LIMIT 50
+    `, [userId]);
+
+    res.json({
+      withdrawals: result.rows
+    });
+
+  } catch (error) {
+    console.error('Error fetching withdrawal history:', error);
+    res.status(500).json({ error: 'Failed to fetch withdrawal history' });
   }
 });
 
