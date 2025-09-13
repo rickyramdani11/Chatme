@@ -96,6 +96,11 @@ export default function AdminScreen({ navigation }: any) {
   // Ban management states
   const [bannedDevicesList, setBannedDevicesList] = useState([]);
   const [banLoading, setBanLoading] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState({
+    brand: 'Unknown',
+    modelName: 'Unknown Device',
+    deviceType: 'Unknown'
+  });
 
   // Form states for adding emoji/gift
   const [itemName, setItemName] = useState('');
@@ -162,6 +167,7 @@ export default function AdminScreen({ navigation }: any) {
     if (token) {
       loadEmojis();
       loadGifts();
+      loadDeviceInfo();
       if (activeTab === 'status') {
         loadUserStatus();
       }
@@ -171,6 +177,24 @@ export default function AdminScreen({ navigation }: any) {
       }
     }
   }, [token, activeTab]);
+
+  const loadDeviceInfo = async () => {
+    try {
+      const brand = Device.brand || 'Unknown';
+      const modelName = Device.modelName || 'Unknown Device';
+      const deviceType = await Device.getDeviceTypeAsync();
+      
+      setDeviceInfo({
+        brand,
+        modelName,
+        deviceType: deviceType === Device.DeviceType.PHONE ? 'Phone' : 
+                   deviceType === Device.DeviceType.TABLET ? 'Tablet' : 
+                   deviceType === Device.DeviceType.DESKTOP ? 'Desktop' : 'Unknown'
+      });
+    } catch (error) {
+      console.error('Error loading device info:', error);
+    }
+  };
 
   const toggleSideMenu = () => {
     const toValue = showSideMenu ? -screenWidth * 0.75 : 0;
@@ -690,8 +714,7 @@ export default function AdminScreen({ navigation }: any) {
     setStatusLoading(true);
     try {
       // Get device info
-      const deviceInfo = await Device.getDeviceTypeAsync();
-      const deviceName = `${Device.brand || 'Unknown'} ${Device.modelName || deviceInfo}`;
+      const deviceName = `${deviceInfo.brand} ${deviceInfo.modelName}`;
       
       // Get location info (request permission first)
       let locationString = 'Unknown';
@@ -726,8 +749,8 @@ export default function AdminScreen({ navigation }: any) {
         // Enhance user data with device info for current user
         const enhancedUsers = data.users?.map(user => ({
           ...user,
-          device: user.device || deviceName,
-          location: user.location || locationString
+          device: user.username === user?.username ? deviceName : user.device || 'Unknown Device',
+          location: user.username === user?.username ? locationString : user.location || 'Unknown'
         })) || [];
         
         setUserStatusList(enhancedUsers);
@@ -1445,7 +1468,10 @@ export default function AdminScreen({ navigation }: any) {
               <Text style={styles.banManageTitle}>Ban Management System</Text>
               <TouchableOpacity
                 style={styles.refreshButton}
-                onPress={loadBannedDevices}
+                onPress={() => {
+                  loadBannedDevices();
+                  loadUserStatus();
+                }}
                 disabled={banLoading}
               >
                 {banLoading ? (
@@ -1456,45 +1482,67 @@ export default function AdminScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
+            {/* Current Device Info */}
+            <View style={styles.currentDeviceSection}>
+              <Text style={styles.sectionTitle}>Current Device Information</Text>
+              <View style={styles.deviceInfoCard}>
+                <View style={styles.deviceInfoRow}>
+                  <Ionicons name="phone-portrait-outline" size={16} color="#666" />
+                  <Text style={styles.deviceInfoLabel}>Device:</Text>
+                  <Text style={styles.deviceInfoValue}>{deviceInfo.brand} {deviceInfo.modelName}</Text>
+                </View>
+                <View style={styles.deviceInfoRow}>
+                  <Ionicons name="hardware-chip-outline" size={16} color="#666" />
+                  <Text style={styles.deviceInfoLabel}>Type:</Text>
+                  <Text style={styles.deviceInfoValue}>{deviceInfo.deviceType}</Text>
+                </View>
+                <View style={styles.deviceInfoRow}>
+                  <Ionicons name="person-outline" size={16} color="#666" />
+                  <Text style={styles.deviceInfoLabel}>User:</Text>
+                  <Text style={styles.deviceInfoValue}>{user?.username}</Text>
+                </View>
+              </View>
+            </View>
+
             {/* Active Users with Device Info */}
             <View style={styles.activeUsersSection}>
               <Text style={styles.sectionTitle}>Active Users</Text>
-              {userStatusList.map((user, index) => (
-                <View key={user.id} style={styles.deviceInfoCard}>
+              {userStatusList.map((userItem, index) => (
+                <View key={userItem.id} style={styles.deviceInfoCard}>
                   <View style={styles.userDeviceHeader}>
                     <View style={styles.userBasicInfo}>
-                      <Text style={styles.userDeviceName}>{user.username}</Text>
-                      <View style={[styles.statusBadge, { backgroundColor: user.status === 'online' ? '#4CAF50' : '#999' }]}>
-                        <Text style={styles.statusBadgeText}>{user.status}</Text>
+                      <Text style={styles.userDeviceName}>{userItem.username}</Text>
+                      <View style={[styles.statusBadge, { backgroundColor: userItem.status === 'online' ? '#4CAF50' : '#999' }]}>
+                        <Text style={styles.statusBadgeText}>{userItem.status}</Text>
                       </View>
                     </View>
-                    <Text style={styles.userRole}>{user.role}</Text>
+                    <Text style={styles.userRole}>{userItem.role}</Text>
                   </View>
 
                   <View style={styles.deviceDetailInfo}>
                     <View style={styles.deviceInfoRow}>
                       <Ionicons name="phone-portrait-outline" size={16} color="#666" />
                       <Text style={styles.deviceInfoLabel}>Device:</Text>
-                      <Text style={styles.deviceInfoValue}>{user.device || 'Unknown'}</Text>
+                      <Text style={styles.deviceInfoValue}>{userItem.device || 'Unknown'}</Text>
                     </View>
                     
                     <View style={styles.deviceInfoRow}>
                       <Ionicons name="globe-outline" size={16} color="#666" />
                       <Text style={styles.deviceInfoLabel}>IP Address:</Text>
-                      <Text style={styles.deviceInfoValue}>{user.ip || 'Unknown'}</Text>
+                      <Text style={styles.deviceInfoValue}>{userItem.ip || 'Unknown'}</Text>
                     </View>
                     
                     <View style={styles.deviceInfoRow}>
                       <Ionicons name="location-outline" size={16} color="#666" />
                       <Text style={styles.deviceInfoLabel}>Location:</Text>
-                      <Text style={styles.deviceInfoValue}>{user.location || 'Unknown'}</Text>
+                      <Text style={styles.deviceInfoValue}>{userItem.location || 'Unknown'}</Text>
                     </View>
                     
                     <View style={styles.deviceInfoRow}>
                       <Ionicons name="time-outline" size={16} color="#666" />
                       <Text style={styles.deviceInfoLabel}>Last Login:</Text>
                       <Text style={styles.deviceInfoValue}>
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
+                        {userItem.lastLogin ? new Date(userItem.lastLogin).toLocaleString() : 'Never'}
                       </Text>
                     </View>
                   </View>
@@ -1502,7 +1550,8 @@ export default function AdminScreen({ navigation }: any) {
                   <View style={styles.banActions}>
                     <TouchableOpacity
                       style={[styles.banActionButton, styles.banDeviceButton]}
-                      onPress={() => handleBanDevice(user.id, user.username, user.device, user.ip)}
+                      onPress={() => handleBanDevice(userItem.id, userItem.username, userItem.device, userItem.ip)}
+                      disabled={banLoading}
                     >
                       <Ionicons name="phone-portrait" size={16} color="#fff" />
                       <Text style={styles.banActionText}>Ban Device</Text>
@@ -1510,7 +1559,8 @@ export default function AdminScreen({ navigation }: any) {
                     
                     <TouchableOpacity
                       style={[styles.banActionButton, styles.banIpButton]}
-                      onPress={() => handleBanIP(user.id, user.username, user.ip)}
+                      onPress={() => handleBanIP(userItem.id, userItem.username, userItem.ip)}
+                      disabled={banLoading}
                     >
                       <Ionicons name="shield-outline" size={16} color="#fff" />
                       <Text style={styles.banActionText}>Ban IP</Text>
@@ -1525,11 +1575,11 @@ export default function AdminScreen({ navigation }: any) {
               <Text style={styles.sectionTitle}>Banned Devices & IPs</Text>
               
               {bannedDevicesList.map((banned, index) => (
-                <View key={index} style={styles.bannedItemCard}>
+                <View key={banned.id || index} style={styles.bannedItemCard}>
                   <View style={styles.bannedItemHeader}>
                     <View style={styles.bannedItemInfo}>
-                      <Text style={styles.bannedUsername}>{banned.username}</Text>
-                      <Text style={styles.bannedType}>{banned.type} Ban</Text>
+                      <Text style={styles.bannedUsername}>User ID: {banned.userId}</Text>
+                      <Text style={styles.bannedType}>{banned.type.toUpperCase()} Ban</Text>
                     </View>
                     <Text style={styles.bannedDate}>
                       {new Date(banned.bannedAt).toLocaleDateString()}
@@ -1551,6 +1601,7 @@ export default function AdminScreen({ navigation }: any) {
                   <TouchableOpacity
                     style={styles.unbanButton}
                     onPress={() => handleUnban(banned.id, banned.type, banned.target)}
+                    disabled={banLoading}
                   >
                     <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
                     <Text style={styles.unbanButtonText}>Unban</Text>
@@ -1558,7 +1609,7 @@ export default function AdminScreen({ navigation }: any) {
                 </View>
               ))}
               
-              {bannedDevicesList.length === 0 && (
+              {bannedDevicesList.length === 0 && !banLoading && (
                 <View style={styles.emptyBannedList}>
                   <Ionicons name="shield-checkmark" size={40} color="#ccc" />
                   <Text style={styles.emptyBannedText}>No banned devices or IPs</Text>
@@ -2866,6 +2917,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
+  },
+  currentDeviceSection: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196F3',
   },
   activeUsersSection: {
     backgroundColor: '#fff',

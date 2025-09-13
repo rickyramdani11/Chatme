@@ -2046,6 +2046,209 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Ban Management Endpoints
+// Get banned devices and IPs
+app.get('/api/admin/banned-devices', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        id,
+        user_id,
+        ban_type,
+        target_value,
+        ban_reason,
+        banned_by_id,
+        banned_by_username,
+        banned_at,
+        unbanned_at,
+        unbanned_by_id,
+        unbanned_by_username,
+        is_active
+      FROM banned_devices_ips 
+      WHERE is_active = true
+      ORDER BY banned_at DESC
+    `);
+
+    const bannedList = result.rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      type: row.ban_type,
+      target: row.target_value,
+      reason: row.ban_reason,
+      bannedBy: row.banned_by_username,
+      bannedAt: row.banned_at,
+      isActive: row.is_active
+    }));
+
+    res.json({ bannedList });
+  } catch (error) {
+    console.error('Error fetching banned devices:', error);
+    res.status(500).json({ error: 'Failed to fetch banned devices' });
+  }
+});
+
+// Ban device
+app.post('/api/admin/ban-device', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { userId, username, target, reason } = req.body;
+
+    if (!target || !reason) {
+      return res.status(400).json({ error: 'Target device and reason are required' });
+    }
+
+    // Check if device is already banned
+    const existingBan = await pool.query(
+      'SELECT id FROM banned_devices_ips WHERE target_value = $1 AND ban_type = $2 AND is_active = true',
+      [target, 'device']
+    );
+
+    if (existingBan.rows.length > 0) {
+      return res.status(400).json({ error: 'Device is already banned' });
+    }
+
+    // Insert ban record
+    await pool.query(`
+      INSERT INTO banned_devices_ips 
+      (user_id, ban_type, target_value, ban_reason, banned_by_id, banned_by_username, banned_at, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), true)
+    `, [userId, 'device', target, reason, req.user.id, req.user.username]);
+
+    res.json({ message: 'Device banned successfully' });
+  } catch (error) {
+    console.error('Error banning device:', error);
+    res.status(500).json({ error: 'Failed to ban device' });
+  }
+});
+
+// Ban IP
+app.post('/api/admin/ban-ip', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { userId, username, target, reason } = req.body;
+
+    if (!target || !reason) {
+      return res.status(400).json({ error: 'Target IP and reason are required' });
+    }
+
+    // Check if IP is already banned
+    const existingBan = await pool.query(
+      'SELECT id FROM banned_devices_ips WHERE target_value = $1 AND ban_type = $2 AND is_active = true',
+      [target, 'ip']
+    );
+
+    if (existingBan.rows.length > 0) {
+      return res.status(400).json({ error: 'IP is already banned' });
+    }
+
+    // Insert ban record
+    await pool.query(`
+      INSERT INTO banned_devices_ips 
+      (user_id, ban_type, target_value, ban_reason, banned_by_id, banned_by_username, banned_at, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), true)
+    `, [userId, 'ip', target, reason, req.user.id, req.user.username]);
+
+    res.json({ message: 'IP banned successfully' });
+  } catch (error) {
+    console.error('Error banning IP:', error);
+    res.status(500).json({ error: 'Failed to ban IP' });
+  }
+});
+
+// Unban device or IP
+app.post('/api/admin/unban', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { banId, banType } = req.body;
+
+    if (!banId || !banType) {
+      return res.status(400).json({ error: 'Ban ID and type are required' });
+    }
+
+    // Update ban record
+    const result = await pool.query(`
+      UPDATE banned_devices_ips 
+      SET 
+        is_active = false,
+        unbanned_at = NOW(),
+        unbanned_by_id = $1,
+        unbanned_by_username = $2
+      WHERE id = $3 AND is_active = true
+      RETURNING *
+    `, [req.user.id, req.user.username, banId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Ban record not found or already inactive' });
+    }
+
+    res.json({ message: `${banType.toUpperCase()} unbanned successfully` });
+  } catch (error) {
+    console.error('Error unbanning:', error);
+    res.status(500).json({ error: 'Failed to unban' });
+  }
+});
+
+// Get admin users status with device info
+app.get('/api/admin/users/status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.email,
+        u.phone,
+        u.role,
+        u.last_login,
+        uc.balance as credits,
+        'online' as status,
+        'Unknown Device' as device,
+        '127.0.0.1' as ip,
+        'Unknown Location' as location
+      FROM users u
+      LEFT JOIN user_credits uc ON u.id = uc.user_id
+      WHERE u.role IN ('admin', 'mentor', 'user')
+      ORDER BY u.last_login DESC NULLS LAST
+      LIMIT 20
+    `);
+
+    const users = result.rows.map(row => ({
+      id: row.id.toString(),
+      username: row.username,
+      email: row.email,
+      phone: row.phone,
+      role: row.role,
+      lastLogin: row.last_login,
+      credits: row.credits || 0,
+      status: row.status,
+      device: row.device,
+      ip: row.ip,
+      location: row.location
+    }));
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Error fetching user status:', error);
+    res.status(500).json({ error: 'Failed to fetch user status' });
+  }
+});
+
 // Debug endpoint to check available routes
 app.get('/debug/routes', (req, res) => {
   const routes = [];
