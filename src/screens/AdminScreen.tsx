@@ -153,13 +153,6 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'analytics-outline',
       color: '#F44336',
       description: 'Monitor status dan aktivitas user'
-    },
-    {
-      id: 'ban-manage',
-      title: 'Ban Management',
-      icon: 'ban-outline',
-      color: '#E91E63',
-      description: 'Kelola banned device dan IP'
     }
   ];
 
