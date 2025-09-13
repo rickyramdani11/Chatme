@@ -689,8 +689,14 @@ const initDatabase = async () => {
 
         console.log('Admin user "asu" created successfully with 100,000 coins:', adminUser.rows[0]);
       } else {
-        // Always ensure user has admin role and credentials
+        // Always ensure user has admin role and credentials on server start
         const userId = existingUser.rows[0].id;
+        const currentRole = existingUser.rows[0].role;
+        
+        if (currentRole !== 'admin') {
+          console.log(`Fixing user "asu" role from "${currentRole}" to "admin"`);
+        }
+        
         await pool.query('UPDATE users SET role = $1, verified = $2 WHERE username = $3', ['admin', true, 'asu']);
 
         // Check if user has credits, if not add them
@@ -702,7 +708,16 @@ const initDatabase = async () => {
           `, [userId, 100000]);
         }
 
-        console.log('User "asu" ensured to have admin role and credentials');
+        // Verify the role was set correctly
+        const verifyResult = await pool.query('SELECT role FROM users WHERE username = $1', ['asu']);
+        const finalRole = verifyResult.rows[0]?.role;
+        console.log(`User "asu" role verified: ${finalRole} (should be admin)`);
+        
+        if (finalRole === 'admin') {
+          console.log('✅ Admin user "asu" role successfully maintained');
+        } else {
+          console.error('❌ Failed to maintain admin role for user "asu"');
+        }
       }
     } catch (adminError) {
       console.error('Error creating/updating admin user:', adminError);
@@ -1757,7 +1772,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
     console.log(`User ID: ${userId}`);
 
     const result = await pool.query(
-      `SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, level, role
+      `SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, level, role, verified
        FROM users 
        WHERE id = $1`,
       [userId]
@@ -1782,10 +1797,12 @@ app.get('/api/users/:userId/profile', async (req, res) => {
       signature: user.signature || '',
       avatar: user.avatar,
       level: user.level || 1,
-      role: user.role || 'user'
+      role: user.role || 'user', // Always ensure role is included
+      verified: user.verified || false
     };
 
-    console.log(`Profile retrieved successfully for user: ${user.username}, role: ${user.role}`);
+    console.log(`Profile retrieved successfully for user: ${user.username}, role: ${user.role} (from DB)`);
+    console.log(`Sending role to client: ${userData.role}`);
     res.json(userData);
 
   } catch (error) {

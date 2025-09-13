@@ -26,6 +26,7 @@ interface AuthContextType {
   register: (username: string, password: string, email: string, phone: string, country: string, gender: string) => Promise<void>;
   logout: () => void;
   updateProfile: (userData: Partial<User>) => Promise<void>;
+  refreshUserData: () => Promise<User | null>;
   loading: boolean;
 }
 
@@ -68,12 +69,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (response.ok) {
               const latestUserData = await response.json();
-              console.log('Refreshed user data:', latestUserData);
-              setUser(latestUserData);
-              await AsyncStorage.setItem('user', JSON.stringify(latestUserData));
+              console.log('Refreshed user data from server:', latestUserData);
+              
+              // Ensure role is preserved from server response
+              const updatedUserData = {
+                ...userData,
+                ...latestUserData,
+                role: latestUserData.role || userData.role // Prioritize server role
+              };
+              
+              setUser(updatedUserData);
+              await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
+              console.log('User role after refresh:', updatedUserData.role);
+            } else {
+              console.log('Failed to refresh user data, server response not ok:', response.status);
+              // Still set the stored user data
+              setUser(userData);
             }
           } catch (refreshError) {
             console.log('Failed to refresh user data, using stored data:', refreshError);
+            // Still set the stored user data even if refresh fails
+            setUser(userData);
           }
         } else {
           console.log('Invalid stored token format, clearing storage');
@@ -301,6 +317,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refreshUserData = async () => {
+    if (!user || !token) return;
+
+    try {
+      console.log('Manually refreshing user data for role sync...');
+      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const latestUserData = await response.json();
+        console.log('Manual refresh - server user data:', latestUserData);
+        
+        // Merge with current user data, prioritizing server role
+        const updatedUserData = {
+          ...user,
+          ...latestUserData,
+          role: latestUserData.role // Always use server role
+        };
+        
+        setUser(updatedUserData);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
+        console.log('User role after manual refresh:', updatedUserData.role);
+        return updatedUserData;
+      } else {
+        console.log('Failed to refresh user data manually:', response.status);
+      }
+    } catch (error) {
+      console.error('Error in manual refresh:', error);
+    }
+    return user;
+  };
+
   const logout = async () => {
     try {
       // Call server logout endpoint if token exists
@@ -348,7 +400,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, updateProfile, loading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, updateProfile, refreshUserData, loading }}>
       {children}
     </AuthContext.Provider>
   );
