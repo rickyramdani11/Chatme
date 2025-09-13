@@ -5863,11 +5863,11 @@ const styles = StyleSheet.create({
   },
   giftItemContainer: {
     width: '30%',
-    aspectRatio: 0.85,
+    height: 30,
     marginBottom: 16,
   },
   giftItem: {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'white',
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',

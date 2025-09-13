@@ -4882,9 +4882,9 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Insufficient balance' });
       }
 
-      // Gift earnings go 100% to recipient balance withdraw
-      const recipientShare = giftPrice;
-      const systemShare = 0;
+      // Gift earnings: 30% to recipient balance withdraw, 70% to system
+      const recipientShare = Math.floor(giftPrice * 0.3);
+      const systemShare = giftPrice - recipientShare;
 
       // Record the gift transaction in credit_transactions table
       await client.query(`
@@ -4932,7 +4932,7 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
         }
       });
 
-      console.log(`Gift purchased: ${senderUsername} sent ${giftName} (${giftPrice} coins) to ${recipientUsername}. Recipient earned ${recipientShare} coins (100% to balance withdraw)`);
+      console.log(`Gift purchased: ${senderUsername} sent ${giftName} (${giftPrice} coins) to ${recipientUsername}. Recipient earned ${recipientShare} coins (30% to balance withdraw), system got ${systemShare} coins (70%)`);
 
     } catch (error) {
       await client.query('ROLLBACK');
