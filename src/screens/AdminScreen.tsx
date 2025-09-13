@@ -1156,7 +1156,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'gift':
         return (
-          <ScrollView style={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.giftFormContainer} contentContainerStyle={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.giftFormCard}>
               <Text style={styles.formTitle}>Add New Gift</Text>
 
@@ -1317,7 +1317,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'admin-credit':
         return (
-          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.creditTransferContainer} contentContainerStyle={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.creditTransferCard}>
               <Text style={styles.creditTransferTitle}>Add Credits (Admin)</Text>
 
@@ -1378,7 +1378,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'status':
         return (
-          <ScrollView style={styles.statusContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.statusContainer} contentContainerStyle={styles.statusContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.statusHeader}>
               <Text style={styles.statusTitle}>User Status & Information</Text>
               <TouchableOpacity
@@ -1464,7 +1464,7 @@ export default function AdminScreen({ navigation }: any) {
                     <Ionicons name="close" size={24} color="#333" />
                   </TouchableOpacity>
                 </View>
-                <ScrollView style={styles.historyList}>
+                <ScrollView style={styles.historyList} contentContainerStyle={styles.historyList}>
                   {userCreditHistory.map((transaction, index) => (
                     <View key={index} style={styles.historyItem}>
                       <Text style={styles.historyAmount}>
@@ -1485,7 +1485,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'ban-manage':
         return (
-          <ScrollView style={styles.banManageContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.banManageContainer} contentContainerStyle={styles.banManageContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.banManageHeader}>
               <Text style={styles.banManageTitle}>Ban Management System</Text>
               <TouchableOpacity
@@ -1643,7 +1643,7 @@ export default function AdminScreen({ navigation }: any) {
 
       default:
         return (
-          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.creditTransferContainer} contentContainerStyle={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.creditTransferCard}>
               <Text style={styles.creditTransferTitle}>Transfer Credit</Text>
 
@@ -1783,7 +1783,7 @@ export default function AdminScreen({ navigation }: any) {
           </TouchableOpacity>
         </LinearGradient>
 
-        <ScrollView style={styles.sideMenuContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.sideMenuContent} contentContainerStyle={styles.sideMenuContent} showsVerticalScrollIndicator={false}>
           {menuItems.map((item) => (
             <TouchableOpacity
               key={item.id}
@@ -1850,7 +1850,7 @@ export default function AdminScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalContent}>
+            <ScrollView style={styles.modalContent} contentContainerStyle={styles.modalContent}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Name</Text>
                 <TextInput
