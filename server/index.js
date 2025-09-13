@@ -669,6 +669,62 @@ const initDatabase = async () => {
 
     console.log('✅ Room security and ban management tables initialized successfully');
 
+    // Create gift_earnings table for tracking user earnings from gifts (30% of gift value)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS gift_earnings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        gift_id INTEGER,
+        gift_name VARCHAR(255),
+        gift_price INTEGER NOT NULL,
+        user_share INTEGER NOT NULL,
+        system_share INTEGER NOT NULL,
+        sender_user_id INTEGER,
+        sender_username VARCHAR(100),
+        room_id VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (sender_user_id) REFERENCES users(id)
+      )
+    `);
+
+    // Create withdrawal_requests table for Xendit withdrawals
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS withdrawal_requests (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        amount_usd DECIMAL(10,2) NOT NULL,
+        withdrawal_method VARCHAR(20) NOT NULL CHECK (withdrawal_method IN ('bank', 'ewallet')),
+        account_type VARCHAR(50),
+        account_name VARCHAR(255),
+        account_number VARCHAR(100),
+        bank_code VARCHAR(10),
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
+        xendit_transaction_id VARCHAR(100),
+        failure_reason TEXT,
+        processed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+
+    // Create user_gift_earnings_balance table to track withdrawable gift earnings balance
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_gift_earnings_balance (
+        user_id INTEGER PRIMARY KEY,
+        balance INTEGER DEFAULT 0,
+        total_earned INTEGER DEFAULT 0,
+        total_withdrawn INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+
+    console.log('✅ Gift earnings and withdrawal tables initialized successfully');
+
     // Add default admin user 'asu' if not exists
     try {
       const existingUser = await pool.query('SELECT id, role FROM users WHERE username = $1', ['asu']);
