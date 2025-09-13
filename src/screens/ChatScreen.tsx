@@ -180,7 +180,7 @@ export default function ChatScreen() {
       setCallTimer(prev => {
         const newTime = prev + 1;
         const elapsedMinutes = Math.ceil(newTime / 60);
-        
+
         // Calculate display cost based on elapsed minutes
         let displayCost = 0;
         if (elapsedMinutes >= 1) {
@@ -195,7 +195,7 @@ export default function ChatScreen() {
         if (newTime % 20 === 0 && newTime > 0) {
           const currentMinute = Math.ceil(newTime / 60);
           const intervalInMinute = Math.floor(((newTime - 1) % 60) / 20) + 1; // Which 20s interval in current minute (1, 2, or 3)
-          
+
           let intervalCost;
           if (currentMinute === 1) {
             // First minute: distribute 2500 as [834, 833, 833]
@@ -204,7 +204,7 @@ export default function ChatScreen() {
             // After first minute: distribute 2000 as [667, 667, 666]
             intervalCost = intervalInMinute === 3 ? 666 : 667;
           }
-          
+
           setTotalDeducted(prev => prev + intervalCost);
           deductCoins(intervalCost, type, `${(newTime/60).toFixed(2)} minutes`);
         }
@@ -1403,7 +1403,7 @@ export default function ChatScreen() {
             const whoisMessage = {
               id: `whois_${Date.now()}_${user?.username}`,
               sender: 'System',
-              content: `📋 User Info: ${targetUser.username}\n🌍 Country: ${targetUser.country || 'Unknown'}\n⭐ Level: ${targetUser.level || 1}\n🔰 Role: ${targetUser.role || 'user'}\n📅 Status: ${targetUser.isOnline ? 'Online' : 'Offline'}\n⏰ Last Seen: ${targetUser.lastSeen || 'Unknown'}`,
+              content: `📋 User Info: ${targetUser.username}\n🌍 Country: ${targetUser.country || 'Unknown'}\n⭐ Level: ${targetUser.level || 1}\n🔰 Role: ${targetUser.role || 'user'}\n⏰ Status: ${targetUser.isOnline ? 'Online' : 'Offline'}\n⏰ Last Seen: ${targetUser.lastSeen || 'Unknown'}`,
               timestamp: new Date(),
               roomId: currentRoomId,
               role: 'system',
@@ -1466,7 +1466,7 @@ export default function ChatScreen() {
 
       case '/roll': {
         const max = args[0] ? parseInt(args[0]) : 100;
-        
+
         console.log('Processing /roll command, max:', max);
 
         // Just emit the command to server, let server handle rolling and broadcasting
@@ -1562,7 +1562,7 @@ export default function ChatScreen() {
       }
 
       case '/ban': {
-        // Check if user has permission to ban
+        // Check if user has permission to ban user
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
         const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
@@ -1990,7 +1990,7 @@ export default function ChatScreen() {
 
         if (args.length > 0) {
           const targetUsername = args[0];
-          
+
           if (bannedUsers.includes(targetUsername)) {
             const unbanMessage = {
               id: `unban_${Date.now()}_${user?.username}`,
@@ -2101,7 +2101,7 @@ export default function ChatScreen() {
         const unknownMessage = {
           id: `unknown_${Date.now()}_${user?.username}`,
           sender: 'System',
-          content: `❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot`,
+          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot',
           timestamp: new Date(),
           roomId: currentRoomId,
           role: 'system',
@@ -4705,7 +4705,7 @@ export default function ChatScreen() {
             </Text>
           </Animated.View>
 
-          
+
         </View>
       )}
 
@@ -5745,7 +5745,8 @@ const styles = StyleSheet.create({
   newGiftGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: 8,
   },
   newGiftItemContainer: {
     width: '48%',
