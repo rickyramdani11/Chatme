@@ -188,9 +188,10 @@ export default function ChatScreen() {
         const totalCost = minutes * costPerMinute;
         setCallCost(totalCost);
 
-        // Deduct coins every minute
-        if (newTime % 60 === 0 && newTime > 0) {
-          deductCoins(costPerMinute, type, Math.floor(newTime / 60));
+        // Deduct coins every 20 seconds
+        if (newTime % 20 === 0 && newTime > 0) {
+          const intervalCost = Math.floor(costPerMinute / 3); // 20 seconds = 1/3 of minute
+          deductCoins(intervalCost, type, Math.floor(newTime / 20));
         }
 
         return newTime;
@@ -204,11 +205,23 @@ export default function ChatScreen() {
       callIntervalRef.current = null;
     }
 
-    // Final coin deduction for partial minute
-    const finalMinutes = Math.ceil(callTimer / 60);
-    if (finalMinutes > 0 && callTimer % 60 !== 0) {
-      const costPerMinute = finalMinutes === 1 ? 2500 : 2000;
-      deductCoins(costPerMinute, callType!, finalMinutes);
+    // Final coin deduction for partial 20-second interval
+    const finalIntervals = Math.ceil(callTimer / 20);
+    if (finalIntervals > 0 && callTimer % 20 !== 0) {
+      const minutes = Math.floor(callTimer / 60);
+      const costPerMinute = minutes >= 1 ? 2000 : 2500;
+      const intervalCost = Math.floor(costPerMinute / 3);
+      deductCoins(intervalCost, callType!, finalIntervals);
+    }
+
+    // Show earnings for call recipient
+    const totalEarnings = Math.floor(callCost * 0.7);
+    if (totalEarnings > 0) {
+      Alert.alert(
+        'Call Ended', 
+        `Total earnings: ${totalEarnings} coins (70% of ${callCost} coins spent)`,
+        [{ text: 'OK' }]
+      );
     }
 
     setIsInCall(false);
@@ -232,7 +245,7 @@ export default function ChatScreen() {
 
     Alert.alert(
       'Start Video Call',
-      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 70% to balance + 30% to withdraw\n\nStart call with ${targetUser.username}?`,
+      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -260,7 +273,7 @@ export default function ChatScreen() {
 
     Alert.alert(
       'Start Audio Call',
-      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 70% to balance + 30% to withdraw\n\nStart call with ${targetUser.username}?`,
+      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
