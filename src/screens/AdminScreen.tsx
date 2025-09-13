@@ -817,7 +817,7 @@ export default function AdminScreen({ navigation }: any) {
   const handleBanDevice = async (userId, username, deviceId, userIp) => {
     Alert.alert(
       'Ban Device',
-      `Are you sure you want to ban the device used by ${username}?\n\nDevice: ${deviceId}\nIP: ${userIp}`,
+      `Are you sure you want to ban the device used by ${username}?\n\nDevice: ${deviceId || 'Unknown Device'}\nIP: ${userIp || 'Unknown IP'}`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -828,8 +828,8 @@ export default function AdminScreen({ navigation }: any) {
               'Ban Reason',
               'Enter reason for banning this device:',
               (reason) => {
-                if (reason) {
-                  executeBan('device', userId, username, deviceId, reason);
+                if (reason && reason.trim()) {
+                  executeBan('device', userId, username, deviceId || `${username}_device`, reason.trim());
                 }
               },
               'plain-text',
@@ -844,7 +844,7 @@ export default function AdminScreen({ navigation }: any) {
   const handleBanIP = async (userId, username, userIp) => {
     Alert.alert(
       'Ban IP Address',
-      `Are you sure you want to ban the IP address used by ${username}?\n\nIP: ${userIp}\n\nThis will affect all users from this IP.`,
+      `Are you sure you want to ban the IP address used by ${username}?\n\nIP: ${userIp || 'Unknown IP'}\n\nThis will affect all users from this IP.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -855,8 +855,8 @@ export default function AdminScreen({ navigation }: any) {
               'Ban Reason',
               'Enter reason for banning this IP address:',
               (reason) => {
-                if (reason) {
-                  executeBan('ip', userId, username, userIp, reason);
+                if (reason && reason.trim()) {
+                  executeBan('ip', userId, username, userIp || 'unknown_ip', reason.trim());
                 }
               },
               'plain-text',
@@ -871,6 +871,8 @@ export default function AdminScreen({ navigation }: any) {
   const executeBan = async (banType, userId, username, target, reason) => {
     setBanLoading(true);
     try {
+      console.log('Executing ban:', { banType, userId, username, target, reason });
+      
       const response = await fetch(`${API_BASE_URL}/api/admin/ban-${banType}`, {
         method: 'POST',
         headers: {
@@ -879,25 +881,29 @@ export default function AdminScreen({ navigation }: any) {
           'User-Agent': 'ChatMe-Mobile-App',
         },
         body: JSON.stringify({
-          userId,
-          username,
-          target,
-          reason,
-          banType
+          userId: userId.toString(),
+          username: username,
+          target: target,
+          reason: reason,
+          banType: banType
         }),
       });
 
+      console.log('Ban response status:', response.status);
+
       if (response.ok) {
+        const responseData = await response.json();
         Alert.alert('Success', `${banType.toUpperCase()} banned successfully`);
         loadBannedDevices();
         loadUserStatus();
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
+        console.error('Ban error response:', errorData);
         throw new Error(errorData.error || `Failed to ban ${banType}`);
       }
     } catch (error) {
       console.error(`Error banning ${banType}:`, error);
-      Alert.alert('Error', error.message || `Failed to ban ${banType}`);
+      Alert.alert('Error', error.message || `Failed to ban ${banType}. Please check your connection.`);
     } finally {
       setBanLoading(false);
     }
@@ -1425,10 +1431,26 @@ export default function AdminScreen({ navigation }: any) {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.banButton}
-                    onPress={() => Alert.alert('Feature Coming Soon', 'Ban functionality will be implemented soon')}
+                    onPress={() => {
+                      Alert.alert(
+                        'Ban Options',
+                        `Choose ban action for ${user.username}:`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Ban Device',
+                            onPress: () => handleBanDevice(user.id, user.username, user.device, user.ip)
+                          },
+                          {
+                            text: 'Ban IP',
+                            onPress: () => handleBanIP(user.id, user.username, user.ip)
+                          }
+                        ]
+                      );
+                    }}
                   >
                     <Ionicons name="ban-outline" size={16} color="#F44336" />
-                    <Text style={styles.banButtonText}>Ban Device/IP</Text>
+                    <Text style={styles.banButtonText}>Ban User</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1550,7 +1572,7 @@ export default function AdminScreen({ navigation }: any) {
                   <View style={styles.banActions}>
                     <TouchableOpacity
                       style={[styles.banActionButton, styles.banDeviceButton]}
-                      onPress={() => handleBanDevice(userItem.id, userItem.username, userItem.device, userItem.ip)}
+                      onPress={() => handleBanDevice(userItem.id, userItem.username, userItem.device || `${userItem.username}_device`, userItem.ip)}
                       disabled={banLoading}
                     >
                       <Ionicons name="phone-portrait" size={16} color="#fff" />
@@ -1559,7 +1581,7 @@ export default function AdminScreen({ navigation }: any) {
                     
                     <TouchableOpacity
                       style={[styles.banActionButton, styles.banIpButton]}
-                      onPress={() => handleBanIP(userItem.id, userItem.username, userItem.ip)}
+                      onPress={() => handleBanIP(userItem.id, userItem.username, userItem.ip || 'unknown_ip')}
                       disabled={banLoading}
                     >
                       <Ionicons name="shield-outline" size={16} color="#fff" />
