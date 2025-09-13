@@ -93,7 +93,7 @@ export default function ChatScreen() {
   const giftVideoRef = useRef<Video>(null);
   const [showUserTagMenu, setShowUserTagMenu] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
-  const [filteredParticipants, setFiltereredParticipants] = useState<any[]>([]);
+  const [filteredParticipants, setFilteredParticipants] = useState<any[]>([]);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
