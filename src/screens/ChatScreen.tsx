@@ -29,7 +29,7 @@ import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
-import ZegoUIKitPrebuiltCall, { ONE_ON_ONE_VIDEO_CALL_CONFIG, ONE_ON_ONE_VOICE_CALL_CONFIG } from 'zego-uikit-prebuilt-call-rn';
+import { Meeting, MeetingProvider, useMeeting } from '@videosdk.live/react-native-sdk';
 
 const { width } = Dimensions.get('window');
 
@@ -4712,21 +4712,25 @@ export default function ChatScreen() {
             </Text>
           </View>
 
-          <View style={styles.zegoCallContainer}>
+          <View style={styles.videoCallContainer}>
             {isInCall && (
-              <ZegoUIKitPrebuiltCall
-                appID={875964062}
-                appSign="your_app_sign_here" // You need to get this from Zego console
-                userID={user?.id?.toString() || ''}
-                userName={user?.username || ''}
-                callID={`call_${currentRoomId}_${Date.now()}`}
+              <MeetingProvider
                 config={{
-                  ...(callType === 'video' ? ONE_ON_ONE_VIDEO_CALL_CONFIG : ONE_ON_ONE_VOICE_CALL_CONFIG),
-                  onCallEnd: () => {
-                    endCall();
-                  },
+                  meetingId: `call_${currentRoomId}_${Date.now()}`,
+                  micEnabled: true,
+                  webcamEnabled: callType === 'video',
+                  name: user?.username || 'User',
+                  // You'll need to add your VideoSDK token here
+                  token: 'YOUR_VIDEOSDK_TOKEN_HERE',
                 }}
-              />
+                token='YOUR_VIDEOSDK_TOKEN_HERE'
+              >
+                <Meeting
+                  onMeetingLeft={() => {
+                    endCall();
+                  }}
+                />
+              </MeetingProvider>
             )}
           </View>
 
@@ -6257,7 +6261,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FFD700',
   },
-  zegoCallContainer: {
+  videoCallContainer: {
     flex: 1,
   },
   callControls: {
