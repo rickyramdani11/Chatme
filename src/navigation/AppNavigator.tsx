@@ -32,6 +32,8 @@ import AdminScreen from '../screens/AdminScreen';
 import TopRankScreen from '../screens/TopRankScreen';
 // Import WithdrawScreen
 import WithdrawScreen from '../screens/WithdrawScreen';
+// Import WithdrawHistoryScreen
+import WithdrawHistoryScreen from '../screens/WithdrawHistoryScreen';
 
 
 import { useAuth } from '../hooks';
@@ -188,6 +190,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="Withdraw"
             component={WithdrawScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="WithdrawHistory"
+            component={WithdrawHistoryScreen}
             options={{ headerShown: false }}
           />
         </>
