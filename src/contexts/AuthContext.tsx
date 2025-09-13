@@ -68,19 +68,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             });
 
             if (response.ok) {
-              const latestUserData = await response.json();
-              console.log('Refreshed user data from server:', latestUserData);
-              
-              // Ensure role is preserved from server response
-              const updatedUserData = {
-                ...userData,
-                ...latestUserData,
-                role: latestUserData.role || userData.role // Prioritize server role
-              };
-              
-              setUser(updatedUserData);
-              await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
-              console.log('User role after refresh:', updatedUserData.role);
+            const latestUserData = await response.json();
+            console.log('Refreshed user data from server:', latestUserData);
+
+            // Always use server role as authoritative source
+            const updatedUserData = {
+              ...userData,
+              ...latestUserData,
+              role: latestUserData.role // Always use server role
+            };
+
+            setUser(updatedUserData);
+            await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
+            console.log('User role after refresh (server authoritative):', updatedUserData.role);
             } else {
               console.log('Failed to refresh user data, server response not ok:', response.status);
               // Still set the stored user data
@@ -332,14 +332,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok) {
         const latestUserData = await response.json();
         console.log('Manual refresh - server user data:', latestUserData);
-        
+
         // Merge with current user data, prioritizing server role
         const updatedUserData = {
           ...user,
           ...latestUserData,
           role: latestUserData.role // Always use server role
         };
-        
+
         setUser(updatedUserData);
         await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
         console.log('User role after manual refresh:', updatedUserData.role);

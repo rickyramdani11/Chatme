@@ -1016,7 +1016,7 @@ const maskSensitiveData = (user) => {
     ...user,
     email: user.email ? '***@***.***' : undefined,
     phone: user.phone ? '***' + user.phone.slice(-4) : undefined,
-    role: user.role === 'admin' ? 'user' : user.role // Hide admin role
+    role: user.role // Keep true role for proper authorization
   };
 };
 
