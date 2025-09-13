@@ -111,6 +111,7 @@ export default function ChatScreen() {
   const [showCallModal, setShowCallModal] = useState(false);
   const [callTimer, setCallTimer] = useState(0);
   const [callCost, setCallCost] = useState(0);
+  const [totalDeducted, setTotalDeducted] = useState(0);
   const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Helper functions for role checking
@@ -145,7 +146,7 @@ export default function ChatScreen() {
     }
   };
 
-  const deductCoins = async (amount: number, type: string, callDuration: number) => {
+  const deductCoins = async (amount: number, type: string, description: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
         method: 'POST',
@@ -156,7 +157,7 @@ export default function ChatScreen() {
         body: JSON.stringify({
           amount,
           type: `${type}_call`,
-          description: `${type} call for ${callDuration} minutes`,
+          description: `${type} call for ${description}`,
           recipientUsername: targetUser?.username
         }),
       });
@@ -173,25 +174,39 @@ export default function ChatScreen() {
     setCallType(type);
     setCallTimer(0);
     setCallCost(0);
+    setTotalDeducted(0);
 
     callIntervalRef.current = setInterval(() => {
       setCallTimer(prev => {
         const newTime = prev + 1;
-        const minutes = Math.floor(newTime / 60);
+        const elapsedMinutes = Math.ceil(newTime / 60);
         
-        // Calculate cost based on duration
-        let costPerMinute = 2500;
-        if (minutes >= 1) {
-          costPerMinute = 2000;
+        // Calculate display cost based on elapsed minutes
+        let displayCost = 0;
+        if (elapsedMinutes >= 1) {
+          displayCost = 2500; // First minute
+          if (elapsedMinutes > 1) {
+            displayCost += (elapsedMinutes - 1) * 2000; // Additional minutes
+          }
         }
-        
-        const totalCost = minutes * costPerMinute;
-        setCallCost(totalCost);
+        setCallCost(displayCost);
 
-        // Deduct coins every 20 seconds
+        // Deduct coins every 20 seconds with proper rate distribution
         if (newTime % 20 === 0 && newTime > 0) {
-          const intervalCost = Math.floor(costPerMinute / 3); // 20 seconds = 1/3 of minute
-          deductCoins(intervalCost, type, Math.floor(newTime / 20));
+          const currentMinute = Math.ceil(newTime / 60);
+          const intervalInMinute = Math.floor(((newTime - 1) % 60) / 20) + 1; // Which 20s interval in current minute (1, 2, or 3)
+          
+          let intervalCost;
+          if (currentMinute === 1) {
+            // First minute: distribute 2500 as [834, 833, 833]
+            intervalCost = intervalInMinute === 1 ? 834 : 833;
+          } else {
+            // After first minute: distribute 2000 as [667, 667, 666]
+            intervalCost = intervalInMinute === 3 ? 666 : 667;
+          }
+          
+          setTotalDeducted(prev => prev + intervalCost);
+          deductCoins(intervalCost, type, `${(newTime/60).toFixed(2)} minutes`);
         }
 
         return newTime;
@@ -205,21 +220,12 @@ export default function ChatScreen() {
       callIntervalRef.current = null;
     }
 
-    // Final coin deduction for partial 20-second interval
-    const finalIntervals = Math.ceil(callTimer / 20);
-    if (finalIntervals > 0 && callTimer % 20 !== 0) {
-      const minutes = Math.floor(callTimer / 60);
-      const costPerMinute = minutes >= 1 ? 2000 : 2500;
-      const intervalCost = Math.floor(costPerMinute / 3);
-      deductCoins(intervalCost, callType!, finalIntervals);
-    }
-
-    // Show earnings for call recipient
-    const totalEarnings = Math.floor(callCost * 0.7);
-    if (totalEarnings > 0) {
+    // Show earnings for call recipient based on actual total deducted (no partial interval charge)
+    const finalEarnings = Math.floor(totalDeducted * 0.7);
+    if (finalEarnings > 0) {
       Alert.alert(
         'Call Ended', 
-        `Total earnings: ${totalEarnings} coins (70% of ${callCost} coins spent)`,
+        `Total earnings: ${finalEarnings} coins (70% of ${totalDeducted} coins spent)`,
         [{ text: 'OK' }]
       );
     }
@@ -228,6 +234,7 @@ export default function ChatScreen() {
     setCallType(null);
     setCallTimer(0);
     setCallCost(0);
+    setTotalDeducted(0);
     setShowCallModal(false);
   };
 
