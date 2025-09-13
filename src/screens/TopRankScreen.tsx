@@ -132,12 +132,17 @@ const TopRankScreen = ({ navigation }: any) => {
 
       <View style={styles.userInfo}>
         <View style={styles.avatarContainer}>
-          {item.avatar && item.avatar.startsWith('http') ? (
-            <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          {item.avatar && (item.avatar.startsWith('http') || item.avatar.startsWith('https')) ? (
+            <Image 
+              source={{ uri: item.avatar }} 
+              style={styles.avatar}
+              onError={() => console.log('Failed to load avatar:', item.avatar)}
+              defaultSource={{ uri: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' }}
+            />
           ) : (
             <View style={[styles.avatar, { backgroundColor: index < 3 ? '#FFD700' : '#9E9E9E' }]}>
               <Text style={styles.avatarText}>
-                {item.avatar || item.username.charAt(0).toUpperCase()}
+                {item.username.charAt(0).toUpperCase()}
               </Text>
             </View>
           )}

@@ -5403,15 +5403,30 @@ app.get('/api/rankings/games', async (req, res) => {
 
     const result = await pool.query(query);
 
-    const rankings = result.rows.map(row => ({
-      rank: row.rank,
-      id: row.id,
-      username: row.username,
-      avatar: row.avatar ? `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}` : null,
-      level: row.level || 1,
-      verified: row.verified || false,
-      score: row.score
-    }));
+    const rankings = result.rows.map(row => {
+      let avatarUrl = null;
+      if (row.avatar) {
+        if (row.avatar.startsWith('/api/users/avatar/')) {
+          // Extract avatar ID from the URL
+          const avatarId = row.avatar.split('/').pop();
+          avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${avatarId}`;
+        } else if (row.avatar.startsWith('http')) {
+          avatarUrl = row.avatar;
+        } else {
+          avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}`;
+        }
+      }
+
+      return {
+        rank: row.rank,
+        id: row.id,
+        username: row.username,
+        avatar: avatarUrl,
+        level: row.level || 1,
+        verified: row.verified || false,
+        score: row.score
+      };
+    });
 
     console.log(`Returning ${rankings.length} game rankings`);
     res.json(rankings);
@@ -5425,33 +5440,56 @@ app.get('/api/rankings/wealth', async (req, res) => {
   try {
     console.log('Fetching wealth rankings...');
 
-    // Query users with credits, ordered by credits
+    // Query users with total spending from gifts and games, ordered by total spending
     const query = `
       SELECT 
-        ROW_NUMBER() OVER (ORDER BY COALESCE(credits, 0) DESC) as rank,
-        id::text,
-        username,
-        avatar,
-        level,
-        verified,
-        COALESCE(credits, 0) as credits
-      FROM users 
-      WHERE COALESCE(credits, 0) > 0
-      ORDER BY COALESCE(credits, 0) DESC
+        ROW_NUMBER() OVER (ORDER BY total_spending DESC) as rank,
+        u.id::text,
+        u.username,
+        u.avatar,
+        u.level,
+        u.verified,
+        total_spending as credits
+      FROM users u
+      LEFT JOIN (
+        SELECT 
+          from_user_id as user_id,
+          SUM(amount) as total_spending
+        FROM credit_transactions 
+        WHERE from_user_id IS NOT NULL
+        GROUP BY from_user_id
+      ) spending ON u.id = spending.user_id
+      WHERE COALESCE(total_spending, 0) > 0
+      ORDER BY total_spending DESC
       LIMIT 50
     `;
 
     const result = await pool.query(query);
 
-    const rankings = result.rows.map(row => ({
-      rank: row.rank,
-      id: row.id,
-      username: row.username,
-      avatar: row.avatar ? `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}` : null,
-      level: row.level || 1,
-      verified: row.verified || false,
-      credits: row.credits
-    }));
+    const rankings = result.rows.map(row => {
+      let avatarUrl = null;
+      if (row.avatar) {
+        if (row.avatar.startsWith('/api/users/avatar/')) {
+          // Extract avatar ID from the URL
+          const avatarId = row.avatar.split('/').pop();
+          avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${avatarId}`;
+        } else if (row.avatar.startsWith('http')) {
+          avatarUrl = row.avatar;
+        } else {
+          avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}`;
+        }
+      }
+
+      return {
+        rank: row.rank,
+        id: row.id,
+        username: row.username,
+        avatar: avatarUrl,
+        level: row.level || 1,
+        verified: row.verified || false,
+        credits: row.credits || 0
+      };
+    });
 
     console.log(`Returning ${rankings.length} wealth rankings`);
     res.json(rankings);
@@ -5483,15 +5521,30 @@ app.get('/api/rankings/gifts', async (req, res) => {
 
     const result = await pool.query(query);
 
-    const rankings = result.rows.map(row => ({
-      rank: row.rank,
-      id: row.id,
-      username: row.username,
-      avatar: row.avatar ? `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}` : null,
-      level: row.level || 1,
-      verified: row.verified || false,
-      totalGifts: row.totalgifts
-    }));
+    const rankings = result.rows.map(row => {
+      let avatarUrl = null;
+      if (row.avatar) {
+        if (row.avatar.startsWith('/api/users/avatar/')) {
+          // Extract avatar ID from the URL
+          const avatarId = row.avatar.split('/').pop();
+          avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${avatarId}`;
+        } else if (row.avatar.startsWith('http')) {
+          avatarUrl = row.avatar;
+        } else {
+          avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}`;
+        }
+      }
+
+      return {
+        rank: row.rank,
+        id: row.id,
+        username: row.username,
+        avatar: avatarUrl,
+        level: row.level || 1,
+        verified: row.verified || false,
+        totalGifts: row.totalgifts
+      };
+    });
 
     console.log(`Returning ${rankings.length} gift rankings`);
     res.json(rankings);
