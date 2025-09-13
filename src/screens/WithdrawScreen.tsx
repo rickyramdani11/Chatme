@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
 import { API_BASE_URL } from '../utils/apiConfig';
 
-const USD_TO_IDR = 15500;
+// Dynamic exchange rate (fetched from server)
 const MIN_WITHDRAW_USD = 10;
 
 interface BankAccount {
@@ -43,12 +43,19 @@ export default function WithdrawScreen({ navigation }: any) {
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState({
+    usdToIdr: 15500, // fallback
+    minWithdrawCoins: 155000,
+    timestamp: null
+  });
   const [showAccountLinkModal, setShowAccountLinkModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState<any>(null);
   const [selectedType, setSelectedType] = useState<'bank' | 'ewallet'>('bank');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
   const [isLinking, setIsLinking] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([]);
 
   const ewalletOptions = [
     { id: 'dana', name: 'DANA', icon: 'wallet' },
@@ -66,9 +73,27 @@ export default function WithdrawScreen({ navigation }: any) {
   ];
 
   useEffect(() => {
+    fetchExchangeRate();
     fetchUserBalance();
     fetchLinkedAccounts();
   }, []);
+
+  const fetchExchangeRate = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/exchange-rate`);
+      if (response.ok) {
+        const data = await response.json();
+        setExchangeRate({
+          usdToIdr: data.usdToIdr,
+          minWithdrawCoins: data.minWithdrawCoins,
+          timestamp: data.timestamp
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      // Keep fallback values
+    }
+  };
 
   const fetchUserBalance = async () => {
     try {
@@ -97,6 +122,24 @@ export default function WithdrawScreen({ navigation }: any) {
     }
   };
 
+  const fetchWithdrawalHistory = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/withdrawal-history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setWithdrawalHistory(data.withdrawals || []);
+      }
+    } catch (error: any) {
+      console.error('Error fetching withdrawal history:', error);
+    }
+  };
+
   const fetchLinkedAccounts = async () => {
     try {
 
@@ -111,7 +154,7 @@ export default function WithdrawScreen({ navigation }: any) {
         const data = await response.json();
         setLinkedAccounts(data.accounts || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching linked accounts:', error);
     }
   };
@@ -236,7 +279,7 @@ export default function WithdrawScreen({ navigation }: any) {
       return;
     }
 
-    const idrAmount = amount * USD_TO_IDR;
+    const idrAmount = amount * exchangeRate.usdToIdr;
     Alert.alert(
       'Confirm Withdrawal',
       `Withdraw $${amount} USD (Rp${idrAmount.toLocaleString()}) from gift earnings to ${selectedAccount.name}?\n\nAccount: ${selectedAccount.accountNumber}\nFee: 3% (Rp${(idrAmount * 0.03).toLocaleString()})\nYou'll receive: Rp${(idrAmount * 0.97).toLocaleString()}`,
@@ -309,7 +352,14 @@ export default function WithdrawScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Withdraw</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity 
+          onPress={() => {
+            fetchWithdrawalHistory();
+            setShowHistoryModal(true);
+          }}
+        >
+          <Ionicons name="time-outline" size={24} color="#007AFF" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
@@ -319,7 +369,7 @@ export default function WithdrawScreen({ navigation }: any) {
           <View style={styles.balanceRow}>
             <View style={styles.coinIcon} />
             <Text style={styles.balanceAmount}>{giftEarningsBalance.balance.toLocaleString()}</Text>
-            <Text style={styles.balanceIdr}>≈${giftEarningsBalance.balanceUSD.toFixed(2)} USD</Text>
+            <Text style={styles.balanceIdr}>≈${giftEarningsBalance.balanceUSD.toFixed(2)} USD (1 USD = {exchangeRate.usdToIdr.toLocaleString()} IDR)</Text>
           </View>
           <View style={styles.earningsInfo}>
             <Text style={styles.earningsText}>Total Earned: {giftEarningsBalance.totalEarned.toLocaleString()} coins</Text>
@@ -485,7 +535,7 @@ export default function WithdrawScreen({ navigation }: any) {
               {withdrawAmount && (
                 <View style={styles.conversionInfo}>
                   <Text style={styles.conversionText}>
-                    ${withdrawAmount} USD = Rp{(parseFloat(withdrawAmount || '0') * USD_TO_IDR).toLocaleString()}
+                    ${withdrawAmount} USD = Rp{(parseFloat(withdrawAmount || '0') * exchangeRate.usdToIdr).toLocaleString()}
                   </Text>
                 </View>
               )}

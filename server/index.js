@@ -4693,6 +4693,7 @@ const CHANNEL_CODE_MAPPING = {
   'cimb': 'CIMB',
   'permata': 'PERMATA',
   'danamon': 'DANAMON',
+  'jago': 'JAGO',
   'maybank': 'MAYBANK',
   'btn': 'BTN',
   'panin': 'PANIN',
@@ -5237,6 +5238,28 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
     res.status(500).json({ error: 'Failed to process callback' });
   } finally {
     client.release();
+  }
+});
+
+// Get current exchange rate
+app.get('/api/exchange-rate', async (req, res) => {
+  try {
+    const rate = await getExchangeRate();
+    res.json({
+      usdToIdr: rate,
+      minWithdrawUSD: 10,
+      minWithdrawCoins: Math.floor(10 * rate),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching exchange rate:', error);
+    // Fallback to default rate if API fails
+    res.json({
+      usdToIdr: 15500,
+      minWithdrawUSD: 10,
+      minWithdrawCoins: 155000,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
