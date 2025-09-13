@@ -48,6 +48,7 @@ const HomeScreen = ({ navigation }: any) => {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showFriendMenu, setShowFriendMenu] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [userBalance, setUserBalance] = useState(0);
   const { token } = useAuth();
 
 
@@ -224,6 +225,7 @@ const HomeScreen = ({ navigation }: any) => {
     fetchFriends();
     fetchActiveUsers();
     fetchNotifications();
+    fetchUserBalance();
   }, []);
 
   const fetchNotifications = async () => {
@@ -255,6 +257,30 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  const fetchUserBalance = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserBalance(data.balance || 0);
+      } else {
+        console.error('Failed to fetch user balance');
+        setUserBalance(0);
+      }
+    } catch (error) {
+      console.error('Error fetching user balance:', error);
+      setUserBalance(0);
+    }
+  };
+
   // Handle search with debounce
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
@@ -278,6 +304,7 @@ const HomeScreen = ({ navigation }: any) => {
     await fetchFriends();
     await fetchRooms(); // Also refresh rooms on pull-to-refresh
     await fetchActiveUsers(); // Also refresh active users
+    await fetchUserBalance(); // Also refresh user balance
     setRefreshing(false);
   };
 
@@ -624,9 +651,10 @@ const HomeScreen = ({ navigation }: any) => {
             <Text style={styles.statusLabel}>{getStatusText(userStatus)}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="search" size={24} color="#fff" />
-          </TouchableOpacity>
+          <View style={styles.coinBalance}>
+            <Ionicons name="logo-bitcoin" size={20} color="#FFD700" />
+            <Text style={styles.coinText}>{userBalance.toLocaleString()}</Text>
+          </View>
 
           <TouchableOpacity style={[styles.iconButton, styles.notificationButton]} onPress={() => navigation.navigate('Notifications')}>
             <Ionicons name="notifications" size={24} color="#fff" />
@@ -1087,6 +1115,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  coinBalance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  coinText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 6,
   },
   // Friend Context Menu Styles
   modalOverlay: {
