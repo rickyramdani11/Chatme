@@ -187,30 +187,42 @@ const saveChatMessage = async (roomId, username, content, media = null, messageT
 // Database initialization - create tables if they don't exist
 const initDatabase = async () => {
   try {
-    // Create users table only if it doesn't exist (preserve existing data)
+    // Create users table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id BIGSERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        phone VARCHAR(20),
-        country VARCHAR(50),
-        gender VARCHAR(10),
         bio TEXT DEFAULT '',
-        avatar TEXT,
+        phone VARCHAR(20) DEFAULT '',
+        avatar VARCHAR(255) DEFAULT '',
         verified BOOLEAN DEFAULT false,
-        birth_date DATE,
-        signature TEXT,
         role VARCHAR(20) DEFAULT 'user',
-        pin VARCHAR(6) DEFAULT '123456',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP,
         exp INTEGER DEFAULT 0,
-        level INTEGER DEFAULT 1
+        level INTEGER DEFAULT 1,
+        credits INTEGER DEFAULT 0,
+        pin VARCHAR(6) DEFAULT '',
+        pin_enabled BOOLEAN DEFAULT false,
+        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        game_score INTEGER DEFAULT 0,
+        total_gifts_received INTEGER DEFAULT 0
       )
     `);
+
+    // Add ranking columns if they don't exist
+    try {
+      await pool.query(`
+        ALTER TABLE users 
+        ADD COLUMN IF NOT EXISTS game_score INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS total_gifts_received INTEGER DEFAULT 0
+      `);
+    } catch (error) {
+      // Columns might already exist, ignore error
+      console.log('Ranking columns already exist or error adding them:', error.message);
+    }
+
 
     // Add role column if it doesn't exist (for existing databases)
     await pool.query(`
@@ -3058,7 +3070,6 @@ app.get('/api/users/avatar/:avatarId', async (req, res) => {
       }
 
       res.setHeader('Content-Type', contentType);
-      res.setHeader('Content-Length', buffer.length);
       res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
       res.setHeader('Content-Disposition', `inline; filename="${avatar.filename}"`);
 
@@ -5367,6 +5378,127 @@ app.get('/api/test', (req, res) => {
     timestamp: new Date().toISOString(),
     port: PORT 
   });
+});
+
+// Add ranking endpoints for games, wealth, and gifts
+app.get('/api/rankings/games', async (req, res) => {
+  try {
+    console.log('Fetching games rankings...');
+
+    // Query users with game scores, ordered by score
+    const query = `
+      SELECT 
+        ROW_NUMBER() OVER (ORDER BY COALESCE(game_score, 0) DESC) as rank,
+        id::text,
+        username,
+        avatar,
+        level,
+        verified,
+        COALESCE(game_score, 0) as score
+      FROM users 
+      WHERE COALESCE(game_score, 0) > 0
+      ORDER BY COALESCE(game_score, 0) DESC
+      LIMIT 50
+    `;
+
+    const result = await pool.query(query);
+
+    const rankings = result.rows.map(row => ({
+      rank: row.rank,
+      id: row.id,
+      username: row.username,
+      avatar: row.avatar ? `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}` : null,
+      level: row.level || 1,
+      verified: row.verified || false,
+      score: row.score
+    }));
+
+    console.log(`Returning ${rankings.length} game rankings`);
+    res.json(rankings);
+  } catch (error) {
+    console.error('Error fetching game rankings:', error);
+    res.status(500).json({ error: 'Failed to fetch game rankings' });
+  }
+});
+
+app.get('/api/rankings/wealth', async (req, res) => {
+  try {
+    console.log('Fetching wealth rankings...');
+
+    // Query users with credits, ordered by credits
+    const query = `
+      SELECT 
+        ROW_NUMBER() OVER (ORDER BY COALESCE(credits, 0) DESC) as rank,
+        id::text,
+        username,
+        avatar,
+        level,
+        verified,
+        COALESCE(credits, 0) as credits
+      FROM users 
+      WHERE COALESCE(credits, 0) > 0
+      ORDER BY COALESCE(credits, 0) DESC
+      LIMIT 50
+    `;
+
+    const result = await pool.query(query);
+
+    const rankings = result.rows.map(row => ({
+      rank: row.rank,
+      id: row.id,
+      username: row.username,
+      avatar: row.avatar ? `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}` : null,
+      level: row.level || 1,
+      verified: row.verified || false,
+      credits: row.credits
+    }));
+
+    console.log(`Returning ${rankings.length} wealth rankings`);
+    res.json(rankings);
+  } catch (error) {
+    console.error('Error fetching wealth rankings:', error);
+    res.status(500).json({ error: 'Failed to fetch wealth rankings' });
+  }
+});
+
+app.get('/api/rankings/gifts', async (req, res) => {
+  try {
+    console.log('Fetching gifts rankings...');
+
+    // Query users with total gifts received, ordered by total gifts
+    const query = `
+      SELECT 
+        ROW_NUMBER() OVER (ORDER BY COALESCE(total_gifts_received, 0) DESC) as rank,
+        id::text,
+        username,
+        avatar,
+        level,
+        verified,
+        COALESCE(total_gifts_received, 0) as totalGifts
+      FROM users 
+      WHERE COALESCE(total_gifts_received, 0) > 0
+      ORDER BY COALESCE(total_gifts_received, 0) DESC
+      LIMIT 50
+    `;
+
+    const result = await pool.query(query);
+
+    const rankings = result.rows.map(row => ({
+      rank: row.rank,
+      id: row.id,
+      username: row.username,
+      avatar: row.avatar ? `${req.protocol}://${req.get('host')}/api/users/avatar/${row.avatar}` : null,
+      level: row.level || 1,
+      verified: row.verified || false,
+      totalGifts: row.totalgifts
+    }));
+
+    console.log(`Returning ${rankings.length} gift rankings`);
+    res.json(rankings);
+  } catch (error) {
+    console.error('Error fetching gift rankings:', error);
+    res.status(500).json({ error: 'Failed to fetch gift rankings' });
+  }
 });
 
 // Run initial cleanup on server start
