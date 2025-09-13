@@ -1783,7 +1783,7 @@ export default function AdminScreen({ navigation }: any) {
           </TouchableOpacity>
         </LinearGradient>
 
-        <ScrollView style={styles.sideMenuContent} contentContainerStyle={styles.sideMenuContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.sideMenuContent} contentContainerStyle={styles.sideMenuScrollContent} showsVerticalScrollIndicator={false}>
           {menuItems.map((item) => (
             <TouchableOpacity
               key={item.id}
@@ -2095,6 +2095,11 @@ const styles = StyleSheet.create({
   sideMenuContent: {
     flex: 1,
     paddingTop: 20,
+  },
+  sideMenuScrollContent: {
+    paddingTop: 20,
+    paddingBottom: 20,
+    flexGrow: 1,
   },
   menuItem: {
     flexDirection: 'row',
