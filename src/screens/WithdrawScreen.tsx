@@ -54,8 +54,6 @@ export default function WithdrawScreen({ navigation }: any) {
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
   const [isLinking, setIsLinking] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([]);
 
   const ewalletOptions = [
     { id: 'dana', name: 'DANA', icon: 'wallet' },
@@ -122,23 +120,6 @@ export default function WithdrawScreen({ navigation }: any) {
     }
   };
 
-  const fetchWithdrawalHistory = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/user/withdrawal-history`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setWithdrawalHistory(data.withdrawals || []);
-      }
-    } catch (error: any) {
-      console.error('Error fetching withdrawal history:', error);
-    }
-  };
 
   const fetchLinkedAccounts = async () => {
     try {
@@ -352,14 +333,7 @@ export default function WithdrawScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Withdraw</Text>
-        <TouchableOpacity 
-          onPress={() => {
-            fetchWithdrawalHistory();
-            setShowHistoryModal(true);
-          }}
-        >
-          <Ionicons name="time-outline" size={24} color="#007AFF" />
-        </TouchableOpacity>
+        <View style={{width: 24}} />
       </View>
 
       <ScrollView style={styles.content}>
@@ -783,7 +757,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   disabledWithdrawButton: {
-    backgroundColor: '#rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   menuSection: {
     backgroundColor: '#fff',
