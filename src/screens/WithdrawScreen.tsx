@@ -396,16 +396,64 @@ export default function WithdrawScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Linked Accounts Section */}
+        {linkedAccounts.length > 0 ? (
+          <View style={styles.linkedAccountSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Ikat kartu bank</Text>
+              <TouchableOpacity 
+                onPress={() => setShowBankModal(true)}
+                style={styles.changeButton}
+              >
+                <Text style={styles.changeButtonText}>mau ubah?</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.walletSection}>
+              <Text style={styles.walletTitle}>WALLET</Text>
+              
+              {linkedAccounts.map((account, index) => (
+                <View key={account.id} style={styles.accountCard}>
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountLabel}>Negara & Mata Uang</Text>
+                    <Text style={styles.accountValue}>Indonesia&IDR</Text>
+                  </View>
+                  
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountLabel}>Nama</Text>
+                    <Text style={styles.accountValue}>
+                      {account.accountName.substring(0, 1)}***{account.accountName.slice(-1)}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountLabel}>Akun</Text>
+                    <Text style={styles.accountValue}>
+                      {account.accountNumber.substring(0, 1)}{'*'.repeat(account.accountNumber.length - 2)}{account.accountNumber.slice(-1)}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              
+              <Text style={styles.linkedSuccessText}>
+                Kartu bank telah berhasil diikat, <Text style={styles.changeLink}>mau ubah?</Text>
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.menuSection}>
+            <MenuButton
+              icon="card"
+              title="Ikat kartu bank"
+              subtitle="Ubah pengikatan"
+              onPress={() => setShowBankModal(true)}
+              iconColor="#9C27B0"
+            />
+          </View>
+        )}
+
         {/* Menu Items */}
         <View style={styles.menuSection}>
-          <MenuButton
-            icon="card"
-            title="Ikat kartu bank"
-            subtitle="Ubah pengikatan"
-            onPress={() => setShowBankModal(true)}
-            iconColor="#9C27B0"
-          />
-
           <MenuButton
             icon="receipt"
             title="Riwayat penarikan"
@@ -419,6 +467,33 @@ export default function WithdrawScreen({ navigation }: any) {
             onPress={() => Alert.alert('Detail Koin', '1 Koin = 1 IDR\n1 USD = 15,500 IDR\nMinimal penarikan: $10 USD')}
             iconColor="#9C27B0"
           />
+        </View>
+
+        {/* Gift Earnings Details */}
+        <View style={styles.giftEarningsSection}>
+          <Text style={styles.sectionTitle}>Pendapatan dari Gift</Text>
+          <View style={styles.giftEarningsCard}>
+            <View style={styles.giftEarningsInfo}>
+              <Text style={styles.giftEarningsText}>
+                Total pendapatan dari gift (setelah dipotong 70%):
+              </Text>
+              <Text style={styles.giftEarningsAmount}>
+                {giftEarningsBalance.balance.toLocaleString()} coins
+              </Text>
+              <Text style={styles.giftEarningsUsd}>
+                ≈ ${giftEarningsBalance.balanceUSD.toFixed(2)} USD
+              </Text>
+            </View>
+            <View style={styles.giftExample}>
+              <View style={styles.giftExampleRow}>
+                <Text style={styles.giftIcon}>❤️</Text>
+                <View style={styles.giftExampleInfo}>
+                  <Text style={styles.giftExampleName}>Love</Text>
+                  <Text style={styles.giftExamplePrice}>500 coins → 150 coins (30%)</Text>
+                </View>
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* Information */}
@@ -903,5 +978,147 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  // New styles for linked accounts display
+  linkedAccountSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  changeButton: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  changeButtonText: {
+    color: '#FF69B4',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  walletSection: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 15,
+  },
+  walletTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 15,
+    letterSpacing: 1,
+  },
+  accountCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  accountInfo: {
+    marginBottom: 12,
+  },
+  accountLabel: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+  },
+  accountValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  linkedSuccessText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  changeLink: {
+    color: '#FF69B4',
+    fontWeight: '500',
+  },
+  // Gift earnings section styles
+  giftEarningsSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  giftEarningsCard: {
+    backgroundColor: '#F0F8F4',
+    borderRadius: 8,
+    padding: 15,
+  },
+  giftEarningsInfo: {
+    marginBottom: 15,
+  },
+  giftEarningsText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  giftEarningsAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    marginBottom: 5,
+  },
+  giftEarningsUsd: {
+    fontSize: 16,
+    color: '#666',
+  },
+  giftExample: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    paddingTop: 15,
+  },
+  giftExampleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  giftIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  giftExampleInfo: {
+    flex: 1,
+  },
+  giftExampleName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  giftExamplePrice: {
+    fontSize: 14,
+    color: '#666',
   },
 });
