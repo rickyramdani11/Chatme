@@ -4161,6 +4161,14 @@ export default function ChatScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Coin Balance Display */}
+            <View style={styles.coinBalanceDisplay}>
+              <View style={styles.coinBalanceRow}>
+                <Ionicons name="diamond" size={20} color="#FFD700" />
+                <Text style={styles.coinBalanceText}>Balance: {user?.balance || 0} coins</Text>
+              </View>
+            </View>
+
             <ScrollView style={styles.giftPickerContent} showsVerticalScrollIndicator={false}>
               <View style={styles.giftGrid}>
                 {giftList.map((gift, index) => (
@@ -4473,17 +4481,15 @@ export default function ChatScreen() {
               </View>
             )}
 
-            {/* Static GIF layer for non-MP4 animations (small) */}
+            {/* Fullscreen GIF layer for non-MP4 animations with transparency */}
             {activeGiftAnimation.animation && 
              !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
              !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
-              <View style={styles.smallGiftContainer}>
-                <Image 
-                  source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
-                  style={styles.smallGiftImage}
-                  resizeMode="contain"
-                />
-              </View>
+              <Image 
+                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
+                style={styles.fullScreenGif}
+                resizeMode="cover"
+              />
             )}
 
             {/* Fallback emoji/icon layer (small) */}
@@ -4516,13 +4522,7 @@ export default function ChatScreen() {
             </Text>
           </Animated.View>
 
-          {/* Close Button - Top Right */}
-          <TouchableOpacity 
-            style={styles.closeGiftButtonTop}
-            onPress={() => setActiveGiftAnimation(null)}
-          >
-            <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
+          
         </View>
       )}
     </SafeAreaView>
@@ -5435,7 +5435,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '85%',
+    height: '50%',
     paddingBottom: 20,
   },
   giftPickerHeader: {
@@ -5728,7 +5728,7 @@ const styles = StyleSheet.create({
   },
   giftPreviewImage: {
     width: 60,
-    height: 60,
+    height: 70,
     borderRadius: 8,
     resizeMode: 'contain',
   },
@@ -5815,7 +5815,7 @@ const styles = StyleSheet.create({
     top: '45%',
     left: '45%',
     width: 60,
-    height: 60,
+    height: 70,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -5824,8 +5824,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   smallGiftImage: {
-    width: 30,
-    height: 30,
+    width: 60,
+    height: 70,
   },
   smallGiftEmoji: {
     fontSize: 24,
@@ -5834,14 +5834,14 @@ const styles = StyleSheet.create({
   giftInfoOverlay: {
     position: 'absolute',
     bottom: 120,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    borderRadius: 15,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    left: '25%',
+    right: '25%',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     alignItems: 'center',
-    backdropFilter: 'blur(10px)',
+    backdropFilter: 'blur(5px)',
     zIndex: 1002,
   },
   giftSenderName: {
@@ -5863,18 +5863,31 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
-  closeGiftButtonTop: {
+  fullScreenGif: {
     position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 1003,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 25,
-    width: 50,
-    height: 50,
-    justifyContent: 'center',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+    opacity: 0.5, // Semi transparent for GIF
+  },
+  coinBalanceDisplay: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+  },
+  coinBalanceRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backdropFilter: 'blur(10px)',
+    justifyContent: 'center',
+  },
+  coinBalanceText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginLeft: 8,
   },
   // User Tag Menu Styles
   userTagModalOverlay: {
