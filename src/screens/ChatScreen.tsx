@@ -83,6 +83,8 @@ export default function ChatScreen() {
   const [showGiftPicker, setShowGiftPicker] = useState(false);
   const [selectedGift, setSelectedGift] = useState<any>(null);
   const [giftList, setGiftList] = useState<any[]>([]);
+  const [activeGiftTab, setActiveGiftTab] = useState<'all' | 'special'>('all');
+  const [sendToAllUsers, setSendToAllUsers] = useState(false);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
@@ -3535,6 +3537,44 @@ export default function ChatScreen() {
     }
   };
 
+  // Handle gift sending to all users in room
+  const handleGiftSendToAll = async (gift: any) => {
+    if (!user || !user.balance || user.balance < gift.price * participants.length) {
+      Alert.alert('Insufficient Coins', `You need ${(gift.price * participants.length).toLocaleString()} coins to send this gift to all users in the room.`);
+      return;
+    }
+
+    const totalCost = gift.price * participants.length;
+    Alert.alert(
+      'Send Gift to All Users',
+      `Send ${gift.name} ${gift.icon} to all ${participants.length} users in room for ${totalCost.toLocaleString()} coins?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send',
+          onPress: () => {
+            participants.forEach(participant => {
+              if (participant.username !== user.username) {
+                // Send gift to each participant
+                socket?.emit('sendGift', {
+                  gift,
+                  sender: user.username,
+                  recipient: participant.username,
+                  roomId: chatTabs[activeTab]?.id,
+                  cost: gift.price,
+                  timestamp: new Date().toISOString(),
+                  isPrivate: false
+                });
+              }
+            });
+            setShowGiftPicker(false);
+            setSendToAllUsers(false);
+          }
+        }
+      ]
+    );
+  };
+
   // Function to send gift to room
   const handleGiftSend = async (gift: any, recipientUsername?: string) => {
     try {
@@ -4340,7 +4380,40 @@ export default function ChatScreen() {
             <View style={styles.giftPickerHeader}>
               <Text style={styles.giftPickerTitle}>Send Gift 🎁</Text>
               <TouchableOpacity onPress={() => setShowGiftPicker(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Gift Category Tabs */}
+            <View style={styles.giftCategoryTabs}>
+              <View style={styles.tabRow}>
+                <TouchableOpacity 
+                  style={[styles.categoryTab, activeGiftTab === 'all' && styles.activeCategoryTab]}
+                  onPress={() => setActiveGiftTab('all')}
+                >
+                  <Text style={[styles.categoryTabText, activeGiftTab === 'all' && styles.activeCategoryTabText]}>Semua hadiah</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.categoryTab, activeGiftTab === 'special' && styles.activeCategoryTab]}
+                  onPress={() => setActiveGiftTab('special')}
+                >
+                  <Text style={[styles.categoryTabText, activeGiftTab === 'special' && styles.activeCategoryTabText]}>Hadiah Ketertarikan</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Send to All Toggle */}
+            <View style={styles.sendToAllContainer}>
+              <TouchableOpacity 
+                style={styles.sendToAllToggle}
+                onPress={() => setSendToAllUsers(!sendToAllUsers)}
+              >
+                <Ionicons 
+                  name={sendToAllUsers ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={sendToAllUsers ? "#4ADE80" : "#666"} 
+                />
+                <Text style={styles.sendToAllText}>Kirim ke semua user di room</Text>
               </TouchableOpacity>
             </View>
 
@@ -4352,19 +4425,19 @@ export default function ChatScreen() {
               </View>
             </View>
 
-            <ScrollView style={styles.giftPickerContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.giftGrid}>
-                {giftList.map((gift, index) => (
-                  <View key={`${gift.id}-${index}`} style={styles.giftItemContainer}>
-                    <TouchableOpacity
-                      style={styles.giftItem}
-                      onPress={() => handleGiftSend(gift)}
-                    >
-                    <View style={styles.giftIconContainer}>
+            <FlatList
+              data={activeGiftTab === 'all' ? giftList : giftList.filter(gift => gift.category === 'special' || gift.special)}
+              renderItem={({ item: gift, index }) => (
+                <View style={styles.newGiftItemContainer}>
+                  <TouchableOpacity
+                    style={styles.newGiftItem}
+                    onPress={() => sendToAllUsers ? handleGiftSendToAll(gift) : handleGiftSend(gift)}
+                  >
+                    <View style={styles.newGiftIconContainer}>
                       {gift.image ? (
                         <Image 
                           source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
-                          style={styles.giftPreviewImage} 
+                          style={styles.giftImage} 
                           resizeMode="contain"
                         />
                       ) : gift.animation ? (
@@ -4373,7 +4446,7 @@ export default function ChatScreen() {
                         (gift.name && (gift.name.toLowerCase().includes('love') || gift.name.toLowerCase().includes('ufo'))) ? (
                           <Video
                             source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
-                            style={styles.giftPreviewImage}
+                            style={styles.giftImage}
                             resizeMode="contain"
                             shouldPlay={false}
                             isLooping={false}
@@ -4383,12 +4456,12 @@ export default function ChatScreen() {
                           // For GIF animations
                           <Image 
                             source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
-                            style={styles.giftPreviewImage} 
+                            style={styles.giftImage} 
                             resizeMode="contain"
                           />
                         )
                       ) : (
-                        <Text style={styles.giftIcon}>{gift.icon}</Text>
+                        <Text style={styles.newGiftIcon}>{gift.icon}</Text>
                       )}
                       {gift.type === 'animated' && (
                         <View style={styles.animatedBadge}>
@@ -4396,30 +4469,27 @@ export default function ChatScreen() {
                         </View>
                       )}
                     </View>
-                    <Text style={styles.giftName}>{gift.name}</Text>
+                    <Text style={styles.newGiftName}>{gift.name}</Text>
                     <View style={styles.giftPriceContainer}>
                       <Ionicons name="diamond-outline" size={12} color="#FFD700" />
-                      <Text style={styles.giftPrice}>{gift.price}</Text>
+                      <Text style={styles.newGiftPrice}>{gift.price}</Text>
                     </View>
+                  </TouchableOpacity>
+                  <View style={styles.giftActionButtons}>
+                    <TouchableOpacity
+                      style={styles.sendToUserButton}
+                      onPress={() => handleGiftSendToUser(gift)}
+                    >
+                      <Text style={styles.giftActionText}>User</Text>
                     </TouchableOpacity>
-                    <View style={styles.giftActionButtons}>
-                      <TouchableOpacity
-                        style={styles.sendToRoomButton}
-                        onPress={() => handleGiftSend(gift)}
-                      >
-                        <Text style={styles.giftActionText}>Room</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.sendToUserButton}
-                        onPress={() => handleGiftSendToUser(gift)}
-                      >
-                        <Text style={styles.giftActionText}>User</Text>
-                      </TouchableOpacity>
-                    </View>
                   </View>
-                ))}
-              </View>
-            </ScrollView>
+                </View>
+              )}
+              numColumns={2}
+              keyExtractor={(gift, index) => `${gift.id}-${index}`}
+              contentContainerStyle={styles.giftGridContainer}
+              showsVerticalScrollIndicator={false}
+            />
           </View>
         </View>
       </Modal>
@@ -5669,7 +5739,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    height: '50%',
+    height: '70%',
     paddingBottom: 20,
   },
   giftPickerHeader: {
@@ -5691,6 +5761,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#444',
+  },
+  tabRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  sendToAllContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+  },
+  sendToAllToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sendToAllText: {
+    fontSize: 14,
+    color: '#fff',
+    marginLeft: 8,
+    fontWeight: '500',
   },
   categoryTab: {
     paddingHorizontal: 20,
@@ -5749,8 +5839,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   newGiftItemContainer: {
-    width: '48%',
-    marginBottom: 20,
+    flex: 0.5,
+    marginHorizontal: 5,
+    marginBottom: 15,
   },
   newGiftItem: {
     backgroundColor: '#3C3C3E',
@@ -5848,6 +5939,17 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: 'center',
   },
+  newGiftPrice: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginLeft: 4,
+  },
+  giftGridContainer: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    textAlign: 'center',
+  },
   newGiftPriceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -5891,8 +5993,8 @@ const styles = StyleSheet.create({
   },
   giftActionButtons: {
     flexDirection: 'row',
+    justifyContent: 'center',
     marginTop: 6,
-    gap: 4,
   },
   sendToRoomButton: {
     flex: 1,
