@@ -29,7 +29,7 @@ import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
-import { Meeting, MeetingProvider, useMeeting } from '@videosdk.live/react-native-sdk';
+import Daily, { DailyMediaView } from '@daily-co/react-native-daily-js';
 
 const { width } = Dimensions.get('window');
 
@@ -232,7 +232,7 @@ export default function ChatScreen() {
 
     Alert.alert(
       'Start Video Call',
-      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 30% of each payment\n\nStart call with ${targetUser.username}?`,
+      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 70% to balance + 30% to withdraw\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -260,7 +260,7 @@ export default function ChatScreen() {
 
     Alert.alert(
       'Start Audio Call',
-      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 30% of each payment\n\nStart call with ${targetUser.username}?`,
+      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n• Recipient gets 70% to balance + 30% to withdraw\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -4714,23 +4714,18 @@ export default function ChatScreen() {
 
           <View style={styles.videoCallContainer}>
             {isInCall && (
-              <MeetingProvider
-                config={{
-                  meetingId: `call_${currentRoomId}_${Date.now()}`,
-                  micEnabled: true,
-                  webcamEnabled: callType === 'video',
-                  name: user?.username || 'User',
-                  // You'll need to add your VideoSDK token here
-                  token: 'YOUR_VIDEOSDK_TOKEN_HERE',
-                }}
-                token='YOUR_VIDEOSDK_TOKEN_HERE'
-              >
-                <Meeting
-                  onMeetingLeft={() => {
-                    endCall();
-                  }}
-                />
-              </MeetingProvider>
+              <View style={{ flex: 1, backgroundColor: '#000' }}>
+                <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
+                  Call Active with {targetUser?.username}
+                </Text>
+                <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
+                  {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
+                </Text>
+                <Text style={{ color: '#FFD700', textAlign: 'center', marginTop: 5 }}>
+                  Cost: {callCost} coins
+                </Text>
+                {/* Daily.co video implementation will be added here */}
+              </View>
             )}
           </View>
 

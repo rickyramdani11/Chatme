@@ -4449,8 +4449,10 @@ app.post('/api/feed/posts/with-media', async (req, res) => {
 const SOCKET_GATEWAY_URL = process.env.SOCKET_GATEWAY_URL || 'http://0.0.0.0:5001';
 
 
-// Deduct coins for calls with recipient share
+// Deduct coins for calls with recipient share (70% balance + 30% withdraw)
 app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
   try {
     const userId = req.user.userId;
     const { amount, type, description, recipientUsername } = req.body;
@@ -4459,80 +4461,97 @@ app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    // Check user balance
-    const userResult = await pool.query('SELECT balance FROM users WHERE id = $1', [userId]);
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (!recipientUsername) {
+      return res.status(400).json({ error: 'Recipient username required' });
     }
 
-    const currentBalance = userResult.rows[0].balance;
-    if (currentBalance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance' });
+    // Prevent self-calling to avoid abuse
+    if (req.user.username === recipientUsername) {
+      return res.status(400).json({ error: 'Cannot call yourself' });
     }
 
-    // Calculate recipient share (30%)
-    const recipientShare = Math.floor(amount * 0.3);
-    const systemShare = amount - recipientShare;
-
-    // Start transaction
-    await pool.query('BEGIN');
+    await client.query('BEGIN');
 
     try {
+      // Lock and check caller balance to prevent race conditions
+      const userResult = await client.query('SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE', [userId]);
+      if (userResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const currentBalance = userResult.rows[0].balance;
+      if (currentBalance < amount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient balance' });
+      }
+
+      // Calculate shares: 70% to recipient balance, 30% to recipient withdraw
+      const recipientBalanceShare = Math.floor(amount * 0.7);
+      const recipientWithdrawShare = amount - recipientBalanceShare;
+
+      // Get recipient ID and validate exists
+      const recipientResult = await client.query('SELECT id FROM users WHERE username = $1', [recipientUsername]);
+      if (recipientResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Recipient not found' });
+      }
+      const recipientId = recipientResult.rows[0].id;
+
       // Deduct from caller
-      await pool.query(
-        'UPDATE users SET balance = balance - $1 WHERE id = $2',
+      await client.query(
+        'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
         [amount, userId]
       );
 
-      // Add to recipient if exists
-      if (recipientUsername) {
-        const recipientResult = await pool.query(
-          'SELECT id FROM users WHERE username = $1',
-          [recipientUsername]
-        );
+      // Add 70% to recipient's regular balance
+      await client.query(`
+        INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)
+        ON CONFLICT (user_id) DO UPDATE SET 
+          balance = user_credits.balance + EXCLUDED.balance,
+          updated_at = CURRENT_TIMESTAMP
+      `, [recipientId, recipientBalanceShare]);
 
-        if (recipientResult.rows.length > 0) {
-          const recipientId = recipientResult.rows[0].id;
-          await pool.query(
-            'UPDATE users SET balance = balance + $1 WHERE id = $2',
-            [recipientShare, recipientId]
-          );
+      // Add 30% to recipient's balance withdraw
+      await client.query(`
+        INSERT INTO user_gift_earnings_balance (user_id, balance, total_earned)
+        VALUES ($1, $2, $2)
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          balance = user_gift_earnings_balance.balance + EXCLUDED.balance,
+          total_earned = user_gift_earnings_balance.total_earned + EXCLUDED.balance,
+          updated_at = CURRENT_TIMESTAMP
+      `, [recipientId, recipientWithdrawShare]);
 
-          // Record recipient transaction
-          await pool.query(`
-            INSERT INTO transactions (user_id, type, amount, description, status)
-            VALUES ($1, $2, $3, $4, $5)
-          `, [recipientId, 'call_earning', recipientShare, `Received from ${type}: ${description}`, 'completed']);
-        }
-      }
+      // Record transaction
+      await client.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
+        VALUES ($1, $2, $3, 'call')
+      `, [userId, recipientId, amount]);
 
-      // Record caller transaction
-      await pool.query(`
-        INSERT INTO transactions (user_id, type, amount, description, status)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [userId, type, -amount, description, 'completed']);
-
-      await pool.query('COMMIT');
+      await client.query('COMMIT');
 
       // Get updated balance
-      const updatedUser = await pool.query('SELECT balance FROM users WHERE id = $1', [userId]);
+      const updatedUser = await client.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
       
       res.json({
         success: true,
         newBalance: updatedUser.rows[0].balance,
         deducted: amount,
-        recipientShare,
-        systemShare
+        recipientBalanceShare,
+        recipientWithdrawShare
       });
 
     } catch (error) {
-      await pool.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw error;
     }
 
   } catch (error) {
     console.error('Error deducting coins:', error);
     res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -4863,9 +4882,9 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
         return res.status(400).json({ error: 'Insufficient balance' });
       }
 
-      // Calculate shares: 30% to recipient, 70% to system
-      const recipientShare = Math.floor(giftPrice * 0.3);
-      const systemShare = giftPrice - recipientShare;
+      // Gift earnings go 100% to recipient balance withdraw
+      const recipientShare = giftPrice;
+      const systemShare = 0;
 
       // Record the gift transaction in credit_transactions table
       await client.query(`
@@ -4913,7 +4932,7 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
         }
       });
 
-      console.log(`Gift purchased: ${senderUsername} sent ${giftName} (${giftPrice} coins) to ${recipientUsername}. Recipient earned ${recipientShare} coins (30%), system got ${systemShare} coins (70%)`);
+      console.log(`Gift purchased: ${senderUsername} sent ${giftName} (${giftPrice} coins) to ${recipientUsername}. Recipient earned ${recipientShare} coins (100% to balance withdraw)`);
 
     } catch (error) {
       await client.query('ROLLBACK');

@@ -53,7 +53,14 @@
     },
     "plugins": [
       "expo-router",
-      "@videosdk.live/expo-config-plugin"
+      [
+        "@daily-co/config-plugin-rn-daily-js",
+        {
+          "enableCamera": true,
+          "enableMicrophone": true,
+          "enableScreenShare": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
