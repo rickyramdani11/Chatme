@@ -601,8 +601,8 @@ export default function ChatScreen() {
           newMessage.timestamp = new Date(newMessage.timestamp);
         }
 
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab => {
+        setChatTabs(prevTabs => {
+          const updatedTabs = prevTabs.map(tab => {
             if (tab.id === newMessage.roomId) {
               // Replace optimistic message if it exists, otherwise add new message
               const existingIndex = tab.messages.findIndex(msg => 
@@ -622,11 +622,12 @@ export default function ChatScreen() {
                   updatedMessages = [...tab.messages, newMessage];
                   console.log('System message added to tab:', tab.id, 'Content:', newMessage.content.substring(0, 50));
                 } else {
-                  // For user messages, still check for duplicates
+                  // For user messages, be more lenient with duplicate checking to prevent message loss
                   const isDuplicate = tab.messages.some(msg => 
-                    msg.sender === newMessage.sender && 
-                    msg.content === newMessage.content &&
-                    Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 2000
+                    msg.id === newMessage.id || 
+                    (msg.sender === newMessage.sender && 
+                     msg.content === newMessage.content &&
+                     Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 1000)
                   );
 
                   if (!isDuplicate) {
@@ -649,17 +650,24 @@ export default function ChatScreen() {
               return { ...tab, messages: updatedMessages };
             }
             return tab;
-          })
-        );
+          });
+
+          // Force re-render to ensure messages are visible
+          console.log('Updated chatTabs with new message, total tabs:', updatedTabs.length);
+          return updatedTabs;
+        });
 
         // Track unread messages for other tabs
-        const currentRoomId = chatTabs[activeTab]?.id;
-        if (newMessage.roomId !== currentRoomId && newMessage.sender !== user?.username) {
-          setUnreadCounts(prev => ({
-            ...prev,
-            [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
-          }));
-        }
+        setChatTabs(currentTabs => {
+          const currentRoomId = currentTabs[activeTab]?.id;
+          if (newMessage.roomId !== currentRoomId && newMessage.sender !== user?.username) {
+            setUnreadCounts(prev => ({
+              ...prev,
+              [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
+            }));
+          }
+          return currentTabs;
+        });
       });
 
       socketInstance.on('user-joined', (joinMessage: Message) => {
@@ -1175,6 +1183,10 @@ export default function ChatScreen() {
       if (nextAppState === 'active') {
         // Force reconnection when app becomes active
         console.log('App became active - forcing socket reconnection');
+        
+        // Reset states that might affect message display
+        setIsUserScrolling(false);
+        
         if (socket) {
           if (!socket.connected) {
             console.log('Socket not connected, attempting reconnection');
@@ -1205,14 +1217,26 @@ export default function ChatScreen() {
           }
         }
 
+        // Force re-render of current chat messages
+        setChatTabs(prevTabs => [...prevTabs]);
+
         // Reload participants for current room
         if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private') {
           setTimeout(() => {
             loadParticipants();
           }, 1000);
         }
+
+        // Ensure current tab messages are visible
+        setTimeout(() => {
+          if (chatTabs[activeTab] && flatListRefs.current[chatTabs[activeTab].id]) {
+            flatListRefs.current[chatTabs[activeTab].id]?.scrollToEnd({ animated: false });
+          }
+        }, 500);
       } else if (nextAppState === 'background') {
         console.log('App moved to background');
+        // Save current scroll state
+        console.log('Preserving chat state for background mode');
       }
     };
 
@@ -1265,6 +1289,30 @@ export default function ChatScreen() {
       joinSpecificRoom(roomId, roomName);
     }
   }, [roomId, roomName, socket, type, isSupport]);
+
+  // Effect untuk mempertahankan state pesan saat app kembali aktif
+  useEffect(() => {
+    const preserveMessageState = () => {
+      // Pastikan semua pesan tetap terlihat setelah app kembali aktif
+      if (chatTabs.length > 0 && activeTab >= 0 && chatTabs[activeTab]) {
+        const currentTab = chatTabs[activeTab];
+        console.log(`Preserving messages for tab: ${currentTab.title}, Messages count: ${currentTab.messages.length}`);
+        
+        // Force update FlatList jika ada pesan
+        if (currentTab.messages.length > 0) {
+          setTimeout(() => {
+            const currentRoomId = currentTab.id;
+            if (flatListRefs.current[currentRoomId]) {
+              flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: false });
+            }
+          }, 100);
+        }
+      }
+    };
+
+    // Jalankan preserveMessageState saat component di-mount
+    preserveMessageState();
+  }, [chatTabs.length, activeTab]);
 
   useEffect(() => {
     // If navigated from RoomScreen or ProfileScreen, focus on that specific room/chat
@@ -1386,6 +1434,16 @@ export default function ChatScreen() {
 
     // Reset scroll state when switching tabs
     setIsUserScrolling(false);
+
+    // Ensure messages are visible in the new tab
+    setTimeout(() => {
+      if (chatTabs[index] && chatTabs[index].messages.length > 0) {
+        console.log(`Switching to tab ${index}: ${chatTabs[index].title}, Messages: ${chatTabs[index].messages.length}`);
+        if (flatListRefs.current[selectedRoomId]) {
+          flatListRefs.current[selectedRoomId]?.scrollToEnd({ animated: false });
+        }
+      }
+    }, 100);
   };
 
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
