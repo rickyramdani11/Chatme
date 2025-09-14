@@ -1312,6 +1312,133 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Call notification events
+  socket.on('initiate-call', (callData) => {
+    try {
+      const { targetUsername, callType, callerId, callerName } = callData;
+
+      if (!targetUsername || !callType || !callerId || !callerName) {
+        console.log('❌ Invalid call data:', callData);
+        socket.emit('call-error', { error: 'Invalid call data provided' });
+        return;
+      }
+
+      console.log(`📞 ${callerName} initiating ${callType} call to ${targetUsername}`);
+
+      // Find target user's socket
+      const targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+        userInfo.username === targetUsername
+      );
+
+      if (targetSocket) {
+        const [targetSocketId] = targetSocket;
+        
+        // Send incoming call notification to target user
+        io.to(targetSocketId).emit('incoming-call', {
+          callerId,
+          callerName,
+          callType,
+          timestamp: new Date().toISOString()
+        });
+
+        // Confirm call initiated to caller
+        socket.emit('call-initiated', {
+          targetUsername,
+          callType,
+          status: 'ringing'
+        });
+
+        console.log(`📞 Call notification sent to ${targetUsername}`);
+      } else {
+        console.log(`📞 Target user ${targetUsername} not found or offline`);
+        socket.emit('call-error', { 
+          error: 'User is currently offline or not available',
+          reason: 'user_offline'
+        });
+      }
+
+    } catch (error) {
+      console.error('Error handling initiate-call:', error);
+      socket.emit('call-error', { 
+        error: 'Internal server error',
+        reason: 'server_error'
+      });
+    }
+  });
+
+  // Call response events
+  socket.on('call-response', (responseData) => {
+    try {
+      const { callerId, response, responderName } = responseData; // response: 'accept' or 'decline'
+
+      if (!callerId || !response || !responderName) {
+        console.log('❌ Invalid call response data:', responseData);
+        return;
+      }
+
+      console.log(`📞 ${responderName} ${response}ed call from caller ID ${callerId}`);
+
+      // Find caller's socket
+      const callerSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+        userInfo.userId === callerId
+      );
+
+      if (callerSocket) {
+        const [callerSocketId] = callerSocket;
+        
+        // Send call response to caller
+        io.to(callerSocketId).emit('call-response-received', {
+          response,
+          responderName,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log(`📞 Call ${response} notification sent to caller`);
+      } else {
+        console.log(`📞 Caller ${callerId} not found`);
+      }
+
+    } catch (error) {
+      console.error('Error handling call-response:', error);
+    }
+  });
+
+  // End call event
+  socket.on('end-call', (endCallData) => {
+    try {
+      const { targetUserId, targetUsername, endedBy } = endCallData;
+
+      console.log(`📞 Call ended by ${endedBy}`);
+
+      // Find target user's socket
+      let targetSocket = null;
+      if (targetUsername) {
+        targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+          userInfo.username === targetUsername
+        );
+      } else if (targetUserId) {
+        targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+          userInfo.userId === targetUserId
+        );
+      }
+
+      if (targetSocket) {
+        const [targetSocketId] = targetSocket;
+        
+        // Send call ended notification
+        io.to(targetSocketId).emit('call-ended', {
+          endedBy,
+          timestamp: new Date().toISOString()
+        });
+
+        console.log(`📞 Call ended notification sent to ${targetUsername || targetUserId}`);
+      }
+
+    } catch (error) {
+      console.error('Error handling end-call:', error);
+    }
+  });
+
   // Notification events
   socket.on('send-notification', (notificationData) => {
     const { targetUserId, targetUsername, notification } = notificationData;
