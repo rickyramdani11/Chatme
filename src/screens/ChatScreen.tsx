@@ -639,8 +639,8 @@ export default function ChatScreen() {
                 }
               }
 
-              // Auto-scroll immediately for better UX
-              if (autoScrollEnabled && !isUserScrolling && newMessage.roomId === chatTabs[activeTab]?.id) {
+              // Auto-scroll for ALL messages if autoscroll is enabled and user is not manually scrolling
+              if (autoScrollEnabled && !isUserScrolling) {
                 setTimeout(() => {
                   flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
                 }, 30);
@@ -1383,6 +1383,9 @@ export default function ChatScreen() {
         [selectedRoomId]: 0
       }));
     }
+
+    // Reset scroll state when switching tabs
+    setIsUserScrolling(false);
   };
 
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
@@ -2302,6 +2305,9 @@ export default function ChatScreen() {
       // Clear message immediately
       setMessage('');
       setShowUserTagMenu(false);
+      
+      // Reset scroll state to ensure autoscroll works after sending message
+      setIsUserScrolling(false);
 
       // Add message optimistically to UI first (instant feedback)
       setChatTabs(prevTabs =>
@@ -4030,7 +4036,17 @@ export default function ChatScreen() {
                     onScroll={({ nativeEvent }) => {
                       // Check if user is scrolling manually
                       const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
-                      const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 50; // Threshold for "at bottom"
+                      const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100; // Increased threshold
+                      setIsUserScrolling(!isScrolledToBottom);
+                    }}
+                    onScrollBeginDrag={() => {
+                      // User started scrolling manually
+                      setIsUserScrolling(true);
+                    }}
+                    onMomentumScrollEnd={({ nativeEvent }) => {
+                      // Check if user scrolled to bottom after momentum ends
+                      const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+                      const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
                       setIsUserScrolling(!isScrolledToBottom);
                     }}
                     maintainVisibleContentPosition={{ minIndexForVisible: 0 }} // Optimization for FlatList
@@ -4042,7 +4058,17 @@ export default function ChatScreen() {
           {/* Auto Scroll Toggle Button */}
           <TouchableOpacity
             style={styles.autoScrollButton}
-            onPress={() => setAutoScrollEnabled(!autoScrollEnabled)}
+            onPress={() => {
+              setAutoScrollEnabled(!autoScrollEnabled);
+              // If enabling autoscroll, immediately scroll to bottom
+              if (!autoScrollEnabled && chatTabs[activeTab]) {
+                const currentRoomId = chatTabs[activeTab].id;
+                setTimeout(() => {
+                  flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
+                }, 100);
+                setIsUserScrolling(false);
+              }
+            }}
           >
             <Ionicons
               name={autoScrollEnabled ? "arrow-down-circle" : "arrow-down-circle-outline"}
