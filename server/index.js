@@ -456,7 +456,7 @@ const initDatabase = async () => {
     // Create credit_transactions table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS credit_transactions (
-        id SERIAL PRIMARYKEY,
+        id SERIAL PRIMARY KEY,
         from_user_id INTEGER,
         to_user_id INTEGER,
         amount INTEGER NOT NULL,
@@ -476,8 +476,8 @@ const initDatabase = async () => {
         promoted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         expires_at TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
-        FOREIGNKEY (user_id) REFERENCES users(id),
-        FOREIGNKEY (promoted_by) REFERENCES users(id)
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (promoted_by) REFERENCES users(id)
       )
     `);
 
@@ -638,7 +638,7 @@ const initDatabase = async () => {
         expires_at TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
         FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGNKEY (promoted_by) REFERENCES users(id)
+        FOREIGN KEY (promoted_by) REFERENCES users(id)
       )
     `);
 
