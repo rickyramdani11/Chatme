@@ -339,7 +339,10 @@ export default function ChatScreen() {
   };
 
   const handleVideoCall = async () => {
-    if (!targetUser) {
+    // Get targetUser from navigation params or selected participant
+    const callTargetUser = targetUser || selectedParticipant;
+    
+    if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
       return;
     }
@@ -352,7 +355,7 @@ export default function ChatScreen() {
 
     Alert.alert(
       'Start Video Call',
-      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
+      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -362,7 +365,7 @@ export default function ChatScreen() {
             if (socket && user) {
               setCallRinging(true);
               socket.emit('initiate-call', {
-                targetUsername: targetUser.username,
+                targetUsername: callTargetUser.username,
                 callType: 'video',
                 callerId: user.id,
                 callerName: user.username
@@ -375,7 +378,10 @@ export default function ChatScreen() {
   };
 
   const handleAudioCall = async () => {
-    if (!targetUser) {
+    // Get targetUser from navigation params or selected participant
+    const callTargetUser = targetUser || selectedParticipant;
+    
+    if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
       return;
     }
@@ -388,7 +394,7 @@ export default function ChatScreen() {
 
     Alert.alert(
       'Start Audio Call',
-      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
+      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -398,7 +404,7 @@ export default function ChatScreen() {
             if (socket && user) {
               setCallRinging(true);
               socket.emit('initiate-call', {
-                targetUsername: targetUser.username,
+                targetUsername: callTargetUser.username,
                 callType: 'audio',
                 callerId: user.id,
                 callerName: user.username
@@ -2784,6 +2790,11 @@ export default function ChatScreen() {
     try {
       console.log('Creating private chat between:', user?.username, 'and', selectedParticipant?.username);
 
+      if (!selectedParticipant?.username) {
+        Alert.alert('Error', 'Selected participant is invalid');
+        return;
+      }
+
       // Create private chat via API
       const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
         method: 'POST',
@@ -2804,13 +2815,22 @@ export default function ChatScreen() {
         const privateChat = await response.json();
         console.log(privateChat.isExisting ? 'Existing private chat found:' : 'Private chat created successfully:', privateChat.id);
 
+        // Ensure targetUser has proper structure with id
+        const targetUser = {
+          id: selectedParticipant?.id || selectedParticipant?.username || Date.now().toString(),
+          username: selectedParticipant?.username,
+          role: selectedParticipant?.role || 'user',
+          level: selectedParticipant?.level || 1,
+          avatar: selectedParticipant?.avatar || null
+        };
+
         // Navigate to private chat (existing or new)
         navigation.navigate('Chat', {
           roomId: privateChat.id,
           roomName: `Chat with ${selectedParticipant?.username}`,
           roomDescription: `Private chat with ${selectedParticipant?.username}`,
           type: 'private',
-          targetUser: selectedParticipant,
+          targetUser: targetUser,
           autoFocusTab: true
         });
       } else {

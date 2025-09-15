@@ -445,7 +445,7 @@ const initDatabase = async () => {
     // Create credit_transactions table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS credit_transactions (
-        id SERIAL PRIMARY KEY,
+        id SERIAL PRIMARYKEY,
         from_user_id INTEGER,
         to_user_id INTEGER,
         amount INTEGER NOT NULL,
@@ -465,8 +465,8 @@ const initDatabase = async () => {
         promoted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         expires_at TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (promoted_by) REFERENCES users(id)
+        FOREIGNKEY (user_id) REFERENCES users(id),
+        FOREIGNKEY (promoted_by) REFERENCES users(id)
       )
     `);
 
@@ -627,7 +627,7 @@ const initDatabase = async () => {
         expires_at TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
         FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (promoted_by) REFERENCES users(id)
+        FOREIGNKEY (promoted_by) REFERENCES users(id)
       )
     `);
 
@@ -795,11 +795,11 @@ const initDatabase = async () => {
         // Always ensure user has admin role and credentials on server start
         const userId = existingUser.rows[0].id;
         const currentRole = existingUser.rows[0].role;
-        
+
         if (currentRole !== 'admin') {
           console.log(`Fixing user "asu" role from "${currentRole}" to "admin"`);
         }
-        
+
         await pool.query('UPDATE users SET role = $1, verified = $2 WHERE username = $3', ['admin', true, 'asu']);
 
         // Check if user has credits, if not add them
@@ -815,7 +815,7 @@ const initDatabase = async () => {
         const verifyResult = await pool.query('SELECT role FROM users WHERE username = $1', ['asu']);
         const finalRole = verifyResult.rows[0]?.role;
         console.log(`User "asu" role verified: ${finalRole} (should be admin)`);
-        
+
         if (finalRole === 'admin') {
           console.log('✅ Admin user "asu" role successfully maintained');
         } else {
@@ -975,8 +975,6 @@ const rooms = [
 const roomParticipants = {}; // { roomId: [ { id, username, role, isOnline, joinedAt, lastSeen }, ... ], ... }
 
 // Socket.IO handling removed - now handled by dedicated gateway server
-
-// All Socket.IO connection handling moved to dedicated gateway server
 
 // Function to generate room description
 const generateRoomDescription = (roomName, creatorUsername) => {
@@ -1697,6 +1695,62 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
   }
 });
 
+// Upload endpoint for admin gift management
+app.post('/api/admin/upload-gift', uploadGift.single('gift'), async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { name, icon, price, type = 'static' } = req.body;
+
+    if (!name || !icon || !price) {
+      return res.status(400).json({ error: 'Name, icon, and price are required' });
+    }
+
+    const animationPath = `/uploads/gifts/${req.file.filename}`;
+
+    const result = await pool.query(`
+      INSERT INTO custom_gifts (name, icon, animation, price, type, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [name, icon, animationPath, parseInt(price), type, req.user.id]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding gift:', error);
+    res.status(500).json({ error: 'Failed to add gift' });
+  }
+});
+
+app.delete('/api/admin/gifts/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+
+    // Attempt to get file path to delete the file
+    const giftResult = await pool.query('SELECT animation FROM custom_gifts WHERE id = $1', [id]);
+    if (giftResult.rows.length > 0 && giftResult.rows[0].animation) {
+      const filePath = giftResult.rows[0].animation.substring(1); // Remove leading slash
+      if (fs.existsSync(filePath)) {
+        fs.unlink(filePath, (err) => {
+          if (err) console.error('Error deleting gift file:', err);
+        });
+      }
+    }
+
+    await pool.query('DELETE FROM custom_gifts WHERE id = $1', [id]);
+
+    res.json({ message: 'Gift deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting gift:', error);
+    res.status(500).json({ error: 'Failed to delete gift' });
+  }
+});
+
 // Public endpoint to get emojis for chat emoji picker
 app.get('/api/emojis', async (req, res) => {
   try {
@@ -1764,62 +1818,6 @@ app.get('/api/gifts', async (req, res) => {
   } catch (error) {
     console.error('Error fetching gifts for picker:', error);
     res.status(500).json({ error: 'Failed to fetch gifts' });
-  }
-});
-
-// Upload endpoint for admin gift management
-app.post('/api/admin/upload-gift', uploadGift.single('gift'), async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const { name, icon, price, type = 'static' } = req.body;
-
-    if (!name || !icon || !price) {
-      return res.status(400).json({ error: 'Name, icon, and price are required' });
-    }
-
-    const animationPath = `/uploads/gifts/${req.file.filename}`;
-
-    const result = await pool.query(`
-      INSERT INTO custom_gifts (name, icon, animation, price, type, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
-    `, [name, icon, animationPath, parseInt(price), type, req.user.id]);
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error adding gift:', error);
-    res.status(500).json({ error: 'Failed to add gift' });
-  }
-});
-
-app.delete('/api/admin/gifts/:id', authenticateToken, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const { id } = req.params;
-
-    // Attempt to get file path to delete the file
-    const giftResult = await pool.query('SELECT animation FROM custom_gifts WHERE id = $1', [id]);
-    if (giftResult.rows.length > 0 && giftResult.rows[0].animation) {
-      const filePath = giftResult.rows[0].animation.substring(1); // Remove leading slash
-      if (fs.existsSync(filePath)) {
-        fs.unlink(filePath, (err) => {
-          if (err) console.error('Error deleting gift file:', err);
-        });
-      }
-    }
-
-    await pool.query('DELETE FROM custom_gifts WHERE id = $1', [id]);
-
-    res.json({ message: 'Gift deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting gift:', error);
-    res.status(500).json({ error: 'Failed to delete gift' });
   }
 });
 
@@ -3609,6 +3607,7 @@ app.put('/api/users/:userId/profile', authenticateToken, async (req, res) => {
     if (bio !== undefined) {
       updateFields.push(`bio = $${paramCounter++}`);
       values.push(bio);
+      paramCounter++;
     }
     if (phone !== undefined) {
       updateFields.push(`phone = $${paramCounter++}`);
@@ -4452,7 +4451,7 @@ const SOCKET_GATEWAY_URL = process.env.SOCKET_GATEWAY_URL || 'http://0.0.0.0:500
 // Deduct coins for calls with recipient share (70% balance + 30% withdraw)
 app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
   const client = await pool.connect();
-  
+
   try {
     const userId = req.user.userId;
     const { amount, type, description, recipientUsername } = req.body;
@@ -4533,7 +4532,7 @@ app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
 
       // Get updated balance
       const updatedUser = await client.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
-      
+
       res.json({
         success: true,
         newBalance: updatedUser.rows[0].balance,
@@ -4560,7 +4559,7 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
     const result = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -4576,64 +4575,78 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
 // Create private chat
 app.post('/api/chat/private', authenticateToken, async (req, res) => {
   try {
-    const { targetUserId } = req.body;
-    const currentUserId = req.user.userId;
+    const { participants, initiatedBy } = req.body;
+    console.log('=== CREATE PRIVATE CHAT REQUEST ===');
+    console.log('Participants:', participants);
+    console.log('Initiated by:', initiatedBy);
+    console.log('Current user ID:', req.user.id);
 
-    console.log(`Creating private chat between ${currentUserId} and ${targetUserId}`);
-
-    if (!targetUserId) {
-      return res.status(400).json({ error: 'Target user ID is required' });
+    if (!participants || !Array.isArray(participants) || participants.length !== 2) {
+      return res.status(400).json({ error: 'Exactly 2 participants required' });
     }
 
-    if (currentUserId === targetUserId) {
-      return res.status(400).json({ error: 'Cannot create chat with yourself' });
+    if (!initiatedBy) {
+      return res.status(400).json({ error: 'InitiatedBy is required' });
     }
 
-    // Check if target user exists
-    const targetUser = await pool.query('SELECT * FROM users WHERE id = $1', [targetUserId]);
-    if (targetUser.rows.length === 0) {
-      return res.status(404).json({ error: 'Target user not found' });
+    // Get user IDs for participants
+    const participantIds = [];
+    for (const username of participants) {
+      const userResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [username]);
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: `User ${username} not found` });
+      }
+      participantIds.push(userResult.rows[0].id);
     }
 
-    // For simplicity, we'll create a room-based private chat using existing room system
-    // Check if private room already exists between these users
-    const existingRoom = await pool.query(
-      `SELECT r.* FROM rooms r 
-       WHERE r.name = $1 OR r.name = $2`,
-      [`private_${currentUserId}_${targetUserId}`, `private_${targetUserId}_${currentUserId}`]
-    );
+    // Sort participant IDs to create consistent chat ID
+    const sortedIds = participantIds.sort((a, b) => a - b);
+    const chatId = `private_${sortedIds.join('_')}`;
+    console.log('Generated chat ID:', chatId, 'for user IDs:', sortedIds);
 
-    if (existingRoom.rows.length > 0) {
-      // Room already exists, return existing room
+    // Check if private chat already exists
+    const existingChatResult = await pool.query('SELECT id FROM private_chats WHERE id = $1', [chatId]);
+
+    if (existingChatResult.rows.length > 0) {
+      console.log('Private chat already exists:', chatId);
       return res.json({ 
-        chatId: existingRoom.rows[0].id,
-        message: 'Private chat already exists' 
+        id: chatId, 
+        participants: participants,
+        participantIds: sortedIds,
+        isExisting: true,
+        message: 'Private chat already exists'
       });
     }
 
-    // Create new private room
-    const roomResult = await pool.query(
-      'INSERT INTO rooms (name, description, type, max_members, created_by, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id',
-      [
-        `private_${currentUserId}_${targetUserId}`,
-        `Private chat between users`,
-        'private',
-        2,
-        currentUserId
-      ]
-    );
+    // Create new private chat
+    await pool.query('INSERT INTO private_chats (id, created_by) VALUES ($1, $2)', [chatId, initiatedBy]);
 
-    const roomId = roomResult.rows[0].id;
+    // Add participants to the chat
+    for (const username of participants) {
+      await pool.query('INSERT INTO private_chat_participants (chat_id, username) VALUES ($1, $2)', [chatId, username]);
+    }
 
-    console.log(`Private chat room created with ID: ${roomId}`);
-    res.json({ 
-      chatId: roomId,
-      message: 'Private chat created successfully' 
+    console.log('Private chat created successfully:', chatId);
+    res.status(201).json({ 
+      id: chatId, 
+      participants: participants,
+      participantIds: sortedIds,
+      isExisting: false,
+      message: 'Private chat created successfully'
     });
 
   } catch (error) {
     console.error('Error creating private chat:', error);
-    res.status(500).json({ error: 'Failed to create private chat' });
+    if (error.code === '23505') {
+      // Unique constraint violation - chat already exists
+      return res.json({ 
+        id: req.body.chatId || 'unknown', 
+        participants: participants || [],
+        isExisting: true,
+        message: 'Private chat already exists'
+      });
+    }
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -4812,7 +4825,7 @@ app.post('/api/gifts/check-balance', authenticateToken, async (req, res) => {
 // Process gift purchase and earnings distribution
 app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
   const client = await pool.connect();
-  
+
   try {
     const { giftId, recipientUserId, roomId } = req.body;
     const senderId = req.user.id;
@@ -4860,7 +4873,7 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
 
       if (balanceCheck.rows.length === 0) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'User not found' });
+        return res.status(400).json({ error: 'Insufficient balance' });
       }
 
       const currentBalance = balanceCheck.rows[0].balance;
@@ -4964,7 +4977,7 @@ app.get('/api/user/gift-earnings-balance', authenticateToken, async (req, res) =
         INSERT INTO user_gift_earnings_balance (user_id, balance, total_earned, total_withdrawn)
         VALUES ($1, 0, 0, 0)
       `, [userId]);
-      
+
       return res.json({
         balance: 0,
         totalEarned: 0,
@@ -5087,7 +5100,7 @@ const getExchangeRate = async () => {
   } catch (error) {
     console.error('Failed to fetch exchange rate, using cached/fallback:', error.message);
   }
-  
+
   return exchangeRateCache.rate;
 };
 
@@ -5103,7 +5116,7 @@ const verifyXenditSignature = (payload, signature, webhookToken) => {
       .createHmac('sha256', webhookToken)
       .update(payload, 'utf8')
       .digest('hex');
-    
+
     return crypto.timingSafeEqual(
       Buffer.from(signature, 'hex'),
       Buffer.from(expectedSignature, 'hex')
@@ -5182,7 +5195,7 @@ app.get('/api/user/linked-accounts', authenticateToken, async (req, res) => {
 // Process withdrawal request using Xendit
 app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
   const client = await pool.connect();
-  
+
   try {
     const { amount, accountId, currency } = req.body;
     const userId = req.user.id;
@@ -5206,7 +5219,7 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
       }
 
       const giftBalance = balanceResult.rows[0].balance;
-      
+
       // Get current exchange rate
       const exchangeRate = await getExchangeRate();
       const amountIDR = Math.floor(amount * exchangeRate);
@@ -5296,7 +5309,7 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
         } else if (linkedAccount.account_type === 'ewallet') {
           // E-wallet charge via Xendit EWallet Charges API
           const { EWalletCharge } = xendit;
-          
+
           let chargeRequest = {
             reference_id: externalID,
             currency: 'IDR',
@@ -5347,7 +5360,7 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
           UPDATE user_gift_earnings_balance 
           SET 
             balance = balance - $1,
-            total_withdrawn = total_withdrawn + $1,
+            total_withdrawn = GREATEST(0, total_withdrawn + $1),
             updated_at = CURRENT_TIMESTAMP
           WHERE user_id = $2
         `, [amountIDR, userId]);
@@ -5378,7 +5391,7 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
           response: xenditError.response?.data,
           status: xenditError.response?.status
         });
-        
+
         // Update withdrawal request status to failed
         await pool.query(`
           UPDATE withdrawal_requests 
@@ -5410,12 +5423,12 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
 // Xendit webhook callback for withdrawal status updates
 app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), async (req, res) => {
   const client = await pool.connect();
-  
+
   try {
     const payload = req.body.toString();
     const signature = req.headers['x-callback-token'];
     const webhookToken = process.env.XENDIT_WEBHOOK_TOKEN;
-    
+
     // Verify webhook signature if webhook token is configured
     if (webhookToken && signature) {
       const isValidSignature = verifyXenditSignature(payload, signature, webhookToken);
@@ -5438,7 +5451,7 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
 
     // Handle different webhook types
     let externalId, status, transactionId, failureReason;
-    
+
     if (data.event_type === 'disbursement.completed' || data.event_type === 'disbursement.failed') {
       // Bank disbursement webhook
       externalId = data.external_id;
@@ -5461,7 +5474,7 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
 
     // Extract withdrawal ID from external_id
     const withdrawalId = externalId?.split('_')[1];
-    
+
     if (!withdrawalId || !status) {
       console.error('Invalid callback data:', { externalId, status, transactionId });
       return res.status(400).json({ error: 'Invalid callback data' });
@@ -5483,7 +5496,7 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
       }
 
       const withdrawal = withdrawalInfo.rows[0];
-      
+
       // Validate transaction ID matches (security check)
       if (withdrawal.xendit_transaction_id !== transactionId) {
         await client.query('ROLLBACK');
@@ -5508,9 +5521,9 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
           WHERE id = $1
         `;
         updateParams = [withdrawalId];
-        
+
         console.log(`✅ Withdrawal ${withdrawalId} completed successfully`);
-        
+
       } else if (status === 'FAILED' || status === 'EXPIRED' || status === 'CANCELLED') {
         // Failed - mark as failed and refund user
         updateQuery = `
@@ -5519,7 +5532,7 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
           WHERE id = $2
         `;
         updateParams = [failureReason || `Payment ${status.toLowerCase()}`, withdrawalId];
-        
+
         // Refund the user's balance
         await client.query(`
           UPDATE user_gift_earnings_balance 
@@ -5529,9 +5542,9 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
             updated_at = CURRENT_TIMESTAMP
           WHERE user_id = $2
         `, [withdrawal.amount, withdrawal.user_id]);
-        
+
         console.log(`❌ Withdrawal ${withdrawalId} failed, refunded ${withdrawal.amount} coins to user ${withdrawal.user_id}`);
-        
+
       } else {
         // Unknown status - just log it
         console.log(`ℹ️  Withdrawal ${withdrawalId} status update: ${status}`);
@@ -5541,7 +5554,7 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
 
       // Execute the update
       const result = await client.query(updateQuery, updateParams);
-      
+
       if (result.rowCount === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Withdrawal not found for update' });
