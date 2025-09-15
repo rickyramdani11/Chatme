@@ -2779,8 +2779,8 @@ export default function ChatScreen() {
   const handleViewProfile = () => {
     setShowParticipantMenu(false);
     setShowParticipants(false);
-    // Navigate to profile screen
-    navigation.navigate('Profile', { userId: selectedParticipant?.id || selectedParticipant?.username });
+    // Navigate to profile screen using username
+    navigation.navigate('Profile', { userId: selectedParticipant?.username });
   };
 
   const handleOpenChat = async () => {
