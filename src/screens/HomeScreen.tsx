@@ -727,12 +727,12 @@ const HomeScreen = ({ navigation }: any) => {
             <View style={[styles.userStatusIndicator, { backgroundColor: getStatusColor(userStatus) }]} />
           </View>
           <View style={styles.userDetails}>
-            <View style={styles.usernameRow}>
+            <View style={styles.topRow}>
               <TouchableOpacity 
-                style={[styles.iconButton, styles.notificationButton]} 
+                style={styles.notificationButton} 
                 onPress={() => navigation.navigate('Notifications')}
               >
-                <Ionicons name="notifications" size={20} color="#fff" />
+                <Ionicons name="notifications" size={18} color="#fff" />
                 {unreadNotifications > 0 && (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.notificationText}>
@@ -743,23 +743,23 @@ const HomeScreen = ({ navigation }: any) => {
               </TouchableOpacity>
               <Text style={styles.username}>{user?.username || 'developer'}</Text>
             </View>
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>Lv. {user?.level || 1}</Text>
+            <View style={styles.bottomRow}>
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>Lv.{user?.level || 1}</Text>
+              </View>
+              <View style={styles.statusContainer}>
+                <View style={[styles.statusDotSmall, { backgroundColor: getStatusColor(userStatus) }]} />
+                <Text style={styles.statusTextSmall}>{getStatusText(userStatus)}</Text>
+              </View>
+              <View style={styles.coinBalanceSmall}>
+                <Ionicons name="diamond" size={14} color="#FFD700" />
+                <Text style={styles.coinTextSmall}>{userBalance.toLocaleString()}</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.headerControls}>
-          <TouchableOpacity style={styles.controlButton} onPress={toggleStatus}>
-            <View style={[styles.statusIndicatorLarge, { backgroundColor: getStatusColor(userStatus) }]} />
-            <Text style={styles.statusLabel}>{getStatusText(userStatus)}</Text>
-          </TouchableOpacity>
-
-          <View style={styles.coinBalance}>
-            <Ionicons name="logo-bitcoin" size={20} color="#FFD700" />
-            <Text style={styles.coinText}>{userBalance.toLocaleString()}</Text>
-          </View>
-
+        <View style={styles.headerRight}>
           <View style={styles.activeUsersContainer}>
             <Ionicons name="people" size={16} color="#4CAF50" />
             <Text style={styles.activeUsersText}>{activeUsers}</Text>
@@ -949,54 +949,68 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     flex: 1,
   },
-  usernameRow: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 4,
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   username: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
     marginLeft: 8,
   },
   levelBadge: {
-    backgroundColor: '#9C27B0',
-    borderRadius: 12,
-    paddingHorizontal: 8,
+    backgroundColor: 'rgba(156, 39, 176, 0.9)',
+    borderRadius: 10,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    marginLeft: 8,
   },
   levelText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
-  headerControls: {
+  statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  controlButton: {
+  statusDotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 3,
+  },
+  statusTextSmall: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  coinBalanceSmall: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 15,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  statusIndicatorLarge: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 5,
+  coinTextSmall: {
+    color: '#FFD700',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginLeft: 3,
   },
-  statusLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  iconButton: {
-    padding: 8,
-    marginLeft: 8,
+  headerRight: {
+    alignItems: 'center',
   },
   friendsSection: {
     flex: 1,
@@ -1201,7 +1215,7 @@ const styles = StyleSheet.create({
   },
   notificationButton: {
     position: 'relative',
-    padding: 8,
+    padding: 4,
   },
   notificationBadge: {
     position: 'absolute',
@@ -1219,21 +1233,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  coinBalance: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  coinText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 6,
-  },
+  
   // Friend Context Menu Styles
   modalOverlay: {
     flex: 1,
