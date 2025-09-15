@@ -477,7 +477,7 @@ const initDatabase = async () => {
         expires_at TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
         FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (promoted_by) REFERENCES users(id)
+        FOREIGN kecEY (promoted_by) REFERENCES users(id)
       )
     `);
 
@@ -4752,7 +4752,7 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
 // Create private chat
 app.post('/api/chat/private', authenticateToken, async (req, res) => {
   try {
-    const { participants, initiatedBy } = req.body;
+    const { participants, initiatedBy, targetUserId } = req.body;
     console.log('=== CREATE PRIVATE CHAT REQUEST ===');
     console.log('Participants:', participants);
     console.log('Initiated by:', initiatedBy);

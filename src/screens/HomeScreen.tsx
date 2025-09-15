@@ -49,6 +49,8 @@ const HomeScreen = ({ navigation }: any) => {
   const [showFriendMenu, setShowFriendMenu] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [userBalance, setUserBalance] = useState(0);
+  const [showMessageHistory, setShowMessageHistory] = useState(false);
+  const [chatHistory, setChatHistory] = useState([]);
   const { token } = useAuth();
 
 
@@ -370,17 +372,13 @@ const HomeScreen = ({ navigation }: any) => {
     // Convert to string if it's not already
     const lastSeenStr = String(lastSeen);
     
-    // Check if it's a very long number (timestamp)
-    if (/^\d{10,}$/.test(lastSeenStr)) {
+    // Check if it's a very long number (timestamp) - limit to reasonable timestamp lengths
+    if (/^\d{10,13}$/.test(lastSeenStr)) {
       const timestamp = parseInt(lastSeenStr);
       let lastSeenDate;
       
-      // If it's more than 13 digits, likely microseconds - convert to milliseconds
-      if (lastSeenStr.length > 13) {
-        lastSeenDate = new Date(Math.floor(timestamp / 1000));
-      } 
       // If it's 13 digits, it's milliseconds
-      else if (lastSeenStr.length === 13) {
+      if (lastSeenStr.length === 13) {
         lastSeenDate = new Date(timestamp);
       }
       // If it's 10 digits, it's seconds - convert to milliseconds
@@ -388,8 +386,16 @@ const HomeScreen = ({ navigation }: any) => {
         lastSeenDate = new Date(timestamp * 1000);
       }
       else {
-        // Default case for other lengths
+        // For 11-12 digits, assume milliseconds but validate
         lastSeenDate = new Date(timestamp);
+        if (isNaN(lastSeenDate.getTime()) || lastSeenDate.getFullYear() < 2020) {
+          return 'Recently';
+        }
+      }
+
+      // Validate the date is reasonable
+      if (isNaN(lastSeenDate.getTime()) || lastSeenDate.getFullYear() < 2020 || lastSeenDate.getFullYear() > 2030) {
+        return 'Recently';
       }
 
       const now = new Date();
@@ -406,9 +412,9 @@ const HomeScreen = ({ navigation }: any) => {
       return `${days}d ago`;
     }
 
-    // Handle regular numeric values (likely minutes)
+    // Handle regular numeric values (likely minutes) - but not overly long numbers
     const numericValue = parseFloat(lastSeenStr);
-    if (!isNaN(numericValue) && numericValue < 100000) {
+    if (!isNaN(numericValue) && numericValue >= 0 && numericValue < 100000 && lastSeenStr.length < 8) {
       const minutes = Math.round(numericValue);
       
       if (minutes < 1) return 'Active now';
@@ -423,7 +429,7 @@ const HomeScreen = ({ navigation }: any) => {
 
     // Try to parse as a date string
     const lastSeenDate = new Date(lastSeenStr);
-    if (!isNaN(lastSeenDate.getTime())) {
+    if (!isNaN(lastSeenDate.getTime()) && lastSeenDate.getFullYear() >= 2020) {
       const now = new Date();
       const diffMs = now.getTime() - lastSeenDate.getTime();
       const diffMinutes = Math.floor(diffMs / 1000 / 60);
@@ -446,6 +452,30 @@ const HomeScreen = ({ navigation }: any) => {
     const currentIndex = statuses.indexOf(userStatus);
     const nextIndex = (currentIndex + 1) % statuses.length;
     updateUserStatus(statuses[nextIndex]);
+  };
+
+  // Fetch chat history function
+  const fetchChatHistory = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chat/history`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data);
+      } else {
+        console.error('Failed to fetch chat history');
+        setChatHistory([]);
+      }
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+      setChatHistory([]);
+    }
   };
 
   // Add friend function
@@ -715,16 +745,18 @@ const HomeScreen = ({ navigation }: any) => {
       >
         <View style={styles.userInfo}>
           <View style={styles.userAvatarContainer}>
-            <View style={styles.userAvatar}>
-              {user?.avatar ? (
-                <Image source={{ uri: `${API_BASE_URL}${user.avatar}` }} style={styles.userAvatarImage} />
-              ) : (
-                <Text style={styles.userAvatarText}>
-                  {user?.username?.charAt(0).toUpperCase() || 'U'}
-                </Text>
-              )}
-            </View>
-            <View style={[styles.userStatusIndicator, { backgroundColor: getStatusColor(userStatus) }]} />
+            <TouchableOpacity onPress={toggleStatus}>
+              <View style={styles.userAvatar}>
+                {user?.avatar ? (
+                  <Image source={{ uri: `${API_BASE_URL}${user.avatar}` }} style={styles.userAvatarImage} />
+                ) : (
+                  <Text style={styles.userAvatarText}>
+                    {user?.username?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
+                )}
+              </View>
+              <View style={[styles.userStatusIndicator, { backgroundColor: getStatusColor(userStatus) }]} />
+            </TouchableOpacity>
           </View>
           <View style={styles.userDetails}>
             <View style={styles.topRow}>
@@ -743,7 +775,11 @@ const HomeScreen = ({ navigation }: any) => {
               </TouchableOpacity>
               <Text style={styles.username}>{user?.username || 'developer'}</Text>
             </View>
-            <View style={styles.bottomRow}>
+            <TouchableOpacity 
+              style={styles.bottomRow}
+              onPress={toggleStatus}
+              activeOpacity={0.7}
+            >
               <View style={styles.levelBadge}>
                 <Text style={styles.levelText}>Lv.{user?.level || 1}</Text>
               </View>
@@ -755,11 +791,20 @@ const HomeScreen = ({ navigation }: any) => {
                 <Ionicons name="diamond" size={14} color="#FFD700" />
                 <Text style={styles.coinTextSmall}>{userBalance.toLocaleString()}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.headerRight}>
+          <TouchableOpacity 
+            style={styles.messageHistoryButton}
+            onPress={() => {
+              fetchChatHistory();
+              setShowMessageHistory(true);
+            }}
+          >
+            <Ionicons name="chatbubbles" size={18} color="#fff" />
+          </TouchableOpacity>
           <View style={styles.activeUsersContainer}>
             <Ionicons name="people" size={16} color="#4CAF50" />
             <Text style={styles.activeUsersText}>{activeUsers}</Text>
@@ -890,6 +935,86 @@ const HomeScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Message History Modal */}
+      <Modal
+        visible={showMessageHistory}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowMessageHistory(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.messageHistoryModal}>
+            <View style={styles.messageHistoryHeader}>
+              <Text style={styles.messageHistoryTitle}>Chat History</Text>
+              <TouchableOpacity
+                onPress={() => setShowMessageHistory(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.chatHistoryList}>
+              {chatHistory.length === 0 ? (
+                <View style={styles.emptyChatHistory}>
+                  <Ionicons name="chatbubbles-outline" size={48} color="#ccc" />
+                  <Text style={styles.emptyChatText}>No chat history</Text>
+                  <Text style={styles.emptyChatSubtext}>Start a conversation to see it here</Text>
+                </View>
+              ) : (
+                chatHistory.map((chat: any) => (
+                  <TouchableOpacity
+                    key={chat.id}
+                    style={styles.chatHistoryItem}
+                    onPress={() => {
+                      setShowMessageHistory(false);
+                      // Navigate to chat
+                      navigation.navigate('Chat', {
+                        roomId: chat.id,
+                        roomName: chat.name,
+                        roomDescription: chat.description,
+                        type: chat.type,
+                        targetUser: chat.targetUser,
+                        autoFocusTab: true
+                      });
+                    }}
+                  >
+                    <View style={styles.chatAvatarContainer}>
+                      <View style={[styles.chatAvatar, { backgroundColor: getRandomAvatarColor(chat.name) }]}>
+                        <Text style={styles.chatAvatarText}>
+                          {chat.name?.charAt(0).toUpperCase() || 'C'}
+                        </Text>
+                      </View>
+                      {chat.isOnline && (
+                        <View style={styles.onlineIndicatorSmall} />
+                      )}
+                    </View>
+                    <View style={styles.chatInfo}>
+                      <Text style={styles.chatName}>{chat.name}</Text>
+                      <Text style={styles.chatLastMessage}>
+                        {chat.lastMessage || 'No messages yet'}
+                      </Text>
+                    </View>
+                    <View style={styles.chatMeta}>
+                      <Text style={styles.chatTime}>
+                        {chat.lastMessageTime ? formatLastSeen(chat.lastMessageTime) : ''}
+                      </Text>
+                      {chat.unreadCount > 0 && (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadText}>
+                            {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -1196,6 +1321,12 @@ const styles = StyleSheet.create({
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  messageHistoryButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   activeUsersContainer: {
     flexDirection: 'row',
@@ -1294,6 +1425,126 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 15,
     color: '#333',
+  },
+  
+  // Message History Modal Styles
+  messageHistoryModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    margin: 20,
+    marginTop: 100,
+    flex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  messageHistoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  messageHistoryTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  chatHistoryList: {
+    flex: 1,
+    padding: 20,
+  },
+  emptyChatHistory: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyChatText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyChatSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  chatHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  chatAvatarContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  chatAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chatAvatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  onlineIndicatorSmall: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  chatInfo: {
+    flex: 1,
+  },
+  chatName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 2,
+  },
+  chatLastMessage: {
+    fontSize: 14,
+    color: '#666',
+  },
+  chatMeta: {
+    alignItems: 'flex-end',
+  },
+  chatTime: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+  },
+  unreadBadge: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  unreadText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
 
