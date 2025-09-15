@@ -92,6 +92,13 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
   const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
+  
+  // Create refs for state values that socket listeners need to avoid stale closures
+  const chatTabsRef = useRef<ChatTab[]>([]);
+  const activeTabRef = useRef<number>(0);
+  const autoScrollEnabledRef = useRef<boolean>(true);
+  const isUserScrollingRef = useRef<boolean>(false);
+  const userRef = useRef<any>(null); // Initialize with null, will be set in useEffect
   const giftVideoRef = useRef<Video>(null);
   const [showUserTagMenu, setShowUserTagMenu] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
@@ -104,8 +111,96 @@ export default function ChatScreen() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  
+  // Get user and token before any refs that depend on them
   const { user, token } = useAuth();
-  const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null); // To track the current active room ID
+  
+  // Get room data from navigation params  
+  const routeParams = (route.params as any) || {};
+  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
+  
+  // Update refs whenever state changes to avoid stale closures
+  useEffect(() => {
+    chatTabsRef.current = chatTabs;
+  }, [chatTabs]);
+  
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+  
+  useEffect(() => {
+    autoScrollEnabledRef.current = autoScrollEnabled;
+  }, [autoScrollEnabled]);
+  
+  useEffect(() => {
+    isUserScrollingRef.current = isUserScrolling;
+  }, [isUserScrolling]);
+  
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  
+  // Add AppState listener for proper background/foreground handling
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      console.log('AppState changed to:', nextAppState);
+
+      if (nextAppState === 'active') {
+        console.log('App became active - ensuring socket connection and rejoining rooms');
+        
+        // Reset scroll state
+        setIsUserScrolling(false);
+        
+        if (socket) {
+          // Always rejoin rooms using latest state from refs
+          setTimeout(() => {
+            const currentTabs = chatTabsRef.current;
+            const currentUser = userRef.current;
+            if (currentTabs.length > 0 && currentUser?.username) {
+              console.log(`Rejoining ${currentTabs.length} rooms after app resume`);
+              currentTabs.forEach((tab, index) => {
+                setTimeout(() => {
+                  console.log('Rejoining room after app resume:', tab.id, currentUser.username);
+                  if (tab.isSupport) {
+                    socket.emit('join-support-room', {
+                      supportRoomId: tab.id,
+                      isAdmin: currentUser.role === 'admin'
+                    });
+                  } else {
+                    socket.emit('join-room', {
+                      roomId: tab.id,
+                      username: currentUser.username,
+                      role: currentUser.role || 'user'
+                    });
+                  }
+                }, index * 100); // Stagger rejoining
+              });
+            }
+          }, 500);
+        }
+        
+        // Force scroll to bottom for current tab
+        setTimeout(() => {
+          const currentTab = chatTabsRef.current[activeTabRef.current];
+          if (currentTab && flatListRefs.current[currentTab.id]) {
+            flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: true });
+          }
+        }, 1000);
+        
+      } else if (nextAppState === 'background') {
+        console.log('App moved to background - maintaining socket connection');
+        // Keep socket alive for better message delivery
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      appStateSubscription?.remove();
+    };
+  }, [socket]); // Dependency on socket to re-setup when socket changes
+  
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
   const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
   const [isInCall, setIsInCall] = useState(false);
@@ -370,10 +465,6 @@ export default function ChatScreen() {
       </View>
     );
   };
-
-  // Get room data from navigation params
-  const routeParams = (route.params as any) || {};
-  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
 
   // Function to join a specific room (called when navigating from RoomScreen)
   const joinSpecificRoom = async (roomId: string, roomName: string) => {
@@ -641,10 +732,12 @@ export default function ChatScreen() {
               }
 
               // Auto-scroll for ALL messages if autoscroll is enabled and user is not manually scrolling
-              if (autoScrollEnabled && !isUserScrolling) {
+              // Use refs to avoid stale closure issues
+              if (autoScrollEnabledRef.current && !isUserScrollingRef.current) {
                 setTimeout(() => {
+                  console.log('Auto-scrolling to end for room:', tab.id);
                   flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
-                }, 30);
+                }, 100);
               }
 
               return { ...tab, messages: updatedMessages };
@@ -657,17 +750,24 @@ export default function ChatScreen() {
           return updatedTabs;
         });
 
-        // Track unread messages for other tabs
-        setChatTabs(currentTabs => {
-          const currentRoomId = currentTabs[activeTab]?.id;
-          if (newMessage.roomId !== currentRoomId && newMessage.sender !== user?.username) {
-            setUnreadCounts(prev => ({
-              ...prev,
-              [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
-            }));
-          }
-          return currentTabs;
-        });
+        // Track unread messages for other tabs using refs to avoid stale closures
+        const currentRoomId = chatTabsRef.current[activeTabRef.current]?.id;
+        if (newMessage.roomId !== currentRoomId && newMessage.sender !== userRef.current?.username) {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
+          }));
+        }
+        
+        // Force scroll to bottom for current room messages with better timing using refs
+        if (newMessage.roomId === chatTabsRef.current[activeTabRef.current]?.id) {
+          setTimeout(() => {
+            console.log('Forcing scroll for current room message:', newMessage.roomId);
+            if (flatListRefs.current[newMessage.roomId]) {
+              flatListRefs.current[newMessage.roomId]?.scrollToEnd({ animated: true });
+            }
+          }, 150);
+        }
       });
 
       socketInstance.on('user-joined', (joinMessage: Message) => {
@@ -690,14 +790,16 @@ export default function ChatScreen() {
         );
       });
 
-      // Listen for participant updates
+      // Listen for participant updates using refs to avoid stale closures
       socketInstance.on('participants-updated', (updatedParticipants: any[]) => {
         console.log('Participants updated:', updatedParticipants.length);
         setParticipants(updatedParticipants);
 
-        // Update the "Currently in the room" message with new participants
-        if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private' && updatedParticipants.length > 0) {
-          const currentRoomId = chatTabs[activeTab].id;
+        // Update the "Currently in the room" message with new participants using refs
+        const currentTabs = chatTabsRef.current;
+        const currentActiveTab = activeTabRef.current;
+        if (currentTabs[currentActiveTab] && currentTabs[currentActiveTab].type !== 'private' && updatedParticipants.length > 0) {
+          const currentRoomId = currentTabs[currentActiveTab].id;
           const participantNames = updatedParticipants.map(p => p.username).join(', ');
           const updatedContent = `Currently in the room: ${participantNames}`;
 
@@ -1054,18 +1156,19 @@ export default function ChatScreen() {
         return;
       }
 
-      // Initialize socket connection to gateway
+      // Initialize socket connection to gateway with better stability options
       const newSocket = io(SOCKET_URL, { // Use SOCKET_URL
         transports: ['polling', 'websocket'], // Start with polling first for better Replit compatibility
         autoConnect: true,
         reconnection: true,
-        reconnectionDelay: 2000,
+        reconnectionDelay: 1000,
         reconnectionDelayMax: 10000,
-        reconnectionAttempts: maxReconnectAttempts,
-        timeout: 20000,
+        reconnectionAttempts: 10, // Increased attempts for better persistence
+        timeout: 30000, // Increased timeout for better connection stability
         forceNew: false,
         upgrade: true,
         rememberUpgrade: false, // Don't remember upgrade for better compatibility
+        closeOnBeforeunload: false, // Keep connection alive during app state changes
         auth: {
           token: token
         }
@@ -1081,26 +1184,32 @@ export default function ChatScreen() {
         // Setup all socket listeners after connection
         setupSocketListeners(newSocket);
 
-        // Rejoin all active rooms after reconnection
-        if (chatTabs.length > 0) {
-          chatTabs.forEach(tab => {
-            if (user?.username) {
-              console.log('Rejoining room after reconnect:', tab.id, user.username);
-              if (tab.isSupport) {
-                newSocket.emit('join-support-room', {
-                  supportRoomId: tab.id,
-                  isAdmin: user.role === 'admin'
-                });
-              } else {
-                newSocket.emit('join-room', {
-                  roomId: tab.id,
-                  username: user.username,
-                  role: user.role || 'user'
-                });
-              }
-            }
-          });
-        }
+        // Rejoin all active rooms after reconnection using refs to avoid stale closures
+        setTimeout(() => {
+          const currentTabs = chatTabsRef.current;
+          const currentUser = userRef.current;
+          if (currentTabs.length > 0 && currentUser?.username) {
+            console.log(`Rejoining ${currentTabs.length} rooms after reconnection`);
+            currentTabs.forEach((tab, index) => {
+              // Stagger room rejoining to prevent server overload
+              setTimeout(() => {
+                console.log('Rejoining room after reconnect:', tab.id, currentUser.username);
+                if (tab.isSupport) {
+                  newSocket.emit('join-support-room', {
+                    supportRoomId: tab.id,
+                    isAdmin: currentUser.role === 'admin'
+                  });
+                } else {
+                  newSocket.emit('join-room', {
+                    roomId: tab.id,
+                    username: currentUser.username,
+                    role: currentUser.role || 'user'
+                  });
+                }
+              }, index * 100); // 100ms delay between each room join
+            });
+          }
+        }, 200); // Initial delay to ensure connection is stable
       });
 
       newSocket.on('disconnect', (reason) => {
@@ -1109,10 +1218,12 @@ export default function ChatScreen() {
 
         // Don't attempt reconnection for intentional disconnects
         if (reason === 'io client disconnect' || reason === 'io server disconnect') {
+          console.log('Intentional disconnect, not attempting reconnection');
           return;
         }
 
-        // Auto-reconnect for unexpected disconnects
+        // For transport close and other unexpected disconnects, attempt reconnection
+        console.log('Unexpected disconnect, attempting reconnection...');
         attemptReconnection();
       });
 
@@ -1188,55 +1299,78 @@ export default function ChatScreen() {
         setIsUserScrolling(false);
         
         if (socket) {
-          if (!socket.connected) {
-            console.log('Socket not connected, attempting reconnection');
-            socket.connect();
-          } else {
-            console.log('Socket already connected, re-setup listeners and rejoin rooms');
-            // Re-setup listeners to ensure they're working
-            setupSocketListeners(socket);
+          // Always re-setup listeners and rejoin rooms for better reliability
+          console.log('Re-setup listeners and rejoin rooms on app active');
+          setupSocketListeners(socket);
 
-            // Rejoin all rooms to ensure we're still in them
-            chatTabs.forEach(tab => {
-              if (user?.username) {
-                console.log('Rejoining room after app resume:', tab.id, user.username);
-                if (tab.isSupport) {
-                  socket.emit('join-support-room', {
-                    supportRoomId: tab.id,
-                    isAdmin: user.role === 'admin'
-                  });
-                } else {
-                  socket.emit('join-room', {
-                    roomId: tab.id,
-                    username: user.username,
-                    role: user.role || 'user'
-                  });
-                }
-              }
-            });
+          // Force reconnection if not connected
+          if (!socket.connected) {
+            console.log('Socket not connected, forcing reconnection');
+            socket.disconnect();
+            setTimeout(() => {
+              socket.connect();
+            }, 100);
           }
+
+          // Always rejoin all rooms to ensure we're still in them using refs
+          setTimeout(() => {
+            const currentTabs = chatTabsRef.current;
+            const currentUser = userRef.current;
+            if (currentTabs.length > 0 && currentUser?.username) {
+              currentTabs.forEach((tab, index) => {
+                setTimeout(() => {
+                  console.log('Rejoining room after app resume:', tab.id, currentUser.username);
+                  if (tab.isSupport) {
+                    socket.emit('join-support-room', {
+                      supportRoomId: tab.id,
+                      isAdmin: currentUser.role === 'admin'
+                    });
+                  } else {
+                    socket.emit('join-room', {
+                      roomId: tab.id,
+                      username: currentUser.username,
+                      role: currentUser.role || 'user'
+                    });
+                  }
+                }, index * 50); // Stagger the rejoining
+              });
+            }
+          }, 200);
         }
 
         // Force re-render of current chat messages
-        setChatTabs(prevTabs => [...prevTabs]);
+        setTimeout(() => {
+          setChatTabs(prevTabs => [...prevTabs]);
+        }, 300);
 
-        // Reload participants for current room
-        if (chatTabs[activeTab] && chatTabs[activeTab].type !== 'private') {
+        // Reload participants for current room using refs
+        const currentTab = chatTabsRef.current[activeTabRef.current];
+        if (currentTab && currentTab.type !== 'private') {
           setTimeout(() => {
             loadParticipants();
-          }, 1000);
+          }, 500);
         }
 
-        // Ensure current tab messages are visible
+        // Ensure current tab messages are visible with multiple attempts using refs
         setTimeout(() => {
-          if (chatTabs[activeTab] && flatListRefs.current[chatTabs[activeTab].id]) {
-            flatListRefs.current[chatTabs[activeTab].id]?.scrollToEnd({ animated: false });
+          const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
+          if (currentTabId && flatListRefs.current[currentTabId]) {
+            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: false });
           }
-        }, 500);
+        }, 600);
+        
+        // Second attempt to ensure scrolling
+        setTimeout(() => {
+          const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
+          if (currentTabId && flatListRefs.current[currentTabId]) {
+            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: true });
+          }
+        }, 1000);
+        
       } else if (nextAppState === 'background') {
-        console.log('App moved to background');
-        // Save current scroll state
-        console.log('Preserving chat state for background mode');
+        console.log('App moved to background - maintaining socket connection');
+        // Don't disconnect socket when going to background
+        // Keep connection alive for better message delivery
       }
     };
 
@@ -1435,7 +1569,7 @@ export default function ChatScreen() {
     // Reset scroll state when switching tabs
     setIsUserScrolling(false);
 
-    // Ensure messages are visible in the new tab
+    // Ensure messages are visible in the new tab with multiple attempts
     setTimeout(() => {
       if (chatTabs[index] && chatTabs[index].messages.length > 0) {
         console.log(`Switching to tab ${index}: ${chatTabs[index].title}, Messages: ${chatTabs[index].messages.length}`);
@@ -1444,6 +1578,15 @@ export default function ChatScreen() {
         }
       }
     }, 100);
+    
+    // Second attempt for better reliability
+    setTimeout(() => {
+      if (chatTabs[index] && chatTabs[index].messages.length > 0) {
+        if (flatListRefs.current[selectedRoomId]) {
+          flatListRefs.current[selectedRoomId]?.scrollToEnd({ animated: true });
+        }
+      }
+    }, 300);
   };
 
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
@@ -2376,10 +2519,13 @@ export default function ChatScreen() {
         )
       );
 
-      // Auto-scroll immediately
+      // Auto-scroll immediately with better timing
       setTimeout(() => {
-        flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-      }, 50);
+        console.log('Auto-scrolling after message send for room:', currentRoomId);
+        if (flatListRefs.current[currentRoomId]) {
+          flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
+        }
+      }, 100);
 
       // Determine if this is a command
       let type = 'message';

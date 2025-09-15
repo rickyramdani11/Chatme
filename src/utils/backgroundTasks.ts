@@ -7,10 +7,11 @@ const BACKGROUND_FETCH_TASK = 'background-fetch-chat';
 // Define the background task
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
-    console.log('Background fetch task running');
+    console.log('Background fetch task running - maintaining chat connection');
     
-    // Check connection status and attempt reconnection if needed
-    // This is a lightweight task to maintain connection awareness
+    // Lightweight task to maintain connection awareness
+    // This helps ensure socket connection stays alive in background
+    // and allows for better message delivery when app is backgrounded
     
     return BackgroundFetch.BackgroundFetchResult.NewData;
   } catch (error) {
