@@ -354,32 +354,54 @@ const HomeScreen = ({ navigation }: any) => {
     if (!lastSeen) return 'Active now';
 
     // If it's already a formatted string like "3 minutes ago", return as is
-    if (lastSeen.includes('ago') || lastSeen.includes('Active') || lastSeen.includes('Recently')) {
+    if (typeof lastSeen === 'string' && (lastSeen.includes('ago') || lastSeen.includes('Active') || lastSeen.includes('Recently'))) {
       return lastSeen;
     }
 
-    // Handle very long numeric values (likely milliseconds or large numbers)
-    const numericValue = parseFloat(lastSeen);
-    if (!isNaN(numericValue)) {
-      let minutes = numericValue;
-
-      // If it's a very large number, assume it's milliseconds since epoch
-      if (numericValue > 1000000000000) {
-        const lastSeenDate = new Date(numericValue);
-        const now = new Date();
-        const diffMs = now.getTime() - lastSeenDate.getTime();
-        minutes = Math.floor(diffMs / 1000 / 60);
-      } else if (numericValue > 60 * 24 * 365) {
-        // If it's more than a year in minutes, probably seconds since epoch
-        const lastSeenDate = new Date(numericValue * 1000);
-        const now = new Date();
-        const diffMs = now.getTime() - lastSeenDate.getTime();
-        minutes = Math.floor(diffMs / 1000 / 60);
-      } else {
-        // Fix the decimal issue by rounding properly
-        minutes = Math.round(numericValue);
+    // Convert to string if it's not already
+    const lastSeenStr = String(lastSeen);
+    
+    // Check if it's a very long number (timestamp)
+    if (/^\d{10,}$/.test(lastSeenStr)) {
+      const timestamp = parseInt(lastSeenStr);
+      let lastSeenDate;
+      
+      // If it's more than 13 digits, likely microseconds - convert to milliseconds
+      if (lastSeenStr.length > 13) {
+        lastSeenDate = new Date(Math.floor(timestamp / 1000));
+      } 
+      // If it's 13 digits, it's milliseconds
+      else if (lastSeenStr.length === 13) {
+        lastSeenDate = new Date(timestamp);
+      }
+      // If it's 10 digits, it's seconds - convert to milliseconds
+      else if (lastSeenStr.length === 10) {
+        lastSeenDate = new Date(timestamp * 1000);
+      }
+      else {
+        // Default case for other lengths
+        lastSeenDate = new Date(timestamp);
       }
 
+      const now = new Date();
+      const diffMs = now.getTime() - lastSeenDate.getTime();
+      const diffMinutes = Math.floor(diffMs / 1000 / 60);
+
+      if (diffMinutes < 1) return 'Active now';
+      if (diffMinutes < 60) return `${diffMinutes} min ago`;
+      if (diffMinutes < 1440) {
+        const hours = Math.floor(diffMinutes / 60);
+        return `${hours}h ago`;
+      }
+      const days = Math.floor(diffMinutes / 1440);
+      return `${days}d ago`;
+    }
+
+    // Handle regular numeric values (likely minutes)
+    const numericValue = parseFloat(lastSeenStr);
+    if (!isNaN(numericValue) && numericValue < 100000) {
+      const minutes = Math.round(numericValue);
+      
       if (minutes < 1) return 'Active now';
       if (minutes < 60) return `${minutes} min ago`;
       if (minutes < 1440) {
@@ -390,24 +412,24 @@ const HomeScreen = ({ navigation }: any) => {
       return `${days}d ago`;
     }
 
-    // Try to parse as a date
-    const lastSeenDate = new Date(lastSeen);
-    if (isNaN(lastSeenDate.getTime())) {
-      return 'Recently';
+    // Try to parse as a date string
+    const lastSeenDate = new Date(lastSeenStr);
+    if (!isNaN(lastSeenDate.getTime())) {
+      const now = new Date();
+      const diffMs = now.getTime() - lastSeenDate.getTime();
+      const diffMinutes = Math.floor(diffMs / 1000 / 60);
+
+      if (diffMinutes < 1) return 'Active now';
+      if (diffMinutes < 60) return `${diffMinutes} min ago`;
+      if (diffMinutes < 1440) {
+        const hours = Math.floor(diffMinutes / 60);
+        return `${hours}h ago`;
+      }
+      const days = Math.floor(diffMinutes / 1440);
+      return `${days}d ago`;
     }
 
-    const now = new Date();
-    const diffMs = now.getTime() - lastSeenDate.getTime();
-    const diffMinutes = Math.floor(diffMs / 1000 / 60);
-
-    if (diffMinutes < 1) return 'Active now';
-    if (diffMinutes < 60) return `${diffMinutes} min ago`;
-    if (diffMinutes < 1440) {
-      const hours = Math.floor(diffMinutes / 60);
-      return `${hours}h ago`;
-    }
-    const days = Math.floor(diffMinutes / 1440);
-    return `${days}d ago`;
+    return 'Recently';
   };
 
   const toggleStatus = () => {
@@ -566,54 +588,87 @@ const HomeScreen = ({ navigation }: any) => {
     );
   };
 
-  const renderFriend = (friend: Friend) => (
-    <View key={friend.id} style={styles.friendCard}>
-      <TouchableOpacity 
-        style={styles.friendInfo}
-        onPress={() => handleFriendPress(friend)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.friendAvatarContainer}>
-          {friend.avatar?.startsWith('http') ? (
-            <Image source={{ uri: friend.avatar }} style={styles.friendAvatar} />
-          ) : (
-            <View style={[styles.friendAvatar, { backgroundColor: getRandomAvatarColor(friend.name) }]}>
-              <Text style={styles.friendAvatarText}>
-                {friend.name?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
-          )}
-          <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(friend.status) }]} />
-        </View>
-        <View style={styles.friendDetails}>
-          <Text style={styles.friendName}>{friend.name}</Text>
-          <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
-        </View>
-      </TouchableOpacity>
+  const renderFriend = (friend: Friend) => {
+    // Determine avatar display logic
+    let avatarDisplay;
+    const avatarUri = friend.avatar;
+    
+    // Check if avatar is a valid URL or server path
+    const isValidAvatar = avatarUri && (
+      avatarUri.startsWith('http') || 
+      avatarUri.startsWith('https') || 
+      avatarUri.startsWith('/api/users/avatar/') ||
+      avatarUri.startsWith(`${API_BASE_URL}/api/users/avatar/`)
+    );
 
-      <View style={styles.actionButtons}>
-        {/* Show action buttons only when searching users (not friends) */}
-        {searchText.length >= 2 ? (
-          <>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => addFriend(friend.id, friend.name)}
-            >
-              <Ionicons name="person-add" size={20} color="#4CAF50" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => startChat(friend.id, friend.name)}
-            >
-              <Ionicons name="chatbubble" size={20} color="#2196F3" />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <View style={[styles.statusDot, { backgroundColor: getStatusColor(friend.status) }]} />
-        )}
+    if (isValidAvatar) {
+      // Construct proper URL if it's a server path
+      let fullAvatarUrl = avatarUri;
+      if (avatarUri.startsWith('/api/users/avatar/')) {
+        fullAvatarUrl = `${API_BASE_URL}${avatarUri}`;
+      }
+      
+      avatarDisplay = (
+        <Image 
+          source={{ uri: fullAvatarUrl }} 
+          style={styles.friendAvatar}
+          onError={(error) => {
+            console.log('Failed to load avatar:', fullAvatarUrl, error.nativeEvent?.error);
+          }}
+        />
+      );
+    } else {
+      // Show default avatar with first letter
+      avatarDisplay = (
+        <View style={[styles.friendAvatar, { backgroundColor: getRandomAvatarColor(friend.name) }]}>
+          <Text style={styles.friendAvatarText}>
+            {friend.name?.charAt(0).toUpperCase() || 'U'}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View key={friend.id} style={styles.friendCard}>
+        <TouchableOpacity 
+          style={styles.friendInfo}
+          onPress={() => handleFriendPress(friend)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.friendAvatarContainer}>
+            {avatarDisplay}
+            <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(friend.status) }]} />
+          </View>
+          <View style={styles.friendDetails}>
+            <Text style={styles.friendName}>{friend.name}</Text>
+            <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.actionButtons}>
+          {/* Show action buttons only when searching users (not friends) */}
+          {searchText.length >= 2 ? (
+            <>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => addFriend(friend.id, friend.name)}
+              >
+                <Ionicons name="person-add" size={20} color="#4CAF50" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => startChat(friend.id, friend.name)}
+              >
+                <Ionicons name="chatbubble" size={20} color="#2196F3" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={[styles.statusDot, { backgroundColor: getStatusColor(friend.status) }]} />
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
