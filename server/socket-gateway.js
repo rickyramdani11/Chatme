@@ -119,23 +119,23 @@ const hasPermission = async (userId, username, roomId, action) => {
     if (userResult.rows.length === 0) {
       return false;
     }
-    
+
     const userRole = userResult.rows[0].role;
-    
+
     // Global admins can do anything
     if (userRole === 'admin') {
       return true;
     }
-    
+
     // Check if user is room moderator
     const moderatorResult = await pool.query(`
       SELECT * FROM room_moderators 
       WHERE room_id = $1 AND user_id = $2 AND is_active = true
     `, [roomId, userId]);
-    
+
     if (moderatorResult.rows.length > 0) {
       const moderator = moderatorResult.rows[0];
-      
+
       // Check specific permissions for this moderator
       switch (action) {
         case 'ban':
@@ -150,13 +150,13 @@ const hasPermission = async (userId, username, roomId, action) => {
           return false;
       }
     }
-    
+
     // Check if user is room owner (created the room)
     const roomResult = await pool.query('SELECT created_by FROM rooms WHERE id = $1', [roomId]);
     if (roomResult.rows.length > 0 && roomResult.rows[0].created_by === username) {
       return true; // Room owners have all permissions
     }
-    
+
     return false; // Regular users have no moderation permissions
   } catch (error) {
     console.error('Error checking permissions:', error);
@@ -172,7 +172,7 @@ const isUserBanned = async (roomId, userId, username) => {
       AND is_active = true 
       AND (expires_at IS NULL OR expires_at > NOW())
     `, [roomId, userId, username]);
-    
+
     return result.rows.length > 0;
   } catch (error) {
     console.error('Error checking ban status:', error);
@@ -183,11 +183,11 @@ const isUserBanned = async (roomId, userId, username) => {
 const isRoomLocked = async (roomId) => {
   try {
     const result = await pool.query('SELECT is_locked, password_hash FROM room_security WHERE room_id = $1', [roomId]);
-    
+
     if (result.rows.length === 0) {
       return { locked: false, passwordRequired: false };
     }
-    
+
     const roomSecurity = result.rows[0];
     return {
       locked: roomSecurity.is_locked,
@@ -202,13 +202,13 @@ const isRoomLocked = async (roomId) => {
 const verifyRoomPassword = async (roomId, password) => {
   try {
     const bcrypt = require('bcrypt');
-    
+
     const result = await pool.query('SELECT password_hash FROM room_security WHERE room_id = $1', [roomId]);
-    
+
     if (result.rows.length === 0 || !result.rows[0].password_hash) {
       return false;
     }
-    
+
     return await bcrypt.compare(password, result.rows[0].password_hash);
   } catch (error) {
     console.error('Error verifying room password:', error);
@@ -223,7 +223,7 @@ const addBanToDatabase = async (roomId, bannedUserId, bannedUsername, bannedById
     if (expiresInHours) {
       expiresAt = new Date(Date.now() + (expiresInHours * 60 * 60 * 1000));
     }
-    
+
     const result = await pool.query(`
       INSERT INTO room_banned_users (
         room_id, banned_user_id, banned_username, banned_by_id, banned_by_username, 
@@ -239,7 +239,7 @@ const addBanToDatabase = async (roomId, bannedUserId, bannedUsername, bannedById
         is_active = true
       RETURNING *
     `, [roomId, bannedUserId, bannedUsername, bannedById, bannedByUsername, reason, expiresAt]);
-    
+
     console.log(`✅ User ${bannedUsername} banned from room ${roomId} by ${bannedByUsername}`);
     return result.rows[0];
   } catch (error) {
@@ -256,7 +256,7 @@ const removeBanFromDatabase = async (roomId, unbannedUsername, unbannedById, unb
       WHERE room_id = $1 AND banned_username = $2 AND is_active = true
       RETURNING *
     `, [roomId, unbannedUsername]);
-    
+
     if (result.rows.length > 0) {
       console.log(`✅ User ${unbannedUsername} unbanned from room ${roomId} by ${unbannedByUsername}`);
       return result.rows[0];
@@ -278,7 +278,7 @@ const cleanupExpiredBans = async () => {
       WHERE expires_at IS NOT NULL AND expires_at <= NOW() AND is_active = true
       RETURNING room_id, banned_username
     `);
-    
+
     if (result.rows.length > 0) {
       console.log(`✅ Cleaned up ${result.rows.length} expired bans`);
       return result.rows;
@@ -298,11 +298,11 @@ const lockRoom = async (roomId, lockingUserId, lockingUsername, password = null)
   try {
     const bcrypt = require('bcrypt');
     let passwordHash = null;
-    
+
     if (password) {
       passwordHash = await bcrypt.hash(password, 10);
     }
-    
+
     const result = await pool.query(`
       INSERT INTO room_security (room_id, is_locked, password_hash, locked_by_id, locked_by_username, locked_at)
       VALUES ($1, true, $2, $3, $4, NOW())
@@ -316,7 +316,7 @@ const lockRoom = async (roomId, lockingUserId, lockingUsername, password = null)
         updated_at = NOW()
       RETURNING *
     `, [roomId, passwordHash, lockingUserId, lockingUsername]);
-    
+
     console.log(`🔒 Room ${roomId} locked by ${lockingUsername}${password ? ' with password' : ''}`);
     return result.rows[0];
   } catch (error) {
@@ -333,7 +333,7 @@ const unlockRoom = async (roomId, unlockingUserId, unlockingUsername) => {
       WHERE room_id = $1
       RETURNING *
     `, [roomId]);
-    
+
     if (result.rows.length > 0) {
       console.log(`🔓 Room ${roomId} unlocked by ${unlockingUsername}`);
       return result.rows[0];
@@ -409,23 +409,23 @@ const authenticateSocket = async (socket, next) => {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     // Get complete user information from database
     const userResult = await pool.query('SELECT id, username, role FROM users WHERE id = $1', [decoded.userId]);
-    
+
     if (userResult.rows.length === 0) {
       console.log('Socket authentication failed: User not found in database');
       return next(new Error('Authentication error: User not found'));
     }
 
     const user = userResult.rows[0];
-    
+
     // Store authenticated user information on socket
     socket.userId = user.id;
     socket.username = user.username;
     socket.userRole = user.role; // This is the authoritative role from database
     socket.authenticated = true;
-    
+
     console.log(`Socket authenticated for user: ${user.username} (ID: ${user.id}, Role: ${user.role})`);
     next();
   } catch (error) {
@@ -577,10 +577,10 @@ io.on('connection', (socket) => {
 
       socket.to(roomId).emit('user-joined', joinMessage);
       io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
-      
+
       // Emit successful join confirmation to the user
       socket.emit('join-room-success', { roomId, username });
-      
+
     } catch (error) {
       console.error('Error in join-room handler:', error);
       socket.emit('join-room-error', { 
@@ -623,6 +623,11 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-left', leaveMessage);
   });
 
+  // Join support room event (you'll need to add this)
+  socket.on('join-support-room', async (data) => {
+    const { supportRoomId, isAdmin, silent } = data;
+  });
+
   // Lock/Unlock room event
   socket.on('lock-room', async (data) => {
     try {
@@ -636,7 +641,7 @@ io.on('connection', (socket) => {
 
       // Verify user has permission to lock/unlock rooms
       const hasLockPermission = await hasPermission(socket.userId, socket.username, roomId, 'lock_room');
-      
+
       if (!hasLockPermission) {
         console.log(`🚫 User ${socket.username} attempted to ${action} room ${roomId} without permission`);
         socket.emit('lock-room-error', { 
@@ -649,7 +654,7 @@ io.on('connection', (socket) => {
       if (action === 'lock') {
         // Lock the room
         const result = await lockRoom(roomId, socket.userId, socket.username, password);
-        
+
         if (result) {
           // Broadcast lock event to room
           io.to(roomId).emit('room-locked', {
@@ -671,7 +676,7 @@ io.on('connection', (socket) => {
 
           io.to(roomId).emit('new-message', lockMessage);
           socket.emit('lock-room-success', { action: 'lock', roomId });
-          
+
           console.log(`🔒 Room ${roomId} locked by ${socket.username}`);
         } else {
           socket.emit('lock-room-error', { 
@@ -679,11 +684,11 @@ io.on('connection', (socket) => {
             reason: 'server_error'
           });
         }
-        
+
       } else if (action === 'unlock') {
         // Unlock the room
         const result = await unlockRoom(roomId, socket.userId, socket.username);
-        
+
         if (result) {
           // Broadcast unlock event to room
           io.to(roomId).emit('room-unlocked', {
@@ -704,7 +709,7 @@ io.on('connection', (socket) => {
 
           io.to(roomId).emit('new-message', unlockMessage);
           socket.emit('lock-room-success', { action: 'unlock', roomId });
-          
+
           console.log(`🔓 Room ${roomId} unlocked by ${socket.username}`);
         } else {
           socket.emit('lock-room-error', { 
@@ -737,14 +742,14 @@ io.on('connection', (socket) => {
 
       // Check if this is a special command that needs server-side handling
       const trimmedContent = content.trim();
-      
+
       // Handle /roll command
       if (trimmedContent.startsWith('/roll')) {
         console.log(`🎲 Processing /roll command: ${trimmedContent}`);
         const args = trimmedContent.split(' ');
         const max = args[1] ? parseInt(args[1]) : 100;
         const rolled = Math.floor(Math.random() * max) + 1;
-        
+
         // Create roll result message
         const rollMessage = {
           id: `roll_${Date.now()}_${sender}_${Math.random().toString(36).substr(2, 9)}`,
@@ -774,7 +779,7 @@ io.on('connection', (socket) => {
         console.log(`Roll result broadcasted to room ${roomId}: ${rolled}`);
         return; // Don't process as regular message
       }
-      
+
       // Handle bot commands
       if (trimmedContent.startsWith('/bot lowcard add') || 
           trimmedContent.startsWith('/add') || 
@@ -952,7 +957,7 @@ io.on('connection', (socket) => {
 
       // 1. SERVER-SIDE PERMISSION VERIFICATION - Use authoritative JWT data
       const hasKickPermission = await hasPermission(socket.userId, socket.username, roomId, 'kick');
-      
+
       if (!hasKickPermission) {
         console.log(`🚫 User ${socket.username} (ID: ${socket.userId}) attempted to kick ${targetUsername} without permission in room ${roomId}`);
         socket.emit('kick-user-error', { 
@@ -964,7 +969,7 @@ io.on('connection', (socket) => {
 
       // 2. Get target user information from database (authoritative source)
       const targetUserResult = await pool.query('SELECT id, username, role FROM users WHERE username = $1', [targetUsername]);
-      
+
       if (targetUserResult.rows.length === 0) {
         socket.emit('kick-user-error', { 
           error: 'Target user not found',
@@ -1011,7 +1016,7 @@ io.on('connection', (socket) => {
           kickedBy: socket.username,
           reason: reason || 'No reason provided'
         });
-        
+
         // Force leave the room
         io.to(kickedSocketId).emit('force-leave-room', { 
           roomId, 
@@ -1038,10 +1043,10 @@ io.on('connection', (socket) => {
       };
 
       io.to(roomId).emit('new-message', kickMessage);
-      
+
       // 8. Confirm success to requesting user
       socket.emit('kick-user-success', { targetUsername, roomId });
-      
+
       console.log(`✅ User ${targetUsername} kicked from room ${roomId} by ${socket.username} (verified)`);
 
     } catch (error) {
@@ -1065,7 +1070,7 @@ io.on('connection', (socket) => {
 
       // 1. SERVER-SIDE PERMISSION VERIFICATION - Use authoritative JWT data
       const hasMutePermission = await hasPermission(socket.userId, socket.username, roomId, 'mute');
-      
+
       if (!hasMutePermission) {
         console.log(`🚫 User ${socket.username} (ID: ${socket.userId}) attempted to ${action} ${targetUsername} without permission in room ${roomId}`);
         socket.emit('mute-user-error', { 
@@ -1077,7 +1082,7 @@ io.on('connection', (socket) => {
 
       // 2. Get target user information from database (authoritative source)
       const targetUserResult = await pool.query('SELECT id, username, role FROM users WHERE username = $1', [targetUsername]);
-      
+
       if (targetUserResult.rows.length === 0) {
         socket.emit('mute-user-error', { 
           error: 'Target user not found',
@@ -1141,10 +1146,10 @@ io.on('connection', (socket) => {
       };
 
       io.to(roomId).emit('new-message', muteMessage);
-      
+
       // 7. Confirm success to requesting user
       socket.emit('mute-user-success', { action, targetUsername, roomId });
-      
+
       console.log(`✅ User ${targetUsername} ${action}d in room ${roomId} by ${socket.username} (verified)`);
 
     } catch (error) {
@@ -1169,7 +1174,7 @@ io.on('connection', (socket) => {
 
       // 1. SERVER-SIDE PERMISSION VERIFICATION - Use authoritative JWT data
       const hasBanPermission = await hasPermission(socket.userId, socket.username, roomId, 'ban');
-      
+
       if (!hasBanPermission) {
         console.log(`🚫 User ${socket.username} (ID: ${socket.userId}) attempted to ${action} ${targetUsername} without permission in room ${roomId}`);
         socket.emit('ban-user-error', { 
@@ -1181,7 +1186,7 @@ io.on('connection', (socket) => {
 
       // 2. Get target user information from database (authoritative source)
       const targetUserResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [targetUsername]);
-      
+
       if (targetUserResult.rows.length === 0) {
         socket.emit('ban-user-error', { 
           error: 'Target user not found',
@@ -1252,7 +1257,7 @@ io.on('connection', (socket) => {
             reason: reason || 'No reason provided',
             roomName: `Room ${roomId}`
           });
-          
+
           // Force leave the room
           io.to(bannedSocketId).emit('force-leave-room', { 
             roomId, 
@@ -1299,7 +1304,7 @@ io.on('connection', (socket) => {
       };
 
       io.to(roomId).emit('new-message', banMessage);
-      
+
       // 9. Confirm success to requesting user
       socket.emit('ban-user-success', { action, targetUsername, roomId });
 
@@ -1332,7 +1337,7 @@ io.on('connection', (socket) => {
 
       if (targetSocket) {
         const [targetSocketId] = targetSocket;
-        
+
         // Send incoming call notification to target user
         io.to(targetSocketId).emit('incoming-call', {
           callerId,
@@ -1385,7 +1390,7 @@ io.on('connection', (socket) => {
 
       if (callerSocket) {
         const [callerSocketId] = callerSocket;
-        
+
         // Send call response to caller
         io.to(callerSocketId).emit('call-response-received', {
           response,
@@ -1424,7 +1429,7 @@ io.on('connection', (socket) => {
 
       if (targetSocket) {
         const [targetSocketId] = targetSocket;
-        
+
         // Send call ended notification
         io.to(targetSocketId).emit('call-ended', {
           endedBy,
