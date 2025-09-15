@@ -2247,6 +2247,173 @@ app.get('/api/admin/users/status', authenticateToken, async (req, res) => {
   }
 });
 
+// Admin Room Management Endpoints
+
+// Get all rooms (admin only)
+app.get('/api/admin/rooms', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await pool.query(`
+      SELECT 
+        id,
+        name,
+        description,
+        managed_by,
+        type,
+        members,
+        max_members,
+        created_by,
+        created_at
+      FROM rooms 
+      ORDER BY created_at DESC
+    `);
+
+    const rooms = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      managedBy: row.managed_by,
+      createdBy: row.created_by,
+      type: row.type,
+      members: row.members || 0,
+      maxMembers: row.max_members || 25,
+      createdAt: row.created_at
+    }));
+
+    res.json({ rooms });
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    res.status(500).json({ error: 'Failed to fetch rooms' });
+  }
+});
+
+// Update room (admin only)
+app.put('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { roomId } = req.params;
+    const { name, description, maxMembers, managedBy } = req.body;
+
+    if (!name || !description) {
+      return res.status(400).json({ error: 'Name and description are required' });
+    }
+
+    if (!maxMembers || ![25, 40, 80].includes(maxMembers)) {
+      return res.status(400).json({ error: 'Invalid max members. Must be 25, 40, or 80' });
+    }
+
+    // Check if room exists
+    const roomCheck = await pool.query('SELECT id FROM rooms WHERE id = $1', [roomId]);
+    if (roomCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    // Check if new name conflicts with existing room (excluding current room)
+    const nameCheck = await pool.query(
+      'SELECT id FROM rooms WHERE LOWER(name) = LOWER($1) AND id != $2',
+      [name.trim(), roomId]
+    );
+
+    if (nameCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Room name already exists' });
+    }
+
+    // Update room in database
+    const result = await pool.query(`
+      UPDATE rooms 
+      SET 
+        name = $1,
+        description = $2,
+        max_members = $3,
+        managed_by = $4,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $5
+      RETURNING *
+    `, [name.trim(), description.trim(), maxMembers, managedBy?.trim(), roomId]);
+
+    const updatedRoom = result.rows[0];
+
+    // Update in-memory rooms array
+    const roomIndex = rooms.findIndex(r => r.id === roomId);
+    if (roomIndex !== -1) {
+      rooms[roomIndex] = {
+        id: updatedRoom.id.toString(),
+        name: updatedRoom.name,
+        description: updatedRoom.description,
+        managedBy: updatedRoom.managed_by,
+        type: updatedRoom.type,
+        members: updatedRoom.members || 0,
+        maxMembers: updatedRoom.max_members,
+        createdBy: updatedRoom.created_by,
+        createdAt: updatedRoom.created_at
+      };
+    }
+
+    console.log(`Room ${roomId} updated by admin ${req.user.username}`);
+    res.json({ 
+      message: 'Room updated successfully',
+      room: updatedRoom
+    });
+
+  } catch (error) {
+    console.error('Error updating room:', error);
+    res.status(500).json({ error: 'Failed to update room' });
+  }
+});
+
+// Delete room (admin only)
+app.delete('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { roomId } = req.params;
+
+    // Check if room exists
+    const roomCheck = await pool.query('SELECT name FROM rooms WHERE id = $1', [roomId]);
+    if (roomCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    const roomName = roomCheck.rows[0].name;
+
+    // Delete related data first (foreign key constraints)
+    await pool.query('DELETE FROM chat_messages WHERE room_id = $1', [roomId]);
+    await pool.query('DELETE FROM room_banned_users WHERE room_id = $1', [roomId]);
+    await pool.query('DELETE FROM room_security WHERE room_id = $1', [roomId]);
+    await pool.query('DELETE FROM room_moderators WHERE room_id = $1', [roomId]);
+
+    // Delete room from database
+    await pool.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+
+    // Remove from in-memory rooms array
+    const roomIndex = rooms.findIndex(r => r.id === roomId);
+    if (roomIndex !== -1) {
+      rooms.splice(roomIndex, 1);
+    }
+
+    // Clean up participants for the deleted room
+    delete roomParticipants[roomId];
+
+    console.log(`Room ${roomName} (ID: ${roomId}) deleted by admin ${req.user.username}`);
+    res.json({ 
+      message: 'Room deleted successfully',
+      roomName: roomName
+    });
+
+  } catch (error) {
+    console.error('Error deleting room:', error);
+    res.status(500).json({ error: 'Failed to delete room' });
+  }
+});
+
 // Debug endpoint to check available routes
 app.get('/debug/routes', (req, res) => {
   const routes = [];

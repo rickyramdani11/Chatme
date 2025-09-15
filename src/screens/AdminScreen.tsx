@@ -93,6 +93,18 @@ export default function AdminScreen({ navigation }: any) {
   const [userCreditHistory, setUserCreditHistory] = useState([]);
   const [statusLoading, setStatusLoading] = useState(false);
 
+  // Room management states
+  const [rooms, setRooms] = useState([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [searchRoomText, setSearchRoomText] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [showEditRoomModal, setShowEditRoomModal] = useState(false);
+  const [editRoomName, setEditRoomName] = useState('');
+  const [editRoomDescription, setEditRoomDescription] = useState('');
+  const [editRoomMaxMembers, setEditRoomMaxMembers] = useState(25);
+  const [editRoomOwner, setEditRoomOwner] = useState('');
+  const [editingRoom, setEditingRoom] = useState(false);
+
   // Ban management states
   const [bannedDevicesList, setBannedDevicesList] = useState([]);
   const [banLoading, setBanLoading] = useState(false);
@@ -125,6 +137,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'gift-outline',
       color: '#FF6B35',
       description: 'Tambah dan kelola gift virtual'
+    },
+    {
+      id: 'rooms',
+      title: 'Kelola Room',
+      icon: 'chatbubbles-outline',
+      color: '#673AB7',
+      description: 'Kelola room chat dan pengaturan'
     },
     {
       id: 'users',
@@ -167,6 +186,9 @@ export default function AdminScreen({ navigation }: any) {
       if (activeTab === 'ban-manage') {
         loadUserStatus();
         loadBannedDevices();
+      }
+      if (activeTab === 'rooms') {
+        loadRooms();
       }
     }
   }, [token, activeTab]);
@@ -807,6 +829,129 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
+  // Room management functions
+  const loadRooms = async () => {
+    setRoomsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/rooms`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRooms(data.rooms || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load rooms: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+      Alert.alert('Error', 'Network error loading rooms');
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
+
+  const deleteRoom = async (roomId, roomName) => {
+    Alert.alert(
+      'Confirm Delete',
+      `Are you sure you want to delete room "${roomName}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setRoomsLoading(true);
+              const response = await fetch(`${API_BASE_URL}/api/admin/rooms/${roomId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', `Room "${roomName}" deleted successfully`);
+                loadRooms(); // Refresh room list
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete room');
+              }
+            } catch (error) {
+              console.error('Error deleting room:', error);
+              Alert.alert('Error', error.message || 'Failed to delete room');
+            } finally {
+              setRoomsLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const openEditRoomModal = (room) => {
+    setSelectedRoom(room);
+    setEditRoomName(room.name);
+    setEditRoomDescription(room.description);
+    setEditRoomMaxMembers(room.maxMembers || 25);
+    setEditRoomOwner(room.managedBy || room.createdBy);
+    setShowEditRoomModal(true);
+  };
+
+  const saveRoomChanges = async () => {
+    if (!selectedRoom) return;
+
+    if (!editRoomName.trim()) {
+      Alert.alert('Error', 'Room name is required');
+      return;
+    }
+
+    if (!editRoomDescription.trim()) {
+      Alert.alert('Error', 'Room description is required');
+      return;
+    }
+
+    setEditingRoom(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/rooms/${selectedRoom.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({
+          name: editRoomName.trim(),
+          description: editRoomDescription.trim(),
+          maxMembers: editRoomMaxMembers,
+          managedBy: editRoomOwner.trim()
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Room updated successfully');
+        setShowEditRoomModal(false);
+        loadRooms(); // Refresh room list
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update room');
+      }
+    } catch (error) {
+      console.error('Error updating room:', error);
+      Alert.alert('Error', error.message || 'Failed to update room');
+    } finally {
+      setEditingRoom(false);
+    }
+  };
+
   const handleBanDevice = async (userId, username, deviceId, userIp) => {
     Alert.alert(
       'Ban Device',
@@ -1366,6 +1511,192 @@ export default function AdminScreen({ navigation }: any) {
                 </TouchableOpacity>
               </View>
             </View>
+          </ScrollView>
+        );
+
+      case 'rooms':
+        return (
+          <ScrollView style={styles.roomManageContainer} contentContainerStyle={styles.roomManageContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.roomManageHeader}>
+              <Text style={styles.roomManageTitle}>Room Management</Text>
+              <TouchableOpacity
+                style={styles.refreshButton}
+                onPress={loadRooms}
+                disabled={roomsLoading}
+              >
+                {roomsLoading ? (
+                  <ActivityIndicator size="small" color="#673AB7" />
+                ) : (
+                  <Ionicons name="refresh" size={20} color="#673AB7" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Room */}
+            <View style={styles.searchRoomContainer}>
+              <View style={styles.searchInput}>
+                <Ionicons name="search" size={20} color="#666" />
+                <TextInput
+                  style={styles.searchTextInput}
+                  placeholder="Search room name..."
+                  value={searchRoomText}
+                  onChangeText={setSearchRoomText}
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+
+            {/* Rooms List */}
+            <View style={styles.roomsList}>
+              {rooms
+                .filter(room => room.name.toLowerCase().includes(searchRoomText.toLowerCase()))
+                .map((room, index) => (
+                <View key={room.id} style={styles.roomCard}>
+                  <View style={styles.roomCardHeader}>
+                    <View style={styles.roomBasicInfo}>
+                      <Text style={styles.roomCardName}>{room.name}</Text>
+                      <Text style={styles.roomCardDescription}>{room.description}</Text>
+                    </View>
+                    <Text style={styles.roomId}>ID: {room.id}</Text>
+                  </View>
+
+                  <View style={styles.roomCardDetails}>
+                    <Text style={styles.roomDetailText}>
+                      <Text style={styles.roomDetailLabel}>Owner:</Text> {room.managedBy || room.createdBy}
+                    </Text>
+                    <Text style={styles.roomDetailText}>
+                      <Text style={styles.roomDetailLabel}>Members:</Text> {room.members || 0}/{room.maxMembers || 25}
+                    </Text>
+                    <Text style={styles.roomDetailText}>
+                      <Text style={styles.roomDetailLabel}>Created:</Text> {new Date(room.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+
+                  <View style={styles.roomCardActions}>
+                    <TouchableOpacity
+                      style={styles.editRoomButton}
+                      onPress={() => openEditRoomModal(room)}
+                    >
+                      <Ionicons name="create-outline" size={16} color="#673AB7" />
+                      <Text style={styles.editRoomButtonText}>Edit</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={styles.deleteRoomButton}
+                      onPress={() => deleteRoom(room.id, room.name)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#F44336" />
+                      <Text style={styles.deleteRoomButtonText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+              
+              {rooms.filter(room => room.name.toLowerCase().includes(searchRoomText.toLowerCase())).length === 0 && !roomsLoading && (
+                <View style={styles.emptyRoomsList}>
+                  <Ionicons name="chatbubbles-outline" size={40} color="#ccc" />
+                  <Text style={styles.emptyRoomsText}>
+                    {searchRoomText ? 'No rooms found matching your search' : 'No rooms available'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Edit Room Modal */}
+            {showEditRoomModal && (
+              <Modal
+                visible={showEditRoomModal}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowEditRoomModal(false)}
+              >
+                <SafeAreaView style={styles.editRoomModal}>
+                  <View style={styles.editRoomHeader}>
+                    <TouchableOpacity
+                      onPress={() => setShowEditRoomModal(false)}
+                      style={styles.editRoomCloseButton}
+                    >
+                      <Ionicons name="close" size={24} color="#666" />
+                    </TouchableOpacity>
+                    <Text style={styles.editRoomTitle}>Edit Room</Text>
+                    <TouchableOpacity
+                      onPress={saveRoomChanges}
+                      disabled={editingRoom}
+                      style={[styles.editRoomSaveButton, editingRoom && styles.editRoomSaveButtonDisabled]}
+                    >
+                      {editingRoom ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.editRoomSaveButtonText}>Save</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView style={styles.editRoomContent} showsVerticalScrollIndicator={false}>
+                    <View style={styles.editFormSection}>
+                      <Text style={styles.editFormLabel}>Room Name *</Text>
+                      <TextInput
+                        style={styles.editFormInput}
+                        placeholder="Enter room name"
+                        value={editRoomName}
+                        onChangeText={setEditRoomName}
+                        maxLength={50}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+
+                    <View style={styles.editFormSection}>
+                      <Text style={styles.editFormLabel}>Description *</Text>
+                      <TextInput
+                        style={[styles.editFormInput, styles.editFormInputMultiline]}
+                        placeholder="Enter room description"
+                        value={editRoomDescription}
+                        onChangeText={setEditRoomDescription}
+                        maxLength={200}
+                        multiline
+                        numberOfLines={3}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+
+                    <View style={styles.editFormSection}>
+                      <Text style={styles.editFormLabel}>Owner/Manager</Text>
+                      <TextInput
+                        style={styles.editFormInput}
+                        placeholder="Enter owner username"
+                        value={editRoomOwner}
+                        onChangeText={setEditRoomOwner}
+                        maxLength={50}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+
+                    <View style={styles.editFormSection}>
+                      <Text style={styles.editFormLabel}>Maximum Capacity</Text>
+                      <View style={styles.capacityEditContainer}>
+                        {[25, 40, 80].map((capacity) => (
+                          <TouchableOpacity
+                            key={capacity}
+                            style={[
+                              styles.capacityEditOption,
+                              editRoomMaxMembers === capacity && styles.capacityEditOptionSelected
+                            ]}
+                            onPress={() => setEditRoomMaxMembers(capacity)}
+                          >
+                            <Text style={[
+                              styles.capacityEditOptionText,
+                              editRoomMaxMembers === capacity && styles.capacityEditOptionTextSelected
+                            ]}>
+                              {capacity}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  </ScrollView>
+                </SafeAreaView>
+              </Modal>
+            )}
           </ScrollView>
         );
 
@@ -3102,5 +3433,230 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 10,
+  },
+  // Room Management Styles
+  roomManageContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  roomManageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  roomManageTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  searchRoomContainer: {
+    marginBottom: 20,
+  },
+  searchInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  searchTextInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#333',
+  },
+  roomsList: {
+    flex: 1,
+  },
+  roomCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  roomCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  roomBasicInfo: {
+    flex: 1,
+  },
+  roomCardName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  roomCardDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  roomId: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '500',
+  },
+  roomCardDetails: {
+    marginBottom: 12,
+  },
+  roomDetailText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  roomDetailLabel: {
+    fontWeight: '600',
+    color: '#333',
+  },
+  roomCardActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  editRoomButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E5F5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+    justifyContent: 'center',
+  },
+  editRoomButtonText: {
+    color: '#673AB7',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  deleteRoomButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  deleteRoomButtonText: {
+    color: '#F44336',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  emptyRoomsList: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyRoomsText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  // Edit Room Modal Styles
+  editRoomModal: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  editRoomHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  editRoomCloseButton: {
+    padding: 4,
+  },
+  editRoomTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  editRoomSaveButton: {
+    backgroundColor: '#673AB7',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  editRoomSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  editRoomSaveButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  editRoomContent: {
+    flex: 1,
+    padding: 20,
+  },
+  editFormSection: {
+    marginBottom: 20,
+  },
+  editFormLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  editFormInput: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#374151',
+  },
+  editFormInputMultiline: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  capacityEditContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  capacityEditOption: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  capacityEditOptionSelected: {
+    borderColor: '#673AB7',
+    backgroundColor: '#f3f4f6',
+  },
+  capacityEditOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  capacityEditOptionTextSelected: {
+    color: '#673AB7',
+    fontWeight: '600',
   },
 });
