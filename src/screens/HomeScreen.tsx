@@ -226,6 +226,15 @@ const HomeScreen = ({ navigation }: any) => {
     fetchActiveUsers();
     fetchNotifications();
     fetchUserBalance();
+
+    // Set up notification polling for real-time updates
+    const notificationInterval = setInterval(() => {
+      fetchNotifications();
+    }, 30000); // Poll every 30 seconds
+
+    return () => {
+      clearInterval(notificationInterval);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -468,31 +477,53 @@ const HomeScreen = ({ navigation }: any) => {
   // Start chat function
   const startChat = async (userId: string, username: string) => {
     try {
+      console.log('Creating private chat with user:', username, 'ID:', userId);
+
       const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
         },
-        body: JSON.stringify({ targetUserId: userId }),
+        body: JSON.stringify({
+          participants: [user?.username, username],
+          initiatedBy: user?.username,
+          targetUserId: userId
+        }),
       });
+
+      console.log('Private chat response status:', response.status);
 
       if (response.ok) {
         const chatData = await response.json();
+        console.log('Private chat created/found:', chatData.id);
+
+        // Create proper targetUser object
+        const targetUser = {
+          id: userId,
+          username: username,
+          role: 'user',
+          level: 1,
+          avatar: null
+        };
+
         navigation.navigate('Chat', {
-          roomId: chatData.chatId,
+          roomId: chatData.id,
           roomName: `Chat with ${username}`,
           roomDescription: `Private chat with ${username}`,
           type: 'private',
-          targetUser: username
+          targetUser: targetUser,
+          autoFocusTab: true
         });
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to create private chat:', errorData);
         Alert.alert('Error', errorData.error || 'Failed to start chat');
       }
     } catch (error) {
       console.error('Error starting chat:', error);
-      Alert.alert('Error', 'Failed to start chat');
+      Alert.alert('Error', 'Network error. Failed to start chat');
     }
   };
 
@@ -514,7 +545,10 @@ const HomeScreen = ({ navigation }: any) => {
   const handleStartChat = () => {
     if (selectedFriend) {
       setShowFriendMenu(false);
-      startChat(selectedFriend.id, selectedFriend.name);
+      // Add small delay to allow modal to close
+      setTimeout(() => {
+        startChat(selectedFriend.id, selectedFriend.name);
+      }, 100);
     }
   };
 
@@ -693,9 +727,24 @@ const HomeScreen = ({ navigation }: any) => {
             <View style={[styles.userStatusIndicator, { backgroundColor: getStatusColor(userStatus) }]} />
           </View>
           <View style={styles.userDetails}>
-            <Text style={styles.username}>{user?.username || 'developer'}</Text>
+            <View style={styles.usernameRow}>
+              <TouchableOpacity 
+                style={[styles.iconButton, styles.notificationButton]} 
+                onPress={() => navigation.navigate('Notifications')}
+              >
+                <Ionicons name="notifications" size={20} color="#fff" />
+                {unreadNotifications > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationText}>
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.username}>{user?.username || 'developer'}</Text>
+            </View>
             <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>1</Text>
+              <Text style={styles.levelText}>Lv. {user?.level || 1}</Text>
             </View>
           </View>
         </View>
@@ -711,16 +760,10 @@ const HomeScreen = ({ navigation }: any) => {
             <Text style={styles.coinText}>{userBalance.toLocaleString()}</Text>
           </View>
 
-          <TouchableOpacity style={[styles.iconButton, styles.notificationButton]} onPress={() => navigation.navigate('Notifications')}>
-            <Ionicons name="notifications" size={24} color="#fff" />
-            {unreadNotifications > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationText}>
-                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.activeUsersContainer}>
+            <Ionicons name="people" size={16} color="#4CAF50" />
+            <Text style={styles.activeUsersText}>{activeUsers}</Text>
+          </View>
         </View>
       </LinearGradient>
 
@@ -904,13 +947,17 @@ const styles = StyleSheet.create({
   },
   userDetails: {
     marginLeft: 12,
+    flex: 1,
+  },
+  usernameRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   username: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
+    marginLeft: 8,
   },
   levelBadge: {
     backgroundColor: '#9C27B0',
@@ -1139,11 +1186,12 @@ const styles = StyleSheet.create({
   activeUsersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E8',
+    backgroundColor: 'rgba(76, 175, 80, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(76, 175, 80, 0.3)',
   },
   activeUsersText: {
     fontSize: 12,

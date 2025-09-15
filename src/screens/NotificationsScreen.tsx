@@ -57,7 +57,7 @@ export default function NotificationsScreen({ navigation }: any) {
 
   const handleFollowRequest = async (notificationId: string, action: 'accept' | 'reject') => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/follow-requests/${notificationId}/${action}`, {
+      const response = await fetch(`${API_BASE_URL}/api/follow-requests/${notificationId}/${action}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -79,7 +79,7 @@ export default function NotificationsScreen({ navigation }: any) {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await fetch(`${getApiUrl()}/api/notifications/${notificationId}/read`, {
+      await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

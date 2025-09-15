@@ -149,7 +149,7 @@ export default function AdminScreen({ navigation }: any) {
       id: 'users',
       title: 'Kelola User',
       icon: 'people-outline',
-      color: '#2196F3',
+      color: '#21963F',
       description: 'Cari dan promosikan user'
     },
     {
@@ -198,7 +198,7 @@ export default function AdminScreen({ navigation }: any) {
       const brand = Device.brand || 'Unknown';
       const modelName = Device.modelName || 'Unknown Device';
       const deviceType = await Device.getDeviceTypeAsync();
-      
+
       setDeviceInfo({
         brand,
         modelName,
@@ -710,12 +710,36 @@ export default function AdminScreen({ navigation }: any) {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Berhasil', `Kredit berhasil ditambahkan ke ${adminCreditUsername}!`);
+        // Send notification to recipient
+        try {
+          await fetch(`${API_BASE_URL}/api/notifications/send`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              recipientUsername: adminCreditUsername.trim(),
+              type: 'credit_received',
+              title: 'Credit Added by Admin',
+              message: `Administrator added ${Number(adminCreditAmount).toLocaleString()} credits to your account. Reason: ${adminCreditReason}`,
+              data: {
+                amount: Number(adminCreditAmount),
+                from: 'Administrator',
+                reason: adminCreditReason
+              }
+            }),
+          });
+        } catch (notifError) {
+          console.error('Failed to send notification:', notifError);
+        }
+
+        Alert.alert('Berhasil', `Credit berhasil ditambahkan ke ${adminCreditUsername}!`);
         setAdminCreditUsername('');
         setAdminCreditAmount('');
         setAdminCreditReason('');
       } else {
-        Alert.alert('Error', data.error || 'Gagal menambahkan kredit');
+        Alert.alert('Error', data.error || 'Gagal menambah credit');
       }
     } catch (error) {
       console.error('Error adding admin credits:', error);
@@ -730,7 +754,7 @@ export default function AdminScreen({ navigation }: any) {
     try {
       // Get device info
       const deviceName = `${deviceInfo.brand} ${deviceInfo.modelName}`;
-      
+
       // Get location info (request permission first)
       let locationString = 'Unknown';
       try {
@@ -741,7 +765,7 @@ export default function AdminScreen({ navigation }: any) {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
           });
-          
+
           if (reverseGeocode.length > 0) {
             const address = reverseGeocode[0];
             locationString = `${address.city || address.region || address.country || 'Unknown'}`;
@@ -767,7 +791,7 @@ export default function AdminScreen({ navigation }: any) {
           device: user.username === user?.username ? deviceName : user.device || 'Unknown Device',
           location: user.username === user?.username ? locationString : user.location || 'Unknown'
         })) || [];
-        
+
         setUserStatusList(enhancedUsers);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -1010,7 +1034,7 @@ export default function AdminScreen({ navigation }: any) {
     setBanLoading(true);
     try {
       console.log('Executing ban:', { banType, userId, username, target, reason });
-      
+
       const response = await fetch(`${API_BASE_URL}/api/admin/ban-${banType}`, {
         method: 'POST',
         headers: {
@@ -1580,7 +1604,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Ionicons name="create-outline" size={16} color="#673AB7" />
                       <Text style={styles.editRoomButtonText}>Edit</Text>
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity
                       style={styles.deleteRoomButton}
                       onPress={() => deleteRoom(room.id, room.name)}
@@ -1591,7 +1615,7 @@ export default function AdminScreen({ navigation }: any) {
                   </View>
                 </View>
               ))}
-              
+
               {rooms.filter(room => room.name.toLowerCase().includes(searchRoomText.toLowerCase())).length === 0 && !roomsLoading && (
                 <View style={styles.emptyRoomsList}>
                   <Ionicons name="chatbubbles-outline" size={40} color="#ccc" />
@@ -1871,19 +1895,19 @@ export default function AdminScreen({ navigation }: any) {
                       <Text style={styles.deviceInfoLabel}>Device:</Text>
                       <Text style={styles.deviceInfoValue}>{userItem.device || 'Unknown'}</Text>
                     </View>
-                    
+
                     <View style={styles.deviceInfoRow}>
                       <Ionicons name="globe-outline" size={16} color="#666" />
                       <Text style={styles.deviceInfoLabel}>IP Address:</Text>
                       <Text style={styles.deviceInfoValue}>{userItem.ip || 'Unknown'}</Text>
                     </View>
-                    
+
                     <View style={styles.deviceInfoRow}>
                       <Ionicons name="location-outline" size={16} color="#666" />
                       <Text style={styles.deviceInfoLabel}>Location:</Text>
                       <Text style={styles.deviceInfoValue}>{userItem.location || 'Unknown'}</Text>
                     </View>
-                    
+
                     <View style={styles.deviceInfoRow}>
                       <Ionicons name="time-outline" size={16} color="#666" />
                       <Text style={styles.deviceInfoLabel}>Last Login:</Text>
@@ -1902,7 +1926,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Ionicons name="phone-portrait" size={16} color="#fff" />
                       <Text style={styles.banActionText}>Ban Device</Text>
                     </TouchableOpacity>
-                    
+
                     <TouchableOpacity
                       style={[styles.banActionButton, styles.banIpButton]}
                       onPress={() => handleBanIP(userItem.id, userItem.username, userItem.ip || 'unknown_ip')}
@@ -1919,7 +1943,7 @@ export default function AdminScreen({ navigation }: any) {
             {/* Banned Devices and IPs List */}
             <View style={styles.bannedListSection}>
               <Text style={styles.sectionTitle}>Banned Devices & IPs</Text>
-              
+
               {bannedDevicesList.map((banned, index) => (
                 <View key={banned.id || index} style={styles.bannedItemCard}>
                   <View style={styles.bannedItemHeader}>
@@ -1931,7 +1955,7 @@ export default function AdminScreen({ navigation }: any) {
                       {new Date(banned.bannedAt).toLocaleDateString()}
                     </Text>
                   </View>
-                  
+
                   <View style={styles.bannedDetails}>
                     <Text style={styles.bannedDetailText}>
                       <Text style={styles.bannedDetailLabel}>Target:</Text> {banned.target}
@@ -1943,7 +1967,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Text style={styles.bannedDetailLabel}>Banned By:</Text> {banned.bannedBy}
                     </Text>
                   </View>
-                  
+
                   <TouchableOpacity
                     style={styles.unbanButton}
                     onPress={() => handleUnban(banned.id, banned.type, banned.target)}
@@ -1954,7 +1978,7 @@ export default function AdminScreen({ navigation }: any) {
                   </TouchableOpacity>
                 </View>
               ))}
-              
+
               {bannedDevicesList.length === 0 && !banLoading && (
                 <View style={styles.emptyBannedList}>
                   <Ionicons name="shield-checkmark" size={40} color="#ccc" />
