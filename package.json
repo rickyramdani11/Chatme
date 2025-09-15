@@ -68,7 +68,8 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "xendit-js-node": "^1.1.2",
-    "xendit-node": "^7.0.0"
+    "xendit-node": "^7.0.0",
+    "expo-insights": "~0.9.3"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

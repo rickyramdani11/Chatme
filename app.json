@@ -44,7 +44,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.chatme.app"
+      "package": "com.chatme1.app"
     },
     "web": {
       "bundler": "metro",
