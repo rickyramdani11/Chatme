@@ -271,8 +271,19 @@ const initDatabase = async () => {
         members INTEGER DEFAULT 0,
         max_members INTEGER DEFAULT 100,
         created_by VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+
+    // Add updated_at column if it doesn't exist (for existing databases)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='rooms' AND column_name='updated_at') THEN
+          ALTER TABLE rooms ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+        END IF;
+      END $$;
     `);
 
     await pool.query(`
@@ -2331,8 +2342,7 @@ app.put('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
         name = $1,
         description = $2,
         max_members = $3,
-        managed_by = $4,
-        updated_at = CURRENT_TIMESTAMP
+        managed_by = $4
       WHERE id = $5
       RETURNING *
     `, [name.trim(), description.trim(), maxMembers, managedBy?.trim(), roomId]);
