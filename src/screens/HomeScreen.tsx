@@ -791,24 +791,24 @@ const HomeScreen = ({ navigation }: any) => {
                 <Ionicons name="diamond" size={14} color="#FFD700" />
                 <Text style={styles.coinTextSmall}>{userBalance.toLocaleString()}</Text>
               </View>
+              <View style={styles.activeUsersContainer}>
+                <Ionicons name="people" size={14} color="#4CAF50" />
+                <Text style={styles.activeUsersText}>{activeUsers}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.messageHistoryButtonSmall}
+                onPress={() => {
+                  fetchChatHistory();
+                  setShowMessageHistory(true);
+                }}
+              >
+                <Ionicons name="chatbubbles" size={14} color="#fff" />
+              </TouchableOpacity>
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.headerRight}>
-          <View style={styles.activeUsersContainer}>
-            <Ionicons name="people" size={16} color="#4CAF50" />
-            <Text style={styles.activeUsersText}>{activeUsers}</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.messageHistoryButton}
-            onPress={() => {
-              fetchChatHistory();
-              setShowMessageHistory(true);
-            }}
-          >
-            <Ionicons name="chatbubbles" size={18} color="#fff" />
-          </TouchableOpacity>
         </View>
       </LinearGradient>
 
@@ -1341,10 +1341,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(76, 175, 80, 0.3)',
   },
   activeUsersText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#4CAF50',
     fontWeight: 'bold',
-    marginLeft: 4,
+    marginLeft: 2,
   },
   notificationButton: {
     position: 'relative',
@@ -1547,6 +1547,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  messageHistoryButtonSmall: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginLeft: 4,
   },
 });
 
