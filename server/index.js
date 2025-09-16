@@ -2871,6 +2871,86 @@ app.get('/api/rooms', (req, res) => {
   }
 });
 
+// Get chat history for user
+app.get('/api/chat/history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    console.log('Fetching chat history for user:', userId);
+
+    // Get recent private chats for the user
+    const privateChatQuery = await pool.query(`
+      SELECT DISTINCT pc.id, pc.created_at,
+             CASE 
+               WHEN pcp1.username = $1 THEN pcp2.username
+               ELSE pcp1.username
+             END as other_username,
+             'Chat with ' || CASE 
+               WHEN pcp1.username = $1 THEN pcp2.username
+               ELSE pcp1.username
+             END as name,
+             'private' as type,
+             false as is_online,
+             '' as last_message,
+             NULL as last_message_time,
+             0 as unread_count
+      FROM private_chats pc
+      JOIN private_chat_participants pcp1 ON pc.id = pcp1.chat_id
+      JOIN private_chat_participants pcp2 ON pc.id = pcp2.chat_id AND pcp2.username != pcp1.username
+      WHERE pcp1.username = (SELECT username FROM users WHERE id = $1)
+         OR pcp2.username = (SELECT username FROM users WHERE id = $1)
+      ORDER BY pc.created_at DESC
+      LIMIT 10
+    `, [userId]);
+
+    // Get recent room conversations (rooms the user has been in)
+    const roomChatQuery = await pool.query(`
+      SELECT DISTINCT r.id, r.name, r.created_at,
+             'room' as type,
+             false as is_online,
+             '' as last_message,
+             NULL as last_message_time,
+             0 as unread_count
+      FROM rooms r
+      WHERE r.id IN (
+        SELECT DISTINCT room_id 
+        FROM chat_messages 
+        WHERE user_id = $1 
+        AND created_at > NOW() - INTERVAL '7 days'
+      )
+      ORDER BY r.created_at DESC
+      LIMIT 5
+    `, [userId]);
+
+    // Combine results
+    const chatHistory = [
+      ...privateChatQuery.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        isOnline: row.is_online,
+        lastMessage: row.last_message,
+        lastMessageTime: row.last_message_time,
+        unreadCount: row.unread_count
+      })),
+      ...roomChatQuery.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+        isOnline: row.is_online,
+        lastMessage: row.last_message,
+        lastMessageTime: row.last_message_time,
+        unreadCount: row.unread_count
+      }))
+    ];
+
+    console.log(`Returning ${chatHistory.length} chat history items for user ${userId}`);
+    res.json(chatHistory);
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ error: 'Failed to fetch chat history' });
+  }
+});
+
 // Get all posts
 app.get('/api/feed/posts', async (req, res) => {
   try {

@@ -457,7 +457,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Fetch chat history function
   const fetchChatHistory = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/chat/history`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/history`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
