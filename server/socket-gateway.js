@@ -458,7 +458,7 @@ io.on('connection', (socket) => {
 
   // Join room event
   socket.on('join-room', async (data) => {
-    const { roomId, username, role, password } = data;
+    const { roomId, username, role, password, silent } = data;
 
     if (!roomId || !username) {
       console.log('❌ Invalid join-room data:', data);
@@ -564,18 +564,22 @@ io.on('connection', (socket) => {
         roomParticipants[roomId].push(participant);
       }
 
-      // Broadcast join message
-      const joinMessage = {
-        id: Date.now().toString(),
-        sender: username,
-        content: `${username} joined the room`,
-        timestamp: new Date().toISOString(),
-        roomId: roomId,
-        type: 'join',
-        userRole: role
-      };
+      // Only broadcast join message if not silent (explicit join, not reconnection)
+      if (!silent) {
+        const joinMessage = {
+          id: Date.now().toString(),
+          sender: username,
+          content: `${username} joined the room`,
+          timestamp: new Date().toISOString(),
+          roomId: roomId,
+          type: 'join',
+          userRole: role
+        };
 
-      socket.to(roomId).emit('user-joined', joinMessage);
+        socket.to(roomId).emit('user-joined', joinMessage);
+      }
+
+      // Always update participants list
       io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
 
       // Emit successful join confirmation to the user
@@ -623,9 +627,50 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('user-left', leaveMessage);
   });
 
-  // Join support room event (you'll need to add this)
+  // Join support room event
   socket.on('join-support-room', async (data) => {
     const { supportRoomId, isAdmin, silent } = data;
+    
+    if (!supportRoomId) {
+      console.log('❌ Invalid join-support-room data:', data);
+      socket.emit('join-support-room-error', { error: 'Invalid support room data provided' });
+      return;
+    }
+
+    try {
+      socket.join(supportRoomId);
+      console.log(`🚪 ${socket.username} joined support room ${supportRoomId} via gateway`);
+
+      // Update connected user info
+      let userInfo = connectedUsers.get(socket.id);
+      if (userInfo) {
+        userInfo.roomId = supportRoomId;
+      }
+
+      // Only broadcast join message if not silent
+      if (!silent && isAdmin) {
+        const adminJoinMessage = {
+          id: Date.now().toString(),
+          sender: 'System',
+          content: `Admin ${socket.username} has joined the support chat`,
+          timestamp: new Date().toISOString(),
+          roomId: supportRoomId,
+          type: 'join'
+        };
+
+        socket.to(supportRoomId).emit('admin-joined', { message: adminJoinMessage.content });
+      }
+
+      // Emit successful join confirmation
+      socket.emit('join-support-room-success', { supportRoomId });
+
+    } catch (error) {
+      console.error('Error in join-support-room handler:', error);
+      socket.emit('join-support-room-error', { 
+        error: 'Internal server error',
+        reason: 'server_error'
+      });
+    }
   });
 
   // Lock/Unlock room event

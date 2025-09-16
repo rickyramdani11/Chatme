@@ -146,50 +146,22 @@ export default function ChatScreen() {
       console.log('AppState changed to:', nextAppState);
 
       if (nextAppState === 'active') {
-        console.log('App became active - ensuring socket connection and rejoining rooms');
+        console.log('App became active - maintaining socket connection');
         
         // Reset scroll state
         setIsUserScrolling(false);
         
-        if (socket) {
-          // Always rejoin rooms using latest state from refs
-          setTimeout(() => {
-            const currentTabs = chatTabsRef.current;
-            const currentUser = userRef.current;
-            if (currentTabs.length > 0 && currentUser?.username) {
-              console.log(`Rejoining ${currentTabs.length} rooms after app resume`);
-              currentTabs.forEach((tab, index) => {
-                setTimeout(() => {
-                  console.log('Rejoining room after app resume:', tab.id, currentUser.username);
-                  if (tab.isSupport) {
-                    socket.emit('join-support-room', {
-                      supportRoomId: tab.id,
-                      isAdmin: currentUser.role === 'admin'
-                    });
-                  } else {
-                    socket.emit('join-room', {
-                      roomId: tab.id,
-                      username: currentUser.username,
-                      role: currentUser.role || 'user'
-                    });
-                  }
-                }, index * 100); // Stagger rejoining
-              });
-            }
-          }, 500);
-        }
-        
-        // Force scroll to bottom for current tab
+        // Force scroll to bottom for current tab without rejoining rooms
         setTimeout(() => {
           const currentTab = chatTabsRef.current[activeTabRef.current];
           if (currentTab && flatListRefs.current[currentTab.id]) {
             flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: true });
           }
-        }, 1000);
+        }, 500);
         
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
-        // Keep socket alive for better message delivery
+        // Keep socket alive and maintain room connections
       }
     };
 
@@ -646,19 +618,22 @@ export default function ChatScreen() {
       }
 
       // Join room via socket (for both room and private chat)
+      // This is an explicit join, so show join message
       if (socket) {
         if (isSupport) {
           // Join support room with admin status
           socket.emit('join-support-room', {
             supportRoomId: roomId,
-            isAdmin: user?.role === 'admin'
+            isAdmin: user?.role === 'admin',
+            silent: false // Show join message for explicit joins
           });
         } else {
           // Join regular room or private chat
           socket.emit('join-room', {
             roomId: roomId,
             username: user?.username || 'Guest',
-            role: user?.role || 'user'
+            role: user?.role || 'user',
+            silent: false // Show join message for explicit joins
           });
         }
       }
@@ -1190,32 +1165,38 @@ export default function ChatScreen() {
         // Setup all socket listeners after connection
         setupSocketListeners(newSocket);
 
-        // Rejoin all active rooms after reconnection using refs to avoid stale closures
-        setTimeout(() => {
-          const currentTabs = chatTabsRef.current;
-          const currentUser = userRef.current;
-          if (currentTabs.length > 0 && currentUser?.username) {
-            console.log(`Rejoining ${currentTabs.length} rooms after reconnection`);
-            currentTabs.forEach((tab, index) => {
-              // Stagger room rejoining to prevent server overload
-              setTimeout(() => {
-                console.log('Rejoining room after reconnect:', tab.id, currentUser.username);
-                if (tab.isSupport) {
-                  newSocket.emit('join-support-room', {
-                    supportRoomId: tab.id,
-                    isAdmin: currentUser.role === 'admin'
-                  });
-                } else {
-                  newSocket.emit('join-room', {
-                    roomId: tab.id,
-                    username: currentUser.username,
-                    role: currentUser.role || 'user'
-                  });
-                }
-              }, index * 100); // 100ms delay between each room join
-            });
-          }
-        }, 200); // Initial delay to ensure connection is stable
+        // Only rejoin rooms if this is a reconnection after disconnect
+        // Don't rejoin on initial connect or app state changes
+        const wasDisconnected = !socket || !socket.connected;
+        if (wasDisconnected) {
+          setTimeout(() => {
+            const currentTabs = chatTabsRef.current;
+            const currentUser = userRef.current;
+            if (currentTabs.length > 0 && currentUser?.username) {
+              console.log(`Rejoining ${currentTabs.length} rooms after reconnection`);
+              currentTabs.forEach((tab, index) => {
+                // Stagger room rejoining to prevent server overload
+                setTimeout(() => {
+                  console.log('Rejoining room after reconnect:', tab.id, currentUser.username);
+                  if (tab.isSupport) {
+                    newSocket.emit('join-support-room', {
+                      supportRoomId: tab.id,
+                      isAdmin: currentUser.role === 'admin',
+                      silent: true // Don't broadcast join message
+                    });
+                  } else {
+                    newSocket.emit('join-room', {
+                      roomId: tab.id,
+                      username: currentUser.username,
+                      role: currentUser.role || 'user',
+                      silent: true // Don't broadcast join message
+                    });
+                  }
+                }, index * 100); // 100ms delay between each room join
+              });
+            }
+          }, 200); // Initial delay to ensure connection is stable
+        }
       });
 
       newSocket.on('disconnect', (reason) => {
@@ -1293,90 +1274,33 @@ export default function ChatScreen() {
     // Initialize socket on component mount
     initializeSocket();
 
-    // AppState listener for reconnection when app becomes active
+    // AppState listener for minimal background/foreground handling
     const handleAppStateChange = (nextAppState: string) => {
       console.log('AppState changed to:', nextAppState);
 
       if (nextAppState === 'active') {
-        // Force reconnection when app becomes active
-        console.log('App became active - forcing socket reconnection');
+        console.log('App became active - maintaining existing connections');
         
-        // Reset states that might affect message display
+        // Reset scroll state
         setIsUserScrolling(false);
         
-        if (socket) {
-          // Always re-setup listeners and rejoin rooms for better reliability
-          console.log('Re-setup listeners and rejoin rooms on app active');
-          setupSocketListeners(socket);
-
-          // Force reconnection if not connected
-          if (!socket.connected) {
-            console.log('Socket not connected, forcing reconnection');
-            socket.disconnect();
-            setTimeout(() => {
-              socket.connect();
-            }, 100);
-          }
-
-          // Always rejoin all rooms to ensure we're still in them using refs
-          setTimeout(() => {
-            const currentTabs = chatTabsRef.current;
-            const currentUser = userRef.current;
-            if (currentTabs.length > 0 && currentUser?.username) {
-              currentTabs.forEach((tab, index) => {
-                setTimeout(() => {
-                  console.log('Rejoining room after app resume:', tab.id, currentUser.username);
-                  if (tab.isSupport) {
-                    socket.emit('join-support-room', {
-                      supportRoomId: tab.id,
-                      isAdmin: currentUser.role === 'admin'
-                    });
-                  } else {
-                    socket.emit('join-room', {
-                      roomId: tab.id,
-                      username: currentUser.username,
-                      role: currentUser.role || 'user'
-                    });
-                  }
-                }, index * 50); // Stagger the rejoining
-              });
-            }
-          }, 200);
+        // Only reconnect if socket is actually disconnected
+        if (socket && !socket.connected) {
+          console.log('Socket disconnected, attempting reconnection');
+          socket.connect();
         }
 
-        // Force re-render of current chat messages
-        setTimeout(() => {
-          setChatTabs(prevTabs => [...prevTabs]);
-        }, 300);
-
-        // Reload participants for current room using refs
-        const currentTab = chatTabsRef.current[activeTabRef.current];
-        if (currentTab && currentTab.type !== 'private') {
-          setTimeout(() => {
-            loadParticipants();
-          }, 500);
-        }
-
-        // Ensure current tab messages are visible with multiple attempts using refs
-        setTimeout(() => {
-          const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
-          if (currentTabId && flatListRefs.current[currentTabId]) {
-            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: false });
-          }
-        }, 600);
-        
-        // Second attempt to ensure scrolling
+        // Ensure current tab messages are visible
         setTimeout(() => {
           const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
           if (currentTabId && flatListRefs.current[currentTabId]) {
             flatListRefs.current[currentTabId]?.scrollToEnd({ animated: true });
           }
-        }, 1000);
+        }, 500);
         
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
-        // Don't disconnect socket when going to background
-        // Keep connection alive for better message delivery
+        // Keep all connections alive - don't disconnect anything
       }
     };
 
