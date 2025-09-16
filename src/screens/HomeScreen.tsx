@@ -457,7 +457,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Fetch chat history function
   const fetchChatHistory = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/history`, {
+      const response = await fetch(`${API_BASE_URL}/chat/history`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -796,6 +796,10 @@ const HomeScreen = ({ navigation }: any) => {
         </View>
 
         <View style={styles.headerRight}>
+          <View style={styles.activeUsersContainer}>
+            <Ionicons name="people" size={16} color="#4CAF50" />
+            <Text style={styles.activeUsersText}>{activeUsers}</Text>
+          </View>
           <TouchableOpacity 
             style={styles.messageHistoryButton}
             onPress={() => {
@@ -805,10 +809,6 @@ const HomeScreen = ({ navigation }: any) => {
           >
             <Ionicons name="chatbubbles" size={18} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.activeUsersContainer}>
-            <Ionicons name="people" size={16} color="#4CAF50" />
-            <Text style={styles.activeUsersText}>{activeUsers}</Text>
-          </View>
         </View>
       </LinearGradient>
 
@@ -1135,7 +1135,9 @@ const styles = StyleSheet.create({
     marginLeft: 3,
   },
   headerRight: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
   friendsSection: {
     flex: 1,
