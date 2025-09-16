@@ -516,9 +516,19 @@ io.on('connection', (socket) => {
         }
       }
 
-      // 3. All security checks passed - allow join
+      // 3. All security checks passed - check if already in room
+      const isAlreadyInRoom = socket.rooms.has(roomId);
+      const existingParticipant = roomParticipants[roomId]?.find(p => p.username === username);
+      
+      // Log the join attempt with more detail
+      if (silent) {
+        console.log(`🔄 ${username} reconnecting to room ${roomId} via gateway (silent)`);
+      } else {
+        console.log(`🚪 ${username} joining room ${roomId} via gateway (new join)`);
+      }
+      
+      // Always join the socket room (this is safe to call multiple times)
       socket.join(roomId);
-      console.log(`🚪 ${socket.username} joined room ${roomId} via gateway (passed security checks)`);
 
       // Update connected user info
       let userInfo = connectedUsers.get(socket.id);
@@ -547,11 +557,16 @@ io.on('connection', (socket) => {
       }
 
       let participant = roomParticipants[roomId].find(p => p.username === username);
+      const wasAlreadyParticipant = !!participant;
+      
       if (participant) {
+        // Update existing participant
         participant.isOnline = true;
         participant.socketId = socket.id;
         participant.lastSeen = new Date().toISOString();
+        console.log(`✅ Updated existing participant: ${username} in room ${roomId}`);
       } else {
+        // Add new participant
         participant = {
           id: Date.now().toString(),
           username,
@@ -562,10 +577,16 @@ io.on('connection', (socket) => {
           lastSeen: new Date().toISOString()
         };
         roomParticipants[roomId].push(participant);
+        console.log(`➕ Added new participant: ${username} to room ${roomId}`);
       }
 
-      // Only broadcast join message if not silent (explicit join, not reconnection)
-      if (!silent) {
+      // Only broadcast join message if:
+      // 1. Not silent (not a reconnection)
+      // 2. User was not already online (prevent duplicate messages but allow legitimate returns)
+      const wasAlreadyOnline = wasAlreadyParticipant && participant.isOnline;
+      const shouldBroadcastJoin = !silent && !wasAlreadyOnline;
+      
+      if (shouldBroadcastJoin) {
         const joinMessage = {
           id: Date.now().toString(),
           sender: username,
@@ -576,7 +597,14 @@ io.on('connection', (socket) => {
           userRole: role
         };
 
+        console.log(`📢 Broadcasting join message for ${username} in room ${roomId}`);
         socket.to(roomId).emit('user-joined', joinMessage);
+      } else {
+        if (silent) {
+          console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
+        } else if (wasAlreadyOnline) {
+          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
+        }
       }
 
       // Always update participants list

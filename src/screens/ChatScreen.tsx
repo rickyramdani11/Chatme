@@ -109,6 +109,8 @@ export default function ChatScreen() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const maxReconnectAttempts = 5;
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitializingSocketRef = useRef(false);
+  const hadConnectedRef = useRef(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   
@@ -1136,6 +1138,26 @@ export default function ChatScreen() {
         console.error('No authentication token available');
         return;
       }
+      
+      // Prevent creating multiple socket connections
+      if (isInitializingSocketRef.current) {
+        console.log('Socket initialization already in progress, skipping');
+        return;
+      }
+      
+      if (socket && socket.connected) {
+        console.log('Socket already connected, skipping initialization');
+        return;
+      }
+      
+      isInitializingSocketRef.current = true;
+      
+      // Clean up existing socket if it exists
+      if (socket) {
+        console.log('Cleaning up existing socket before creating new one');
+        socket.removeAllListeners();
+        socket.disconnect();
+      }
 
       // Initialize socket connection to gateway with better stability options
       const newSocket = io(SOCKET_URL, { // Use SOCKET_URL
@@ -1161,42 +1183,47 @@ export default function ChatScreen() {
         console.log('Socket ID:', newSocket.id);
         setIsSocketConnected(true);
         setReconnectAttempts(0);
+        isInitializingSocketRef.current = false;
+        
+        // Mark that we've had a successful connection
+        hadConnectedRef.current = true;
 
         // Setup all socket listeners after connection
         setupSocketListeners(newSocket);
 
-        // Only rejoin rooms if this is a reconnection after disconnect
-        // Don't rejoin on initial connect or app state changes
-        const wasDisconnected = !socket || !socket.connected;
-        if (wasDisconnected) {
-          setTimeout(() => {
-            const currentTabs = chatTabsRef.current;
-            const currentUser = userRef.current;
-            if (currentTabs.length > 0 && currentUser?.username) {
-              console.log(`Rejoining ${currentTabs.length} rooms after reconnection`);
-              currentTabs.forEach((tab, index) => {
-                // Stagger room rejoining to prevent server overload
-                setTimeout(() => {
-                  console.log('Rejoining room after reconnect:', tab.id, currentUser.username);
-                  if (tab.isSupport) {
-                    newSocket.emit('join-support-room', {
-                      supportRoomId: tab.id,
-                      isAdmin: currentUser.role === 'admin',
-                      silent: true // Don't broadcast join message
-                    });
-                  } else {
-                    newSocket.emit('join-room', {
-                      roomId: tab.id,
-                      username: currentUser.username,
-                      role: currentUser.role || 'user',
-                      silent: true // Don't broadcast join message
-                    });
-                  }
-                }, index * 100); // 100ms delay between each room join
-              });
-            }
-          }, 200); // Initial delay to ensure connection is stable
-        }
+        console.log('Initial connection - not rejoining rooms automatically');
+      });
+      
+      // Use the 'reconnect' event for reliable reconnection detection
+      newSocket.io.on('reconnect', (attemptNumber) => {
+        console.log(`Socket reconnected after ${attemptNumber} attempts - rejoining rooms with silent parameter`);
+        setTimeout(() => {
+          const currentTabs = chatTabsRef.current;
+          const currentUser = userRef.current;
+          if (currentTabs.length > 0 && currentUser?.username) {
+            console.log(`Rejoining ${currentTabs.length} rooms after reconnection (silent)`);
+            currentTabs.forEach((tab, index) => {
+              // Stagger room rejoining to prevent server overload
+              setTimeout(() => {
+                console.log('Rejoining room after reconnect (silent):', tab.id, currentUser.username);
+                if (tab.isSupport) {
+                  newSocket.emit('join-support-room', {
+                    supportRoomId: tab.id,
+                    isAdmin: currentUser.role === 'admin',
+                    silent: true // Don't broadcast join message
+                  });
+                } else {
+                  newSocket.emit('join-room', {
+                    roomId: tab.id,
+                    username: currentUser.username,
+                    role: currentUser.role || 'user',
+                    silent: true // Don't broadcast join message
+                  });
+                }
+              }, index * 200); // 200ms delay between each room join
+            });
+          }
+        }, 300); // Longer delay to ensure connection is stable
       });
 
       newSocket.on('disconnect', (reason) => {
@@ -1218,6 +1245,7 @@ export default function ChatScreen() {
         console.error('Socket connection error:', error.message);
         console.error('Gateway URL:', SOCKET_URL);
         setIsSocketConnected(false);
+        isInitializingSocketRef.current = false;
 
         // Don't attempt reconnection if it's a network issue
         if (error.message && error.message.includes('websocket error')) {
@@ -1262,8 +1290,12 @@ export default function ChatScreen() {
 
       reconnectTimeoutRef.current = setTimeout(() => {
         setReconnectAttempts(prev => prev + 1);
+        console.log(`Reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts}`);
 
+        // Clean up existing socket properly
         if (socket) {
+          console.log('Disconnecting existing socket for reconnection');
+          socket.removeAllListeners();
           socket.disconnect();
         }
 
@@ -1284,10 +1316,15 @@ export default function ChatScreen() {
         // Reset scroll state
         setIsUserScrolling(false);
         
-        // Only reconnect if socket is actually disconnected
+        // Only reconnect if socket exists and is actually disconnected
         if (socket && !socket.connected) {
-          console.log('Socket disconnected, attempting reconnection');
+          console.log('Socket disconnected, attempting to reconnect existing socket');
           socket.connect();
+        } else if (!socket) {
+          console.log('No socket exists, initializing new socket connection');
+          initializeSocket();
+        } else {
+          console.log('Socket already connected, no reconnection needed');
         }
 
         // Ensure current tab messages are visible
@@ -1311,7 +1348,11 @@ export default function ChatScreen() {
 
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
+      
+      isInitializingSocketRef.current = false;
+      hadConnectedRef.current = false;
 
       appStateSubscription?.remove();
 
