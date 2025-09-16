@@ -53,7 +53,7 @@ function MainTabs() {
           } else if (route.name === 'Feed') {
             iconName = focused ? 'newspaper' : 'newspaper-outline';
           } else if (route.name === 'Room') {
-            iconName = focused ? 'videocam' : 'videocam-outline';
+            iconName = focused ? 'chatbubble' : 'chatbubble-outline';
           } else if (route.name === 'Chat') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
           } else if (route.name === 'Settings') {
