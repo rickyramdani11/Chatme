@@ -2877,6 +2877,13 @@ app.get('/api/chat/history', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     console.log('Fetching chat history for user:', userId);
 
+    // First get the username for this user
+    const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const username = userResult.rows[0].username;
+
     // Get recent private chats for the user
     const privateChatQuery = await pool.query(`
       SELECT DISTINCT pc.id, pc.created_at,
@@ -2896,22 +2903,21 @@ app.get('/api/chat/history', authenticateToken, async (req, res) => {
       FROM private_chats pc
       JOIN private_chat_participants pcp1 ON pc.id = pcp1.chat_id
       JOIN private_chat_participants pcp2 ON pc.id = pcp2.chat_id AND pcp2.username != pcp1.username
-      WHERE pcp1.username = (SELECT username FROM users WHERE id = $1)
-         OR pcp2.username = (SELECT username FROM users WHERE id = $1)
+      WHERE pcp1.username = $1 OR pcp2.username = $1
       ORDER BY pc.created_at DESC
       LIMIT 10
-    `, [userId]);
+    `, [username]);
 
     // Get recent room conversations (rooms the user has been in)
     const roomChatQuery = await pool.query(`
-      SELECT DISTINCT r.id, r.name, r.created_at,
+      SELECT DISTINCT r.id::text, r.name, r.created_at,
              'room' as type,
              false as is_online,
              '' as last_message,
              NULL as last_message_time,
              0 as unread_count
       FROM rooms r
-      WHERE r.id IN (
+      WHERE r.id::text IN (
         SELECT DISTINCT room_id 
         FROM chat_messages 
         WHERE user_id = $1 
