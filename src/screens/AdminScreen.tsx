@@ -2083,7 +2083,7 @@ export default function AdminScreen({ navigation }: any) {
         style={styles.header}
       >
         <View style={styles.headerContent}>
-          <TouchableOpacity onPress={toggleSideMenu}>
+          <TouchableOpacity onPress={toggleSideMenu} style={styles.menuButton}>
             <Ionicons name="menu" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{getActiveMenuTitle()}</Text>
@@ -2376,6 +2376,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  menuButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   addButton: {
     marginTop: 8,
