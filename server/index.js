@@ -477,7 +477,7 @@ const initDatabase = async () => {
         expires_at TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
         FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN kecEY (promoted_by) REFERENCES users(id)
+        FOREIGN KEY (promoted_by) REFERENCES users(id)
       )
     `);
 
