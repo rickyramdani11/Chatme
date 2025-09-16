@@ -5327,6 +5327,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 4,
   },
   backButton: {
     padding: 8,
@@ -5350,13 +5351,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 12,
+    paddingVertical: 8,
   },
   privateChatAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     marginRight: 12,
     overflow: 'hidden',
+    marginTop: 4,
   },
   avatarImage: {
     width: 40,
@@ -5378,24 +5381,27 @@ const styles = StyleSheet.create({
   },
   privateChatInfo: {
     flex: 1,
+    paddingTop: 4,
   },
   privateChatName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+    marginBottom: 2,
   },
   privateChatStatus: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
   },
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingTop: 4,
   },
   headerIcon: {
-    padding: 8,
-    marginLeft: 4,
+    padding: 10,
+    marginLeft: 2,
+    marginTop: 4,
   },
   indicatorContainer: {
     flexDirection: 'row',
