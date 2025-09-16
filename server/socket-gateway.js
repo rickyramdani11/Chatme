@@ -648,6 +648,9 @@ io.on('connection', (socket) => {
     socket.leave(roomId);
     console.log(`${username} left room ${roomId} via gateway`);
 
+    // Check if this is a private chat room
+    const isPrivateChat = roomId.startsWith('private_');
+
     // Remove participant from room
     if (roomParticipants[roomId]) {
       roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== username);
@@ -660,18 +663,22 @@ io.on('connection', (socket) => {
       userInfo.roomId = null;
     }
 
-    // Broadcast leave message
-    const leaveMessage = {
-      id: Date.now().toString(),
-      sender: username,
-      content: `${username} left the room`,
-      timestamp: new Date().toISOString(),
-      roomId: roomId,
-      type: 'leave',
-      userRole: role
-    };
+    // Only broadcast leave message for non-private chats
+    if (!isPrivateChat) {
+      const leaveMessage = {
+        id: Date.now().toString(),
+        sender: username,
+        content: `${username} left the room`,
+        timestamp: new Date().toISOString(),
+        roomId: roomId,
+        type: 'leave',
+        userRole: role
+      };
 
-    socket.to(roomId).emit('user-left', leaveMessage);
+      socket.to(roomId).emit('user-left', leaveMessage);
+    } else {
+      console.log(`💬 Private chat leave - no broadcast for ${username} in room ${roomId}`);
+    }
   });
 
   // Join support room event
@@ -1590,6 +1597,9 @@ io.on('connection', (socket) => {
 
     const userInfo = connectedUsers.get(socket.id);
     if (userInfo && userInfo.roomId && userInfo.username) {
+      // Check if this is a private chat room
+      const isPrivateChat = userInfo.roomId.startsWith('private_');
+
       // Remove from room participants
       if (roomParticipants[userInfo.roomId]) {
         roomParticipants[userInfo.roomId] = roomParticipants[userInfo.roomId].filter(
@@ -1599,18 +1609,22 @@ io.on('connection', (socket) => {
         // Notify room about updated participants
         io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
 
-        // Broadcast leave message
-        const leaveMessage = {
-          id: Date.now().toString(),
-          sender: userInfo.username,
-          content: `${userInfo.username} left the room`,
-          timestamp: new Date().toISOString(),
-          roomId: userInfo.roomId,
-          type: 'leave',
-          userRole: userInfo.role || 'user'
-        };
+        // Only broadcast leave message for non-private chats
+        if (!isPrivateChat) {
+          const leaveMessage = {
+            id: Date.now().toString(),
+            sender: userInfo.username,
+            content: `${userInfo.username} left the room`,
+            timestamp: new Date().toISOString(),
+            roomId: userInfo.roomId,
+            type: 'leave',
+            userRole: userInfo.role || 'user'
+          };
 
-        socket.to(userInfo.roomId).emit('user-left', leaveMessage);
+          socket.to(userInfo.roomId).emit('user-left', leaveMessage);
+        } else {
+          console.log(`💬 Private chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+        }
       }
     }
 

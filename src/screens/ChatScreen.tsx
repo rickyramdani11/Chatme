@@ -92,7 +92,7 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
   const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
-  
+
   // Create refs for state values that socket listeners need to avoid stale closures
   const chatTabsRef = useRef<ChatTab[]>([]);
   const activeTabRef = useRef<number>(0);
@@ -114,35 +114,35 @@ export default function ChatScreen() {
   const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  
+
   // Get user and token before any refs that depend on them
   const { user, token } = useAuth();
-  
+
   // Get room data from navigation params  
   const routeParams = (route.params as any) || {};
   const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
-  
+
   // Update refs whenever state changes to avoid stale closures
   useEffect(() => {
     chatTabsRef.current = chatTabs;
   }, [chatTabs]);
-  
+
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
-  
+
   useEffect(() => {
     autoScrollEnabledRef.current = autoScrollEnabled;
   }, [autoScrollEnabled]);
-  
+
   useEffect(() => {
     isUserScrollingRef.current = isUserScrolling;
   }, [isUserScrolling]);
-  
+
   useEffect(() => {
     userRef.current = user;
   }, [user]);
-  
+
   // Add AppState listener for proper background/foreground handling
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
@@ -150,10 +150,10 @@ export default function ChatScreen() {
 
       if (nextAppState === 'active') {
         console.log('App became active - maintaining socket connection');
-        
+
         // Reset scroll state
         setIsUserScrolling(false);
-        
+
         // Force scroll to bottom for current tab without rejoining rooms
         setTimeout(() => {
           const currentTab = chatTabsRef.current[activeTabRef.current];
@@ -161,7 +161,7 @@ export default function ChatScreen() {
             flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: true });
           }
         }, 500);
-        
+
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
         // Keep socket alive and maintain room connections
@@ -169,12 +169,12 @@ export default function ChatScreen() {
     };
 
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
-    
+
     return () => {
       appStateSubscription?.remove();
     };
   }, [socket]); // Dependency on socket to re-setup when socket changes
-  
+
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
   const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
@@ -316,7 +316,7 @@ export default function ChatScreen() {
   const handleVideoCall = async () => {
     // Get targetUser from navigation params or selected participant
     const callTargetUser = targetUser || selectedParticipant;
-    
+
     if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
       return;
@@ -355,7 +355,7 @@ export default function ChatScreen() {
   const handleAudioCall = async () => {
     // Get targetUser from navigation params or selected participant
     const callTargetUser = targetUser || selectedParticipant;
-    
+
     if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
       return;
@@ -625,10 +625,10 @@ export default function ChatScreen() {
       if (socket) {
         const hasJoinedBefore = joinedRoomsRef.current.has(roomId);
         const shouldBeSilent = hasJoinedBefore; // Silent if we've joined before
-        
+
         console.log(`Emitting join-room for room ${roomId}, silent: ${shouldBeSilent}`);
         joinedRoomsRef.current.add(roomId); // Mark room as joined
-        
+
         if (isSupport) {
           // Join support room with admin status
           socket.emit('join-support-room', {
@@ -748,7 +748,7 @@ export default function ChatScreen() {
             [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
           }));
         }
-        
+
         // Force scroll to bottom for current room messages with better timing using refs
         if (newMessage.roomId === chatTabsRef.current[activeTabRef.current]?.id) {
           setTimeout(() => {
@@ -761,23 +761,35 @@ export default function ChatScreen() {
       });
 
       socketInstance.on('user-joined', (joinMessage: Message) => {
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === joinMessage.roomId
-              ? { ...tab, messages: [...tab.messages, joinMessage] }
-              : tab
-          )
-        );
+        // Only add join/leave messages if it's not a private chat
+        const isPrivateChat = chatTabsRef.current[activeTabRef.current]?.type === 'private';
+        if (!isPrivateChat) {
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === joinMessage.roomId
+                ? { ...tab, messages: [...tab.messages, joinMessage] }
+                : tab
+            )
+          );
+        } else {
+          console.log('Skipping join message for private chat.');
+        }
       });
 
       socketInstance.on('user-left', (leaveMessage: Message) => {
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === leaveMessage.roomId
-              ? { ...tab, messages: [...tab.messages, leaveMessage] }
-              : tab
-          )
-        );
+        // Only add join/leave messages if it's not a private chat
+        const isPrivateChat = chatTabsRef.current[activeTabRef.current]?.type === 'private';
+        if (!isPrivateChat) {
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === leaveMessage.roomId
+                ? { ...tab, messages: [...tab.messages, leaveMessage] }
+                : tab
+            )
+          );
+        } else {
+          console.log('Skipping leave message for private chat.');
+        }
       });
 
       // Listen for participant updates using refs to avoid stale closures
@@ -1074,7 +1086,7 @@ export default function ChatScreen() {
       socketInstance.on('call-response-received', (responseData) => {
         console.log('Call response received:', responseData);
         setCallRinging(false);
-        
+
         if (responseData.response === 'accept') {
           Alert.alert(
             'Call Accepted',
@@ -1145,20 +1157,20 @@ export default function ChatScreen() {
         console.error('No authentication token available');
         return;
       }
-      
+
       // Prevent creating multiple socket connections
       if (isInitializingSocketRef.current) {
         console.log('Socket initialization already in progress, skipping');
         return;
       }
-      
+
       if (socket && socket.connected) {
         console.log('Socket already connected, skipping initialization');
         return;
       }
-      
+
       isInitializingSocketRef.current = true;
-      
+
       // Clean up existing socket if it exists
       if (socket) {
         console.log('Cleaning up existing socket before creating new one');
@@ -1191,7 +1203,7 @@ export default function ChatScreen() {
         setIsSocketConnected(true);
         setReconnectAttempts(0);
         isInitializingSocketRef.current = false;
-        
+
         // Mark that we've had a successful connection
         hadConnectedRef.current = true;
 
@@ -1200,7 +1212,7 @@ export default function ChatScreen() {
 
         console.log('Initial connection - not rejoining rooms automatically');
       });
-      
+
       // Use the 'reconnect' event for reliable reconnection detection
       newSocket.io.on('reconnect', (attemptNumber) => {
         console.log(`Socket reconnected after ${attemptNumber} attempts - rejoining rooms with silent parameter`);
@@ -1236,7 +1248,7 @@ export default function ChatScreen() {
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected from gateway:', reason);
         setIsSocketConnected(false);
-        
+
         // Clear joined rooms tracking on disconnect since server session will be lost
         joinedRoomsRef.current.clear();
         console.log('Cleared joined rooms tracking due to disconnect');
@@ -1323,10 +1335,10 @@ export default function ChatScreen() {
 
       if (nextAppState === 'active') {
         console.log('App became active - maintaining existing connections');
-        
+
         // Reset scroll state
         setIsUserScrolling(false);
-        
+
         // Only reconnect if socket exists and is actually disconnected
         if (socket && !socket.connected) {
           console.log('Socket disconnected, attempting to reconnect existing socket');
@@ -1342,10 +1354,10 @@ export default function ChatScreen() {
         setTimeout(() => {
           const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
           if (currentTabId && flatListRefs.current[currentTabId]) {
-            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: true });
+            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: false });
           }
         }, 500);
-        
+
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
         // Keep all connections alive - don't disconnect anything
@@ -1361,7 +1373,7 @@ export default function ChatScreen() {
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      
+
       isInitializingSocketRef.current = false;
       hadConnectedRef.current = false;
       // Don't clear joinedRoomsRef on routine cleanup - only clear on disconnect/logout
@@ -1414,7 +1426,7 @@ export default function ChatScreen() {
       if (chatTabs.length > 0 && activeTab >= 0 && chatTabs[activeTab]) {
         const currentTab = chatTabs[activeTab];
         console.log(`Preserving messages for tab: ${currentTab.title}, Messages count: ${currentTab.messages.length}`);
-        
+
         // Force update FlatList jika ada pesan
         if (currentTab.messages.length > 0) {
           setTimeout(() => {
@@ -1561,7 +1573,7 @@ export default function ChatScreen() {
         }
       }
     }, 100);
-    
+
     // Second attempt for better reliability
     setTimeout(() => {
       if (chatTabs[index] && chatTabs[index].messages.length > 0) {
@@ -2489,7 +2501,7 @@ export default function ChatScreen() {
       // Clear message immediately
       setMessage('');
       setShowUserTagMenu(false);
-      
+
       // Reset scroll state to ensure autoscroll works after sending message
       setIsUserScrolling(false);
 
@@ -2874,7 +2886,7 @@ export default function ChatScreen() {
       Alert.alert('Success', `${selectedParticipant?.username} has been unblocked`);
     } else {
       setBlockedUsers(prev => [...prev, selectedParticipant?.username]);
-      Alert.alert('Success', `${selectedParticipant?.username} has been blocked. You won\'t see their messages.`);
+      Alert.alert('Success', `${selectedParticipant?.username} has been blocked. You won't see their messages.`);
     }
   };
 
@@ -3877,7 +3889,7 @@ export default function ChatScreen() {
     }
   };
 
-  // Handle gift sending to all users in room
+  // Function to send gift to all users in room
   const handleGiftSendToAll = async (gift: any) => {
     if (!user || !user.balance || user.balance < gift.price * participants.length) {
       Alert.alert('Insufficient Coins', `You need ${(gift.price * participants.length).toLocaleString()} coins to send this gift to all users in the room.`);
@@ -6055,8 +6067,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    alignSelf: 'flex-start',
-  },
+    alignSelf: 'flex-start',  },
   joinLeaveMessageText: {
     fontSize: 13,
     color: '#666',
