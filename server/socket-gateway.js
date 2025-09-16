@@ -453,8 +453,11 @@ io.on('connection', (socket) => {
   console.log(`🚀 Time: ${new Date().toISOString()}`);
   console.log(`🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀`);
 
-  // Store connected user info
-  connectedUsers.set(socket.id, { userId: socket.userId });
+  // Store connected user info with session tracking
+  connectedUsers.set(socket.id, { 
+    userId: socket.userId,
+    announcedRooms: new Set() // Track rooms where join was already announced
+  });
 
   // Join room event
   socket.on('join-room', async (data) => {
@@ -559,6 +562,9 @@ io.on('connection', (socket) => {
       let participant = roomParticipants[roomId].find(p => p.username === username);
       const wasAlreadyParticipant = !!participant;
       
+      // Check if participant was already online BEFORE updating the status
+      const wasAlreadyOnline = wasAlreadyParticipant && participant?.isOnline;
+      
       if (participant) {
         // Update existing participant
         participant.isOnline = true;
@@ -583,8 +589,10 @@ io.on('connection', (socket) => {
       // Only broadcast join message if:
       // 1. Not silent (not a reconnection)
       // 2. User was not already online (prevent duplicate messages but allow legitimate returns)
-      const wasAlreadyOnline = wasAlreadyParticipant && participant.isOnline;
-      const shouldBroadcastJoin = !silent && !wasAlreadyOnline;
+      // 3. Join hasn't been announced for this socket session
+      // Reuse userInfo that was already declared above
+      const alreadyAnnouncedInSession = userInfo?.announcedRooms?.has(roomId);
+      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !alreadyAnnouncedInSession;
       
       if (shouldBroadcastJoin) {
         const joinMessage = {
@@ -599,11 +607,22 @@ io.on('connection', (socket) => {
 
         console.log(`📢 Broadcasting join message for ${username} in room ${roomId}`);
         socket.to(roomId).emit('user-joined', joinMessage);
+        
+        // Mark room as announced for this socket session
+        if (userInfo?.announcedRooms) {
+          userInfo.announcedRooms.add(roomId);
+        }
       } else {
         if (silent) {
           console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
-        } else if (wasAlreadyOnline) {
-          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
+        } else {
+          if (silent) {
+            console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
+          } else if (wasAlreadyOnline) {
+            console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
+          } else if (alreadyAnnouncedInSession) {
+            console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced this session)`);
+          }
         }
       }
 

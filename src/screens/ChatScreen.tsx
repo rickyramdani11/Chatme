@@ -111,6 +111,7 @@ export default function ChatScreen() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitializingSocketRef = useRef(false);
   const hadConnectedRef = useRef(false);
+  const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   
@@ -620,14 +621,20 @@ export default function ChatScreen() {
       }
 
       // Join room via socket (for both room and private chat)
-      // This is an explicit join, so show join message
+      // Use silent flag based on whether we've joined this room before in this session
       if (socket) {
+        const hasJoinedBefore = joinedRoomsRef.current.has(roomId);
+        const shouldBeSilent = hasJoinedBefore; // Silent if we've joined before
+        
+        console.log(`Emitting join-room for room ${roomId}, silent: ${shouldBeSilent}`);
+        joinedRoomsRef.current.add(roomId); // Mark room as joined
+        
         if (isSupport) {
           // Join support room with admin status
           socket.emit('join-support-room', {
             supportRoomId: roomId,
             isAdmin: user?.role === 'admin',
-            silent: false // Show join message for explicit joins
+            silent: shouldBeSilent
           });
         } else {
           // Join regular room or private chat
@@ -635,7 +642,7 @@ export default function ChatScreen() {
             roomId: roomId,
             username: user?.username || 'Guest',
             role: user?.role || 'user',
-            silent: false // Show join message for explicit joins
+            silent: shouldBeSilent
           });
         }
       }
@@ -1229,6 +1236,10 @@ export default function ChatScreen() {
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected from gateway:', reason);
         setIsSocketConnected(false);
+        
+        // Clear joined rooms tracking on disconnect since server session will be lost
+        joinedRoomsRef.current.clear();
+        console.log('Cleared joined rooms tracking due to disconnect');
 
         // Don't attempt reconnection for intentional disconnects
         if (reason === 'io client disconnect' || reason === 'io server disconnect') {
@@ -1353,6 +1364,7 @@ export default function ChatScreen() {
       
       isInitializingSocketRef.current = false;
       hadConnectedRef.current = false;
+      // Don't clear joinedRoomsRef on routine cleanup - only clear on disconnect/logout
 
       appStateSubscription?.remove();
 
