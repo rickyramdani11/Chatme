@@ -761,9 +761,12 @@ export default function ChatScreen() {
       });
 
       socketInstance.on('user-joined', (joinMessage: Message) => {
-        // Only add join/leave messages if it's not a private chat
-        const isPrivateChat = chatTabsRef.current[activeTabRef.current]?.type === 'private';
-        if (!isPrivateChat) {
+        // Only add join/leave messages if it's not a private chat or support chat
+        const targetTab = chatTabsRef.current.find(tab => tab.id === joinMessage.roomId);
+        const isPrivateChat = targetTab?.type === 'private';
+        const isSupportChat = targetTab?.isSupport;
+        
+        if (!isPrivateChat && !isSupportChat) {
           setChatTabs(prevTabs =>
             prevTabs.map(tab =>
               tab.id === joinMessage.roomId
@@ -772,14 +775,17 @@ export default function ChatScreen() {
             )
           );
         } else {
-          console.log('Skipping join message for private chat.');
+          console.log('Skipping join message for private/support chat.');
         }
       });
 
       socketInstance.on('user-left', (leaveMessage: Message) => {
-        // Only add join/leave messages if it's not a private chat
-        const isPrivateChat = chatTabsRef.current[activeTabRef.current]?.type === 'private';
-        if (!isPrivateChat) {
+        // Only add join/leave messages if it's not a private chat or support chat
+        const targetTab = chatTabsRef.current.find(tab => tab.id === leaveMessage.roomId);
+        const isPrivateChat = targetTab?.type === 'private';
+        const isSupportChat = targetTab?.isSupport;
+        
+        if (!isPrivateChat && !isSupportChat) {
           setChatTabs(prevTabs =>
             prevTabs.map(tab =>
               tab.id === leaveMessage.roomId
@@ -788,7 +794,7 @@ export default function ChatScreen() {
             )
           );
         } else {
-          console.log('Skipping leave message for private chat.');
+          console.log('Skipping leave message for private/support chat.');
         }
       });
 

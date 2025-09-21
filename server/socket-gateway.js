@@ -586,13 +586,17 @@ io.on('connection', (socket) => {
         console.log(`➕ Added new participant: ${username} to room ${roomId}`);
       }
 
+      // Check if this is a private chat room
+      const isPrivateChat = roomId.startsWith('private_');
+
       // Only broadcast join message if:
       // 1. Not silent (not a reconnection)
       // 2. User was not already online (prevent duplicate messages but allow legitimate returns)
       // 3. Join hasn't been announced for this socket session
+      // 4. Not a private chat
       // Reuse userInfo that was already declared above
       const alreadyAnnouncedInSession = userInfo?.announcedRooms?.has(roomId);
-      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !alreadyAnnouncedInSession;
+      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !alreadyAnnouncedInSession && !isPrivateChat;
       
       if (shouldBroadcastJoin) {
         const joinMessage = {
@@ -615,10 +619,10 @@ io.on('connection', (socket) => {
       } else {
         if (silent) {
           console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
+        } else if (isPrivateChat) {
+          console.log(`💬 Private chat join - no broadcast for ${username} in room ${roomId}`);
         } else {
-          if (silent) {
-            console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
-          } else if (wasAlreadyOnline) {
+          if (wasAlreadyOnline) {
             console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
           } else if (alreadyAnnouncedInSession) {
             console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced this session)`);
