@@ -216,6 +216,22 @@ const initTables = async () => {
       )
     `);
 
+    // Add missing columns if they don't exist (for existing databases)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_busy') THEN
+          ALTER TABLE users ADD COLUMN is_busy BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='busy_message') THEN
+          ALTER TABLE users ADD COLUMN busy_message VARCHAR(255) DEFAULT 'This user is busy';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='busy_until') THEN
+          ALTER TABLE users ADD COLUMN busy_until TIMESTAMP;
+        END IF;
+      END $$;
+    `);
+
     // Add CHECK constraints to existing tables if they don't exist
     try {
       await pool.query(`
