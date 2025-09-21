@@ -477,7 +477,7 @@ const initDatabase = async () => {
         expires_at TIMESTAMP NOT NULL,
         status VARCHAR(20) DEFAULT 'active',
         FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (promoted_by) REFERENCES users(id)
+        FOREIGNKEY (promoted_by) REFERENCES users(id)
       )
     `);
 
@@ -6916,7 +6916,7 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Add ranking endpoints for games, wealth, and gifts
+// Add rankings endpoints for games, wealth, and gifts
 app.get('/api/rankings/games', async (req, res) => {
   try {
     console.log('Fetching games rankings...');
@@ -7090,6 +7090,21 @@ app.get('/api/rankings/gifts', async (req, res) => {
   }
 });
 
+// Add API endpoint for gift purchase documentation
+app.post('/api/gift/purchase', (req, res) => {
+  res.status(405).json({ message: 'This endpoint is for documentation purposes. Use POST /api/gifts/purchase for actual purchases.' });
+});
+
+// Add documentation for checking gift balance
+app.post('/api/gifts/check-balance', (req, res) => {
+  res.status(405).json({ message: 'This endpoint is for documentation purposes. Use POST /api/gifts/check-balance for actual balance checks.' });
+});
+
+// Add documentation for legacy gift purchase endpoint
+app.post('/api/gifts/purchase', (req, res) => {
+  res.status(405).json({ message: 'This endpoint is for documentation purposes. Use POST /api/gifts/purchase for actual purchases.' });
+});
+
 // Run initial cleanup on server start
 cleanupExpiredMentors();
 
@@ -7136,6 +7151,9 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   GET  /api/support/faq/:category - Get FAQ items by category`);
   console.log(`   GET  /api/support/live-chat/status - Get live chat availability status`);
   console.log(`   POST /api/support/live-chat/start - Start a live chat session`);
+  console.log(`   POST /api/gift/purchase - Purchase gift with 70% system cut, 30% user withdraw`);
+  console.log(`   POST /api/gifts/check-balance - Check if user can afford gift`);
+  console.log(`   POST /api/gifts/purchase - Legacy gift purchase endpoint`);
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use`);

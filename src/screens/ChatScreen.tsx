@@ -3972,33 +3972,74 @@ export default function ChatScreen() {
             'Konfirmasi Gift',
             `Kirim ${gift.name} ${recipientText}?\n\n` +
             `Total: ${gift.price} coins\n` +
-            `${recipientUsername ? `${recipientUsername} mendapat: ${balanceData.recipientShare} coins\n` : ''}` +
-            `System fee: ${balanceData.systemShare} coins\n` +
+            `${recipientUsername ? `${recipientUsername} mendapat: ${balanceData.recipientShare} coins (30%)\n` : ''}` +
+            `System cut: ${balanceData.systemShare} coins (70%)\n` +
             `Sisa saldo: ${balanceData.remainingBalance} coins`,
             [
               { text: 'Batal', style: 'cancel' },
               { 
                 text: 'Kirim', 
-                onPress: () => {
-                  const giftData = {
+                onPress: async () => {
+                  try {
+                    // Process gift purchase through new endpoint
+                    const purchaseResponse = await fetch(`${API_BASE_URL}/api/gift/purchase`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        giftId: gift.id,
+                        giftPrice: gift.price,
+                        recipientUsername: recipientUsername,
+                        roomId: chatTabs[activeTab]?.id
+                      }),
+                    });
+
+                    if (purchaseResponse.ok) {
+                      const purchaseData = await purchaseResponse.json();
+                      console.log('Gift purchase successful:', purchaseData);
+
+                      // Show success message
+                      Alert.alert(
+                        'Gift Sent!', 
+                        `${gift.name} berhasil dikirim ke ${recipientUsername}!\n\n` +
+                        `Distribusi:\n` +
+                        `• User mendapat: ${purchaseData.transaction.recipientShare} coins (30%)\n` +
+                        `• System: ${purchaseData.transaction.systemShare} coins (70%)\n\n` +
+                        `Saldo Anda: ${purchaseData.balances.senderBalance} coins`
+                      );
+
+                      // Send gift via socket for real-time display
+                      const giftData = {
                     roomId: chatTabs[activeTab]?.id,
-                    sender: user?.username,
-                    gift,
-                    recipient: recipientUsername,
-                    timestamp: new Date().toISOString(),
-                    role: user?.role || 'user',
-                    level: user?.level || 1
-                  };
+                        sender: user?.username,
+                        gift,
+                        recipient: recipientUsername,
+                        timestamp: new Date().toISOString(),
+                        role: user?.role || 'user',
+                        level: user?.level || 1
+                      };
 
-                  console.log('Sending gift via socket:', giftData);
-                  socket.emit('sendGift', giftData);
+                      console.log('Sending gift via socket:', giftData);
+                      socket.emit('sendGift', giftData);
 
-                  setShowGiftPicker(false);
-                  setSelectedGift(null);
-                  // Close the user gift picker if it was open
-                  if (showUserGiftPicker) {
-                    setShowUserGiftPicker(false);
-                    setSelectedGiftForUser(null);
+                      setShowGiftPicker(false);
+                      setSelectedGift(null);
+                      // Close the user gift picker if it was open
+                      if (showUserGiftPicker) {
+                        setShowUserGiftPicker(false);
+                        setSelectedGiftForUser(null);
+                      }
+
+                    } else {
+                      const errorData = await purchaseResponse.json();
+                      Alert.alert('Error', errorData.error || 'Gagal mengirim gift');
+                    }
+
+                  } catch (purchaseError) {
+                    console.error('Error purchasing gift:', purchaseError);
+                    Alert.alert('Error', 'Gagal memproses pembelian gift');
                   }
                 }
               }
