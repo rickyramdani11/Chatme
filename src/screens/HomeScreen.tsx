@@ -25,6 +25,7 @@ interface Friend {
   status: StatusType;
   lastSeen?: string;
   avatar?: string;
+  role?: string;
 }
 
 // Placeholder for Room type, assuming it's defined elsewhere
@@ -652,6 +653,21 @@ const HomeScreen = ({ navigation }: any) => {
     );
   };
 
+  // Function to get username color based on role
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return '#FF6B35'; // Orange for admin
+      case 'mentor':
+        return '#9C27B0'; // Purple for mentor
+      case 'merchant':
+        return '#FF9800'; // Amber for merchant
+      case 'user':
+      default:
+        return '#333'; // Default dark color for regular users
+    }
+  };
+
   const renderFriend = (friend: Friend) => {
     // Determine avatar display logic
     let avatarDisplay;
@@ -704,7 +720,9 @@ const HomeScreen = ({ navigation }: any) => {
             <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(friend.status) }]} />
           </View>
           <View style={styles.friendDetails}>
-            <Text style={styles.friendName}>{friend.name}</Text>
+            <Text style={[styles.friendName, { color: getRoleColor(friend.role || 'user') }]}>
+              {friend.name}
+            </Text>
             <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
           </View>
         </TouchableOpacity>
