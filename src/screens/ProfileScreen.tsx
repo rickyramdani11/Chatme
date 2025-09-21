@@ -281,7 +281,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         console.log('Creating private chat between:', user.username, 'and', profile.username);
 
         // Create private chat via API
-        const response = await fetch(`${API_BASE_URL}/chat/private`, {
+        const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
