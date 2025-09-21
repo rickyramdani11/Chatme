@@ -5344,8 +5344,9 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justify    </View>
-        {renderTabIndicator()}
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
 
         {/* Connection Status Indicator */}
         <View style={styles.connectionStatusContainer}>
