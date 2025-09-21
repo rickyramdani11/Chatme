@@ -2820,7 +2820,7 @@ export default function ChatScreen() {
         };
 
         // Navigate to private chat (existing or new)
-        navigation.navigate('Chat', {
+        (navigation as any).navigate('Chat', {
           roomId: privateChat.id,
           roomName: `Chat with ${selectedParticipant?.username}`,
           roomDescription: `Private chat with ${selectedParticipant?.username}`,
