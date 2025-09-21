@@ -5347,6 +5347,522 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 4,
   },
+  backButton: {
+    padding: 8,
+  },
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+});
+
+export default function ChatScreen() {
+  const route = useRoute();
+  const navigation = useNavigation();
+  const [activeTab, setActiveTab] = useState(0);
+  const [message, setMessage] = useState('');
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [chatTabs, setChatTabs] = useState<ChatTab[]>([]);
+  const [showPopupMenu, setShowPopupMenu] = useState(false);
+  const [showRoomInfo, setShowRoomInfo] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiList, setEmojiList] = useState<any[]>([]); // Changed to any[] to hold diverse emoji data
+  const [showParticipantMenu, setShowParticipantMenu] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const [mutedUsers, setMutedUsers] = useState<string[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<string[]>([]);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [isUserScrolling, setIsUserScrolling] = useState(false); // Track if user is manually scrolling
+  const [showGiftPicker, setShowGiftPicker] = useState(false);
+  const [selectedGift, setSelectedGift] = useState<any>(null);
+  const [giftList, setGiftList] = useState<any[]>([]);
+  const [activeGiftTab, setActiveGiftTab] = useState<'all' | 'special'>('all');
+  const [sendToAllUsers, setSendToAllUsers] = useState(false);
+  const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
+  const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
+  const giftScaleAnim = useRef(new Animated.Value(0)).current;
+  const giftOpacityAnim = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
+  const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
+  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
+
+  // Create refs to store state values that socket listeners need to avoid stale closures
+  const chatTabsRef = useRef<ChatTab[]>([]);
+  const activeTabRef = useRef<number>(0);
+  const autoScrollEnabledRef = useRef<boolean>(true);
+  const isUserScrollingRef = useRef<boolean>(false);
+  const userRef = useRef<any>(null); // Initialize with null, will be set in useEffect
+  const giftVideoRef = useRef<Video>(null);
+  const [showUserTagMenu, setShowUserTagMenu] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [filteredParticipants, setFilteredParticipants] = useState<any[]>([]);
+  const [showMessageMenu, setShowMessageMenu] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
+  const maxReconnectAttempts = 5;
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitializingSocketRef = useRef(false);
+  const hadConnectedRef = useRef(false);
+  const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Get user and token before any refs that depend on them
+  const { user, token } = useAuth();
+
+  // Get room data from navigation params  
+  const routeParams = (route.params as any) || {};
+  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
+
+  // Update refs whenever state changes to avoid stale closures
+  useEffect(() => {
+    chatTabsRef.current = chatTabs;
+  }, [chatTabs]);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
+    autoScrollEnabledRef.current = autoScrollEnabled;
+  }, [autoScrollEnabled]);
+
+  useEffect(() => {
+    isUserScrollingRef.current = isUserScrolling;
+  }, [isUserScrolling]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // Add AppState listener for proper background/foreground handling
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      console.log('AppState changed to:', nextAppState);
+
+      if (nextAppState === 'active') {
+        console.log('App became active - maintaining socket connection');
+
+        // Reset scroll state
+        setIsUserScrolling(false);
+
+        // Force scroll to bottom for current tab without rejoining rooms
+        setTimeout(() => {
+          const currentTab = chatTabsRef.current[activeTabRef.current];
+          if (currentTab && flatListRefs.current[currentTab.id]) {
+            flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: true });
+          }
+        }, 500);
+
+      } else if (nextAppState === 'background') {
+        console.log('App moved to background - maintaining socket connection');
+        // Keep socket alive and maintain room connections
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      appStateSubscription?.remove();
+    };
+  }, [socket]); // Dependency on socket to re-setup when socket changes
+
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
+  const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
+  const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
+  const [isInCall, setIsInCall] = useState(false);
+  const [callType, setCallType] = useState<'video' | 'audio' | null>(null);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callTimer, setCallTimer] = useState(0);
+  const [callCost, setCallCost] = useState(0);
+  const [totalDeducted, setTotalDeducted] = useState(0);
+  const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
+  const [incomingCallData, setIncomingCallData] = useState<any>(null);
+  const [callRinging, setCallRinging] = useState(false);
+
+  // Helper functions for role checking
+  const isRoomOwner = () => {
+    const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+    return currentRoom && currentRoom.managedBy === user?.username;
+  };
+
+  const isRoomModerator = () => {
+    const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
+    return currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+  };
+
+  // Call handling functions
+  const checkUserBalance = async (requiredAmount: number) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/balance`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.balance >= requiredAmount;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking balance:', error);
+      return false;
+    }
+  };
+
+  const deductCoins = async (amount: number, type: string, description: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount,
+          type: `${type}_call`,
+          description: `${type} call for ${description}`,
+          recipientUsername: targetUser?.username
+        }),
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error deducting coins:', error);
+      return false;
+    }
+  };
+
+  const startCallTimer = (type: 'video' | 'audio') => {
+    setIsInCall(true);
+    setCallType(type);
+    setCallTimer(0);
+    setCallCost(0);
+    setTotalDeducted(0);
+
+    callIntervalRef.current = setInterval(() => {
+      setCallTimer(prev => {
+        const newTime = prev + 1;
+        const elapsedMinutes = Math.ceil(newTime / 60);
+
+        // Calculate display cost based on elapsed minutes
+        let displayCost = 0;
+        if (elapsedMinutes >= 1) {
+          displayCost = 2500; // First minute
+          if (elapsedMinutes > 1) {
+            displayCost += (elapsedMinutes - 1) * 2000; // Additional minutes
+          }
+        }
+        setCallCost(displayCost);
+
+        // Deduct coins every 20 seconds with proper rate distribution
+        if (newTime % 20 === 0 && newTime > 0) {
+          const currentMinute = Math.ceil(newTime / 60);
+          const intervalInMinute = Math.floor(((newTime - 1) % 60) / 20) + 1; // Which 20s interval in current minute (1, 2, or 3)
+
+          let intervalCost;
+          if (currentMinute === 1) {
+            // First minute: distribute 2500 as [834, 833, 833]
+            intervalCost = intervalInMinute === 1 ? 834 : 833;
+          } else {
+            // After first minute: distribute 2000 as [667, 667, 666]
+            intervalCost = intervalInMinute === 3 ? 666 : 667;
+          }
+
+          setTotalDeducted(prev => prev + intervalCost);
+          deductCoins(intervalCost, type, `${(newTime/60).toFixed(2)} minutes`);
+        }
+
+        return newTime;
+      });
+    }, 1000);
+  };
+
+  const endCall = () => {
+    if (callIntervalRef.current) {
+      clearInterval(callIntervalRef.current);
+      callIntervalRef.current = null;
+    }
+
+    // Show earnings for call recipient based on actual total deducted (no partial interval charge)
+    const finalEarnings = Math.floor(totalDeducted * 0.7);
+    if (finalEarnings > 0) {
+      Alert.alert(
+        'Call Ended', 
+        `Total earnings: ${finalEarnings} coins (70% of ${totalDeducted} coins spent)`,
+        [{ text: 'OK' }]
+      );
+    }
+
+    setIsInCall(false);
+    setCallType(null);
+    setCallTimer(0);
+    setCallCost(0);
+    setTotalDeducted(0);
+    setShowCallModal(false);
+  };
+
+  const handleVideoCall = async () => {
+    // Get targetUser from navigation params or selected participant
+    const callTargetUser = targetUser || selectedParticipant;
+
+    if (!callTargetUser || !callTargetUser.username) {
+      Alert.alert('Error', 'No target user for call');
+      return;
+    }
+
+    const hasBalance = await checkUserBalance(2500);
+    if (!hasBalance) {
+      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start a video call');
+      return;
+    }
+
+    Alert.alert(
+      'Start Video Call',
+      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Start Call', 
+          onPress: () => {
+            // Send call notification to target user
+            if (socket && user) {
+              setCallRinging(true);
+              socket.emit('initiate-call', {
+                targetUsername: callTargetUser.username,
+                callType: 'video',
+                callerId: user.id,
+                callerName: user.username
+              });
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleAudioCall = async () => {
+    // Get targetUser from navigation params or selected participant
+    const callTargetUser = targetUser || selectedParticipant;
+
+    if (!callTargetUser || !callTargetUser.username) {
+      Alert.alert('Error', 'No target user for call');
+      return;
+    }
+
+    const hasBalance = await checkUserBalance(2500);
+    if (!hasBalance) {
+      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start an audio call');
+      return;
+    }
+
+    Alert.alert(
+      'Start Audio Call',
+      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Start Call', 
+          onPress: () => {
+            // Send call notification to target user
+            if (socket && user) {
+              setCallRinging(true);
+              socket.emit('initiate-call', {
+                targetUsername: callTargetUser.username,
+                callType: 'audio',
+                callerId: user.id,
+                callerName: user.username
+              });
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const formatCallTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleAcceptCall = async () => {
+    if (!incomingCallData) return;
+
+    // Check balance before accepting call
+    const hasBalance = await checkUserBalance(2500);
+    if (!hasBalance) {
+      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to accept this call');
+      handleDeclineCall();
+      return;
+    }
+
+    // Send accept response
+    if (socket && user) {
+      socket.emit('call-response', {
+        callerId: incomingCallData.callerId,
+        response: 'accept',
+        responderName: user.username
+      });
+    }
+
+    setShowIncomingCallModal(false);
+    setShowCallModal(true);
+    startCallTimer(incomingCallData.callType);
+  };
+
+  const handleDeclineCall = () => {
+    if (!incomingCallData) return;
+
+    // Send decline response
+    if (socket && user) {
+      socket.emit('call-response', {
+        callerId: incomingCallData.callerId,
+        response: 'decline',
+        responderName: user.username
+      });
+    }
+
+    setShowIncomingCallModal(false);
+    setIncomingCallData(null);
+  };
+
+  // Static Level Badge Component (no blinking)
+  const LevelBadge = ({ level }: { level: number }) => {
+    return (
+      <View style={styles.levelBadgeContainer}>
+        <Text style={styles.levelBadgeText}>Lv.{level}</Text>
+      </View>
+    );
+  };
+
+  // ... rest of the component continues ...
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header with Gradient */}
+      <LinearGradient
+        colors={chatTabs[activeTab]?.type === 'private' ? ['#FF9800', '#FF5722'] : chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
+        <View style={styles.headerContent}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+
+          {chatTabs[activeTab]?.type === 'private' ? (
+            // Private Chat Header with Avatar
+            <View style={styles.privateChatHeaderContent}>
+              <View style={styles.privateChatAvatar}>
+                {targetUser?.avatar ? (
+                  <Image source={{ uri: targetUser.avatar }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.defaultAvatarContainer}>
+                    <Text style={styles.avatarInitial}>
+                      {targetUser?.username ? targetUser.username.charAt(0).toUpperCase() : 'U'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.privateChatInfo}>
+                <Text style={styles.privateChatName}>
+                  {targetUser?.username || chatTabs[activeTab]?.title.replace('Chat with ', '')}
+                </Text>
+                <Text style={styles.privateChatStatus}>Online</Text>
+              </View>
+            </View>
+          ) : chatTabs[activeTab]?.isSupport ? (
+            // Support Chat Header
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Support Chat</Text>
+              <Text style={styles.headerSubtitle}>
+                {isSocketConnected ? 'Connected' : 'Connecting...'}
+              </Text>
+            </View>
+          ) : (
+            // Regular Room Header
+            <View style={styles.headerTextContainer}>
+              <Text style={[styles.headerTitle, { color: '#fff' }]}>{chatTabs[activeTab]?.title}</Text>
+              <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
+                {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
+                {!isSocketConnected && ' • Reconnecting...'}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.headerIcons}>
+            {chatTabs[activeTab]?.type === 'private' ? (
+              // Private Chat Icons
+              <>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
+                  <Ionicons name="videocam-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
+                  <Ionicons name="call-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
+                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                </TouchableOpacity>
+              </>
+            ) : chatTabs[activeTab]?.isSupport ? (
+              // Support Chat Icons (e.g., options for support)
+              <>
+                <TouchableOpacity style={styles.headerIcon}>
+                  <Ionicons name="help-circle-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
+                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                </TouchableOpacity>
+              </>
+            ) : (
+              // Room Chat Icons
+              <>
+                <TouchableOpacity style={styles.headerIcon}>
+                  <Ionicons name="calendar-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon}>
+                  <Ionicons name="grid-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleListPress}>
+                  <Ionicons name="list-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
+                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+        {renderTabIndicator()}
+
+        {/* Connection Status Indicator */}
+        <View style={styles.connectionStatusContainer}>
+          <View style={[
+            styles.connectionStatusDot,
+            !isSocketConnected && styles.disconnectedDot,
+            reconnectAttempts > 0 && isSocketConnected && styles.reconnectingDot
+          ]} />
+        </View>
+      </LinearGradient>
 
       {/* Popup Menu Modal */}
       <Modal
