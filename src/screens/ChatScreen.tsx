@@ -4221,9 +4221,6 @@ export default function ChatScreen() {
               // Room Chat Icons
               <>
                 <TouchableOpacity style={styles.headerIcon}>
-                  <Ionicons name="calendar-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIcon}>
                   <Ionicons name="grid-outline" size={24} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleListPress}>
