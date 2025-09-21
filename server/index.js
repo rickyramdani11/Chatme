@@ -4819,7 +4819,7 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
 
 // Route for creating private chats
 // Create private chat
-app.post('/chat/private', authenticateToken, async (req, res) => {
+app.post('/api/chat/private', authenticateToken, async (req, res) => {
   console.log('POST /chat/private -', new Date().toISOString());
   console.log('=== AUTH TOKEN MIDDLEWARE ===');
   console.log('Auth header:', req.headers.authorization ? 'Present' : 'Missing');
