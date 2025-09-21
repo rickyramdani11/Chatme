@@ -4420,16 +4420,16 @@ export default function ChatScreen() {
                   <Text style={styles.menuText}>Search Messages</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setShowPopupMenu(false);
-                    Alert.alert('Clear Chat', 'Clear chat functionality will be added soon');
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#FF9800" />
-                  <Text style={[styles.menuText, { color: '#FF9800' }]}>Clear Chat</Text>
-                </TouchableOpacity>
+                {/* Clear Chat option for private chats */}
+                {chatTabs[activeTab]?.type === 'private' && (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => handlePopupMenuPress('clear')}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#FF6B35" />
+                    <Text style={[styles.menuText, { color: '#FF6B35' }]}>Clear Chat</Text>
+                  </TouchableOpacity>
+                )}
 
                 <TouchableOpacity
                   style={[styles.menuItem, styles.lastMenuItem]}

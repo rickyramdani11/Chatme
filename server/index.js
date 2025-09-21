@@ -509,6 +509,7 @@ const initTables = async () => {
         id BIGSERIAL PRIMARY KEY,
         chat_id VARCHAR(255) REFERENCES private_chats(id) ON DELETE CASCADE,
         username VARCHAR(50) NOT NULL,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(chat_id, username)
       )
     `);
@@ -4956,17 +4957,15 @@ app.post('/api/chat/private', authenticateToken, async (req, res) => {
 app.get('/api/chat/private/:chatId/messages', async (req, res) => {
   try {
     const { chatId } = req.params;
-    console.log(`GET /api/chat/private/${chatId}/messages - Getting private chat messages`);
+    console.log('=== GET PRIVATE CHAT MESSAGES ===');
+    console.log('Chat ID:', chatId);
 
-    // Fetch messages from database using chatId
+    // Get messages from database
     const result = await pool.query(`
-      SELECT
-        cm.*,
-        u.avatar,
-        u.verified
+      SELECT cm.*, u.role, u.level 
       FROM chat_messages cm
       LEFT JOIN users u ON cm.user_id = u.id
-      WHERE cm.room_id = $1 AND cm.is_private = TRUE
+      WHERE cm.room_id = $1 AND cm.is_private = true
       ORDER BY cm.created_at ASC
     `, [chatId]);
 
@@ -4975,20 +4974,109 @@ app.get('/api/chat/private/:chatId/messages', async (req, res) => {
       sender: row.username,
       content: row.content,
       timestamp: row.created_at,
-      chatId: row.room_id,
-      role: row.user_role,
-      level: row.user_level,
-      type: row.message_type,
-      userRole: row.user_role,
-      media: row.media_data ? JSON.parse(row.media_data) : null,
-      avatar: row.avatar,
-      verified: row.verified
+      roomId: row.room_id,
+      role: row.role || 'user',
+      level: row.level || 1,
+      type: row.message_type || 'message'
     }));
 
+    console.log(`Returning ${messages.length} private chat messages for ${chatId}`);
     res.json(messages);
   } catch (error) {
     console.error('Error fetching private chat messages:', error);
-    res.status(500).json({ error: 'Failed to fetch messages', details: error.message });
+    res.status(500).json({ error: 'Failed to fetch private chat messages' });
+  }
+});
+
+// Save private chat message
+app.post('/api/chat/private/:chatId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { content, type = 'message' } = req.body;
+    const userId = req.user.id;
+    const username = req.user.username;
+
+    console.log('=== SAVE PRIVATE CHAT MESSAGE ===');
+    console.log('Chat ID:', chatId);
+    console.log('User:', username);
+    console.log('Content:', content);
+
+    if (!content) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+
+    // Save message to database
+    const result = await pool.query(`
+      INSERT INTO chat_messages (
+        room_id, user_id, username, content, message_type, 
+        user_role, user_level, is_private
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+      RETURNING *
+    `, [
+      chatId, 
+      userId, 
+      username, 
+      content, 
+      type,
+      req.user.role || 'user',
+      req.user.level || 1
+    ]);
+
+    const savedMessage = {
+      id: result.rows[0].id.toString(),
+      sender: username,
+      content: content,
+      timestamp: result.rows[0].created_at,
+      roomId: chatId,
+      role: req.user.role || 'user',
+      level: req.user.level || 1,
+      type: type
+    };
+
+    console.log('Private chat message saved successfully');
+    res.json(savedMessage);
+  } catch (error) {
+    console.error('Error saving private chat message:', error);
+    res.status(500).json({ error: 'Failed to save private chat message' });
+  }
+});
+
+// Clear private chat messages
+app.delete('/api/chat/private/:chatId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+    const username = req.user.username;
+
+    console.log('=== CLEAR PRIVATE CHAT MESSAGES ===');
+    console.log('Chat ID:', chatId);
+    console.log('User:', username);
+
+    // Check if user is participant in this chat
+    const participantCheck = await pool.query(`
+      SELECT 1 FROM private_chat_participants 
+      WHERE chat_id = $1 AND username = $2
+    `, [chatId, username]);
+
+    if (participantCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'You are not a participant in this chat' });
+    }
+
+    // Delete all messages in this private chat
+    const result = await pool.query(`
+      DELETE FROM chat_messages 
+      WHERE room_id = $1 AND is_private = true
+    `, [chatId]);
+
+    console.log(`Cleared ${result.rowCount} messages from private chat ${chatId}`);
+    res.json({ 
+      message: 'Private chat cleared successfully',
+      deletedCount: result.rowCount
+    });
+  } catch (error) {
+    console.error('Error clearing private chat messages:', error);
+    res.status(500).json({ error: 'Failed to clear private chat messages' });
   }
 });
 
@@ -6696,7 +6784,6 @@ app.get('/api/admin/users/status', authenticateToken, async (req, res) => {
       phone: row.phone,
       role: row.role,
       verified: row.verified,
-      credits: row.credits,
       status: row.status,
       lastLogin: row.last_login,
       device: 'Mobile App', // Mock data - you can enhance this
@@ -7022,13 +7109,13 @@ app.get('/api/rankings/wealth', async (req, res) => {
     const query = `
       SELECT 
         ROW_NUMBER() OVER (ORDER BY total_spending DESC) as rank,
-        u.id::text,
-        u.username,
-        u.avatar,
-        u.level,
-        u.verified,
+        id::text,
+        username,
+        avatar,
+        level,
+        verified,
         total_spending as credits
-      FROM users u
+      FROM users 
       LEFT JOIN (
         SELECT 
           from_user_id as user_id,

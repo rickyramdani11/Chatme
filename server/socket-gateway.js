@@ -843,6 +843,9 @@ io.on('connection', (socket) => {
 
       console.log(`📨 Gateway relaying message from ${sender} in room ${roomId}: "${content}"`);
 
+      // Check if this is a private chat
+      const isPrivateChat = roomId.startsWith('private_');
+
       // Check if this is a special command that needs server-side handling
       const trimmedContent = content.trim();
 
@@ -923,17 +926,20 @@ io.on('connection', (socket) => {
         gift: gift || null
       };
 
-      // Skip database save for temporary chat (real-time only)
-      // await saveChatMessage(
-      //   roomId,
-      //   sender,
-      //   content,
-      //   gift, // media data (for gifts)
-      //   type || 'message',
-      //   role || 'user',
-      //   level || 1,
-      //   false // isPrivate
-      // );
+      // Save private chat messages to database
+      if (isPrivateChat) {
+        await saveChatMessage(
+          roomId,
+          sender,
+          content,
+          gift, // media data (for gifts)
+          type || 'message',
+          role || 'user',
+          level || 1,
+          true // isPrivate
+        );
+        console.log(`💾 Private chat message saved to database: ${roomId}`);
+      }
 
       // Broadcast message to room
       io.to(roomId).emit('new-message', newMessage);
