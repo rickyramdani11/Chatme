@@ -2828,6 +2828,14 @@ export default function ChatScreen() {
           targetUser: targetUser,
           autoFocusTab: true
         });
+      } else if (response.status === 423) {
+        // User is busy
+        const errorData = await response.json();
+        Alert.alert(
+          'User is Busy',
+          errorData.error || 'This user cannot be chatted, is busy',
+          [{ text: 'OK' }]
+        );
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Private chat creation failed:', errorData);

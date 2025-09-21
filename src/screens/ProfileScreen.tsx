@@ -8,7 +8,9 @@ import {
   Image,
   Alert,
   SafeAreaView,
-  FlatList
+  FlatList,
+  Modal,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +31,9 @@ interface UserProfile {
   country?: string;
   albumPhotos?: AlbumPhoto[];
   gifts?: Gift[];
+  isFollowing?: boolean; // Added to UserProfile interface
+  isBusy?: boolean; // Added to UserProfile interface
+  busyMessage?: string; // Added to UserProfile interface
 }
 
 interface Achievement {
@@ -61,6 +66,29 @@ export default function ProfileScreen({ navigation, route }: any) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhoto[]>([]);
 
+  // State for busy status
+  const [isBusy, setIsBusy] = useState(false);
+  const [busyMessage, setBusyMessage] = useState('This user is busy');
+  const [showBusyModal, setShowBusyModal] = useState(false);
+
+
+  // State for reporting
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+
+  // Placeholder for form data and counts if editing is implemented
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    bio: '',
+    location: '',
+    interests: '',
+  });
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+
+
   // Get user ID from route params or use current user
   const userId = route?.params?.userId || user?.id;
   const isOwnProfile = userId === user?.id;
@@ -72,10 +100,12 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   const fetchUserProfile = async () => {
     try {
+      setLoading(true);
       const response = await fetch(`${API_BASE_URL}/api/users/${userId}/profile`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
+          'Authorization': token ? `Bearer ${token}` : '', // Include token for follow status check
         },
       });
 
@@ -145,6 +175,25 @@ export default function ProfileScreen({ navigation, route }: any) {
         } catch (error) {
           console.error('Error fetching achievements:', error);
           profileData.achievements = [];
+        }
+
+        // Load current busy status if it's the user's own profile
+        if (isOwnProfile && user?.username) {
+          try {
+            const busyResponse = await fetch(`${API_BASE_URL}/api/user/${user.username}/busy-status`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            if (busyResponse.ok) {
+              const busyData = await busyResponse.json();
+              setIsBusy(busyData.is_busy);
+              setBusyMessage(busyData.busy_message || 'This user is busy');
+            }
+          } catch (busyError) {
+            console.log('Could not load busy status:', busyError);
+          }
         }
 
         setProfile(profileData);
@@ -240,7 +289,8 @@ export default function ProfileScreen({ navigation, route }: any) {
             'User-Agent': 'ChatMe-Mobile-App',
           },
           body: JSON.stringify({
-            targetUserId: profile.id
+            participants: [user.username, profile.username],
+            initiatedBy: user.username
           }),
         });
 
@@ -250,26 +300,103 @@ export default function ProfileScreen({ navigation, route }: any) {
           const privateChat = await response.json();
           console.log(privateChat.isExisting ? 'Existing private chat found:' : 'Private chat created successfully:', privateChat.id);
 
-          // Navigate to ChatScreen with private chat data
-          navigation.navigate('Chat', { 
+          // Ensure targetUser has proper structure
+          const targetUser = {
+            id: profile.id || Date.now().toString(),
+            username: profile.username,
+            role: profile.role || 'user',
+            level: profile.level || 1,
+            avatar: profile.avatar || null
+          };
+
+          // Navigate to private chat
+          navigation.navigate('Chat', {
             roomId: privateChat.id,
             roomName: `Chat with ${profile.username}`,
             roomDescription: `Private chat with ${profile.username}`,
             type: 'private',
-            targetUser: profile,
+            targetUser: targetUser,
             autoFocusTab: true
           });
+        } else if (response.status === 423) {
+          // User is busy
+          const errorData = await response.json();
+          Alert.alert(
+            'User is Busy',
+            errorData.error || 'This user cannot be chatted, is busy',
+            [{ text: 'OK' }]
+          );
         } else {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           console.error('Private chat creation failed:', errorData);
-          throw new Error((errorData as any).error || `HTTP ${response.status}: Failed to create private chat`);
+          Alert.alert('Error', errorData.error || 'Failed to create private chat');
         }
       } catch (error) {
         console.error('Error creating private chat:', error);
-        Alert.alert('Error', (error as any).message || 'Failed to start private chat');
+        Alert.alert('Error', 'Failed to create private chat');
       }
     }
   };
+
+  // Busy status functions
+  const handleBusyToggle = async () => {
+    if (!token || !user?.username) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/busy-status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          is_busy: !isBusy,
+          busy_message: busyMessage
+        }),
+      });
+
+      if (response.ok) {
+        setIsBusy(!isBusy);
+        Alert.alert(
+          'Status Updated',
+          !isBusy ? 'You are now marked as busy' : 'You are no longer busy',
+          [{ text: 'OK' }]
+        );
+      } else {
+        throw new Error('Failed to update busy status');
+      }
+    } catch (error) {
+      console.error('Error updating busy status:', error);
+      Alert.alert('Error', 'Failed to update busy status');
+    }
+  };
+
+  const handleBusyMessageUpdate = async () => {
+    if (!token || !user?.username) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/busy-status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          is_busy: isBusy,
+          busy_message: busyMessage
+        }),
+      });
+
+      if (response.ok) {
+        setShowBusyModal(false);
+        Alert.alert('Success', 'Busy message updated');
+      } else {
+        throw new Error('Failed to update busy message');
+      }
+    } catch (error) {
+      console.error('Error updating busy message:', error);
+      Alert.alert('Error', 'Failed to update busy message');
+    }
+  };
+
 
   const renderAlbumPhoto = ({ item }: { item: AlbumPhoto }) => (
     <View style={styles.albumPhotoItem}>
@@ -385,7 +512,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             {/* Country Flag */}
             {profile.country && (
               <View style={styles.countryContainer}>
-                <Text style={styles.countryFlag}>🇮🇩</Text>
+                <Text style={styles.countryFlag}>🇮🇩</Text> 
               </View>
             )}
 
@@ -474,17 +601,104 @@ export default function ProfileScreen({ navigation, route }: any) {
 
           {/* Additional Actions for Own Profile */}
           {isOwnProfile && (
-            <View style={styles.ownProfileActions}>
-              <TouchableOpacity 
-                style={styles.editButton}
-                onPress={() => navigation.navigate('EditProfile')}
-              >
-                <Text style={styles.editButtonText}>Edit Profile</Text>
-              </TouchableOpacity>
-            </View>
+            <>
+              {/* Busy Status Control */}
+              <View style={styles.busyStatusSection}>
+                <View style={styles.busyStatusHeader}>
+                  <Text style={styles.busyStatusTitle}>Busy Status</Text>
+                  <TouchableOpacity
+                    style={styles.busyToggle}
+                    onPress={handleBusyToggle}
+                  >
+                    <View style={[styles.toggleSwitch, isBusy && styles.toggleSwitchActive]}>
+                      <View style={[styles.toggleThumb, isBusy && styles.toggleThumbActive]} />
+                    </View>
+                    <Text style={styles.busyToggleText}>
+                      {isBusy ? 'Busy' : 'Available'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {isBusy && (
+                  <TouchableOpacity
+                    style={styles.busyMessageButton}
+                    onPress={() => setShowBusyModal(true)}
+                  >
+                    <Ionicons name="create-outline" size={16} color="#666" />
+                    <Text style={styles.busyMessageText}>{busyMessage}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.editActions}>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={() => navigation.navigate('EditProfile')} 
+                  disabled={loading}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => navigation.goBack()} 
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </>
           )}
         </View>
       </ScrollView>
+
+      {/* Busy Message Modal */}
+      <Modal
+        visible={showBusyModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowBusyModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.busyModalContainer}>
+            <View style={styles.busyModalHeader}>
+              <Text style={styles.busyModalTitle}>Edit Busy Message</Text>
+              <TouchableOpacity onPress={() => setShowBusyModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.busyModalContent}>
+              <Text style={styles.busyModalLabel}>Message to show when others try to chat:</Text>
+              <TextInput
+                style={styles.busyMessageInput}
+                value={busyMessage}
+                onChangeText={setBusyMessage}
+                placeholder="Enter busy message"
+                multiline={true}
+                maxLength={255}
+              />
+
+              <View style={styles.busyModalActions}>
+                <TouchableOpacity
+                  style={styles.busyModalCancelButton}
+                  onPress={() => setShowBusyModal(false)}
+                >
+                  <Text style={styles.busyModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.busyModalSaveButton}
+                  onPress={handleBusyMessageUpdate}
+                >
+                  <Text style={styles.busyModalSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -776,5 +990,245 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF69B4',
     marginTop: 2,
+  },
+  // Edit Profile Screen Styles (assuming these are relevant for context)
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  saveButton: {
+    backgroundColor: '#FF69B4',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    backgroundColor: '#E0E0E0',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Report Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  reportModalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    maxWidth: 400,
+    width: '90%',
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  reportModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  reportModalContent: {
+    padding: 20,
+  },
+  reportModalLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  reportReasonInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 15,
+    minHeight: 50,
+  },
+  reportDescriptionInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  reportModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 20,
+  },
+  reportModalCancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  reportModalCancelText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  reportModalSubmitButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#FF69B4',
+  },
+  reportModalSubmitText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  // Busy status styles
+  busyStatusSection: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+  },
+  busyStatusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  busyStatusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  busyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E0E0E0',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: '#4CAF50',
+  },
+  toggleThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  busyToggleText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  busyMessageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    gap: 8,
+  },
+  busyMessageText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+  },
+  busyModalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    maxWidth: 400,
+    width: '90%',
+  },
+  busyModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  busyModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  busyModalContent: {
+    padding: 20,
+  },
+  busyModalLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  busyMessageInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  busyModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 20,
+  },
+  busyModalCancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  busyModalCancelText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  busyModalSaveButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+  },
+  busyModalSaveText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '500',
   },
 });

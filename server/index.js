@@ -184,83 +184,57 @@ const saveChatMessage = async (roomId, username, content, media = null, messageT
   }
 };
 
-// Database initialization - create tables if they don't exist
-const initDatabase = async () => {
+// Initialize database tables
+const initTables = async () => {
   try {
-    // Create users table if it doesn't exist
+    // Users table with additional fields
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(100) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
+        username VARCHAR(50) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        bio TEXT DEFAULT '',
-        phone VARCHAR(20) DEFAULT '',
-        avatar VARCHAR(255) DEFAULT '',
-        verified BOOLEAN DEFAULT false,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        phone VARCHAR(20),
+        country VARCHAR(2),
+        gender VARCHAR(10),
         role VARCHAR(20) DEFAULT 'user',
-        exp INTEGER DEFAULT 0,
         level INTEGER DEFAULT 1,
-        credits INTEGER DEFAULT 0,
-        pin VARCHAR(6) DEFAULT '',
-        pin_enabled BOOLEAN DEFAULT false,
-        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        balance INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        game_score INTEGER DEFAULT 0,
-        total_gifts_received INTEGER DEFAULT 0
+        is_verified BOOLEAN DEFAULT false,
+        avatar_filename VARCHAR(255),
+        last_login TIMESTAMP,
+        bio TEXT,
+        location VARCHAR(100),
+        birth_date DATE,
+        interests TEXT[],
+        privacy_settings JSONB DEFAULT '{}'::jsonb,
+        notification_settings JSONB DEFAULT '{}'::jsonb,
+        is_busy BOOLEAN DEFAULT false,
+        busy_message VARCHAR(255) DEFAULT 'This user is busy',
+        busy_until TIMESTAMP
       )
     `);
 
-    // Add ranking columns if they don't exist
+    // Add CHECK constraints to existing tables if they don't exist
     try {
       await pool.query(`
-        ALTER TABLE users 
-        ADD COLUMN IF NOT EXISTS game_score INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS total_gifts_received INTEGER DEFAULT 0
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_role_check') THEN
+            ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin', 'mentor', 'merchant'));
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_gender_check') THEN
+            ALTER TABLE users ADD CONSTRAINT users_gender_check CHECK (gender IN ('male', 'female', 'other', 'prefer_not_to_say'));
+          END IF;
+        END $$;
       `);
+      console.log('✅ Database constraints for users table enforced successfully');
     } catch (error) {
-      // Columns might already exist, ignore error
-      console.log('Ranking columns already exist or error adding them:', error.message);
+      console.log('⚠️  Warning: Could not add some database constraints for users table:', error.message);
     }
 
-
-    // Add role column if it doesn't exist (for existing databases)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='role') THEN
-          ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user';
-        END IF;
-      END $$;
-    `);
-
-    // Add pin column if it doesn't exist (for existing databases)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='pin') THEN
-          ALTER TABLE users ADD COLUMN pin VARCHAR(6) DEFAULT '123456';
-        END IF;
-      END $$;
-    `);
-
-    // Add last_login, exp, and level columns if they don't exist
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_login') THEN
-          ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='exp') THEN
-          ALTER TABLE users ADD COLUMN exp INTEGER DEFAULT 0;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='level') THEN
-          ALTER TABLE users ADD COLUMN level INTEGER DEFAULT 1;
-        END IF;
-      END $$;
-    `);
-
-
+    // Create rooms table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS rooms (
         id BIGSERIAL PRIMARY KEY,
@@ -286,6 +260,7 @@ const initDatabase = async () => {
       END $$;
     `);
 
+    // Create posts table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS posts (
         id BIGSERIAL PRIMARY KEY,
@@ -300,6 +275,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create post_comments table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS post_comments (
         id BIGSERIAL PRIMARY KEY,
@@ -311,6 +287,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create privacy_settings table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS privacy_settings (
         id BIGSERIAL PRIMARY KEY,
@@ -327,6 +304,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create user_activity_logs table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_activity_logs (
         id BIGSERIAL PRIMARY KEY,
@@ -339,6 +317,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create user_album table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_album (
         id BIGSERIAL PRIMARY KEY,
@@ -349,6 +328,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create user_gifts table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_gifts (
         id BIGSERIAL PRIMARY KEY,
@@ -359,6 +339,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create user_follows table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_follows (
         id BIGSERIAL PRIMARY KEY,
@@ -369,6 +350,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create user_achievements table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS user_achievements (
         id BIGSERIAL PRIMARY KEY,
@@ -380,6 +362,7 @@ const initDatabase = async () => {
       )
     `);
 
+    // Create chat_messages table if it doesn't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS chat_messages (
         id BIGSERIAL PRIMARY KEY,
@@ -924,7 +907,7 @@ const loadRoomsFromDatabase = async () => {
 };
 
 // Initialize database on startup
-initDatabase().then(() => {
+initTables().then(() => {
   loadRoomsFromDatabase();
 
   // Ensure upload directories exist
@@ -3881,19 +3864,19 @@ app.put('/api/users/:userId/profile', authenticateToken, async (req, res) => {
       values.push(gender);
     }
     if (birthDate !== undefined) {
-      updateFields.push(`birth_date = $${paramCounter++}`);
+      updates.push(`birth_date = $${paramCounter++}`);
       values.push(birthDate === null || birthDate === '' ? null : birthDate);
     }
     if (country !== undefined) {
-      updateFields.push(`country = $${paramCounter++}`);
+      updates.push(`country = $${paramCounter++}`);
       values.push(country);
     }
     if (signature !== undefined) {
-      updateFields.push(`signature = $${paramCounter++}`);
+      updates.push(`signature = $${paramCounter++}`);
       values.push(signature);
     }
 
-    if (updateFields.length === 0) {
+    if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
@@ -4836,80 +4819,120 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
 
 // Route for creating private chats
 // Create private chat
-app.post('/api/chat/private', authenticateToken, async (req, res) => {
+app.post('/chat/private', authenticateToken, async (req, res) => {
+  console.log('POST /chat/private -', new Date().toISOString());
+  console.log('=== AUTH TOKEN MIDDLEWARE ===');
+  console.log('Auth header:', req.headers.authorization ? 'Present' : 'Missing');
+  console.log('Token:', req.headers.authorization ? 'Present (' + req.headers.authorization.substring(0, 20) + '...)' : 'Missing');
+  console.log('Token verified for user ID:', req.user.userId);
+  console.log('User authenticated:', req.user.username, 'Role:', req.user.role);
+
   try {
-    const { participants, initiatedBy, targetUserId } = req.body;
+    const { participants, initiatedBy } = req.body;
+    const currentUserId = req.user.userId;
+
     console.log('=== CREATE PRIVATE CHAT REQUEST ===');
     console.log('Participants:', participants);
     console.log('Initiated by:', initiatedBy);
-    console.log('Current user ID:', req.user.id);
+    console.log('Current user ID:', currentUserId);
 
     if (!participants || !Array.isArray(participants) || participants.length !== 2) {
       return res.status(400).json({ error: 'Exactly 2 participants required' });
     }
 
-    if (!initiatedBy) {
-      return res.status(400).json({ error: 'InitiatedBy is required' });
+    if (!participants.includes(req.user.username)) {
+      return res.status(403).json({ error: 'You must be one of the participants' });
     }
 
-    // Get user IDs for participants
-    const participantIds = [];
+    // Get user IDs and check busy status for both participants
+    const userIds = [];
     for (const username of participants) {
-      const userResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [username]);
+      const userResult = await pool.query(`
+        SELECT id, is_busy, busy_message, busy_until 
+        FROM users 
+        WHERE username = $1
+      `, [username]);
+
       if (userResult.rows.length === 0) {
-        return res.status(404).json({ error: `User ${username} not found` });
+        return res.status(400).json({ error: `User ${username} not found` });
       }
-      participantIds.push(userResult.rows[0].id);
+
+      const user = userResult.rows[0];
+
+      // Check if the other user (not current user) is busy
+      if (username !== req.user.username) {
+        // Check if busy_until has expired
+        let isBusy = user.is_busy;
+        if (user.busy_until && new Date() > new Date(user.busy_until)) {
+          // Auto-disable busy status if expired
+          await pool.query(`
+            UPDATE users 
+            SET is_busy = false, busy_until = NULL 
+            WHERE id = $1
+          `, [user.id]);
+          isBusy = false;
+        }
+
+        if (isBusy) {
+          return res.status(423).json({ 
+            error: user.busy_message || 'This user cannot be chatted, is busy',
+            reason: 'user_busy',
+            busy_until: user.busy_until
+          });
+        }
+      }
+
+      userIds.push(user.id.toString());
     }
 
-    // Sort participant IDs to create consistent chat ID
-    const sortedIds = participantIds.sort((a, b) => a - b);
-    const chatId = `private_${sortedIds.join('_')}`;
-    console.log('Generated chat ID:', chatId, 'for user IDs:', sortedIds);
+    // Create consistent chat ID
+    const sortedUserIds = userIds.sort((a, b) => parseInt(a) - parseInt(b));
+    const chatId = `private_${sortedUserIds.join('_')}`;
 
-    // Check if private chat already exists
-    const existingChatResult = await pool.query('SELECT id FROM private_chats WHERE id = $1', [chatId]);
+    console.log('Generated chat ID:', chatId, 'for user IDs:', userIds);
 
-    if (existingChatResult.rows.length > 0) {
+    // Check if chat already exists
+    const existingChat = await pool.query(`
+      SELECT * FROM private_chats WHERE id = $1
+    `, [chatId]);
+
+    if (existingChat.rows.length > 0) {
       console.log('Private chat already exists:', chatId);
-      return res.json({ 
-        id: chatId, 
-        participants: participants,
-        participantIds: sortedIds,
-        isExisting: true,
-        message: 'Private chat already exists'
+      return res.json({
+        id: chatId,
+        participants,
+        created_at: existingChat.rows[0].created_at,
+        isExisting: true
       });
     }
 
     // Create new private chat
-    await pool.query('INSERT INTO private_chats (id, created_by) VALUES ($1, $2)', [chatId, initiatedBy]);
+    const chatResult = await pool.query(`
+      INSERT INTO private_chats (id, created_by, created_at)
+      VALUES ($1, $2, NOW())
+      RETURNING *
+    `, [chatId, currentUserId]);
 
-    // Add participants to the chat
-    for (const username of participants) {
-      await pool.query('INSERT INTO private_chat_participants (chat_id, username) VALUES ($1, $2)', [chatId, username]);
+    // Add participants
+    for (let i = 0; i < participants.length; i++) {
+      await pool.query(`
+        INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
+        VALUES ($1, $2, $3, NOW())
+      `, [chatId, parseInt(userIds[i]), participants[i]]);
     }
 
     console.log('Private chat created successfully:', chatId);
-    res.status(201).json({ 
-      id: chatId, 
-      participants: participants,
-      participantIds: sortedIds,
-      isExisting: false,
-      message: 'Private chat created successfully'
+
+    res.json({
+      id: chatId,
+      participants,
+      created_at: chatResult.rows[0].created_at,
+      isExisting: false
     });
 
   } catch (error) {
     console.error('Error creating private chat:', error);
-    if (error.code === '23505') {
-      // Unique constraint violation - chat already exists
-      return res.json({ 
-        id: req.body.chatId || 'unknown', 
-        participants: participants || [],
-        isExisting: true,
-        message: 'Private chat already exists'
-      });
-    }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Failed to create private chat' });
   }
 });
 
@@ -5172,7 +5195,7 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
       await client.query(`
         INSERT INTO gift_earnings (user_id, gift_id, gift_name, gift_price, user_share, system_share, sender_user_id, sender_username, room_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `, [recipientUserId, giftId, giftName, giftPrice, recipientShare, systemShare, senderId, senderUsername, roomId]);
+`, [recipientUserId, giftId, giftName, giftPrice, recipientShare, systemShare, senderId, senderUsername, roomId]);
 
       // Atomic upsert for gift earnings balance - prevents race conditions
       await client.query(`
@@ -5488,19 +5511,9 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
       const amountIDR = Math.floor(amount * exchangeRate);
       const balanceUSD = giftBalance / exchangeRate;
       const minWithdrawCoins = Math.floor(10 * exchangeRate); // 10 USD equivalent
+      const feeRate = 0.05; // Default fee rate, will be adjusted by type below
+      let netAmount = 0;
 
-      if (giftBalance < minWithdrawCoins) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          error: `Minimum withdrawal is ${minWithdrawCoins.toLocaleString()} coins ($10 USD)`,
-          currentRate: exchangeRate
-        });
-      }
-
-      if (amount > balanceUSD) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'Insufficient gift earnings balance' });
-      }
 
       // Get linked account details
       const accountResult = await client.query(`
@@ -5525,8 +5538,21 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
       }
 
       // Calculate Xendit fees (3-5% depending on method)
-      const feeRate = linkedAccount.account_type === 'bank' ? 0.03 : 0.05;
-      const netAmount = Math.floor(amountIDR * (1 - feeRate));
+      const dynamicFeeRate = linkedAccount.account_type === 'bank' ? 0.03 : 0.05;
+      netAmount = Math.floor(amountIDR * (1 - dynamicFeeRate));
+
+      if (giftBalance < minWithdrawCoins) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Minimum withdrawal is ${minWithdrawCoins.toLocaleString()} coins ($10 USD)`,
+          currentRate: exchangeRate
+        });
+      }
+
+      if (amount > balanceUSD) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient gift earnings balance' });
+      }
 
       // Create withdrawal request record
       const withdrawalResult = await client.query(`
@@ -5639,7 +5665,7 @@ app.post('/api/user/withdraw', authenticateToken, async (req, res) => {
           netAmount,
           exchangeRate,
           channelCode,
-          feeRate: linkedAccount.account_type === 'bank' ? '3%' : '5%',
+          feeRate: dynamicFeeRate.toString(), // Store the actual fee rate used
           status: 'processing',
           message: 'Withdrawal request submitted successfully to Xendit',
           actionUrl: xenditResponse.actions?.desktop_web_checkout_url || xenditResponse.checkout_url
@@ -7134,7 +7160,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   GET  /api/users/:userId/following - Get users being followed`);
   console.log(`   POST /api/users/:userId/avatar - Upload user avatar`);
   console.log(`   GET  /api/users/:userId/album - Get user photo album`);
-  console.log(`   POST /api/users/:userId/album - Upload photo to user album`);
+  console.log(`   POST /users/:userId/album - Upload photo to user album`);
   console.log(`   GET  /api/users/:userId/gifts - Get user gifts received`);
   console.log(`   GET  /api/credits/balance - Get user credits balance`);
   console.log(`   GET  /api/credits/history - Get user credits transaction history`);
