@@ -140,7 +140,7 @@ export default function AuthScreen() {
           await AsyncStorage.removeItem('rememberedCredentials');
         }
 
-        Alert.alert('Success', 'Login successful!');
+        Alert.alert('Success', '🎉 Welcome back ChatMe,Senang melihatmu lagi Yuk mulai ngobrol dan berbagi cerita!');
       } else {
         await register(username, password, email, phone, selectedCountry.code, gender);
         Alert.alert(
