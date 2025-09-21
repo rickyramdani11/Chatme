@@ -1607,20 +1607,26 @@ io.on('connection', (socket) => {
 
     const userInfo = connectedUsers.get(socket.id);
     if (userInfo && userInfo.roomId && userInfo.username) {
-      // Check if this is a private chat room
+      // Check if this is a private chat room or support chat
       const isPrivateChat = userInfo.roomId.startsWith('private_');
+      const isSupportChat = userInfo.roomId.startsWith('support_');
 
       // Remove from room participants
       if (roomParticipants[userInfo.roomId]) {
+        const participantBefore = roomParticipants[userInfo.roomId].find(p => p.socketId === socket.id);
+        
         roomParticipants[userInfo.roomId] = roomParticipants[userInfo.roomId].filter(
           p => p.socketId !== socket.id
         );
 
-        // Notify room about updated participants
-        io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
+        // Notify room about updated participants only if participant existed
+        if (participantBefore) {
+          io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
+        }
 
-        // Only broadcast leave message for non-private chats
-        if (!isPrivateChat) {
+        // Only broadcast leave message for public rooms (not private chats or support chats)
+        // and only if the participant actually existed in the room
+        if (!isPrivateChat && !isSupportChat && participantBefore) {
           const leaveMessage = {
             id: Date.now().toString(),
             sender: userInfo.username,
@@ -1632,8 +1638,15 @@ io.on('connection', (socket) => {
           };
 
           socket.to(userInfo.roomId).emit('user-left', leaveMessage);
+          console.log(`📢 Broadcasting leave message for ${userInfo.username} in room ${userInfo.roomId}`);
         } else {
-          console.log(`💬 Private chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+          if (isPrivateChat) {
+            console.log(`💬 Private chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+          } else if (isSupportChat) {
+            console.log(`🆘 Support chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+          } else if (!participantBefore) {
+            console.log(`👻 User ${userInfo.username} was not a participant in room ${userInfo.roomId} - no broadcast`);
+          }
         }
       }
     }
