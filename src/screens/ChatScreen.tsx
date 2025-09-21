@@ -93,7 +93,7 @@ export default function ChatScreen() {
   const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
 
-  // Create refs for state values that socket listeners need to avoid stale closures
+  // Create refs to store state values that socket listeners need to avoid stale closures
   const chatTabsRef = useRef<ChatTab[]>([]);
   const activeTabRef = useRef<number>(0);
   const autoScrollEnabledRef = useRef<boolean>(true);
@@ -765,7 +765,7 @@ export default function ChatScreen() {
         const targetTab = chatTabsRef.current.find(tab => tab.id === joinMessage.roomId);
         const isPrivateChat = targetTab?.type === 'private';
         const isSupportChat = targetTab?.isSupport;
-        
+
         if (!isPrivateChat && !isSupportChat) {
           setChatTabs(prevTabs =>
             prevTabs.map(tab =>
@@ -784,7 +784,7 @@ export default function ChatScreen() {
         const targetTab = chatTabsRef.current.find(tab => tab.id === leaveMessage.roomId);
         const isPrivateChat = targetTab?.type === 'private';
         const isSupportChat = targetTab?.isSupport;
-        
+
         if (!isPrivateChat && !isSupportChat) {
           setChatTabs(prevTabs =>
             prevTabs.map(tab =>
@@ -3717,7 +3717,7 @@ export default function ChatScreen() {
         { emoji: '🥰', type: 'text', name: 'Smiling Face with Hearts' },
         { emoji: '😊', type: 'text', name: 'Smiling Face with Smiling Eyes' },
         { emoji: '😍', type: 'text', name: 'Smiling Face with Heart-Eyes' },
-        // Add some local emoticons as fallback
+        // Add local emoticons as fallback
         { url: require('../../assets/emoticon/happy.png'), type: 'image', name: 'Happy' },
         { url: require('../../assets/emoticon/sad.png'), type: 'image', name: 'Sad' },
         { url: require('../../assets/emoticon/wink.png'), type: 'image', name: 'Wink' },
@@ -4195,6 +4195,1156 @@ export default function ChatScreen() {
             )}
           </View>
         </View>
+        {renderTabIndicator()}
+
+        {/* Connection Status Indicator */}
+        <View style={styles.connectionStatusContainer}>
+          <View style={[
+            styles.connectionStatusDot,
+            !isSocketConnected && styles.disconnectedDot,
+            reconnectAttempts > 0 && isSocketConnected && styles.reconnectingDot
+          ]} />
+        </View>
+      </LinearGradient>
+
+
+
+      {/* Tab Navigation with KeyboardAvoidingView */}
+      <KeyboardAvoidingView
+        style={styles.chatContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        enabled={true}
+      >
+        <View style={styles.tabContainer}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={true}
+            decelerationRate="fast"
+            onMomentumScrollEnd={(event) => {
+              const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+              if (newIndex !== activeTab && newIndex >= 0 && newIndex < chatTabs.length) {
+                setActiveTab(newIndex);
+
+                // Clear unread count for the new active tab
+                const selectedRoomId = chatTabs[newIndex]?.id;
+                if (selectedRoomId && unreadCounts[selectedRoomId]) {
+                  setUnreadCounts(prev => ({
+                    ...prev,
+                    [selectedRoomId]: 0
+                  }));
+                }
+              }
+            }}
+            scrollEventThrottle={16}
+          >
+            {chatTabs.map((tab, index) => (
+              <TouchableWithoutFeedback key={`${tab.id}-${index}`} onPress={() => Keyboard.dismiss()}>
+                <View style={styles.tabContent}>
+                  <FlatList
+                    ref={(ref) => { flatListRefs.current[tab.id] = ref; }} // Assign ref to the FlatList
+                    data={tab.messages}
+                    renderItem={renderMessage}
+                    keyExtractor={(item, itemIndex) => `${item.id}-${itemIndex}`}
+                    style={styles.messagesList}
+                    contentContainerStyle={styles.messagesContainer}
+                    scrollEnabled={true}
+                    onScroll={({ nativeEvent }) => {
+                      // Check if user is scrolling manually
+                      const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+                      const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100; // Increased threshold
+                      setIsUserScrolling(!isScrolledToBottom);
+                    }}
+                    onScrollBeginDrag={() => {
+                      // User started scrolling manually
+                      setIsUserScrolling(true);
+                    }}
+                    onMomentumScrollEnd={({ nativeEvent }) => {
+                      // Check if user scrolled to bottom after momentum ends
+                      const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+                      const isScrolledToBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 100;
+                      setIsUserScrolling(!isScrolledToBottom);
+                    }}
+                    maintainVisibleContentPosition={{ minIndexForVisible: 0 }} // Optimization for FlatList
+                  />
+                </View>
+              </TouchableWithoutFeedback>
+            ))}
+          </ScrollView>
+          {/* Auto Scroll Toggle Button */}
+          <TouchableOpacity
+            style={styles.autoScrollButton}
+            onPress={() => {
+              setAutoScrollEnabled(!autoScrollEnabled);
+              // If enabling autoscroll, immediately scroll to bottom
+              if (!autoScrollEnabled && chatTabs[activeTab]) {
+                const currentRoomId = chatTabs[activeTab].id;
+                setTimeout(() => {
+                  flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
+                }, 100);
+                setIsUserScrolling(false);
+              }
+            }}
+          >
+            <Ionicons
+              name={autoScrollEnabled ? "arrow-down-circle" : "arrow-down-circle-outline"}
+              size={30}
+              color="white"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Message Input */}
+        <View
+          style={[
+            styles.inputContainer,
+            isKeyboardVisible && { paddingBottom: Platform.OS === 'android' ? 8 : 8 }
+          ]}
+        >
+          <View style={styles.inputWrapper}>
+            <TouchableOpacity style={styles.emojiButton} onPress={handleEmojiPress}>
+              <Ionicons name="happy-outline" size={24} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.giftButton} onPress={() => {
+              loadGifts();
+              setShowGiftPicker(true);
+            }}>
+              <Ionicons name="gift-outline" size={24} color="#FF69B4" />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Type a message"
+              placeholderTextColor="#999"
+              value={message}
+              onChangeText={handleMessageChange}
+              multiline
+              blurOnSubmit={false}
+              returnKeyType="default"
+              onSubmitEditing={(event) => {
+                if (!event.nativeEvent.text.trim()) {
+                  return;
+                }
+                handleSendMessage();
+              }}
+              enablesReturnKeyAutomatically={true}
+              maxLength={2000}
+            />
+            <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
+              <Ionicons name="send" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+
+      {/* Popup Menu Modal */}
+      <Modal
+        visible={showPopupMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowPopupMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPopupMenu(false)}
+        >
+          <View style={styles.popupMenu}>
+            {chatTabs[activeTab]?.type === 'private' ? (
+              // Private Chat Menu Options
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowPopupMenu(false);
+                    navigation.navigate('Profile', { userId: targetUser?.id || targetUser?.username });
+                  }}
+                >
+                  <Ionicons name="person-outline" size={20} color="#333" />
+                  <Text style={styles.menuText}>View Profile</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowPopupMenu(false);
+                    Alert.alert('Search Messages', 'Search functionality will be added soon');
+                  }}
+                >
+                  <Ionicons name="search-outline" size={20} color="#333" />
+                  <Text style={styles.menuText}>Search Messages</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowPopupMenu(false);
+                    Alert.alert('Clear Chat', 'Clear chat functionality will be added soon');
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF9800" />
+                  <Text style={[styles.menuText, { color: '#FF9800' }]}>Clear Chat</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.lastMenuItem]}
+                  onPress={handleLeaveRoom}
+                >
+                  <Ionicons name="exit-outline" size={20} color="#F44336" />
+                  <Text style={[styles.menuText, { color: '#F44336' }]}>Close Chat</Text>
+                </TouchableOpacity>
+              </>
+            ) : chatTabs[activeTab]?.isSupport ? (
+              // Support Chat Menu Options
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowPopupMenu(false);
+                    Alert.alert('Support Options', 'More support options will be available soon.');
+                  }}
+                >
+                  <Ionicons name="settings-outline" size={20} color="#333" />
+                  <Text style={styles.menuText}>Support Settings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.lastMenuItem]}
+                  onPress={handleLeaveRoom}
+                >
+                  <Ionicons name="exit-outline" size={20} color="#F44336" />
+                  <Text style={[styles.menuText, { color: '#F44336' }]}>End Support Session</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              // Room Chat Menu Options
+              <>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleLeaveRoom}
+                >
+                  <Ionicons name="exit-outline" size={20} color="#F44336" />
+                  <Text style={[styles.menuText, { color: '#F44336' }]}>Leave Room</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.lastMenuItem]}
+                  onPress={handleRoomInfo}
+                >
+                  <Ionicons name="information-circle-outline" size={20} color="#333" />
+                  <Text style={styles.menuText}>Info Room</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Room Info Modal */}
+      <Modal
+        visible={showRoomInfo}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowRoomInfo(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.roomInfoModal}>
+            <View style={styles.roomInfoHeader}>
+              <Text style={styles.roomInfoTitle}>Room Information</Text>
+              <TouchableOpacity onPress={() => setShowRoomInfo(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.roomInfoContent}>
+              <View style={styles.roomInfoItem}>
+                <Ionicons name="home-outline" size={20} color="#666" />
+                <View style={styles.roomInfoText}>
+                  <Text style={styles.roomInfoLabel}>Room Name</Text>
+                  <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.title}</Text>
+                </View>
+              </View>
+
+              <View style={styles.roomInfoItem}>
+                <Ionicons name="calendar-outline" size={20} color="#666" />
+                <View style={styles.roomInfoText}>
+                  <Text style={styles.roomInfoLabel}>Created Date</Text>
+                  <Text style={styles.roomInfoValue}>18 August 2025</Text>
+                </View>
+              </View>
+
+              <View style={styles.roomInfoItem}>
+                <Ionicons name="person-outline" size={20} color="#666" />
+                <View style={styles.roomInfoText}>
+                  <Text style={styles.roomInfoLabel}>Owner</Text>
+                  <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.managedBy || 'admin'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.roomInfoItem}>
+                <Ionicons name="shield-outline" size={20} color="#666" />
+                <View style={styles.roomInfoText}>
+                  <Text style={styles.roomInfoLabel}>Moderator</Text>
+                  <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.managedBy || 'admin'}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Participants List Modal */}
+      <Modal
+        visible={showParticipants}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowParticipants(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.participantsModal}>
+            <View style={styles.participantsHeader}>
+              <Text style={styles.participantsTitle}>Room Participants</Text>
+              <TouchableOpacity onPress={() => setShowParticipants(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.participantsList}>
+              {participants.length > 0 ? (
+                participants.map((participant, index) => (
+                  <TouchableOpacity
+                    key={`${participant.username}-${participant.id || index}`}
+                    style={[
+                      styles.participantItem,
+                      { backgroundColor: getRoleBackgroundColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
+                    ]}
+                    onPress={() => handleParticipantPress(participant)}
+                  >
+                    <View style={[
+                      styles.participantAvatar,
+                      { backgroundColor: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
+                    ]}>
+                      <Text style={styles.participantAvatarText}>
+                        {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
+                      </Text>
+                    </View>
+                    <View style={styles.participantInfo}>
+                      <Text style={[
+                        styles.participantName,
+                        { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
+                      ]}>
+                        {participant.username || 'Unknown User'}
+                      </Text>
+                      <View style={styles.participantRoleContainer}>
+                        <Text style={[
+                          styles.participantRole,
+                          { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
+                        ]}>
+                          {(() => {
+                            const currentRoom = chatTabs[activeTab];
+                            const isOwner = currentRoom && currentRoom.managedBy === participant.username;
+                            const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
+
+                            if (isOwner) return '👤 Owner';
+                            if (isModerator) return '🛡️ Moderator';
+
+                            switch (participant.role) {
+                              case 'admin': return '👑 Admin';
+                              case 'merchant': return '🏪 Merchant';
+                              case 'mentor': return '🎓 Mentor';
+                              default: return '👤 User';
+                            }
+                          })()}
+                        </Text>
+                        {mutedUsers.includes(participant.username) && (
+                          <Text style={styles.mutedIndicator}>🔇 Muted</Text>
+                        )}
+                        {blockedUsers.includes(participant.username) && (
+                          <Text style={styles.blockedIndicator}>🚫 Blocked</Text>
+                        )}
+                      </View>
+                    </View>
+                    <View style={[
+                      styles.participantStatus,
+                      { backgroundColor: participant.isOnline ? '#4CAF50' : '#9E9E9E' }
+                    ]}>
+                      <Text style={styles.participantStatusText}>
+                        {participant.isOnline ? 'Online' : 'Offline'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.noParticipants}>
+                  <Text style={styles.noParticipantsText}>No participants found</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Participant Context Menu Modal */}
+      <Modal
+        visible={showParticipantMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowParticipantMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowParticipantMenu(false)}
+        >
+          <View style={styles.participantContextMenu}>
+            <View style={styles.participantMenuHeader}>
+              <View style={styles.participantMenuAvatar}>
+                <Text style={styles.participantMenuAvatarText}>
+                  {selectedParticipant?.username ? selectedParticipant.username.charAt(0).toUpperCase() : 'U'}
+                </Text>
+              </View>
+              <Text style={styles.participantMenuName}>{selectedParticipant?.username}</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.participantMenuItem}
+              onPress={handleViewProfile}
+            >
+              <Ionicons name="person-outline" size={20} color="#333" />
+              <Text style={styles.participantMenuText}>View Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.participantMenuItem}
+              onPress={handleOpenChat}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#333" />
+              <Text style={styles.participantMenuText}>Private Chat</Text>
+            </TouchableOpacity>
+
+            {(user?.role === 'admin' || user?.role === 'mentor') && (
+              <TouchableOpacity
+                style={styles.participantMenuItem}
+                onPress={handleKickUser}
+              >
+                <Ionicons name="exit-outline" size={20} color="#F44336" />
+                <Text style={[styles.participantMenuText, { color: '#F44336' }]}>Kick User</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.participantMenuItem}
+              onPress={handleBlockUser}
+            >
+              <Ionicons name="ban-outline" size={20} color="#FF9800" />
+              <Text style={[styles.participantMenuText, { color: '#FF9800' }]}>
+                {blockedUsers.includes(selectedParticipant?.username) ? 'Unblock User' : 'Block User'}
+              </Text>
+            </TouchableOpacity>
+
+            {user?.role === 'admin' && (
+              <TouchableOpacity
+                style={styles.participantMenuItem}
+                onPress={handleMuteUser}
+              >
+                <Ionicons name="volume-mute-outline" size={20} color="#9C27B0" />
+                <Text style={[styles.participantMenuText, { color: '#9C27B0' }]}>
+                  {mutedUsers.includes(selectedParticipant?.username) ? 'Unmute User' : 'Mute User'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {(isRoomOwner() || isRoomModerator() || user?.role === 'admin') && (
+              <>
+                <TouchableOpacity
+                  style={styles.participantMenuItem}
+                  onPress={handleBanUser}
+                >
+                  <Ionicons name="remove-circle-outline" size={20} color="#E91E63" />
+                  <Text style={[styles.participantMenuText, { color: '#E91E63' }]}>
+                    {bannedUsers.includes(selectedParticipant?.username) ? 'Unban User' : 'Ban User'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.participantMenuItem}
+                  onPress={handleLockRoom}
+                >
+                  <Ionicons name="lock-closed-outline" size={20} color="#FF5722" />
+                  <Text style={[styles.participantMenuText, { color: '#FF5722' }]}>Lock Room</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.participantMenuItem, styles.lastParticipantMenuItem]}
+              onPress={handleReportUser}
+            >
+              <Ionicons name="flag-outline" size={20} color="#F44336" />
+              <Text style={[styles.participantMenuText, { color: '#F44336' }]}>Report User</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Emoji Picker Modal */}
+      <Modal
+        visible={showEmojiPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowEmojiPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.emojiModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowEmojiPicker(false)}
+        >
+          <View style={styles.emojiPickerContainer}>
+            <View style={styles.emojiPickerModal}>
+              <View style={styles.emojiPickerHeader}>
+                <Text style={styles.emojiPickerTitle}>Select Emoji ✕</Text>
+              </View>
+
+              <View style={styles.emojiPickerContent}>
+                {emojiList.length > 0 ? (
+                  <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    style={styles.emojiScrollView}
+                    contentContainerStyle={styles.emojiScrollContent}
+                  >
+                    {emojiList.map((emoji, index) => (
+                      <TouchableOpacity
+                        key={`${emoji.name || emoji.emoji}-${index}`}
+                        style={styles.emojiItem}
+                        onPress={() => handleEmojiSelect(emoji)}
+                      >
+                        {emoji.type === 'text' ? (
+                          <Text style={styles.emojiText}>{emoji.emoji}</Text>
+                        ) : emoji.type === 'image' && typeof emoji.url === 'string' ? (
+                          <Image source={{ uri: `${API_BASE_URL}${emoji.url}` }} style={styles.emojiImage} />
+                        ) : emoji.type === 'image' && typeof emoji.url === 'number' ? (
+                          <Image source={emoji.url} style={styles.emojiImage} />
+                        ) : (
+                          <Text style={styles.emojiText}>🙂</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.emptyEmojiContainer}>
+                    <Ionicons name="cloud-upload-outline" size={40} color="#ccc" />
+                    <Text style={styles.emptyEmojiTitle}>No Emojis Available</Text>
+                    <Text style={styles.emptyEmojiSubtitle}>
+                      Add emojis via the Admin Panel to make them available here.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Gift Picker Modal */}
+      <Modal
+        visible={showGiftPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowGiftPicker(false)}
+      >
+        <View style={styles.giftModalOverlay}>
+          <View style={styles.giftPickerModal}>
+            <View style={styles.giftPickerHeader}>
+              <Text style={styles.giftPickerTitle}>Send Gift 🎁</Text>
+              <TouchableOpacity onPress={() => setShowGiftPicker(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Gift Category Tabs */}
+            <View style={styles.giftCategoryTabs}>
+              <View style={styles.tabRow}>
+                <TouchableOpacity 
+                  style={[styles.categoryTab, activeGiftTab === 'all' && styles.activeCategoryTab]}
+                  onPress={() => setActiveGiftTab('all')}
+                >
+                  <Text style={[styles.categoryTabText, activeGiftTab === 'all' && styles.activeCategoryTabText]}>Semua hadiah</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.categoryTab, activeGiftTab === 'special' && styles.activeCategoryTab]}
+                  onPress={() => setActiveGiftTab('special')}
+                >
+                  <Text style={[styles.categoryTabText, activeGiftTab === 'special' && styles.activeCategoryTabText]}>Hadiah Ketertarikan</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Send to All Toggle */}
+            <View style={styles.sendToAllContainer}>
+              <TouchableOpacity 
+                style={styles.sendToAllToggle}
+                onPress={() => setSendToAllUsers(!sendToAllUsers)}
+              >
+                <Ionicons 
+                  name={sendToAllUsers ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={sendToAllUsers ? "#4ADE80" : "#666"} 
+                />
+                <Text style={styles.sendToAllText}>Kirim ke semua user di room</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Coin Balance Display */}
+            <View style={styles.coinBalanceDisplay}>
+              <View style={styles.coinBalanceRow}>
+                <Ionicons name="diamond" size={20} color="#FFD700" />
+                <Text style={styles.coinBalanceText}>Balance: {user?.balance || 0} coins</Text>
+              </View>
+            </View>
+
+            <FlatList
+              data={activeGiftTab === 'all' ? giftList : giftList.filter(gift => gift.category === 'special' || gift.special)}
+              renderItem={({ item: gift, index }) => (
+                <View style={styles.newGiftItemContainer}>
+                  <TouchableOpacity
+                    style={styles.newGiftItem}
+                    onPress={() => sendToAllUsers ? handleGiftSendToAll(gift) : handleGiftSend(gift)}
+                  >
+                    <View style={styles.newGiftIconContainer}>
+                      {gift.image ? (
+                        <Image 
+                          source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
+                          style={styles.giftImage} 
+                          resizeMode="contain"
+                        />
+                      ) : gift.animation ? (
+                        // Check if it's MP4 video
+                        (typeof gift.animation === 'string' && gift.animation.toLowerCase().includes('.mp4')) ||
+                        (gift.name && (gift.name.toLowerCase().includes('love') || gift.name.toLowerCase().includes('ufo'))) ? (
+                          <Video
+                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
+                            style={styles.giftImage}
+                            resizeMode="contain"
+                            shouldPlay={false}
+                            isLooping={false}
+                            isMuted={true}
+                          />
+                        ) : (
+                          // For GIF animations
+                          <Image 
+                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
+                            style={styles.giftImage} 
+                            resizeMode="contain"
+                          />
+                        )
+                      ) : (
+                        <Text style={styles.newGiftIcon}>{gift.icon}</Text>
+                      )}
+                      {gift.type === 'animated' && (
+                        <View style={styles.animatedBadge}>
+                          <Text style={styles.animatedBadgeText}>✨</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.newGiftName}>{gift.name}</Text>
+                    <View style={styles.giftPriceContainer}>
+                      <Ionicons name="diamond-outline" size={12} color="#FFD700" />
+                      <Text style={styles.newGiftPrice}>{gift.price}</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <View style={styles.giftActionButtons}>
+                    <TouchableOpacity
+                      style={styles.sendToUserButton}
+                      onPress={() => handleGiftSendToUser(gift)}
+                    >
+                      <Text style={styles.giftActionText}>User</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+              numColumns={2}
+              keyExtractor={(gift, index) => `${gift.id}-${index}`}
+              contentContainerStyle={styles.giftGridContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* User Gift Picker Modal */}
+      <Modal
+        visible={showUserGiftPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowUserGiftPicker(false)}
+      >
+        <View style={styles.giftModalOverlay}>
+          <View style={styles.userGiftPickerModal}>
+            <View style={styles.giftPickerHeader}>
+              <Text style={styles.giftPickerTitle}>
+                Send {selectedGiftForUser?.name} {selectedGiftForUser?.icon} to User
+              </Text>
+              <TouchableOpacity onPress={() => setShowUserGiftPicker(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.userListContent} showsVerticalScrollIndicator={false}>
+              <Text style={styles.sectionTitle}>Select User:</Text>
+              {participants.map((participant, index) => (
+                <TouchableOpacity
+                  key={`gift-${participant.username}-${participant.id || index}`}
+                  style={styles.userGiftItem}
+                  onPress={() => sendGiftToUser(participant)}
+                  disabled={participant.username === user?.username}
+                >
+                  <View style={[
+                    styles.participantAvatar,
+                    { backgroundColor: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
+                  ]}>
+                    <Text style={styles.participantAvatarText}>
+                      {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
+                    </Text>
+                  </View>
+                  <View style={styles.userGiftInfo}>
+                    <Text style={[
+                      styles.userGiftName,
+                      { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
+                    ]}>
+                      {participant.username || 'Unknown User'}
+                    </Text>
+                    <Text style={styles.userGiftRole}>
+                      {(() => {
+                        const currentRoom = chatTabs[activeTab];
+                        const isOwner = currentRoom && currentRoom.managedBy === participant.username;
+
+                        if (isOwner) return '👤 Owner';
+
+                        switch (participant.role) {
+                          case 'admin': return '👑 Admin';
+                          case 'merchant': return '🏪 Merchant';
+                          case 'mentor': return '🎓 Mentor';
+                          default: return '👤 User';
+                        }
+                      })()}
+                    </Text>
+                  </View>
+                  {participant.username === user?.username && (
+                    <Text style={styles.selfLabel}>(You)</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* User Tag Menu Modal */}
+      <Modal
+        visible={showUserTagMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowUserTagMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.userTagModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowUserTagMenu(false)}
+        >
+          <View style={styles.userTagMenu}>
+            <View style={styles.userTagHeader}>
+              <Text style={styles.userTagTitle}>Select User to Tag</Text>
+            </View>
+            <ScrollView style={styles.userTagList} showsVerticalScrollIndicator={false}>
+              {filteredParticipants.map((participant, index) => (
+                <TouchableOpacity
+                  key={`tag-${participant.username}-${participant.id || index}`}
+                  style={styles.userTagItem}
+                  onPress={() => handleUserTag(participant.username)}
+                >
+                  <View style={[
+                    styles.participantAvatar,
+                    { backgroundColor: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
+                  ]}>
+                    <Text style={styles.participantAvatarText}>
+                      {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
+                    </Text>
+                  </View>
+                  <View style={styles.userTagInfo}>
+                    <Text style={styles.userTagName}>@{participant.username}</Text>
+                    <Text style={styles.userTagRole}>
+                      {(() => {
+                        const currentRoom = chatTabs[activeTab];
+                        const isOwner = currentRoom && currentRoom.managedBy === participant.username;
+
+                        if (isOwner) return '👤 Owner';
+
+                        switch (participant.role) {
+                          case 'admin': return '👑 Admin';
+                          case 'merchant': return '🏪 Merchant';
+                          case 'mentor': return '🎓 Mentor';
+                          default: return '👤 User';
+                        }
+                      })()}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Message Context Menu Modal */}
+      <Modal
+        visible={showMessageMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMessageMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMessageMenu(false)}
+        >
+          <View style={styles.messageContextMenu}>
+            <View style={styles.messageMenuHeader}>
+              <Text style={styles.messageMenuTitle}>Message Options</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.messageMenuItem}
+              onPress={handleCopyMessage}
+            >
+              <Ionicons name="copy-outline" size={20} color="#333" />
+              <Text style={styles.messageMenuText}>Copy Message</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.messageMenuItem}
+              onPress={() => {
+                if (selectedMessage) {
+                  setMessage(`@${selectedMessage.sender} `);
+                }
+                setShowMessageMenu(false);
+                setSelectedMessage(null);
+              }}
+            >
+              <Ionicons name="at-outline" size={20} color="#333" />
+              <Text style={styles.messageMenuText}>Reply to User</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.messageMenuItem, styles.lastMessageMenuItem]}
+              onPress={() => {
+                setShowMessageMenu(false);
+                setSelectedMessage(null);
+              }}
+            >
+              <Ionicons name="close-outline" size={20} color="#666" />
+              <Text style={[styles.messageMenuText, { color: '#666' }]}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Gift Animation Overlay - Live Streaming Style */}
+      {activeGiftAnimation && (
+        <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
+          {/* Full Screen Video/Animation Layer */}
+          <Animated.View 
+            style={[
+              styles.fullScreenAnimationContainer,
+              {
+                opacity: giftOpacityAnim,
+                transform: [{ scale: giftScaleAnim }]
+              }
+            ]}
+            pointerEvents="box-none"
+          >
+            {/* Full Screen MP4 Video Effect */}
+            {activeGiftAnimation.animation && (
+              (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
+              (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
+            ) && (
+              <Video
+                ref={giftVideoRef}
+                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
+                style={styles.fullScreenVideo}
+                resizeMode="cover"
+                shouldPlay
+                isLooping={false}
+                isMuted={false}
+                volume={0.7}
+                onPlaybackStatusUpdate={(status) => {
+                  // Auto close after video ends with smooth fade out
+                  if (status.didJustFinish) {
+                    setTimeout(() => {
+                      Animated.parallel([
+                        Animated.timing(giftScaleAnim, {
+                          toValue: 1.1, // Slight zoom out effect
+                          duration: 500,
+                          useNativeDriver: true,
+                        }),
+                        Animated.timing(giftOpacityAnim, {
+                          toValue: 0,
+                          duration: 500,
+                          useNativeDriver: true,
+                        }),
+                      ]).start(() => {
+                        setActiveGiftAnimation(null);
+                      });
+                    }, 1500); // Wait 1.5 seconds after video ends
+                  }
+                }}
+              />
+            )}
+
+            {/* Small Static Image/GIF Effect (30x30) */}
+            {activeGiftAnimation.image && (
+              <View style={styles.smallGiftContainer}>
+                <Image 
+                  source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
+                  style={styles.smallGiftImage}
+                  resizeMode="contain"
+                />
+              </View>
+            )}
+
+            {/* Fullscreen GIF layer for non-MP4 animations with transparency */}
+            {activeGiftAnimation.animation && 
+             !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
+             !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
+              <Image 
+                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
+                style={styles.fullScreenGif}
+                resizeMode="cover"
+              />
+            )}
+
+            {/* Fallback emoji/icon layer (small) */}
+            {!activeGiftAnimation.animation && !activeGiftAnimation.image && (
+              <View style={styles.smallGiftContainer}>
+                <Text style={styles.smallGiftEmoji}>{activeGiftAnimation.icon}</Text>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Gift Info Overlay - Bottom */}
+          <Animated.View 
+            style={[
+              styles.giftInfoOverlay,
+              {
+                opacity: giftOpacityAnim,
+                transform: [{ translateY: giftScaleAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [50, 0]
+                })}]
+              }
+            ]}
+          >
+            <Text style={styles.giftSenderName}>
+              {activeGiftAnimation.sender}
+            </Text>
+            <Text style={styles.giftDescription}>
+              sent {activeGiftAnimation.name} {activeGiftAnimation.icon}
+              {activeGiftAnimation.recipient && ` to ${activeGiftAnimation.recipient}`}
+            </Text>
+          </Animated.View>
+
+
+        </View>
+      )}
+
+      {/* Call Modal */}
+      <Modal
+        visible={showCallModal}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={endCall}
+      >
+        <View style={styles.callModalContainer}>
+          <View style={styles.callHeader}>
+            <Text style={styles.callHeaderText}>
+              {callType === 'video' ? 'Video Call' : 'Audio Call'}
+            </Text>
+            <Text style={styles.callTargetName}>
+              {targetUser?.username}
+            </Text>
+            <Text style={styles.callTimer}>
+              {formatCallTime(callTimer)}
+            </Text>
+            <Text style={styles.callCost}>
+              Cost: {callCost} coins
+            </Text>
+          </View>
+
+          <View style={styles.videoCallContainer}>
+            {isInCall && (
+              <View style={{ flex: 1, backgroundColor: '#000' }}>
+                <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
+                  Call Active with {targetUser?.username}
+                </Text>
+                <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
+                  {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
+                </Text>
+                <Text style={{ color: '#FFD700', textAlign: 'center', marginTop: 5 }}>
+                  Cost: {callCost} coins
+                </Text>
+                {/* Daily.co video implementation will be added here */}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.callControls}>
+            <TouchableOpacity 
+              style={[styles.callButton, styles.endCallButton]} 
+              onPress={endCall}
+            >
+              <Ionicons name="call" size={30} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Incoming Call Modal */}
+      <Modal
+        visible={showIncomingCallModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleDeclineCall}
+      >
+        <View style={styles.incomingCallOverlay}>
+          <View style={styles.incomingCallModal}>
+            <View style={styles.incomingCallHeader}>
+              <Text style={styles.incomingCallTitle}>
+                {incomingCallData?.callType === 'video' ? 'Video' : 'Audio'} Call
+              </Text>
+              <Text style={styles.incomingCallSubtitle}>Incoming call from</Text>
+              <Text style={styles.callerName}>{incomingCallData?.callerName}</Text>
+            </View>
+
+            <View style={styles.callerAvatar}>
+              <Text style={styles.callerAvatarText}>
+                {incomingCallData?.callerName?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            </View>
+
+            <View style={styles.callRateInfo}>
+              <Text style={styles.callRateText}>Call Rates:</Text>
+              <Text style={styles.callRateDetail}>• First minute: 2,500 coins</Text>
+              <Text style={styles.callRateDetail}>• After 1st minute: 2,000 coins/minute</Text>
+            </View>
+
+            <View style={styles.incomingCallButtons}>
+              <TouchableOpacity 
+                style={[styles.callActionButton, styles.declineButton]} 
+                onPress={handleDeclineCall}
+              >
+                <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: '135deg' }] }} />
+                <Text style={styles.callActionText}>Decline</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.callActionButton, styles.acceptButton]} 
+                onPress={handleAcceptCall}
+              >
+                <Ionicons name="call" size={30} color="white" />
+                <Text style={styles.callActionText}>Accept</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  '@keyframes blink': {
+    '0%, 50%': { opacity: 1 },
+    '51%, 100%': { opacity: 0.5 },
+  },
+  chatContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  emptyStateSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  privateChatHistory: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  privateChatSection: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  emptyPrivateChats: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyPrivateChatsText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 15,
+  },
+  emptyPrivateChatsSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  actionSection: {
+    padding: 20,
+    paddingTop: 0,
+  },
+  header: {
+    paddingTop: 10,
+    paddingBottom: 15,
+    paddingHorizontal: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justify    </View>
         {renderTabIndicator()}
 
         {/* Connection Status Indicator */}
@@ -6073,7 +7223,8 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    alignSelf: 'flex-start',  },
+    alignSelf: 'flex-start',
+  },
   joinLeaveMessageText: {
     fontSize: 13,
     color: '#666',
@@ -6237,30 +7388,6 @@ const styles = StyleSheet.create({
     color: '#FF8C00',
     fontWeight: 'bold',
   },
-  coinBalanceContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#444',
-  },
-  coinBalance: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  coinIcon: {
-    fontSize: 24,
-    marginRight: 8,
-  },
-  coinText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-  coinDescription: {
-    fontSize: 14,
-    color: '#888',
-  },
   giftPickerContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -6365,28 +7492,45 @@ const styles = StyleSheet.create({
   newGiftIcon: {
     fontSize: 48,
   },
+  animatedBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF69B4',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  animatedBadgeText: {
+    fontSize: 10,
+    color: 'white',
+  },
   newGiftName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 6,
     textAlign: 'center',
+    minHeight: 28,
+    lineHeight: 14,
   },
   newGiftPrice: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#FFD700',
-    marginLeft: 4,
+    marginLeft: 2,
   },
   giftGridContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    textAlign: 'center',
+    paddingHorizontal: 5,
+    paddingVertical: 5,
   },
   newGiftPriceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 2,
   },
   coinPriceIcon: {
     fontSize: 14,
