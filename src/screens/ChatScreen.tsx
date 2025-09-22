@@ -233,7 +233,7 @@ export default function ChatScreen() {
           amount,
           type: `${type}_call`,
           description: `${type} call for ${description}`,
-          recipientUsername: targetUser?.username
+          recipientUsername: selectedParticipant?.username // Use selectedParticipant for recipient
         }),
       });
 
@@ -299,7 +299,7 @@ export default function ChatScreen() {
     const finalEarnings = Math.floor(totalDeducted * 0.7);
     if (finalEarnings > 0) {
       Alert.alert(
-        'Call Ended', 
+        'Call Ended',
         `Total earnings: ${finalEarnings} coins (70% of ${totalDeducted} coins spent)`,
         [{ text: 'OK' }]
       );
@@ -315,7 +315,7 @@ export default function ChatScreen() {
 
   const handleVideoCall = async () => {
     // Get targetUser from navigation params or selected participant
-    const callTargetUser = targetUser || selectedParticipant;
+    const callTargetUser = selectedParticipant; // Use selectedParticipant
 
     if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
@@ -333,8 +333,8 @@ export default function ChatScreen() {
       `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Start Call', 
+        {
+          text: 'Start Call',
           onPress: () => {
             // Send call notification to target user
             if (socket && user) {
@@ -354,7 +354,7 @@ export default function ChatScreen() {
 
   const handleAudioCall = async () => {
     // Get targetUser from navigation params or selected participant
-    const callTargetUser = targetUser || selectedParticipant;
+    const callTargetUser = selectedParticipant; // Use selectedParticipant
 
     if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
@@ -372,8 +372,8 @@ export default function ChatScreen() {
       `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Start Call', 
+        {
+          text: 'Start Call',
           onPress: () => {
             // Send call notification to target user
             if (socket && user) {
@@ -482,7 +482,7 @@ export default function ChatScreen() {
           console.log('No previous messages for room');
           messages = [];
         }
-      
+
       } else if (isSupport) {
         // Load messages for support chat
         try {
@@ -673,8 +673,8 @@ export default function ChatScreen() {
           const updatedTabs = prevTabs.map(tab => {
             if (tab.id === newMessage.roomId) {
               // Replace optimistic message if it exists, otherwise add new message
-              const existingIndex = tab.messages.findIndex(msg => 
-                msg.id === newMessage.id || 
+              const existingIndex = tab.messages.findIndex(msg =>
+                msg.id === newMessage.id ||
                 (msg.sender === newMessage.sender && msg.content === newMessage.content && msg.id.startsWith('temp_'))
               );
 
@@ -691,9 +691,9 @@ export default function ChatScreen() {
                   console.log('System message added to tab:', tab.id, 'Content:', newMessage.content.substring(0, 50));
                 } else {
                   // For user messages, be more lenient with duplicate checking to prevent message loss
-                  const isDuplicate = tab.messages.some(msg => 
-                    msg.id === newMessage.id || 
-                    (msg.sender === newMessage.sender && 
+                  const isDuplicate = tab.messages.some(msg =>
+                    msg.id === newMessage.id ||
+                    (msg.sender === newMessage.sender &&
                      msg.content === newMessage.content &&
                      Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 1000)
                   );
@@ -1022,7 +1022,7 @@ export default function ChatScreen() {
 
         // Find the correct tab and add the message
         setChatTabs(prevTabs =>
-          prevTabs.map(tab => 
+          prevTabs.map(tab =>
             tab.id === currentRoomId // Ensure we add to the correct support chat tab
               ? { ...tab, messages: [...tab.messages, adminMessage] }
               : tab
@@ -1700,7 +1700,7 @@ export default function ChatScreen() {
 
           // Add locally and emit to server
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, meMessage] }
                 : tab
@@ -1740,7 +1740,7 @@ export default function ChatScreen() {
 
             // Add locally for immediate feedback
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, whoisMessage] }
                   : tab
@@ -1761,7 +1761,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -1781,7 +1781,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -1830,7 +1830,7 @@ export default function ChatScreen() {
 
             // Add locally and emit to server
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, giftMessage] }
                   : tab
@@ -1858,7 +1858,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -1878,7 +1878,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -1908,7 +1908,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -1934,7 +1934,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, banMessage] }
                   : tab
@@ -1962,7 +1962,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -1982,7 +1982,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2012,7 +2012,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2038,7 +2038,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, kickMessage] }
                   : tab
@@ -2063,7 +2063,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2083,7 +2083,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2113,7 +2113,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2144,7 +2144,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, lockMessage] }
                 : tab
@@ -2172,7 +2172,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2202,7 +2202,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2228,7 +2228,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, banMessage] }
                   : tab
@@ -2256,7 +2256,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2276,7 +2276,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2306,7 +2306,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2331,7 +2331,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, unbanMessage] }
                   : tab
@@ -2359,7 +2359,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
+              prevTabs.map(tab =>
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2379,7 +2379,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2414,7 +2414,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
+            prevTabs.map(tab =>
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2437,7 +2437,7 @@ export default function ChatScreen() {
         };
 
         setChatTabs(prevTabs =>
-          prevTabs.map(tab => 
+          prevTabs.map(tab =>
             tab.id === currentRoomId
               ? { ...tab, messages: [...tab.messages, unknownMessage] }
               : tab
@@ -2500,7 +2500,7 @@ export default function ChatScreen() {
 
       // Add message optimistically to UI first (instant feedback)
       setChatTabs(prevTabs =>
-        prevTabs.map(tab => 
+        prevTabs.map(tab =>
           tab.id === currentRoomId
             ? { ...tab, messages: [...tab.messages, optimisticMessage] }
             : tab
@@ -2864,7 +2864,7 @@ export default function ChatScreen() {
                   kickedBy: user?.username
                 });
 
-                Alert.Alert('Success', `${selectedParticipant?.username} has been kicked from the room`);
+                Alert.alert('Success', `${selectedParticipant?.username} has been kicked from the room`);
               } else {
                 Alert.alert('Error', 'User not found in the current room.');
               }
@@ -3216,7 +3216,7 @@ export default function ChatScreen() {
       const isSystemCommand = item.commandType === 'system';
 
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.messageContainer,
             isBotCommand && styles.botCommandContainer,
@@ -3230,16 +3230,16 @@ export default function ChatScreen() {
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
-                  { 
+                  {
                     color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                   }
                 ]}>
-                  {item.sender}: 
+                  {item.sender}:
                 </Text>
                 <Text style={[
-                  styles.messageContent, 
-                  { 
-                    color: isBotCommand ? '#0f23bd' : '#8B4513', 
+                  styles.messageContent,
+                  {
+                    color: isBotCommand ? '#0f23bd' : '#8B4513',
                     fontWeight: 'bold',
                     fontStyle: isBotCommand ? 'italic' : 'normal'
                   }
@@ -3257,7 +3257,7 @@ export default function ChatScreen() {
     // Handle user command input (when user types /roll, /whois, etc.) - Legacy support
     if (item.content.startsWith('/') && item.sender === user?.username && item.type === 'message') {
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.messageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -3269,7 +3269,7 @@ export default function ChatScreen() {
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}: 
+                  {item.sender}:
                 </Text>
                 <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
                   {item.content}
@@ -3285,7 +3285,7 @@ export default function ChatScreen() {
     // Handle room info messages
     if (item.type === 'room_info') { // Assuming a new type 'room_info' for these messages
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.roomInfoMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -3303,7 +3303,7 @@ export default function ChatScreen() {
     // Handle special command messages (me, roll, whois, gift commands, errors)
     if (item.type === 'me' || item.type === 'roll' || item.type === 'whois' || item.type === 'error') {
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.commandMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -3315,7 +3315,7 @@ export default function ChatScreen() {
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender} 
+                  {item.sender}
                 </Text>
                 <Text style={styles.commandContentText}>{item.content}</Text>
               </Text>
@@ -3340,7 +3340,7 @@ export default function ChatScreen() {
     if (item.sender === 'System' || item.role === 'system') {
       console.log('Rendering system message:', item.content);
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.systemMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -3375,7 +3375,7 @@ export default function ChatScreen() {
       const roomColor = getRoleColor(userRole, username, chatTabs[activeTab]?.id);
 
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.joinLeaveMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -3393,7 +3393,7 @@ export default function ChatScreen() {
     // Handle gift messages
     if (item.type === 'gift') {
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.giftMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -3428,7 +3428,7 @@ export default function ChatScreen() {
       const senderColor = senderIsAdmin ? '#FF6B35' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
 
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.messageContainer, styles.supportMessageContainer]}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -3438,7 +3438,7 @@ export default function ChatScreen() {
               <View style={styles.messageTextContainer}>
                 <Text style={styles.messageText}>
                   <Text style={[styles.senderName, { color: senderColor }]}>
-                    {item.sender} {senderIsAdmin && '(Admin)'}: 
+                    {item.sender} {senderIsAdmin && '(Admin)'}:
                   </Text>
                   <Text style={[styles.messageContent, { color: '#333' }]}>
                     {renderMessageContent(item.content)}
@@ -3454,7 +3454,7 @@ export default function ChatScreen() {
 
     // Regular message
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.messageContainer}
         onLongPress={() => handleMessageLongPress(item)}
       >
@@ -3468,7 +3468,7 @@ export default function ChatScreen() {
                   styles.senderName,
                   { color: item.sender === 'LowCardBot' ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}: 
+                  {item.sender}:
                 </Text>
                 <Text style={[
                   styles.messageContent,
@@ -3728,74 +3728,74 @@ export default function ChatScreen() {
     try {
       // Local gift assets
       const localGifts = [
-        { 
-          id: 'local_1', 
-          name: 'Lion Animation', 
-          icon: '🦁', 
-          price: 150, 
+        {
+          id: 'local_1',
+          name: 'Lion Animation',
+          icon: '🦁',
+          price: 150,
           type: 'animated',
           animation: require('../../assets/gift/animated/Lion.gif'),
           category: 'animals'
         },
-        { 
-          id: 'local_2', 
-          name: 'Lion Image', 
-          icon: '🦁', 
-          price: 100, 
+        {
+          id: 'local_2',
+          name: 'Lion Image',
+          icon: '🦁',
+          price: 100,
           type: 'static',
           image: require('../../assets/gift/image/lion_img.gif'),
           category: 'animals'
         },
-        { 
-          id: 'local_3', 
-          name: 'Love Animation', 
-          icon: '💕', 
-          price: 200, 
+        {
+          id: 'local_3',
+          name: 'Love Animation',
+          icon: '💕',
+          price: 200,
           type: 'animated',
           animation: require('../../assets/gift/animated/Love.mp4'),
           category: 'romance'
         },
-        { 
-          id: 'local_4', 
-          name: 'UFO Animation', 
-          icon: '🛸', 
-          price: 300, 
+        {
+          id: 'local_4',
+          name: 'UFO Animation',
+          icon: '🛸',
+          price: 300,
           type: 'animated',
           animation: require('../../assets/gift/animated/Ufonew.mp4'),
           category: 'space'
         },
-        { 
-          id: 'local_5', 
-          name: 'Mermaid', 
-          icon: '🧜‍♀️', 
-          price: 80, 
+        {
+          id: 'local_5',
+          name: 'Mermaid',
+          icon: '🧜‍♀️',
+          price: 80,
           type: 'static',
           image: require('../../assets/gift/image/duyung.png'),
           category: 'fantasy'
         },
-        { 
-          id: 'local_6', 
-          name: 'Princess Mermaid', 
-          icon: '👸', 
-          price: 120, 
+        {
+          id: 'local_6',
+          name: 'Princess Mermaid',
+          icon: '👸',
+          price: 120,
           type: 'static',
           image: require('../../assets/gift/image/putri_duyung.png'),
           category: 'fantasy'
         },
-        { 
-          id: 'local_7', 
-          name: 'Girl', 
-          icon: '👧', 
-          price: 90, 
+        {
+          id: 'local_7',
+          name: 'Girl',
+          icon: '👧',
+          price: 90,
           type: 'static',
           image: require('../../assets/gift/image/girl.png'),
           category: 'people'
         },
-        { 
-          id: 'local_8', 
-          name: 'Dolphin', 
-          icon: '🐬', 
-          price: 110, 
+        {
+          id: 'local_8',
+          name: 'Dolphin',
+          icon: '🐬',
+          price: 110,
           type: 'static',
           image: require('../../assets/gift/image/lumba.png'),
           category: 'animals'
@@ -3835,47 +3835,47 @@ export default function ChatScreen() {
       console.error('Error loading gifts:', error);
       // Fallback with local gifts and defaults
       const fallbackGifts = [
-        { 
-          id: 'local_1', 
-          name: 'Lion Animation', 
-          icon: '🦁', 
-          price: 150, 
+        {
+          id: 'local_1',
+          name: 'Lion Animation',
+          icon: '🦁',
+          price: 150,
           type: 'animated',
           animation: require('../../assets/gift/animated/Lion.gif'),
           category: 'animals'
         },
-        { 
-          id: 'local_2', 
-          name: 'Lion Image', 
-          icon: '🦁', 
-          price: 100, 
+        {
+          id: 'local_2',
+          name: 'Lion Image',
+          icon: '🦁',
+          price: 100,
           type: 'static',
           image: require('../../assets/gift/image/lion_img.gif'),
           category: 'animals'
         },
-        { 
-          id: 'local_3', 
-          name: 'Love Animation', 
-          icon: '💕', 
-          price: 200, 
+        {
+          id: 'local_3',
+          name: 'Love Animation',
+          icon: '💕',
+          price: 200,
           type: 'animated',
           animation: require('../../assets/gift/animated/Love.mp4'),
           category: 'romance'
         },
-        { 
-          id: 'local_4', 
-          name: 'UFO Animation', 
-          icon: '🛸', 
-          price: 300, 
+        {
+          id: 'local_4',
+          name: 'UFO Animation',
+          icon: '🛸',
+          price: 300,
           type: 'animated',
           animation: require('../../assets/gift/animated/Ufonew.mp4'),
           category: 'space'
         },
-        { 
-          id: 'local_5', 
-          name: 'Mermaid', 
-          icon: '🧜‍♀️', 
-          price: 80, 
+        {
+          id: 'local_5',
+          name: 'Mermaid',
+          icon: '🧜‍♀️',
+          price: 80,
           type: 'static',
           image: require('../../assets/gift/image/duyung.png'),
           category: 'fantasy'
@@ -3955,7 +3955,7 @@ export default function ChatScreen() {
 
           if (!balanceData.canAfford) {
             Alert.alert(
-              'Saldo Tidak Cukup', 
+              'Saldo Tidak Cukup',
               `Anda memerlukan ${gift.price} coins untuk mengirim gift ini. Saldo Anda: ${balanceData.currentBalance} coins.`
             );
             return;
@@ -3972,8 +3972,8 @@ export default function ChatScreen() {
             `Sisa saldo: ${balanceData.remainingBalance} coins`,
             [
               { text: 'Batal', style: 'cancel' },
-              { 
-                text: 'Kirim', 
+              {
+                text: 'Kirim',
                 onPress: async () => {
                   try {
                     // Process gift purchase through new endpoint
@@ -3997,7 +3997,7 @@ export default function ChatScreen() {
 
                       // Show success message
                       Alert.alert(
-                        'Gift Sent!', 
+                        'Gift Sent!',
                         `${gift.name} berhasil dikirim ke ${recipientUsername}!\n\n` +
                         `Distribusi:\n` +
                         `• User mendapat: ${purchaseData.transaction.recipientShare} coins (30%)\n` +
@@ -4007,7 +4007,7 @@ export default function ChatScreen() {
 
                       // Send gift via socket for real-time display
                       const giftData = {
-                    roomId: chatTabs[activeTab]?.id,
+                        roomId: chatTabs[activeTab]?.id,
                         sender: user?.username,
                         gift,
                         recipient: recipientUsername,
@@ -4355,7 +4355,7 @@ export default function ChatScreen() {
                   style={styles.menuItem}
                   onPress={() => {
                     setShowPopupMenu(false);
-                    navigation.navigate('Profile', { userId: targetUser?.id || targetUser?.username });
+                    navigation.navigate('Profile', { userId: selectedParticipant?.username });
                   }}
                 >
                   <Ionicons name="person-outline" size={20} color="#333" />
@@ -4536,8 +4536,7 @@ export default function ChatScreen() {
                         <Text style={[
                           styles.participantRole,
                           { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
-                        ]}>
-                          {(() => {
+                        ]>{
                             const currentRoom = chatTabs[activeTab];
                             const isOwner = currentRoom && currentRoom.managedBy === participant.username;
                             const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
@@ -4761,13 +4760,13 @@ export default function ChatScreen() {
             {/* Gift Category Tabs */}
             <View style={styles.giftCategoryTabs}>
               <View style={styles.tabRow}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.categoryTab, activeGiftTab === 'all' && styles.activeCategoryTab]}
                   onPress={() => setActiveGiftTab('all')}
                 >
                   <Text style={[styles.categoryTabText, activeGiftTab === 'all' && styles.activeCategoryTabText]}>Semua hadiah</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.categoryTab, activeGiftTab === 'special' && styles.activeCategoryTab]}
                   onPress={() => setActiveGiftTab('special')}
                 >
@@ -4778,14 +4777,14 @@ export default function ChatScreen() {
 
             {/* Send to All Toggle */}
             <View style={styles.sendToAllContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.sendToAllToggle}
                 onPress={() => setSendToAllUsers(!sendToAllUsers)}
               >
-                <Ionicons 
-                  name={sendToAllUsers ? "checkbox" : "square-outline"} 
-                  size={20} 
-                  color={sendToAllUsers ? "#4ADE80" : "#666"} 
+                <Ionicons
+                  name={sendToAllUsers ? "checkbox" : "square-outline"}
+                  size={20}
+                  color={sendToAllUsers ? "#4ADE80" : "#666"}
                 />
                 <Text style={styles.sendToAllText}>Kirim ke semua user di room</Text>
               </TouchableOpacity>
@@ -4809,9 +4808,9 @@ export default function ChatScreen() {
                   >
                     <View style={styles.newGiftIconContainer}>
                       {gift.image ? (
-                        <Image 
-                          source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
-                          style={styles.giftImage} 
+                        <Image
+                          source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image}
+                          style={styles.giftImage}
                           resizeMode="contain"
                         />
                       ) : gift.animation ? (
@@ -4828,9 +4827,9 @@ export default function ChatScreen() {
                           />
                         ) : (
                           // For GIF animations
-                          <Image 
-                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
-                            style={styles.giftImage} 
+                          <Image
+                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
+                            style={styles.giftImage}
                             resizeMode="contain"
                           />
                         )
@@ -5049,7 +5048,7 @@ export default function ChatScreen() {
       {activeGiftAnimation && (
         <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
           {/* Full Screen Video/Animation Layer */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.fullScreenAnimationContainer,
               {
@@ -5100,8 +5099,8 @@ export default function ChatScreen() {
             {/* Small Static Image/GIF Effect (30x30) */}
             {activeGiftAnimation.image && (
               <View style={styles.smallGiftContainer}>
-                <Image 
-                  source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
+                <Image
+                  source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image}
                   style={styles.smallGiftImage}
                   resizeMode="contain"
                 />
@@ -5109,11 +5108,11 @@ export default function ChatScreen() {
             )}
 
             {/* Fullscreen GIF layer for non-MP4 animations with transparency */}
-            {activeGiftAnimation.animation && 
+            {activeGiftAnimation.animation &&
              !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
              !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
-              <Image 
-                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
+              <Image
+                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
                 style={styles.fullScreenGif}
                 resizeMode="cover"
               />
@@ -5128,7 +5127,7 @@ export default function ChatScreen() {
           </Animated.View>
 
           {/* Gift Info Overlay - Bottom */}
-          <Animated.View 
+          <Animated.View
             style={[
               styles.giftInfoOverlay,
               {
@@ -5166,7 +5165,7 @@ export default function ChatScreen() {
               {callType === 'video' ? 'Video Call' : 'Audio Call'}
             </Text>
             <Text style={styles.callTargetName}>
-              {targetUser?.username}
+              {selectedParticipant?.username}
             </Text>
             <Text style={styles.callTimer}>
               {formatCallTime(callTimer)}
@@ -5180,7 +5179,7 @@ export default function ChatScreen() {
             {isInCall && (
               <View style={{ flex: 1, backgroundColor: '#000' }}>
                 <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
-                  Call Active with {targetUser?.username}
+                  Call Active with {selectedParticipant?.username}
                 </Text>
                 <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
                   {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
@@ -5194,8 +5193,8 @@ export default function ChatScreen() {
           </View>
 
           <View style={styles.callControls}>
-            <TouchableOpacity 
-              style={[styles.callButton, styles.endCallButton]} 
+            <TouchableOpacity
+              style={[styles.callButton, styles.endCallButton]}
               onPress={endCall}
             >
               <Ionicons name="call" size={30} color="white" />
@@ -5234,16 +5233,16 @@ export default function ChatScreen() {
             </View>
 
             <View style={styles.incomingCallButtons}>
-              <TouchableOpacity 
-                style={[styles.callActionButton, styles.declineButton]} 
+              <TouchableOpacity
+                style={[styles.callActionButton, styles.declineButton]}
                 onPress={handleDeclineCall}
               >
                 <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: '135deg' }] }} />
                 <Text style={styles.callActionText}>Decline</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.callActionButton, styles.acceptButton]} 
+              <TouchableOpacity
+                style={[styles.callActionButton, styles.acceptButton]}
                 onPress={handleAcceptCall}
               >
                 <Ionicons name="call" size={30} color="white" />
@@ -5449,7 +5448,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 8,
-    borderRadius:    20,
+    borderRadius: 20,
     backgroundColor: '#F5F5F5',
   },
   activeTabNavItem: {
