@@ -200,13 +200,15 @@ export default function SettingsScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Withdraw')}
           />
 
-          {/* Mentor Menu Item */}
-          <SettingsItem
-            icon="school"
-            title="Mentor"
-            iconColor="#F44336"
-            onPress={() => navigation.navigate('Mentor')}
-          />
+          {/* Mentor Menu Item - Only visible for mentor users */}
+          {user?.role === 'mentor' && (
+            <SettingsItem
+              icon="school"
+              title="Mentor"
+              iconColor="#F44336"
+              onPress={() => navigation.navigate('Mentor')}
+            />
+          )}
 
           {/* Toko Menu Item */}
           <SettingsItem
