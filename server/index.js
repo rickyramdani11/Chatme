@@ -232,6 +232,25 @@ const initTables = async () => {
       END $$;
     `);
 
+    // Clean up legacy constraints that might cause issues
+    try {
+      await pool.query(`
+        DO $$
+        BEGIN
+          IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'legacy_balance_deprecated') THEN
+            ALTER TABLE user_credits DROP CONSTRAINT legacy_balance_deprecated;
+            RAISE NOTICE 'Removed legacy_balance_deprecated constraint';
+          END IF;
+        EXCEPTION
+          WHEN OTHERS THEN
+            RAISE NOTICE 'Could not remove legacy_balance_deprecated constraint: %', SQLERRM;
+        END $$;
+      `);
+      console.log('✅ Legacy constraints cleanup completed');
+    } catch (error) {
+      console.log('⚠️  Warning: Could not clean up legacy constraints:', error.message);
+    }
+
     // Add CHECK constraints to existing tables if they don't exist
     try {
       await pool.query(`
@@ -451,6 +470,32 @@ const initTables = async () => {
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
     `);
+
+    // Remove any legacy columns and constraints that might cause issues
+    try {
+      await pool.query(`
+        DO $$
+        BEGIN
+          -- Remove legacy balance column if it exists
+          IF EXISTS (SELECT 1 FROM information_schema.columns 
+                     WHERE table_name='user_credits' AND column_name='legacy_balance') THEN
+            ALTER TABLE user_credits DROP COLUMN legacy_balance;
+            RAISE NOTICE 'Removed legacy_balance column';
+          END IF;
+          
+          -- Remove any other legacy constraints
+          IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'legacy_balance_deprecated') THEN
+            ALTER TABLE user_credits DROP CONSTRAINT legacy_balance_deprecated;
+            RAISE NOTICE 'Removed legacy_balance_deprecated constraint';
+          END IF;
+        EXCEPTION
+          WHEN OTHERS THEN
+            RAISE NOTICE 'Legacy cleanup warning: %', SQLERRM;
+        END $$;
+      `);
+    } catch (error) {
+      console.log('⚠️  Warning during user_credits legacy cleanup:', error.message);
+    }
 
     // Create credit_transactions table
     await pool.query(`
@@ -6682,6 +6727,8 @@ app.post('/auth/login', async (req, res) => {
 
 // Admin credit management endpoints
 app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
   try {
     console.log('=== ADMIN ADD CREDITS REQUEST ===');
     console.log('User ID:', req.user.id);
@@ -6702,35 +6749,41 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
     }
 
     // Find target user
-    const userResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [username]);
+    const userResult = await client.query('SELECT id, username FROM users WHERE username = $1', [username]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     const targetUser = userResult.rows[0];
 
-    // Start transaction
-    await pool.query('BEGIN');
+    await client.query('BEGIN');
 
     try {
-      // Add credits to user (create account if doesn't exist)
-      const creditsResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [targetUser.id]);
+      // Check if user already has credits record
+      const creditsResult = await client.query('SELECT balance FROM user_credits WHERE user_id = $1', [targetUser.id]);
+      
       if (creditsResult.rows.length === 0) {
-        await pool.query('INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)', [targetUser.id, amount]);
+        // Create new credits record with only required fields
+        await client.query(`
+          INSERT INTO user_credits (user_id, balance, created_at, updated_at) 
+          VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `, [targetUser.id, amount]);
       } else {
-        await pool.query(
-          'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-          [amount, targetUser.id]
-        );
+        // Update existing balance
+        await client.query(`
+          UPDATE user_credits 
+          SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP 
+          WHERE user_id = $2
+        `, [amount, targetUser.id]);
       }
 
       // Record admin transaction
-      await pool.query(`
-        INSERT INTO credit_transactions (to_user_id, amount, type)
-        VALUES ($1, $2, 'admin_add')
+      await client.query(`
+        INSERT INTO credit_transactions (to_user_id, amount, type, created_at)
+        VALUES ($1, $2, 'admin_add', CURRENT_TIMESTAMP)
       `, [targetUser.id, amount]);
 
-      await pool.query('COMMIT');
+      await client.query('COMMIT');
 
       console.log(`Admin added ${amount} credits to user ${username}`);
       res.json({ 
@@ -6740,13 +6793,28 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
       });
 
     } catch (error) {
-      await pool.query('ROLLBACK');
+      await client.query('ROLLBACK');
+      console.error('Transaction error:', error);
+      
+      // Check if it's a constraint error
+      if (error.code === '23514') {
+        return res.status(400).json({ 
+          error: 'Database constraint violation. Please contact system administrator.',
+          details: 'Legacy constraint issue detected'
+        });
+      }
+      
       throw error;
     }
 
   } catch (error) {
     console.error('Error adding admin credits:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
+  } finally {
+    client.release();
   }
 });
 
