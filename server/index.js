@@ -147,7 +147,9 @@ pool.connect(async (err, client, release) => {
           await client.query(`
             INSERT INTO headwear_items (name, description, image, price, duration_days) VALUES
             ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 7),
-            ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 50000, 7)
+            ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 50000, 7),
+            ('Frame Avatar Elite', 'Bingkai avatar elite dengan ornamen mewah', '/assets/frame_ava/frame_av3.png', 75000, 10),
+            ('Frame Avatar Royal', 'Bingkai avatar royal dengan detail istimewa', '/assets/frame_ava/frame_av4.png', 100000, 14)
           `);
           console.log('✅ Default headwear items created');
         }
@@ -4954,10 +4956,12 @@ app.get('/assets/frame_ava/:filename', (req, res) => {
       case 'jpeg':
         contentType = 'image/jpeg';
         break;
+      case 'png':
+        contentType = 'image/png';
+        break;
       case 'webm':
         contentType = 'video/webm';
         break;
-      case 'png':
       default:
         contentType = 'image/png';
         break;
