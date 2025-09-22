@@ -52,6 +52,8 @@ const HomeScreen = ({ navigation }: any) => {
   const [userBalance, setUserBalance] = useState(0);
   const [showMessageHistory, setShowMessageHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
+  const [banners, setBanners] = useState([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const { token } = useAuth();
 
 
@@ -229,6 +231,7 @@ const HomeScreen = ({ navigation }: any) => {
     fetchActiveUsers();
     fetchNotifications();
     fetchUserBalance();
+    fetchBanners();
 
     // Set up notification polling for real-time updates
     const notificationInterval = setInterval(() => {
@@ -239,6 +242,19 @@ const HomeScreen = ({ navigation }: any) => {
       clearInterval(notificationInterval);
     };
   }, []);
+
+  // Banner auto-rotation effect
+  useEffect(() => {
+    if (banners.length > 1) {
+      const bannerInterval = setInterval(() => {
+        setCurrentBannerIndex((prevIndex) => 
+          prevIndex === banners.length - 1 ? 0 : prevIndex + 1
+        );
+      }, 4000); // Change banner every 4 seconds
+
+      return () => clearInterval(bannerInterval);
+    }
+  }, [banners.length]);
 
   const fetchNotifications = async () => {
     try {
@@ -293,6 +309,30 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  const fetchBanners = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/banners`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBanners(data);
+        console.log('Banners loaded:', data.length);
+      } else {
+        console.error('Failed to fetch banners');
+        setBanners([]);
+      }
+    } catch (error) {
+      console.error('Error fetching banners:', error);
+      setBanners([]);
+    }
+  };
+
   // Handle search with debounce
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
@@ -317,7 +357,29 @@ const HomeScreen = ({ navigation }: any) => {
     await fetchRooms(); // Also refresh rooms on pull-to-refresh
     await fetchActiveUsers(); // Also refresh active users
     await fetchUserBalance(); // Also refresh user balance
+    await fetchBanners(); // Also refresh banners
     setRefreshing(false);
+  };
+
+  const handleBannerClick = async (banner: any) => {
+    try {
+      // Track banner click
+      await fetch(`${API_BASE_URL}/api/banners/${banner.id}/click`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      // Open link if available
+      if (banner.linkUrl) {
+        // You can implement navigation to web view or external browser here
+        Alert.alert('Banner Link', `Would you like to open: ${banner.linkUrl}?`);
+      }
+    } catch (error) {
+      console.error('Error tracking banner click:', error);
+    }
   };
 
   const getStatusColor = (status: StatusType): string => {
@@ -829,6 +891,45 @@ const HomeScreen = ({ navigation }: any) => {
         <View style={styles.headerRight}>
         </View>
       </LinearGradient>
+
+      {/* Banner Carousel */}
+      {banners.length > 0 && (
+        <View style={styles.bannerSection}>
+          <TouchableOpacity
+            style={styles.bannerContainer}
+            onPress={() => handleBannerClick(banners[currentBannerIndex])}
+            activeOpacity={0.8}
+          >
+            <Image 
+              source={{ uri: `${API_BASE_URL}${banners[currentBannerIndex].imageUrl}` }}
+              style={styles.bannerImage}
+              resizeMode="cover"
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.3)']}
+              style={styles.bannerOverlay}
+            >
+              <Text style={styles.bannerTitle} numberOfLines={1}>
+                {banners[currentBannerIndex].title}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          {banners.length > 1 && (
+            <View style={styles.bannerIndicators}>
+              {banners.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.bannerIndicator,
+                    { backgroundColor: index === currentBannerIndex ? '#8B5CF6' : 'rgba(255,255,255,0.5)' }
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Friends Section */}
       <View style={styles.friendsSection}>
@@ -1571,6 +1672,58 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginLeft: 4,
+  },
+  
+  // Banner Styles
+  bannerSection: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 10,
+    position: 'relative',
+  },
+  bannerContainer: {
+    height: 80,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 30,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingBottom: 4,
+  },
+  bannerTitle: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+  bannerIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  bannerIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 2,
   },
 });
 

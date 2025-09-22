@@ -123,6 +123,15 @@ export default function AdminScreen({ navigation }: any) {
   const [uploadedEmojiFile, setUploadedEmojiFile] = useState<any>(null);
   const [uploadedGiftImage, setUploadedGiftImage] = useState<any>(null);
 
+  // Banner management states
+  const [banners, setBanners] = useState([]);
+  const [bannersLoading, setBannersLoading] = useState(false);
+  const [bannerTitle, setBannerTitle] = useState('');
+  const [bannerDescription, setBannerDescription] = useState('');
+  const [bannerLinkUrl, setBannerLinkUrl] = useState('');
+  const [bannerDisplayOrder, setBannerDisplayOrder] = useState('0');
+  const [uploadedBannerImage, setUploadedBannerImage] = useState<any>(null);
+
   const menuItems: MenuItem[] = [
     {
       id: 'emoji',
@@ -137,6 +146,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'gift-outline',
       color: '#FF6B35',
       description: 'Tambah dan kelola gift virtual'
+    },
+    {
+      id: 'banners',
+      title: 'Kelola Banner',
+      icon: 'image-outline',
+      color: '#E91E63',
+      description: 'Tambah dan kelola banner iklan'
     },
     {
       id: 'rooms',
@@ -189,6 +205,9 @@ export default function AdminScreen({ navigation }: any) {
       }
       if (activeTab === 'rooms') {
         loadRooms();
+      }
+      if (activeTab === 'banners') {
+        loadBanners();
       }
     }
   }, [token, activeTab]);
@@ -354,6 +373,184 @@ export default function AdminScreen({ navigation }: any) {
       console.error('Error picking emoji file:', error);
       Alert.alert('Error', 'Failed to pick emoji file');
     }
+  };
+
+  const loadBanners = async () => {
+    try {
+      setBannersLoading(true);
+      console.log('Loading banners with token:', token ? 'Present' : 'Missing');
+      
+      const response = await fetch(`${API_BASE_URL}/api/admin/banners`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      console.log('Banners response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Banners loaded:', data.length);
+        setBanners(data);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load banners:', response.status, errorData);
+        Alert.alert('Error', `Failed to load banners: ${response.status} ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading banners:', error);
+      Alert.alert('Error', 'Network error loading banners');
+    } finally {
+      setBannersLoading(false);
+    }
+  };
+
+  const handleBannerImageUpload = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload banner images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9], // Banner aspect ratio
+        quality: 0.8,
+        base64: true,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+
+        if (!asset.base64) {
+          Alert.alert('Error', 'Failed to process the image. Please try again.');
+          return;
+        }
+
+        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+        if (!['png', 'jpg', 'jpeg'].includes(fileExtension || '')) {
+          Alert.alert('Invalid file type', 'Please select PNG, JPG, or JPEG files only.');
+          return;
+        }
+
+        const fileSizeInBytes = (asset.base64.length * 3) / 4;
+        if (fileSizeInBytes > 5 * 1024 * 1024) {
+          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
+          return;
+        }
+
+        setUploadedBannerImage({
+          uri: asset.uri,
+          base64: asset.base64,
+          type: `image/${fileExtension}`,
+          name: `banner_${Date.now()}.${fileExtension}`,
+          extension: fileExtension || 'jpg'
+        });
+
+        console.log('Banner image selected:', {
+          name: `banner_${Date.now()}.${fileExtension}`,
+          size: fileSizeInBytes,
+          type: `image/${fileExtension}`
+        });
+      }
+    } catch (error) {
+      console.error('Error picking banner image:', error);
+      Alert.alert('Error', 'Failed to pick banner image');
+    }
+  };
+
+  const handleAddBanner = async () => {
+    if (!bannerTitle.trim()) {
+      Alert.alert('Error', 'Banner title is required');
+      return;
+    }
+
+    if (!uploadedBannerImage) {
+      Alert.alert('Error', 'Banner image is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const requestBody = {
+        title: bannerTitle.trim(),
+        description: bannerDescription.trim(),
+        linkUrl: bannerLinkUrl.trim(),
+        displayOrder: parseInt(bannerDisplayOrder) || 0,
+        bannerImage: uploadedBannerImage.base64,
+        imageType: uploadedBannerImage.type
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/banners`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Banner added successfully');
+        setBannerTitle('');
+        setBannerDescription('');
+        setBannerLinkUrl('');
+        setBannerDisplayOrder('0');
+        setUploadedBannerImage(null);
+        loadBanners();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add banner');
+      }
+    } catch (error) {
+      console.error('Error adding banner:', error);
+      Alert.alert('Error', error.message || 'Failed to add banner');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteBanner = async (bannerId: string) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this banner?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/admin/banners/${bannerId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Banner deleted successfully');
+                loadBanners();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete banner');
+              }
+            } catch (error) {
+              console.error('Error deleting banner:', error);
+              Alert.alert('Error', error.message || 'Failed to delete banner');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleGiftImageUpload = async () => {
@@ -1534,6 +1731,140 @@ export default function AdminScreen({ navigation }: any) {
                   )}
                 </TouchableOpacity>
               </View>
+            </View>
+          </ScrollView>
+        );
+
+      case 'banners':
+        return (
+          <ScrollView style={styles.bannerContainer} contentContainerStyle={styles.bannerContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.bannerFormCard}>
+              <Text style={styles.formTitle}>Add New Banner</Text>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Banner Title *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={bannerTitle}
+                  onChangeText={setBannerTitle}
+                  placeholder="Enter banner title..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Description</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={bannerDescription}
+                  onChangeText={setBannerDescription}
+                  placeholder="Enter description..."
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Link URL (Optional)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={bannerLinkUrl}
+                  onChangeText={setBannerLinkUrl}
+                  placeholder="https://example.com"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Display Order</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={bannerDisplayOrder}
+                  onChangeText={setBannerDisplayOrder}
+                  placeholder="0"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Banner Image (16:9 aspect ratio) *</Text>
+                <TouchableOpacity
+                  style={styles.uploadFormButton}
+                  onPress={handleBannerImageUpload}
+                >
+                  <Ionicons name="image-outline" size={24} color="#E91E63" />
+                  <Text style={styles.uploadFormText}>
+                    {uploadedBannerImage ? uploadedBannerImage.name : 'Select Banner Image'}
+                  </Text>
+                </TouchableOpacity>
+                {uploadedBannerImage && (
+                  <View style={styles.formPreviewContainer}>
+                    <Image source={{ uri: uploadedBannerImage.uri }} style={styles.bannerPreviewImage} />
+                    <TouchableOpacity
+                      style={styles.formRemoveButton}
+                      onPress={() => setUploadedBannerImage(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#F44336" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleAddBanner}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Add Banner</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.bannerListContainer}>
+              <Text style={styles.bannerListTitle}>Existing Banners</Text>
+              {bannersLoading ? (
+                <ActivityIndicator size="large" color="#E91E63" />
+              ) : banners.length > 0 ? (
+                <FlatList
+                  data={banners}
+                  renderItem={({ item }) => (
+                    <View style={styles.bannerCard}>
+                      <Image 
+                        source={{ uri: `${API_BASE_URL}${item.imageUrl}` }} 
+                        style={styles.bannerCardImage}
+                        resizeMode="cover"
+                      />
+                      <View style={styles.bannerCardContent}>
+                        <Text style={styles.bannerCardTitle}>{item.title}</Text>
+                        <Text style={styles.bannerCardDescription}>{item.description}</Text>
+                        <View style={styles.bannerCardMeta}>
+                          <Text style={styles.bannerCardOrder}>Order: {item.displayOrder}</Text>
+                          <Text style={styles.bannerCardClicks}>Clicks: {item.clickCount}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.deleteBannerButton}
+                          onPress={() => deleteBanner(item.id)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#F44336" />
+                          <Text style={styles.deleteBannerText}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={styles.emptyBannerList}>
+                  <Ionicons name="image-outline" size={40} color="#ccc" />
+                  <Text style={styles.emptyBannerText}>No banners added yet</Text>
+                </View>
+              )}
             </View>
           </ScrollView>
         );
@@ -3462,6 +3793,109 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 10,
   },
+  // Banner Management Styles
+  bannerContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  bannerFormCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bannerPreviewImage: {
+    width: '100%',
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  bannerListContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bannerListTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  bannerCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  bannerCardImage: {
+    width: '100%',
+    height: 80,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  bannerCardContent: {
+    flex: 1,
+  },
+  bannerCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  bannerCardDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  bannerCardMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  bannerCardOrder: {
+    fontSize: 12,
+    color: '#999',
+  },
+  bannerCardClicks: {
+    fontSize: 12,
+    color: '#999',
+  },
+  deleteBannerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  deleteBannerText: {
+    color: '#F44336',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  emptyBannerList: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  emptyBannerText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 10,
+  },
+
   // Room Management Styles
   roomManageContainer: {
     flex: 1,

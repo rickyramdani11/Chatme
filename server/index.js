@@ -1673,6 +1673,250 @@ app.delete('/api/admin/emojis/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Banner Management Endpoints
+
+// Create banners table if not exists
+pool.query(`
+  CREATE TABLE IF NOT EXISTS banners (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url TEXT NOT NULL,
+    link_url TEXT,
+    is_active BOOLEAN DEFAULT true,
+    display_order INTEGER DEFAULT 0,
+    click_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.error('Error creating banners table:', err));
+
+// Get active banners (public endpoint)
+app.get('/api/banners', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, title, description, image_url, link_url, display_order
+      FROM banners 
+      WHERE is_active = true 
+      ORDER BY display_order ASC, created_at DESC
+    `);
+
+    const banners = result.rows.map(row => ({
+      id: row.id.toString(),
+      title: row.title,
+      description: row.description,
+      imageUrl: row.image_url,
+      linkUrl: row.link_url,
+      displayOrder: row.display_order
+    }));
+
+    res.json(banners);
+  } catch (error) {
+    console.error('Error fetching banners:', error);
+    res.status(500).json({ error: 'Failed to fetch banners' });
+  }
+});
+
+// Track banner clicks
+app.post('/api/banners/:bannerId/click', async (req, res) => {
+  try {
+    const { bannerId } = req.params;
+    
+    await pool.query(
+      'UPDATE banners SET click_count = click_count + 1 WHERE id = $1',
+      [bannerId]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error tracking banner click:', error);
+    res.status(500).json({ error: 'Failed to track click' });
+  }
+});
+
+// Admin: Get all banners
+app.get('/api/admin/banners', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await pool.query(`
+      SELECT * FROM banners 
+      ORDER BY display_order ASC, created_at DESC
+    `);
+
+    const banners = result.rows.map(row => ({
+      id: row.id.toString(),
+      title: row.title,
+      description: row.description,
+      imageUrl: row.image_url,
+      linkUrl: row.link_url,
+      isActive: row.is_active,
+      displayOrder: row.display_order,
+      clickCount: row.click_count,
+      createdAt: row.created_at
+    }));
+
+    res.json(banners);
+  } catch (error) {
+    console.error('Error fetching admin banners:', error);
+    res.status(500).json({ error: 'Failed to fetch banners' });
+  }
+});
+
+// Admin: Create banner
+app.post('/api/admin/banners', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { title, description, linkUrl, displayOrder, bannerImage, imageType } = req.body;
+
+    if (!title || !bannerImage) {
+      return res.status(400).json({ error: 'Title and banner image are required' });
+    }
+
+    let imagePath = null;
+
+    // Handle banner image upload
+    if (bannerImage && imageType) {
+      try {
+        // Create uploads directory if it doesn't exist
+        const uploadsDir = path.join(__dirname, 'uploads', 'banners');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        // Generate unique filename
+        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+        const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : 'jpg';
+        const filename = `banner_${uniqueSuffix}.${fileExtension}`;
+        const filepath = path.join(uploadsDir, filename);
+
+        // Write base64 image to file
+        const imageBuffer = Buffer.from(bannerImage, 'base64');
+        fs.writeFileSync(filepath, imageBuffer);
+
+        imagePath = `/uploads/banners/${filename}`;
+        console.log('Banner image saved:', filename);
+      } catch (error) {
+        console.error('Error saving banner image:', error);
+        return res.status(500).json({ error: 'Failed to save banner image' });
+      }
+    }
+
+    const result = await pool.query(`
+      INSERT INTO banners (title, description, image_url, link_url, display_order, is_active)
+      VALUES ($1, $2, $3, $4, $5, true)
+      RETURNING *
+    `, [title, description || '', imagePath, linkUrl || '', displayOrder || 0]);
+
+    const banner = result.rows[0];
+    
+    res.json({
+      id: banner.id.toString(),
+      title: banner.title,
+      description: banner.description,
+      imageUrl: banner.image_url,
+      linkUrl: banner.link_url,
+      isActive: banner.is_active,
+      displayOrder: banner.display_order,
+      clickCount: banner.click_count,
+      createdAt: banner.created_at
+    });
+  } catch (error) {
+    console.error('Error creating banner:', error);
+    res.status(500).json({ error: 'Failed to create banner' });
+  }
+});
+
+// Admin: Update banner
+app.put('/api/admin/banners/:bannerId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { bannerId } = req.params;
+    const { title, description, linkUrl, displayOrder, isActive } = req.body;
+
+    const result = await pool.query(`
+      UPDATE banners 
+      SET title = $1, description = $2, link_url = $3, display_order = $4, is_active = $5, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $6
+      RETURNING *
+    `, [title, description, linkUrl, displayOrder, isActive, bannerId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Banner not found' });
+    }
+
+    const banner = result.rows[0];
+    res.json({
+      id: banner.id.toString(),
+      title: banner.title,
+      description: banner.description,
+      imageUrl: banner.image_url,
+      linkUrl: banner.link_url,
+      isActive: banner.is_active,
+      displayOrder: banner.display_order,
+      clickCount: banner.click_count,
+      createdAt: banner.created_at
+    });
+  } catch (error) {
+    console.error('Error updating banner:', error);
+    res.status(500).json({ error: 'Failed to update banner' });
+  }
+});
+
+// Admin: Delete banner
+app.delete('/api/admin/banners/:bannerId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { bannerId } = req.params;
+
+    // Get banner info to delete image file
+    const bannerResult = await pool.query('SELECT image_url FROM banners WHERE id = $1', [bannerId]);
+    if (bannerResult.rows.length > 0) {
+      const imageUrl = bannerResult.rows[0].image_url;
+      if (imageUrl && imageUrl.startsWith('/uploads/banners/')) {
+        const filePath = path.join(__dirname, imageUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+    }
+
+    await pool.query('DELETE FROM banners WHERE id = $1', [bannerId]);
+    res.json({ message: 'Banner deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting banner:', error);
+    res.status(500).json({ error: 'Failed to delete banner' });
+  }
+});
+
+// Serve banner images
+app.get('/uploads/banners/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filepath = path.join(__dirname, 'uploads', 'banners', filename);
+    
+    if (fs.existsSync(filepath)) {
+      res.sendFile(filepath);
+    } else {
+      res.status(404).json({ error: 'Banner image not found' });
+    }
+  } catch (error) {
+    console.error('Error serving banner image:', error);
+    res.status(500).json({ error: 'Failed to serve banner image' });
+  }
+});
+
 // Admin endpoints for gift management
 app.get('/api/admin/gifts', authenticateToken, async (req, res) => {
   try {
