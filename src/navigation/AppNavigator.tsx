@@ -37,6 +37,8 @@ import WithdrawScreen from '../screens/WithdrawScreen';
 import WithdrawHistoryScreen from '../screens/WithdrawHistoryScreen';
 // Import StoreScreen
 import StoreScreen from '../screens/StoreScreen';
+// Import FamilyScreen
+import FamilyScreen from '../screens/FamilyScreen';
 
 
 import { useAuth } from '../hooks';
@@ -203,6 +205,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="StoreScreen"
             component={StoreScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="FamilyScreen"
+            component={FamilyScreen}
             options={{ headerShown: false }}
           />
         </>

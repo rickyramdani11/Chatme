@@ -216,6 +216,14 @@ export default function SettingsScreen({ navigation }: any) {
             onPress={() => navigation.navigate('StoreScreen')}
           />
 
+          {/* Family Menu Item */}
+          <SettingsItem
+            icon="people"
+            title="Family"
+            iconColor="#2196F3"
+            onPress={() => navigation.navigate('FamilyScreen')}
+          />
+
           {/* Admin Panel Menu Item - Only visible for admin users */}
           {user?.role === 'admin' && (
             <SettingsItem
