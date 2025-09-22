@@ -105,47 +105,57 @@ pool.connect(async (err, client, release) => {
   } else {
     console.log('Successfully connected to PostgreSQL database');
 
-    // Create headwear tables if they don't exist
-    try {
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS headwear_items (
-          id SERIAL PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          description TEXT,
-          image VARCHAR(500),
-          price INTEGER NOT NULL DEFAULT 0,
-          duration_days INTEGER NOT NULL DEFAULT 30,
-          is_active BOOLEAN DEFAULT true,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS user_headwear (
-          id SERIAL PRIMARY KEY,
-          user_id INTEGER NOT NULL,
-          headwear_id INTEGER REFERENCES headwear_items(id),
-          purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          expires_at TIMESTAMP NOT NULL,
-          is_active BOOLEAN DEFAULT true
-        )
-      `);
-
-      // Insert default headwear items if none exist
-      const existingItems = await client.query('SELECT COUNT(*) FROM headwear_items');
-      if (parseInt(existingItems.rows[0].count) === 0) {
+    // Add avatar_frame column to users table if it doesn't exist
+      try {
         await client.query(`
-          INSERT INTO headwear_items (name, description, image, price, duration_days) VALUES
-          ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 7),
-          ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 50000, 7)
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_frame VARCHAR(500)
         `);
-        console.log('✅ Default headwear items created');
+        console.log('✅ Avatar frame column added to users table');
+      } catch (alterError) {
+        console.log('Avatar frame column might already exist or other issue:', alterError.message);
       }
 
-      console.log('✅ Headwear tables initialized successfully');
-    } catch (tableError) {
-      console.error('Error creating headwear tables:', tableError);
-    }
+      // Create headwear tables if they don't exist
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS headwear_items (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            image VARCHAR(500),
+            price INTEGER NOT NULL DEFAULT 0,
+            duration_days INTEGER NOT NULL DEFAULT 30,
+            is_active BOOLEAN DEFAULT true,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS user_headwear (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            headwear_id INTEGER REFERENCES headwear_items(id),
+            purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            is_active BOOLEAN DEFAULT true
+          )
+        `);
+
+        // Insert default headwear items if none exist
+        const existingItems = await client.query('SELECT COUNT(*) FROM headwear_items');
+        if (parseInt(existingItems.rows[0].count) === 0) {
+          await client.query(`
+            INSERT INTO headwear_items (name, description, image, price, duration_days) VALUES
+            ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 7),
+            ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 50000, 7)
+          `);
+          console.log('✅ Default headwear items created');
+        }
+
+        console.log('✅ Headwear tables initialized successfully');
+      } catch (tableError) {
+        console.error('Error creating headwear tables:', tableError);
+      }
 
     // Create families tables if they don't exist
     try {
@@ -317,18 +327,11 @@ const authenticateToken = (req, res, next) => {
     console.log('Token verified for user ID:', decoded.userId);
 
     try {
-      // Try to select with pin column first, fallback without pin if it doesn't exist
-      let userResult;
-      try {
-        userResult = await pool.query('SELECT id, username, email, verified, pin, role, exp, level FROM users WHERE id = $1', [decoded.userId]);
-      } catch (pinError) {
-        if (pinError.code === '42703') { // Column doesn't exist
-          console.log('Pin column does not exist, querying without it');
-          userResult = await pool.query('SELECT id, username, email, verified, role, exp, level FROM users WHERE id = $1', [decoded.userId]);
-        } else {
-          throw pinError;
-        }
-      }
+      // Try to select user data, including avatar_frame
+      const userResult = await pool.query(
+        'SELECT id, username, email, password, bio, phone, gender, birth_date, country, signature, avatar, avatar_frame, level, verified, role, exp, last_login FROM users WHERE id = $1',
+        [decoded.userId]
+      );
 
       if (userResult.rows.length === 0) {
         console.log('User not found for token:', decoded.userId);
@@ -440,7 +443,7 @@ const addUserEXP = async (userId, expAmount, activityType) => {
             balance = user_credits.balance + EXCLUDED.balance,
             updated_at = CURRENT_TIMESTAMP
         `, [userId, levelUpReward]);
-        
+
         console.log(`Level up reward: ${levelUpReward} coins given to user ${userId} for reaching level ${newLevel}`);
       } catch (rewardError) {
         console.error('Error giving level up reward:', rewardError);
@@ -1721,7 +1724,7 @@ app.get('/api/banners', async (req, res) => {
 app.post('/api/banners/:bannerId/click', async (req, res) => {
   try {
     const { bannerId } = req.params;
-    
+
     await pool.query(
       'UPDATE banners SET click_count = click_count + 1 WHERE id = $1',
       [bannerId]
@@ -1814,7 +1817,7 @@ app.post('/api/admin/banners', authenticateToken, async (req, res) => {
     `, [title, description || '', imagePath, linkUrl || '', displayOrder || 0]);
 
     const banner = result.rows[0];
-    
+
     res.json({
       id: banner.id.toString(),
       title: banner.title,
@@ -1905,7 +1908,7 @@ app.get('/uploads/banners/:filename', (req, res) => {
   try {
     const { filename } = req.params;
     const filepath = path.join(__dirname, 'uploads', 'banners', filename);
-    
+
     if (fs.existsSync(filepath)) {
       res.sendFile(filepath);
     } else {
@@ -2188,7 +2191,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
     console.log(`User ID: ${userId}`);
 
     const result = await pool.query(
-      `SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, level, role, verified
+      `SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, avatar_frame, level, role, verified
        FROM users 
        WHERE id = $1`,
       [userId]
@@ -3644,13 +3647,13 @@ app.post('/api/users/:userId/follow', authenticateToken, async (req, res) => {
           ON CONFLICT (follower_id, following_id) DO NOTHING
           RETURNING *
         `, [currentUserId, userId]);
-        
+
         // Award XP for following someone (only if it's a new follow)
         if (insertResult.rows.length > 0) {
           const expResult = await addUserEXP(currentUserId, 10, 'follow_user');
           console.log('XP awarded for following user:', expResult);
         }
-        
+
         console.log(`Added follow relationship: ${currentUserId} -> ${userId}`);
       } else if (action === 'unfollow') {
         // Remove follow relationship
@@ -4444,156 +4447,7 @@ app.put('/users/:userId/privacy-settings', authenticateToken, async (req, res) =
     // If no existing record, create one with default values
     if (result.rows.length === 0) {
       console.log('No existing privacy settings, creating new record for user:', userId);
-      
-      const defaultSettings = {
-        profile_visibility: 'public',
-        privacy_notifications: true,
-        location_sharing: true,
-        biometric_auth: false,
-        two_factor_auth: true,
-        active_sessions: true,
-        data_download: true
-      };
 
-      // Apply the updates to default settings
-      for (const [key, value] of Object.entries(req.body)) {
-        if (allowedFields.includes(key)) {
-          defaultSettings[key] = value;
-        }
-      }
-
-      result = await pool.query(`
-        INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
-        RETURNING *
-      `, [
-        userId,
-        defaultSettings.profile_visibility,
-        defaultSettings.privacy_notifications,
-        defaultSettings.location_sharing,
-        defaultSettings.biometric_auth,
-        defaultSettings.two_factor_auth,
-        defaultSettings.active_sessions,
-        defaultSettings.data_download
-      ]);
-    }
-
-    const updatedSettings = result.rows[0];
-    console.log('Privacy settings updated successfully:', updatedSettings);
-
-    // Send consistent response format
-    res.status(200).json({
-      success: true,
-      message: 'Privacy settings updated successfully',
-      data: updatedSettings
-    });
-  } catch (error) {
-    console.error('Error updating privacy settings:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
-
-app.get('/api/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    console.log('GET /api/users/:userId/privacy-settings - User:', req.user.username, 'Role:', req.user.role, 'Requested userId:', userId);
-
-    // Check if user exists and has permission
-    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const result = await pool.query(
-      'SELECT * FROM privacy_settings WHERE user_id = $1',
-      [userId]
-    );
-
-    if (result.rows.length === 0) {
-      // Create default privacy settings if none exist
-      const defaultSettings = {
-        user_id: userId,
-        profile_visibility: 'public',
-        privacy_notifications: true,
-        location_sharing: true,
-        biometric_auth: false,
-        two_factor_auth: true,
-        active_sessions: true,
-        data_download: true
-      };
-
-      const insertResult = await pool.query(
-        `INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [userId, defaultSettings.profile_visibility, defaultSettings.privacy_notifications, 
-         defaultSettings.location_sharing, defaultSettings.biometric_auth, 
-         defaultSettings.two_factor_auth, defaultSettings.active_sessions, defaultSettings.data_download]
-      );
-
-      res.json(insertResult.rows[0]);
-    } else {
-      res.json(result.rows[0]);
-    }
-  } catch (error) {
-    console.error('Error fetching privacy settings:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    console.log('PUT /api/users/:userId/privacy-settings - User:', req.user.username, 'Role:', req.user.role, 'Requested userId:', userId, 'Body:', req.body);
-
-    // Check if user has permission
-    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
-      console.log('Access denied for user:', req.user.id, 'requesting userId:', userId);
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    const allowedFields = [
-      'profile_visibility', 'privacy_notifications', 'location_sharing',
-      'biometric_auth', 'two_factor_auth', 'active_sessions', 'data_download'
-    ];
-
-    const updates = {};
-    const values = [userId];
-    let paramCount = 2;
-
-    for (const [key, value] of Object.entries(req.body)) {
-      if (allowedFields.includes(key)) {
-        updates[key] = `$${paramCount}`;
-        values.push(value);
-        paramCount++;
-      }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      console.log('No valid fields to update');
-      return res.status(400).json({ success: false, error: 'No valid fields to update' });
-    }
-
-    const setClause = Object.entries(updates)
-      .map(([key, placeholder]) => `${key} = ${placeholder}`)
-      .join(', ');
-
-    // First try to update existing record
-    let result = await pool.query(`
-      UPDATE privacy_settings 
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
-      WHERE user_id = $1 
-      RETURNING *
-    `, values);
-
-    // If no existing record, create one with default values
-    if (result.rows.length === 0) {
-      console.log('No existing privacy settings, creating new record for user:', userId);
-      
       const defaultSettings = {
         profile_visibility: 'public',
         privacy_notifications: true,
@@ -5347,7 +5201,7 @@ app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
     await client.query('BEGIN');
 
     try {
-      // Lock and check caller balance to prevent race conditions
+      // Lock and check balance caller balance to prevent race conditions
       const userResult = await client.query('SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE', [userId]);
       if (userResult.rows.length === 0) {
         await client.query('ROLLBACK');
@@ -6970,9 +6824,9 @@ app.post('/api/credits/transfer', authenticateToken, async (req, res) => {
 app.get('/api/user/exp', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     const result = await pool.query('SELECT exp, level FROM users WHERE id = $1', [userId]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -7003,7 +6857,7 @@ app.get('/api/user/exp', authenticateToken, async (req, res) => {
 app.get('/api/user/exp-history', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     const result = await pool.query(`
       SELECT activity_type, exp_gained, new_exp, new_level, created_at
       FROM user_exp_history 
