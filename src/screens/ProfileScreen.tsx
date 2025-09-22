@@ -61,11 +61,24 @@ interface Gift {
 }
 
 interface FamilyBadge {
+  familyId: string;
   familyName: string;
   familyLevel: number;
   familyRole: string;
   joinedAt: string;
 }
+
+// Helper function to get family level color
+const getFamilyLevelColor = (level: number): string => {
+  switch (level) {
+    case 1: return '#4CAF50'; // Green
+    case 2: return '#2196F3'; // Blue
+    case 3: return '#9C27B0'; // Purple
+    case 4: return '#F44336'; // Red
+    case 5: return '#212121'; // Black (Extreme)
+    default: return '#4CAF50'; // Default to green
+  }
+};
 
 export default function ProfileScreen({ navigation, route }: any) {
   const { user, token } = useAuth();
@@ -574,19 +587,19 @@ export default function ProfileScreen({ navigation, route }: any) {
 
             {/* Family Badge */}
             {familyBadge && (
-              <View style={styles.familyBadge}>
-                <View style={styles.familyBadgeContent}>
-                  <View style={styles.familyIcon}>
-                    <Ionicons name="people" size={16} color="#fff" />
-                  </View>
-                  <View style={styles.familyBadgeText}>
-                    <Text style={styles.familyName}>{familyBadge.familyName}</Text>
-                    <Text style={styles.familyDetails}>
-                      Level {familyBadge.familyLevel} • {familyBadge.familyRole === 'admin' ? 'Admin' : familyBadge.familyRole === 'moderator' ? 'Moderator' : 'Member'}
-                    </Text>
+              <TouchableOpacity 
+                style={[styles.familyBadge, { backgroundColor: getFamilyLevelColor(familyBadge.familyLevel) }]}
+                onPress={() => navigation.navigate('FamilyDetailScreen', { familyId: familyBadge.familyId })}
+              >
+                <View style={styles.familyBadgeIcon}>
+                  <View style={styles.familyIconCircle}>
+                    <Ionicons name="diamond" size={16} color="#4A90E2" />
                   </View>
                 </View>
-              </View>
+                <Text style={styles.familyBadgeName} numberOfLines={1}>
+                  {familyBadge.familyName}
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
 
@@ -945,43 +958,45 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   familyBadge: {
-    marginTop: 15,
-    alignSelf: 'center',
-  },
-  familyBadgeContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    marginTop: 15,
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 25,
+    minWidth: 120,
+    maxWidth: 200,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
   },
-  familyIcon: {
+  familyBadgeIcon: {
+    marginRight: 8,
+  },
+  familyIconCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  familyBadgeText: {
-    flex: 1,
-  },
-  familyName: {
+  familyBadgeName: {
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  familyDetails: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 11,
-    marginTop: 1,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    flex: 1,
   },
   actionButtons: {
     flexDirection: 'row',

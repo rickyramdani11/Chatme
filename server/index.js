@@ -104,7 +104,7 @@ pool.connect(async (err, client, release) => {
     console.error('Error connecting to database:', err);
   } else {
     console.log('Successfully connected to PostgreSQL database');
-    
+
     // Create headwear tables if they don't exist
     try {
       await client.query(`
@@ -190,11 +190,22 @@ pool.connect(async (err, client, release) => {
         )
       `);
 
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS family_activities (
+          id SERIAL PRIMARY KEY,
+          family_id INTEGER REFERENCES families(id) ON DELETE CASCADE,
+          activity_type VARCHAR(50) NOT NULL,
+          points INTEGER DEFAULT 1,
+          user_id INTEGER,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       console.log('✅ Families tables initialized successfully');
     } catch (tableError) {
       console.error('Error creating families tables:', tableError);
     }
-    
+
     // Load existing rooms from database
     try {
       const result = await client.query(`
@@ -202,7 +213,7 @@ pool.connect(async (err, client, release) => {
         FROM rooms 
         ORDER BY created_at ASC
       `);
-      
+
       rooms = result.rows.map(row => ({
         id: row.id.toString(),
         name: row.name,
@@ -214,19 +225,19 @@ pool.connect(async (err, client, release) => {
         createdBy: row.created_by,
         createdAt: row.created_at
       }));
-      
+
       console.log(`Loaded ${rooms.length} rooms from database`);
-      
+
       // Initialize room participants for each room
       rooms.forEach(room => {
         roomParticipants[room.id] = [];
       });
-      
+
     } catch (loadError) {
       console.error('Error loading rooms from database:', loadError);
       rooms = []; // Initialize empty array on error
     }
-    
+
     release();
   }
 });
@@ -621,7 +632,7 @@ app.post('/api/families', authenticateToken, async (req, res) => {
     }
 
     // Create families table if not exists
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS families (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL UNIQUE,
@@ -639,7 +650,7 @@ app.post('/api/families', authenticateToken, async (req, res) => {
     `);
 
     // Create family_members table if not exists
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS family_members (
         id SERIAL PRIMARY KEY,
         family_id INTEGER REFERENCES families(id) ON DELETE CASCADE,
@@ -656,7 +667,7 @@ app.post('/api/families', authenticateToken, async (req, res) => {
     let coverImagePath = null;
     if (coverImage) {
       const imageId = `family_cover_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      
+
       // Store in database
       await pool.query(`
         INSERT INTO family_assets (family_id, asset_type, asset_data, filename)
@@ -4893,7 +4904,7 @@ app.post('/api/chat/private', authenticateToken, async (req, res) => {
   console.log('POST /chat/private -', new Date().toISOString());
   console.log('=== AUTH TOKEN MIDDLEWARE ===');
   console.log('Auth header:', req.headers.authorization ? 'Present' : 'Missing');
-  console.log('Token:', req.headers.authorization ? 'Present (' + req.headers.authorization.substring(0, 20) + '...)' : 'Missing');
+  console.log('Token:', req.headers.authorization ? `Present (${req.headers.authorization.substring(0, 20)}...)` : 'Missing');
   console.log('Token verified for user ID:', req.user.userId);
   console.log('User authenticated:', req.user.username, 'Role:', req.user.role);
 
@@ -5303,7 +5314,7 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
 
       // Get recipient username from database for security inside transaction
       const recipientResult = await client.query('SELECT username FROM users WHERE id = $1', [recipientUserId]);
-      if (recipientResult.rows.length === 0) {
+      if  (recipientResult.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Invalid recipient' });
       }
@@ -7268,7 +7279,7 @@ app.get('/api/rankings/wealth', async (req, res) => {
         avatar,
         level,
         verified,
-        total_spending as credits
+        COALESCE(total_spending, 0) as credits
       FROM users 
       LEFT JOIN (
         SELECT 

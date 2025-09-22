@@ -27,6 +27,18 @@ interface Family {
   type: 'AGENCY' | 'FAMILY';
 }
 
+// Helper function to get family level color
+const getFamilyLevelColor = (level: number): string => {
+  switch (level) {
+    case 1: return '#4CAF50'; // Green
+    case 2: return '#2196F3'; // Blue  
+    case 3: return '#9C27B0'; // Purple
+    case 4: return '#F44336'; // Red
+    case 5: return '#212121'; // Black (Extreme)
+    default: return '#4CAF50'; // Default to green
+  }
+};
+
 export default function FamilyScreen({ navigation }: any) {
   const { user, token } = useAuth();
   const [families, setFamilies] = useState<Family[]>([]);
@@ -336,6 +348,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
+  },
+  getFamilyLevelColor: (level: number): string => {
+    switch (level) {
+      case 1: return '#4CAF50'; // Green
+      case 2: return '#2196F3'; // Blue
+      case 3: return '#9C27B0'; // Purple
+      case 4: return '#F44336'; // Red
+      case 5: return '#212121'; // Black (Extreme)
+      default: return '#4CAF50'; // Default to green
+    }
   },
   familyInfo: {
     flex: 1,
