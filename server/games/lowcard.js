@@ -103,10 +103,21 @@ function startJoinPhase(io, room) {
   console.log(`[LowCard] Sending join phase message for room ${room}, bet: ${data.bet}, started by: ${data.startedBy}`);
   sendBotMessage(io, room, `LowCard started by ${data.startedBy}. Enter !j to join the game. Cost: ${data.bet} COIN (30s)`);
 
-  data.timeout = setTimeout(() => {
+  data.timeout = setTimeout(async () => {
     if (data.players.length < 2) {
       sendBotMessage(io, room, `Joining ends. Not enough players. Need at least 2 players.`);
-      sendBotMessage(io, room, `Game canceled`);
+      sendBotMessage(io, room, `Game canceled - All bets refunded!`);
+      
+      // Refund all players who joined
+      for (const player of data.players) {
+        await tambahCoin(player.id, player.bet);
+        console.log(`[LowCard] Refunded ${player.bet} coins to ${player.username} (game canceled)`);
+      }
+      
+      if (data.players.length > 0) {
+        sendBotMessage(io, room, `${data.players.length} player(s) refunded ${data.bet} COIN each.`);
+      }
+      
       delete rooms[room];
     } else {
       data.activePlayers = [...data.players];
@@ -389,9 +400,15 @@ async function processLowCardCommand(io, room, msg, userId, username) {
     // Cancel any ongoing games in this room
     const data = rooms[room];
     if (data) {
+      let refundCount = 0;
+      let totalRefunded = 0;
+      
       // Refund all players if game exists
       for (const player of data.players) {
         await tambahCoin(player.id, player.bet);
+        refundCount++;
+        totalRefunded += player.bet;
+        console.log(`[LowCard] Refunded ${player.bet} coins to ${player.username} (bot shutdown)`);
       }
 
       // Clear timeouts
@@ -403,6 +420,11 @@ async function processLowCardCommand(io, room, msg, userId, username) {
       }
       if (data.roundTimeout) {
         clearTimeout(data.roundTimeout);
+      }
+
+      // Notify about refunds
+      if (refundCount > 0) {
+        sendBotMessage(io, room, `Game canceled - ${refundCount} player(s) refunded ${totalRefunded} COIN total.`);
       }
 
       // Remove room data
@@ -590,10 +612,33 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
         return;
       }
 
+      const player = data.players[playerIndex];
+      
       // Refund the bet
       await tambahCoin(userId, data.bet);
       data.players.splice(playerIndex, 1);
-      sendBotMessage(io, room, `${username} left the game. Bet refunded.`);
+      sendBotMessage(io, room, `${username} left the game. ${data.bet} COIN refunded.`);
+      console.log(`[LowCard] Refunded ${data.bet} coins to ${username} (manual leave)`);
+      
+      // Check if game should be canceled due to insufficient players
+      if (data.players.length < 2 && data.timeout) {
+        clearTimeout(data.timeout);
+        
+        // Refund remaining players
+        for (const remainingPlayer of data.players) {
+          await tambahCoin(remainingPlayer.id, remainingPlayer.bet);
+          console.log(`[LowCard] Refunded ${remainingPlayer.bet} coins to ${remainingPlayer.username} (game canceled due to insufficient players)`);
+        }
+        
+        if (data.players.length > 0) {
+          sendBotMessage(io, room, `Game canceled - ${data.players.length} remaining player(s) refunded.`);
+        } else {
+          sendBotMessage(io, room, `Game canceled - Not enough players.`);
+        }
+        
+        delete rooms[room];
+      }
+      
       break;
     }
 
@@ -661,12 +706,25 @@ function handleLowCardBot(io, socket) {
           // Refund bet if game hasn't started
           await tambahCoin(player.id, player.bet);
           data.players.splice(playerIndex, 1);
-          sendBotMessage(io, room, `${player.username} disconnected and left the game. Bet refunded.`);
+          sendBotMessage(io, room, `${player.username} disconnected and left the game. ${player.bet} COIN refunded.`);
+          console.log(`[LowCard] Refunded ${player.bet} coins to ${player.username} (disconnect during join phase)`);
 
-          // Cancel game if not enough players
+          // Cancel game if not enough players and refund remaining players
           if (data.players.length < 2 && data.timeout) {
             clearTimeout(data.timeout);
-            sendBotMessage(io, room, `Not enough players. Game canceled.`);
+            
+            // Refund remaining players
+            for (const remainingPlayer of data.players) {
+              await tambahCoin(remainingPlayer.id, remainingPlayer.bet);
+              console.log(`[LowCard] Refunded ${remainingPlayer.bet} coins to ${remainingPlayer.username} (game canceled due to insufficient players)`);
+            }
+            
+            if (data.players.length > 0) {
+              sendBotMessage(io, room, `Game canceled - ${data.players.length} remaining player(s) refunded.`);
+            } else {
+              sendBotMessage(io, room, `Game canceled - Not enough players.`);
+            }
+            
             delete rooms[room];
           }
         } else {
