@@ -129,7 +129,7 @@ export default function StoreScreen({ navigation }: any) {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Berhasil!', `Headwear "${selectedItem.name}" berhasil dibeli untuk ${selectedItem.duration} hari!`);
+        Alert.alert('Berhasil!', `Headwear "${selectedItem.name}" berhasil dibeli untuk ${selectedItem.duration} hari dan otomatis terpasang di profil Anda!`);
         setBalance(data.newBalance);
         fetchUserHeadwear();
         setShowPurchaseModal(false);

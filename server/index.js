@@ -136,8 +136,8 @@ pool.connect(async (err, client, release) => {
       if (parseInt(existingItems.rows[0].count) === 0) {
         await client.query(`
           INSERT INTO headwear_items (name, description, image, price, duration_days) VALUES
-          ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 30),
-          ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 100000, 30)
+          ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 7),
+          ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 50000, 7)
         `);
         console.log('✅ Default headwear items created');
       }
@@ -508,6 +508,13 @@ app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
         INSERT INTO user_headwear (user_id, headwear_id, expires_at)
         VALUES ($1, $2, $3)
       `, [userId, headwearId, expiresAt]);
+
+      // Automatically set the purchased headwear as active avatar frame
+      await pool.query(`
+        UPDATE users 
+        SET avatar_frame = $1
+        WHERE id = $2
+      `, [headwearItem.image, userId]);
 
       // Record the transaction
       await pool.query(`
@@ -1365,6 +1372,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
       country: user.country || '',
       signature: user.signature || '',
       avatar: user.avatar,
+      avatarFrame: user.avatar_frame,
       level: user.level || 1,
       role: user.role || 'user', // Always ensure role is included
       verified: user.verified || false
@@ -6548,10 +6556,74 @@ const cleanupExpiredMentors = async () => {
   }
 };
 
+// Cleanup expired headwear items
+const cleanupExpiredHeadwear = async () => {
+  try {
+    // Find expired headwear items
+    const expiredResult = await pool.query(`
+      SELECT uh.id, uh.user_id, u.username, hi.name 
+      FROM user_headwear uh
+      JOIN users u ON uh.user_id = u.id
+      JOIN headwear_items hi ON uh.headwear_id = hi.id
+      WHERE uh.expires_at < NOW() AND uh.is_active = true
+    `);
+
+    if (expiredResult.rows.length > 0) {
+      console.log(`Found ${expiredResult.rows.length} expired headwear items to cleanup`);
+
+      // Start transaction
+      await pool.query('BEGIN');
+
+      try {
+        // Mark expired headwear as inactive
+        await pool.query(`
+          UPDATE user_headwear 
+          SET is_active = false 
+          WHERE expires_at < NOW() AND is_active = true
+        `);
+
+        // Remove avatar frame from users with expired headwear
+        const expiredUserIds = [...new Set(expiredResult.rows.map(row => row.user_id))];
+        for (const userId of expiredUserIds) {
+          // Check if user has any active headwear left
+          const activeHeadwear = await pool.query(`
+            SELECT COUNT(*) FROM user_headwear 
+            WHERE user_id = $1 AND is_active = true AND expires_at > NOW()
+          `, [userId]);
+
+          // If no active headwear, remove avatar frame
+          if (parseInt(activeHeadwear.rows[0].count) === 0) {
+            await pool.query(`
+              UPDATE users 
+              SET avatar_frame = NULL 
+              WHERE id = $1
+            `, [userId]);
+          }
+        }
+
+        await pool.query('COMMIT');
+
+        const expiredItems = expiredResult.rows.map(row => 
+          `${row.name} (User: ${row.username})`
+        ).join(', ');
+        console.log(`Removed expired headwear: ${expiredItems}`);
+
+      } catch (error) {
+        await pool.query('ROLLBACK');
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up expired headwear:', error);
+  }
+};
+
 // Run cleanup every hour
 setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 // Run mentor cleanup every 6 hours
 setInterval(cleanupExpiredMentors, 6 * 60 * 60 * 1000);
+// Run headwear cleanup every hour
+setInterval(cleanupExpiredHeadwear, 60 * 60 * 1000);
 
 // Add root endpoint for web preview
 app.get('/', (req, res) => {
@@ -6768,6 +6840,7 @@ app.post('/api/gifts/purchase', (req, res) => {
 
 // Run initial cleanup on server start
 cleanupExpiredMentors();
+cleanupExpiredHeadwear();
 
 
 server.listen(PORT, '0.0.0.0', () => {

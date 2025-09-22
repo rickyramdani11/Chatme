@@ -25,6 +25,7 @@ interface UserProfile {
   followers: number;
   following: number;
   avatar?: string;
+  avatarFrame?: string;
   level: number;
   achievements: Achievement[];
   isOnline: boolean;
@@ -480,6 +481,14 @@ export default function ProfileScreen({ navigation, route }: any) {
           {/* Avatar with decorative frame */}
           <View style={styles.avatarContainer}>
             <View style={styles.avatarFrame}>
+              {/* Avatar Frame Background */}
+              {profile.avatarFrame && (
+                <Image 
+                  source={{ uri: `${API_BASE_URL}${profile.avatarFrame}` }} 
+                  style={styles.avatarFrameImage}
+                />
+              )}
+              
               <View style={styles.avatarInner}>
                 {profile.avatar ? (
                   <Image 
@@ -803,6 +812,16 @@ const styles = StyleSheet.create({
     borderColor: '#FF69B4',
     padding: 2,
     backgroundColor: '#fff',
+    position: 'relative',
+  },
+  avatarFrameImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    zIndex: 2,
   },
   avatarInner: {
     width: 74,
