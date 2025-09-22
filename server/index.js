@@ -4,10 +4,14 @@ const http = require('http');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const fs = require('fs');
+
+// Import route modules
+const { router: authRouter, authenticateToken } = require('./routes/auth');
+const usersRouter = require('./routes/users');
+const chatRouter = require('./routes/chat');
+const creditsRouter = require('./routes/credits');
 const fetch = require('node-fetch'); // Import node-fetch
 
 // Import LowCard bot using CommonJS require
@@ -321,65 +325,16 @@ app.use('/chat', (req, res, next) => {
 // Handle preflight requests
 app.options('*', cors());
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Import and mount route modules
+const adminRouter = require('./routes/admin');
 
-// Middleware to authenticate JWT token
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+app.use('/api/auth', authRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/chat', chatRouter);
+app.use('/api/credits', creditsRouter);
+app.use('/api/admin', adminRouter);
 
-  console.log('=== AUTH TOKEN MIDDLEWARE ===');
-  console.log('Auth header:', authHeader ? 'Present' : 'Missing');
-  console.log('Token:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing');
-
-  if (token == null) {
-    console.log('No token provided');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  // Validate token format
-  if (typeof token !== 'string' || token.split('.').length !== 3) {
-    console.log('Invalid token format');
-    return res.status(403).json({ error: 'Invalid token format' });
-  }
-
-  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
-    if (err) {
-      console.log('Token verification failed:', err.message);
-      if (err.name === 'TokenExpiredError') {
-        return res.status(403).json({ error: 'Token expired' });
-      } else if (err.name === 'JsonWebTokenError') {
-        return res.status(403).json({ error: 'Invalid token' });
-      }
-      return res.status(403).json({ error: 'Token verification failed' });
-    }
-
-    console.log('Token verified for user ID:', decoded.userId);
-
-    try {
-      // Try to select user data, including avatar_frame
-      const userResult = await pool.query(
-        'SELECT id, username, email, password, bio, phone, gender, birth_date, country, signature, avatar, avatar_frame, level, verified, role, exp, last_login, status, is_busy, busy_until FROM users WHERE id = $1',
-        [decoded.userId]
-      );
-
-      if (userResult.rows.length === 0) {
-        console.log('User not found for token:', decoded.userId);
-        return res.status(403).json({ error: 'User not found' });
-      }
-
-      const user = userResult.rows[0];
-      console.log('User authenticated:', user.username, 'Role:', user.role);
-
-      req.user = user; // Attach user info to request
-      req.user.userId = decoded.userId; // Add userId to req.user for credit endpoints
-      next(); // proceed to the next middleware or route handler
-    } catch (dbError) {
-      console.error('Database error during token authentication:', dbError);
-      res.status(500).json({ error: 'Database error during authentication' });
-    }
-  });
-};
+// JWT authentication middleware is now imported from auth module
 
 // In-memory database for non-critical data (posts will be moved to DB later)
 let posts = [];

@@ -1,0 +1,358 @@
+
+const express = require('express');
+const { Pool } = require('pg');
+const { authenticateToken } = require('./auth');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const router = express.Router();
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:5000`);
+
+// Multer storage configuration for emojis
+const storageEmoji = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/emojis/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+const uploadEmoji = multer({ storage: storageEmoji });
+
+// Multer storage configuration for gifts
+const storageGift = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/gifts/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+const uploadGift = multer({ storage: storageGift });
+
+// Admin middleware
+const adminOnly = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+// Get emojis
+router.get('/emojis', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, emoji, category, created_at 
+      FROM custom_emojis 
+      ORDER BY created_at DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching emojis:', error);
+    res.status(500).json({ error: 'Failed to fetch emojis' });
+  }
+});
+
+// Add emoji
+router.post('/emojis', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { name, category = 'general', emoji, emojiFile, emojiType, fileName } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    if (!emojiFile && !emoji) {
+      return res.status(400).json({ error: 'Either emoji file or emoji character is required' });
+    }
+
+    let emojiValue = emoji;
+
+    if (emojiFile) {
+      try {
+        if (typeof emojiFile !== 'string' || emojiFile.length < 100) {
+          return res.status(400).json({ error: 'Invalid emoji file data' });
+        }
+
+        const uploadDir = 'uploads/emojis';
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        const fileExt = emojiType || 'png';
+        const uniqueFileName = `emoji_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${uploadDir}/${uniqueFileName}`;
+
+        const buffer = Buffer.from(emojiFile, 'base64');
+
+        if (buffer.length > 2 * 1024 * 1024) {
+          return res.status(400).json({ error: 'File too large. Maximum size is 2MB.' });
+        }
+
+        fs.writeFileSync(filePath, buffer);
+        emojiValue = `/uploads/emojis/${uniqueFileName}`;
+
+      } catch (fileError) {
+        console.error('Error saving emoji file:', fileError);
+        return res.status(500).json({ error: 'Failed to save emoji file: ' + fileError.message });
+      }
+    }
+
+    const result = await pool.query(`
+      INSERT INTO custom_emojis (name, emoji, category, created_by)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [name.trim(), emojiValue, category, req.user.id]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding emoji:', error);
+    res.status(500).json({ error: 'Failed to add emoji: ' + error.message });
+  }
+});
+
+// Delete emoji
+router.delete('/emojis/:id', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const emojiResult = await pool.query('SELECT emoji FROM custom_emojis WHERE id = $1', [id]);
+    if (emojiResult.rows.length > 0 && emojiResult.rows[0].emoji.startsWith('/uploads/emojis/')) {
+      const filePath = emojiResult.rows[0].emoji.substring(1);
+      if (fs.existsSync(filePath)) {
+        fs.unlink(filePath, (err) => {
+          if (err) console.error('Error deleting emoji file:', err);
+        });
+      }
+    }
+
+    await pool.query('DELETE FROM custom_emojis WHERE id = $1', [id]);
+    res.json({ message: 'Emoji deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting emoji:', error);
+    res.status(500).json({ error: 'Failed to delete emoji' });
+  }
+});
+
+// Get gifts
+router.get('/gifts', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM custom_gifts ORDER BY created_at DESC');
+    const gifts = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      icon: row.icon,
+      image: row.image,
+      animation: row.animation,
+      price: row.price,
+      type: row.type || 'static',
+      category: row.category || 'popular'
+    }));
+
+    res.json(gifts);
+  } catch (error) {
+    console.error('Error fetching gifts:', error);
+    res.status(500).json({ error: 'Failed to fetch gifts' });
+  }
+});
+
+// Add gift
+router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { name, icon, price, type = 'static', category = 'popular', giftImage, imageType, imageName } = req.body;
+
+    if (!name || !icon || !price) {
+      return res.status(400).json({ error: 'Name, icon, and price are required' });
+    }
+
+    let imagePath = null;
+
+    if (giftImage && imageType && imageName) {
+      try {
+        const uploadsDir = path.join(__dirname, '../uploads', 'gifts');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+        const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
+        const filename = `gift_${uniqueSuffix}.${fileExtension}`;
+        const filepath = path.join(uploadsDir, filename);
+
+        const imageBuffer = Buffer.from(giftImage, 'base64');
+        fs.writeFileSync(filepath, imageBuffer);
+
+        imagePath = `/uploads/gifts/${filename}`;
+      } catch (error) {
+        console.error('Error saving gift image:', error);
+        return res.status(500).json({ error: 'Failed to save gift image' });
+      }
+    }
+
+    const result = await pool.query(`
+      INSERT INTO custom_gifts (name, icon, image, price, type, category, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [name, icon, imagePath, parseInt(price), type, category, req.user.id]);
+
+    const gift = result.rows[0];
+    if (gift.image) {
+      gift.image = `${API_BASE_URL}${gift.image}`;
+    }
+
+    res.json(gift);
+  } catch (error) {
+    console.error('Error adding gift:', error);
+    res.status(500).json({ error: 'Failed to add gift' });
+  }
+});
+
+// Delete gift
+router.delete('/gifts/:id', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const giftResult = await pool.query('SELECT animation FROM custom_gifts WHERE id = $1', [id]);
+    if (giftResult.rows.length > 0 && giftResult.rows[0].animation) {
+      const filePath = giftResult.rows[0].animation.substring(1);
+      if (fs.existsSync(filePath)) {
+        fs.unlink(filePath, (err) => {
+          if (err) console.error('Error deleting gift file:', err);
+        });
+      }
+    }
+
+    await pool.query('DELETE FROM custom_gifts WHERE id = $1', [id]);
+    res.json({ message: 'Gift deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting gift:', error);
+    res.status(500).json({ error: 'Failed to delete gift' });
+  }
+});
+
+// Get all rooms (admin only)
+router.get('/rooms', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        id,
+        name,
+        description,
+        managed_by,
+        type,
+        members,
+        max_members,
+        created_by,
+        created_at
+      FROM rooms 
+      ORDER BY created_at DESC
+    `);
+
+    const rooms = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      managedBy: row.managed_by,
+      createdBy: row.created_by,
+      type: row.type,
+      members: row.members || 0,
+      maxMembers: row.max_members || 25,
+      createdAt: row.created_at
+    }));
+
+    res.json({ rooms });
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    res.status(500).json({ error: 'Failed to fetch rooms' });
+  }
+});
+
+// Update room (admin only)
+router.put('/rooms/:roomId', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { name, description, maxMembers, managedBy } = req.body;
+
+    if (!name || !description) {
+      return res.status(400).json({ error: 'Name and description are required' });
+    }
+
+    if (!maxMembers || ![25, 40, 80].includes(maxMembers)) {
+      return res.status(400).json({ error: 'Invalid max members. Must be 25, 40, or 80' });
+    }
+
+    const roomCheck = await pool.query('SELECT id FROM rooms WHERE id = $1', [roomId]);
+    if (roomCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    const nameCheck = await pool.query(
+      'SELECT id FROM rooms WHERE LOWER(name) = LOWER($1) AND id != $2',
+      [name.trim(), roomId]
+    );
+
+    if (nameCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Room name already exists' });
+    }
+
+    const result = await pool.query(`
+      UPDATE rooms 
+      SET 
+        name = $1,
+        description = $2,
+        max_members = $3,
+        managed_by = $4
+      WHERE id = $5
+      RETURNING *
+    `, [name.trim(), description.trim(), maxMembers, managedBy?.trim(), roomId]);
+
+    const updatedRoom = result.rows[0];
+
+    res.json({ 
+      message: 'Room updated successfully',
+      room: updatedRoom
+    });
+
+  } catch (error) {
+    console.error('Error updating room:', error);
+    res.status(500).json({ error: 'Failed to update room' });
+  }
+});
+
+// Delete room (admin only)
+router.delete('/rooms/:roomId', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    const roomCheck = await pool.query('SELECT name FROM rooms WHERE id = $1', [roomId]);
+    if (roomCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    const roomName = roomCheck.rows[0].name;
+
+    await pool.query('DELETE FROM chat_messages WHERE room_id = $1', [roomId]);
+    await pool.query('DELETE FROM room_banned_users WHERE room_id = $1', [roomId]);
+    await pool.query('DELETE FROM room_security WHERE room_id = $1', [roomId]);
+    await pool.query('DELETE FROM room_moderators WHERE room_id = $1', [roomId]);
+    await pool.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+
+    res.json({ 
+      message: 'Room deleted successfully',
+      roomName: roomName
+    });
+
+  } catch (error) {
+    console.error('Error deleting room:', error);
+    res.status(500).json({ error: 'Failed to delete room' });
+  }
+});
+
+module.exports = router;
