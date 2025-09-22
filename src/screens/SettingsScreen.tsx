@@ -208,6 +208,14 @@ export default function SettingsScreen({ navigation }: any) {
             onPress={() => navigation.navigate('Mentor')}
           />
 
+          {/* Toko Menu Item */}
+          <SettingsItem
+            icon="storefront"
+            title="Toko"
+            iconColor="#4CAF50"
+            onPress={() => navigation.navigate('StoreScreen')}
+          />
+
           {/* Admin Panel Menu Item - Only visible for admin users */}
           {user?.role === 'admin' && (
             <SettingsItem

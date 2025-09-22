@@ -62,6 +62,182 @@ const storageUpload = multer.diskStorage({
 const upload = multer({ storage: storageUpload });
 
 
+// Store API endpoints
+
+// Get headwear items for store
+app.get('/api/store/headwear', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, description, image, price, duration_days
+      FROM headwear_items
+      WHERE is_active = true
+      ORDER BY price ASC
+    `);
+
+    const items = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      price: row.price,
+      duration: row.duration_days
+    }));
+
+    res.json({ items });
+  } catch (error) {
+    console.error('Error fetching headwear items:', error);
+    res.status(500).json({ error: 'Failed to fetch headwear items' });
+  }
+});
+
+// Get user's owned headwear
+app.get('/api/store/user-headwear', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT uh.id, uh.headwear_id, uh.expires_at, uh.is_active,
+             hi.name, hi.image
+      FROM user_headwear uh
+      JOIN headwear_items hi ON uh.headwear_id = hi.id
+      WHERE uh.user_id = $1 AND uh.is_active = true
+      ORDER BY uh.purchased_at DESC
+    `, [userId]);
+
+    const headwear = result.rows.map(row => ({
+      id: row.id.toString(),
+      headwearId: row.headwear_id.toString(),
+      name: row.name,
+      image: row.image,
+      expiresAt: row.expires_at,
+      isActive: row.is_active && new Date(row.expires_at) > new Date()
+    }));
+
+    res.json({ headwear });
+  } catch (error) {
+    console.error('Error fetching user headwear:', error);
+    res.status(500).json({ error: 'Failed to fetch user headwear' });
+  }
+});
+
+// Purchase headwear endpoint
+app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { headwearId } = req.body;
+
+    console.log('=== HEADWEAR PURCHASE REQUEST ===');
+    console.log('User ID:', userId);
+    console.log('Headwear ID:', headwearId);
+
+    if (!headwearId) {
+      return res.status(400).json({ error: 'Headwear ID is required' });
+    }
+
+    // Start transaction
+    await pool.query('BEGIN');
+
+    try {
+      // Check if headwear item exists
+      const headwearResult = await pool.query(
+        'SELECT * FROM headwear_items WHERE id = $1 AND is_active = true',
+        [headwearId]
+      );
+
+      if (headwearResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'Headwear item not found' });
+      }
+
+      const headwearItem = headwearResult.rows[0];
+
+      // Check user's balance
+      const balanceResult = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1',
+        [userId]
+      );
+
+      if (balanceResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'User credits not found' });
+      }
+
+      const currentBalance = balanceResult.rows[0].balance;
+
+      if (currentBalance < headwearItem.price) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient balance' });
+      }
+
+      // Check if user already owns this headwear and it's still active
+      const existingResult = await pool.query(`
+        SELECT * FROM user_headwear 
+        WHERE user_id = $1 AND headwear_id = $2 AND is_active = true AND expires_at > NOW()
+      `, [userId, headwearId]);
+
+      if (existingResult.rows.length > 0) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'You already own this headwear' });
+      }
+
+      // Deduct credits
+      const newBalance = currentBalance - headwearItem.price;
+      await pool.query(
+        'UPDATE user_credits SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+        [newBalance, userId]
+      );
+
+      // Calculate expiry date
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + headwearItem.duration_days);
+
+      // Add headwear to user's collection
+      await pool.query(`
+        INSERT INTO user_headwear (user_id, headwear_id, expires_at)
+        VALUES ($1, $2, $3)
+      `, [userId, headwearId, expiresAt]);
+
+      // Record the transaction
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
+        VALUES ($1, NULL, $2, 'headwear_purchase')
+      `, [userId, headwearItem.price]);
+
+      await pool.query('COMMIT');
+
+      console.log(`Headwear ${headwearItem.name} purchased by user ${userId} for ${headwearItem.price} credits`);
+
+      res.json({
+        success: true,
+        message: 'Headwear purchased successfully',
+        newBalance: newBalance,
+        expiresAt: expiresAt.toISOString()
+      });
+
+    } catch (transactionError) {
+      await pool.query('ROLLBACK');
+      throw transactionError;
+    }
+
+  } catch (error) {
+    console.error('Error purchasing headwear:', error);
+    res.status(500).json({ error: 'Failed to purchase headwear' });
+  }
+});
+
+// Serve headwear images (placeholder endpoint)
+app.get('/api/headwear/images/:imageName', (req, res) => {
+  const { imageName } = req.params;
+  
+  // For now, return a placeholder response
+  // In production, you would serve actual headwear frame images
+  res.status(200).json({
+    message: 'Headwear image placeholder',
+    imageName: imageName,
+    note: 'Replace this with actual image serving logic'
+  });
+});
+
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
@@ -798,6 +974,81 @@ const initTables = async () => {
 
     console.log('✅ Gift earnings and withdrawal tables initialized successfully');
 
+    // Create headwear_items table for store items
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS headwear_items (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        image VARCHAR(500) NOT NULL,
+        price INTEGER NOT NULL CHECK (price > 0),
+        duration_days INTEGER DEFAULT 7,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create user_headwear table for purchased headwear
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_headwear (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        headwear_id INTEGER NOT NULL,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (headwear_id) REFERENCES headwear_items(id)
+      )
+    `);
+
+    // Insert default headwear items if none exist
+    const headwearCount = await pool.query('SELECT COUNT(*) FROM headwear_items WHERE is_active = true');
+    if (parseInt(headwearCount.rows[0].count) === 0) {
+      const defaultHeadwear = [
+        {
+          name: 'Golden Crown',
+          description: 'Mahkota emas eksklusif untuk avatar Anda',
+          image: '/api/headwear/images/golden-crown.png',
+          price: 50000,
+          duration_days: 7
+        },
+        {
+          name: 'Diamond Frame',
+          description: 'Bingkai berlian mewah yang berkilau',
+          image: '/api/headwear/images/diamond-frame.png',
+          price: 50000,
+          duration_days: 7
+        },
+        {
+          name: 'Royal Frame',
+          description: 'Bingkai kerajaan dengan ornamen elegan',
+          image: '/api/headwear/images/royal-frame.png',
+          price: 50000,
+          duration_days: 7
+        },
+        {
+          name: 'Fire Frame',
+          description: 'Bingkai api yang menawan dan bertenaga',
+          image: '/api/headwear/images/fire-frame.png',
+          price: 50000,
+          duration_days: 7
+        }
+      ];
+
+      for (const item of defaultHeadwear) {
+        await pool.query(`
+          INSERT INTO headwear_items (name, description, image, price, duration_days)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [item.name, item.description, item.image, item.price, item.duration_days]);
+      }
+
+      console.log('✅ Default headwear items added to store');
+    }
+
+    console.log('✅ Headwear store tables initialized successfully');
+
     // Add CHECK constraints to existing tables if they don't exist
     try {
       await pool.query(`
@@ -820,6 +1071,9 @@ const initTables = async () => {
           END IF;
           IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'gift_earnings_sum_check') THEN
             ALTER TABLE gift_earnings ADD CONSTRAINT gift_earnings_sum_check CHECK (user_share + system_share = gift_price);
+          END IF;
+          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'headwear_items_price_check') THEN
+            ALTER TABLE headwear_items ADD CONSTRAINT headwear_items_price_check CHECK (price > 0);
           END IF;
         END $$;
       `);
