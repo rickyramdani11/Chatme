@@ -144,15 +144,42 @@ pool.connect(async (err, client, release) => {
 
         // Insert default headwear items if none exist
         const existingItems = await client.query('SELECT COUNT(*) FROM headwear_items');
+        console.log('Current headwear items count:', existingItems.rows[0].count);
+        
         if (parseInt(existingItems.rows[0].count) === 0) {
           await client.query(`
-            INSERT INTO headwear_items (name, description, image, price, duration_days) VALUES
-            ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 7),
-            ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 50000, 7),
-            ('Frame Avatar Elite', 'Bingkai avatar elite dengan ornamen mewah', '/assets/frame_ava/frame_av3.png', 75000, 10),
-            ('Frame Avatar Royal', 'Bingkai avatar royal dengan detail istimewa', '/assets/frame_ava/frame_av4.png', 100000, 14)
+            INSERT INTO headwear_items (name, description, image, price, duration_days, is_active) VALUES
+            ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 7, true),
+            ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 50000, 7, true),
+            ('Frame Avatar Elite', 'Bingkai avatar elite dengan ornamen mewah', '/assets/frame_ava/frame_av3.png', 75000, 10, true),
+            ('Frame Avatar Royal', 'Bingkai avatar royal dengan detail istimewa', '/assets/frame_ava/frame_av4.png', 100000, 14, true)
           `);
-          console.log('✅ Default headwear items created');
+          console.log('✅ Default headwear items created with is_active=true');
+        } else {
+          // Check if all 4 items exist, if not add missing ones
+          const currentItems = await client.query('SELECT name FROM headwear_items');
+          const itemNames = currentItems.rows.map(row => row.name);
+          
+          const requiredItems = [
+            { name: 'Frame Avatar Classic', description: 'Bingkai avatar klasik dengan desain elegan', image: '/assets/frame_ava/frame_av.jpeg', price: 50000, duration: 7 },
+            { name: 'Frame Avatar Premium', description: 'Bingkai avatar premium dengan efek khusus', image: '/assets/frame_ava/frame_av1.jpeg', price: 50000, duration: 7 },
+            { name: 'Frame Avatar Elite', description: 'Bingkai avatar elite dengan ornamen mewah', image: '/assets/frame_ava/frame_av3.png', price: 75000, duration: 10 },
+            { name: 'Frame Avatar Royal', description: 'Bingkai avatar royal dengan detail istimewa', image: '/assets/frame_ava/frame_av4.png', price: 100000, duration: 14 }
+          ];
+          
+          for (const item of requiredItems) {
+            if (!itemNames.includes(item.name)) {
+              await client.query(`
+                INSERT INTO headwear_items (name, description, image, price, duration_days, is_active)
+                VALUES ($1, $2, $3, $4, $5, true)
+              `, [item.name, item.description, item.image, item.price, item.duration]);
+              console.log(`✅ Added missing headwear item: ${item.name}`);
+            }
+          }
+          
+          // Ensure all items are active
+          await client.query('UPDATE headwear_items SET is_active = true WHERE is_active IS NULL OR is_active = false');
+          console.log('✅ Ensured all headwear items are active');
         }
 
         console.log('✅ Headwear tables initialized successfully');
@@ -479,21 +506,29 @@ const maskSensitiveData = (user) => {
 // Get headwear items for store
 app.get('/api/store/headwear', authenticateToken, async (req, res) => {
   try {
+    console.log('=== FETCHING HEADWEAR ITEMS ===');
+    
     const result = await pool.query(`
-      SELECT id, name, description, image, price, duration_days
+      SELECT id, name, description, image, price, duration_days, is_active
       FROM headwear_items
-      WHERE is_active = true
       ORDER BY price ASC
     `);
 
-    const items = result.rows.map(row => ({
-      id: row.id.toString(),
-      name: row.name,
-      description: row.description,
-      image: row.image,
-      price: row.price,
-      duration: row.duration_days
-    }));
+    console.log('Raw headwear data from database:', result.rows);
+
+    const items = result.rows
+      .filter(row => row.is_active !== false) // Include items where is_active is true or null
+      .map(row => ({
+        id: row.id.toString(),
+        name: row.name,
+        description: row.description,
+        image: row.image,
+        price: row.price,
+        duration: row.duration_days
+      }));
+
+    console.log('Processed headwear items:', items);
+    console.log('Total items returned:', items.length);
 
     res.json({ items });
   } catch (error) {
@@ -2802,6 +2837,26 @@ app.get('/api/rankings/:type', async (req, res) => {
   } catch (error) {
     console.error(`Error fetching ${req.params.type} rankings:`, error);
     res.status(500).json({ error: 'Failed to fetch rankings' });
+  }
+});
+
+// Debug endpoint to check headwear status
+app.get('/api/debug/headwear', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, description, image, price, duration_days, is_active, created_at
+      FROM headwear_items
+      ORDER BY id ASC
+    `);
+
+    res.json({
+      message: 'Headwear items in database',
+      totalItems: result.rows.length,
+      items: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching headwear debug info:', error);
+    res.status(500).json({ error: 'Failed to fetch headwear debug info' });
   }
 });
 
