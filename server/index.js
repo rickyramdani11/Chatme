@@ -544,6 +544,315 @@ app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
   }
 });
 
+// Family Management Endpoints
+
+// Create new family
+app.post('/api/families', authenticateToken, async (req, res) => {
+  try {
+    const { name, description, coverImage, autoJoin, createdBy } = req.body;
+    const userId = req.user.id;
+    const username = req.user.username;
+
+    console.log('=== CREATE FAMILY REQUEST ===');
+    console.log('User ID:', userId);
+    console.log('Username:', username);
+    console.log('Family Name:', name);
+
+    if (!name || !description) {
+      return res.status(400).json({ error: 'Nama keluarga dan pengumuman harus diisi' });
+    }
+
+    // Check if family name already exists
+    const existingFamily = await pool.query(
+      'SELECT id FROM families WHERE LOWER(name) = LOWER($1)',
+      [name.trim()]
+    );
+
+    if (existingFamily.rows.length > 0) {
+      return res.status(400).json({ error: 'Nama keluarga sudah digunakan' });
+    }
+
+    // Create families table if not exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS families (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        description TEXT,
+        cover_image TEXT,
+        auto_join BOOLEAN DEFAULT true,
+        created_by_id INTEGER NOT NULL,
+        created_by_username VARCHAR(50) NOT NULL,
+        members_count INTEGER DEFAULT 1,
+        max_members INTEGER DEFAULT 50,
+        level INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create family_members table if not exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS family_members (
+        id SERIAL PRIMARY KEY,
+        family_id INTEGER REFERENCES families(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL,
+        username VARCHAR(50) NOT NULL,
+        role VARCHAR(20) DEFAULT 'member',
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        UNIQUE(family_id, user_id)
+      )
+    `);
+
+    // Save cover image if provided
+    let coverImagePath = null;
+    if (coverImage) {
+      const imageId = `family_cover_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      
+      // Store in database
+      await pool.query(`
+        INSERT INTO family_assets (family_id, asset_type, asset_data, filename)
+        VALUES (NULL, 'cover_temp', $1, $2)
+      `, [coverImage, `${imageId}.jpg`]);
+
+      coverImagePath = `/api/families/cover/${imageId}`;
+    }
+
+    // Insert family
+    const familyResult = await pool.query(`
+      INSERT INTO families (name, description, cover_image, auto_join, created_by_id, created_by_username)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [name.trim(), description.trim(), coverImagePath, autoJoin, userId, username]);
+
+    const newFamily = familyResult.rows[0];
+
+    // Add creator as admin member
+    await pool.query(`
+      INSERT INTO family_members (family_id, user_id, username, role)
+      VALUES ($1, $2, $3, 'admin')
+    `, [newFamily.id, userId, username]);
+
+    // Update cover image with actual family_id
+    if (coverImage) {
+      await pool.query(`
+        INSERT INTO family_assets (family_id, asset_type, asset_data, filename) 
+        VALUES ($1, 'cover', $2, $3)
+        ON CONFLICT DO NOTHING
+      `, [newFamily.id, coverImage, `family_cover_${newFamily.id}.jpg`]);
+    }
+
+    console.log('Family created successfully:', newFamily.name);
+
+    res.status(201).json({
+      success: true,
+      family: {
+        id: newFamily.id.toString(),
+        name: newFamily.name,
+        description: newFamily.description,
+        coverImage: newFamily.cover_image,
+        autoJoin: newFamily.auto_join,
+        createdBy: newFamily.created_by_username,
+        membersCount: newFamily.members_count,
+        level: newFamily.level,
+        createdAt: newFamily.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating family:', error);
+    res.status(500).json({ error: 'Gagal membuat keluarga' });
+  }
+});
+
+// Get all families
+app.get('/api/families', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        f.*,
+        COUNT(fm.id) as actual_members_count
+      FROM families f
+      LEFT JOIN family_members fm ON f.id = fm.family_id AND fm.is_active = true
+      GROUP BY f.id
+      ORDER BY f.created_at DESC
+    `);
+
+    const families = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      logo: row.cover_image,
+      members: row.actual_members_count || 1,
+      maxMembers: row.max_members || 50,
+      level: row.level || 1,
+      isJoined: false, // Will be updated based on user context
+      type: 'FAMILY',
+      autoJoin: row.auto_join,
+      createdBy: row.created_by_username,
+      createdAt: row.created_at
+    }));
+
+    res.json(families);
+  } catch (error) {
+    console.error('Error fetching families:', error);
+    res.status(500).json({ error: 'Gagal mengambil data keluarga' });
+  }
+});
+
+// Join family
+app.post('/api/families/:familyId/join', authenticateToken, async (req, res) => {
+  try {
+    const { familyId } = req.params;
+    const userId = req.user.id;
+    const username = req.user.username;
+
+    // Check if family exists
+    const familyResult = await pool.query(
+      'SELECT * FROM families WHERE id = $1',
+      [familyId]
+    );
+
+    if (familyResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Keluarga tidak ditemukan' });
+    }
+
+    const family = familyResult.rows[0];
+
+    // Check if user is already a member
+    const existingMember = await pool.query(
+      'SELECT * FROM family_members WHERE family_id = $1 AND user_id = $2 AND is_active = true',
+      [familyId, userId]
+    );
+
+    if (existingMember.rows.length > 0) {
+      return res.status(400).json({ error: 'Anda sudah menjadi anggota keluarga ini' });
+    }
+
+    // Check if family is full
+    const membersCount = await pool.query(
+      'SELECT COUNT(*) FROM family_members WHERE family_id = $1 AND is_active = true',
+      [familyId]
+    );
+
+    if (parseInt(membersCount.rows[0].count) >= family.max_members) {
+      return res.status(400).json({ error: 'Keluarga sudah penuh' });
+    }
+
+    // Add user as member
+    await pool.query(`
+      INSERT INTO family_members (family_id, user_id, username, role)
+      VALUES ($1, $2, $3, 'member')
+      ON CONFLICT (family_id, user_id) 
+      DO UPDATE SET is_active = true, joined_at = CURRENT_TIMESTAMP
+    `, [familyId, userId, username]);
+
+    // Update family members count
+    await pool.query(`
+      UPDATE families 
+      SET members_count = (
+        SELECT COUNT(*) FROM family_members 
+        WHERE family_id = $1 AND is_active = true
+      ),
+      updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [familyId]);
+
+    console.log(`User ${username} joined family ${family.name}`);
+
+    res.json({
+      success: true,
+      message: 'Berhasil bergabung dengan keluarga',
+      family: {
+        id: family.id.toString(),
+        name: family.name
+      }
+    });
+
+  } catch (error) {
+    console.error('Error joining family:', error);
+    res.status(500).json({ error: 'Gagal bergabung dengan keluarga' });
+  }
+});
+
+// Get user's family
+app.get('/api/users/:userId/family', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await pool.query(`
+      SELECT f.*, fm.role, fm.joined_at
+      FROM families f
+      JOIN family_members fm ON f.id = fm.family_id
+      WHERE fm.user_id = $1 AND fm.is_active = true
+      ORDER BY fm.joined_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    if (result.rows.length === 0) {
+      return res.json(null);
+    }
+
+    const family = result.rows[0];
+
+    res.json({
+      id: family.id.toString(),
+      name: family.name,
+      description: family.description,
+      logo: family.cover_image,
+      members: family.members_count || 1,
+      maxMembers: family.max_members || 50,
+      level: family.level || 1,
+      role: family.role,
+      joinedAt: family.joined_at,
+      type: 'FAMILY'
+    });
+
+  } catch (error) {
+    console.error('Error fetching user family:', error);
+    res.status(500).json({ error: 'Gagal mengambil data keluarga pengguna' });
+  }
+});
+
+// Serve family cover images
+app.get('/api/families/cover/:imageId', async (req, res) => {
+  try {
+    const { imageId } = req.params;
+
+    const result = await pool.query(
+      'SELECT asset_data FROM family_assets WHERE filename LIKE $1 AND asset_type = $2',
+      [`%${imageId}%`, 'cover']
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cover image not found' });
+    }
+
+    const imageData = result.rows[0].asset_data;
+    const buffer = Buffer.from(imageData, 'base64');
+
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    res.send(buffer);
+
+  } catch (error) {
+    console.error('Error serving family cover:', error);
+    res.status(500).json({ error: 'Error serving cover image' });
+  }
+});
+
+// Create family_assets table
+pool.query(`
+  CREATE TABLE IF NOT EXISTS family_assets (
+    id SERIAL PRIMARY KEY,
+    family_id INTEGER,
+    asset_type VARCHAR(20) NOT NULL,
+    asset_data TEXT NOT NULL,
+    filename VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.error('Error creating family_assets table:', err));
+
 // Get user's active headwear frame
 app.get('/api/user/active-headwear', authenticateToken, async (req, res) => {
   try {

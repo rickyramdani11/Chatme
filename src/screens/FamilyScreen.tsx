@@ -217,7 +217,7 @@ export default function FamilyScreen({ navigation }: any) {
           <Ionicons name="chevron-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerText}>Keluarga</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('CreateFamily')}>
+        <TouchableOpacity onPress={() => navigation.navigate('CreateFamilyScreen')}>
           <Text style={styles.createButton}>Membuat</Text>
         </TouchableOpacity>
       </View>

@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -52,6 +51,8 @@ export type RootStackParamList = {
     roomId?: string;
     roomName?: string;
   };
+  FamilyScreen: undefined;
+  CreateFamilyScreen: undefined;
 };
 
 export type TabParamList = {
