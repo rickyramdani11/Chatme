@@ -109,6 +109,15 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Admin Panel"
+author = 47646032
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/admin-web.js"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000
