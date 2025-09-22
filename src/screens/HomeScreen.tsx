@@ -1001,10 +1001,10 @@ const HomeScreen = ({ navigation }: any) => {
               style={styles.trophyButton}
               onPress={() => navigation.navigate('TopRank')}
             >
-              <Ionicons name="trophy" size={20} color="#FF9800" />
+              <Ionicons name="trophy" size={16} color="#FF9800" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.refreshButton} onPress={fetchFriends}>
-              <Ionicons name="refresh" size={20} color="#9C27B0" />
+              <Ionicons name="refresh" size={16} color="#9C27B0" />
               <Text style={styles.refreshText}>Refresh</Text>
             </TouchableOpacity>
           </View>
@@ -1340,26 +1340,26 @@ const styles = StyleSheet.create({
   },
   trophyButton: {
     backgroundColor: '#FFF3E0',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 2,
+    padding: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: '#FF9800',
-    marginRight: 10,
+    marginRight: 8,
   },
   refreshButton: {
     backgroundColor: '#F3E5F5',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
     borderColor: '#9C27B0',
     flexDirection: 'row',
     alignItems: 'center',
   },
   refreshText: {
     color: '#9C27B0',
-    marginLeft: 5,
-    fontSize: 14,
+    marginLeft: 4,
+    fontSize: 12,
     fontWeight: '500',
   },
   searchContainer: {
