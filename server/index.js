@@ -862,6 +862,39 @@ app.get('/api/users/:userId/family', async (req, res) => {
   }
 });
 
+// Get user's family badge info (for ProfileScreen)
+app.get('/api/users/:userId/family-badge', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await pool.query(`
+      SELECT f.name as family_name, f.level as family_level, fm.family_role, fm.joined_at
+      FROM families f
+      JOIN family_members fm ON f.id = fm.family_id
+      WHERE fm.user_id = $1 AND fm.is_active = true
+      ORDER BY fm.joined_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    if (result.rows.length === 0) {
+      return res.json(null);
+    }
+
+    const familyBadge = result.rows[0];
+
+    res.json({
+      familyName: familyBadge.family_name,
+      familyLevel: familyBadge.family_level || 1,
+      familyRole: familyBadge.family_role,
+      joinedAt: familyBadge.joined_at
+    });
+
+  } catch (error) {
+    console.error('Error fetching user family badge:', error);
+    res.status(500).json({ error: 'Failed to fetch family badge' });
+  }
+});
+
 // Serve family cover images
 app.get('/api/families/cover/:imageId', async (req, res) => {
   try {

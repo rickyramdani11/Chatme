@@ -60,12 +60,20 @@ interface Gift {
   color: string;
 }
 
+interface FamilyBadge {
+  familyName: string;
+  familyLevel: number;
+  familyRole: string;
+  joinedAt: string;
+}
+
 export default function ProfileScreen({ navigation, route }: any) {
   const { user, token } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhoto[]>([]);
+  const [familyBadge, setFamilyBadge] = useState<FamilyBadge | null>(null);
 
   // State for busy status
   const [isBusy, setIsBusy] = useState(false);
@@ -97,6 +105,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   useEffect(() => {
     fetchUserProfile();
     fetchAlbumPhotos();
+    fetchFamilyBadge();
   }, [userId]);
 
   const fetchUserProfile = async () => {
@@ -226,6 +235,27 @@ export default function ProfileScreen({ navigation, route }: any) {
       }
     } catch (error) {
       console.error('Error fetching album:', error);
+    }
+  };
+
+  const fetchFamilyBadge = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/family-badge`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const badge = await response.json();
+        setFamilyBadge(badge);
+      } else {
+        setFamilyBadge(null);
+      }
+    } catch (error) {
+      console.error('Error fetching family badge:', error);
+      setFamilyBadge(null);
     }
   };
 
@@ -540,6 +570,23 @@ export default function ProfileScreen({ navigation, route }: any) {
             {/* Bio */}
             {profile.bio && (
               <Text style={styles.bio}>{profile.bio}</Text>
+            )}
+
+            {/* Family Badge */}
+            {familyBadge && (
+              <View style={styles.familyBadge}>
+                <View style={styles.familyBadgeContent}>
+                  <View style={styles.familyIcon}>
+                    <Ionicons name="people" size={16} color="#fff" />
+                  </View>
+                  <View style={styles.familyBadgeText}>
+                    <Text style={styles.familyName}>{familyBadge.familyName}</Text>
+                    <Text style={styles.familyDetails}>
+                      Level {familyBadge.familyLevel} • {familyBadge.familyRole === 'admin' ? 'Admin' : familyBadge.familyRole === 'moderator' ? 'Moderator' : 'Member'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
             )}
           </View>
 
@@ -896,6 +943,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  familyBadge: {
+    marginTop: 15,
+    alignSelf: 'center',
+  },
+  familyBadgeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  familyIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  familyBadgeText: {
+    flex: 1,
+  },
+  familyName: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  familyDetails: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 11,
+    marginTop: 1,
   },
   actionButtons: {
     flexDirection: 'row',
