@@ -55,6 +55,7 @@ const HomeScreen = ({ navigation }: any) => {
   const [banners, setBanners] = useState([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const { token } = useAuth();
+  const [socket, setSocket] = useState(null);
 
 
   // Fetch friends from server
@@ -224,6 +225,50 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  // Socket connection effect
+  useEffect(() => {
+    if (token && user) {
+      const io = require('socket.io-client');
+      const socketInstance = io('http://0.0.0.0:8000', {
+        auth: { token },
+        transports: ['websocket', 'polling']
+      });
+
+      socketInstance.on('connect', () => {
+        console.log('Connected to socket for notifications');
+        setSocket(socketInstance);
+      });
+
+      // Listen for coin received notifications
+      socketInstance.on('coin-received', (data) => {
+        console.log('Coin received via socket:', data);
+        
+        Alert.alert(
+          '🪙 Coins Received!',
+          `You received ${data.amount.toLocaleString()} coins from ${data.from}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                fetchUserBalance();
+                fetchNotifications();
+              }
+            }
+          ]
+        );
+      });
+
+      socketInstance.on('disconnect', () => {
+        console.log('Disconnected from socket');
+        setSocket(null);
+      });
+
+      return () => {
+        socketInstance.disconnect();
+      };
+    }
+  }, [token, user]);
+
   // Load friends and rooms on component mount
   useEffect(() => {
     fetchRooms();
@@ -236,6 +281,7 @@ const HomeScreen = ({ navigation }: any) => {
     // Set up notification polling for real-time updates
     const notificationInterval = setInterval(() => {
       fetchNotifications();
+      fetchUserBalance(); // Also refresh balance to show updated coins
     }, 30000); // Poll every 30 seconds
 
     return () => {
@@ -267,7 +313,22 @@ const HomeScreen = ({ navigation }: any) => {
 
       if (response.ok) {
         const data = await response.json();
-        setNotifications(data.notifications || []);
+        const newNotifications = data.notifications || [];
+        
+        // Check for new coin notifications
+        if (notifications.length > 0 && newNotifications.length > notifications.length) {
+          const latestNotification = newNotifications[0];
+          if (latestNotification.type === 'credit_received') {
+            // Show alert for new coin notification
+            Alert.alert(
+              '🪙 Coins Received!', 
+              latestNotification.message,
+              [{ text: 'OK', onPress: () => fetchUserBalance() }]
+            );
+          }
+        }
+        
+        setNotifications(newNotifications);
         setUnreadNotifications(data.unreadCount || 0);
       }
     } catch (error) {

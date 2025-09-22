@@ -8,6 +8,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const fs = require('fs');
+const fetch = require('node-fetch'); // Import node-fetch
 
 // Import LowCard bot using CommonJS require
 let lowCardBot = null;
@@ -3913,6 +3914,10 @@ app.post('/api/users/:userId/avatar', async (req, res) => {
       } else {
         return res.status(400).json({ error: 'Invalid base64 data format' });
       }
+    } else if (avatar.match(/^[A-Za-z0-9+/]+={0,2}$/)) {
+      cleanBase64 = avatar;
+    } else {
+      return res.status(400).json({ error: 'Invalid base64 data format' });
     }
 
     // Test if base64 is valid
@@ -5257,9 +5262,9 @@ app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
 
       // Record transaction
       await client.query(`
-        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
-        VALUES ($1, $2, $3, 'call')
-      `, [userId, recipientId, amount]);
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+        VALUES ($1, $2, $3, 'call', $4)
+      `, [userId, recipientId, amount, description || 'Credit transfer']);
 
       await client.query('COMMIT');
 

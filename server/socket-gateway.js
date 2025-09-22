@@ -1577,6 +1577,17 @@ io.on('connection', (socket) => {
     if (targetSocket) {
       const [targetSocketId] = targetSocket;
       io.to(targetSocketId).emit('new-notification', notification);
+      
+      // Special handling for coin notifications - show immediate alert
+      if (notification.type === 'credit_received') {
+        io.to(targetSocketId).emit('coin-received', {
+          amount: notification.data?.amount || 0,
+          from: notification.data?.from || 'Unknown',
+          message: notification.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       console.log(`Notification sent to ${targetUsername || targetUserId}`);
     } else {
       console.log(`Target user ${targetUsername || targetUserId} not found for notification`);
