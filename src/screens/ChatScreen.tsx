@@ -4536,11 +4536,11 @@ export default function ChatScreen() {
                         <Text style={[
                           styles.participantRole,
                           { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
-                        ]>{
-                          (() => {
-                            const currentRoom = chatTabs[activeTab];
-                            const isOwner = currentRoom && currentRoom.managedBy === participant.username;
-                            const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
+                        ]}>
+                        {(() => {
+                          const currentRoom = chatTabs[activeTab];
+                          const isOwner = currentRoom && currentRoom.managedBy === participant.username;
+                          const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
 
                             if (isOwner) return '👤 Owner';
                             if (isModerator) return '🛡️ Moderator';
