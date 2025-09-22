@@ -98,12 +98,45 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Test database connection
-pool.connect((err, client, release) => {
+// Test database connection and load initial data
+pool.connect(async (err, client, release) => {
   if (err) {
     console.error('Error connecting to database:', err);
   } else {
     console.log('Successfully connected to PostgreSQL database');
+    
+    // Load existing rooms from database
+    try {
+      const result = await client.query(`
+        SELECT id, name, description, managed_by, type, members, max_members, created_by, created_at
+        FROM rooms 
+        ORDER BY created_at ASC
+      `);
+      
+      rooms = result.rows.map(row => ({
+        id: row.id.toString(),
+        name: row.name,
+        description: row.description,
+        managedBy: row.managed_by,
+        type: row.type,
+        members: row.members || 0,
+        maxMembers: row.max_members || 25,
+        createdBy: row.created_by,
+        createdAt: row.created_at
+      }));
+      
+      console.log(`Loaded ${rooms.length} rooms from database`);
+      
+      // Initialize room participants for each room
+      rooms.forEach(room => {
+        roomParticipants[room.id] = [];
+      });
+      
+    } catch (loadError) {
+      console.error('Error loading rooms from database:', loadError);
+      rooms = []; // Initialize empty array on error
+    }
+    
     release();
   }
 });
@@ -216,6 +249,10 @@ const authenticateToken = (req, res, next) => {
 
 // In-memory database for non-critical data (posts will be moved to DB later)
 let posts = [];
+
+// Initialize rooms array and room participants
+let rooms = [];
+let roomParticipants = {};
 
 // Function to generate room description
 const generateRoomDescription = (roomName, creatorUsername) => {
