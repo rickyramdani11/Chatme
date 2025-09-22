@@ -884,7 +884,7 @@ const styles = StyleSheet.create({
     height: 84,
     borderRadius: 42,
     zIndex: 2,
-    resizeMode: 'contain',
+    resizeMode: 'cover',
   },
   avatarInner: {
     width: 74,
