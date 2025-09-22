@@ -146,6 +146,54 @@ pool.connect(async (err, client, release) => {
     } catch (tableError) {
       console.error('Error creating headwear tables:', tableError);
     }
+
+    // Create families tables if they don't exist
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS families (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL UNIQUE,
+          description TEXT,
+          cover_image TEXT,
+          auto_join BOOLEAN DEFAULT true,
+          created_by_id INTEGER NOT NULL,
+          created_by_username VARCHAR(50) NOT NULL,
+          members_count INTEGER DEFAULT 1,
+          max_members INTEGER DEFAULT 50,
+          level INTEGER DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS family_members (
+          id SERIAL PRIMARY KEY,
+          family_id INTEGER REFERENCES families(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL,
+          username VARCHAR(50) NOT NULL,
+          family_role VARCHAR(20) DEFAULT 'member',
+          joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          is_active BOOLEAN DEFAULT true,
+          UNIQUE(family_id, user_id)
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS family_assets (
+          id SERIAL PRIMARY KEY,
+          family_id INTEGER,
+          asset_type VARCHAR(20) NOT NULL,
+          asset_data TEXT NOT NULL,
+          filename VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      console.log('✅ Families tables initialized successfully');
+    } catch (tableError) {
+      console.error('Error creating families tables:', tableError);
+    }
     
     // Load existing rooms from database
     try {
