@@ -3978,7 +3978,156 @@ app.post('/api/feed/upload', (req, res) => {
       });
     }
 
-// Privacy Settings API Endpoints
+// Privacy Settings API Endpoints (both /api and non-/api routes for compatibility)
+app.get('/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('GET /users/:userId/privacy-settings - User:', req.user.username, 'Role:', req.user.role, 'Requested userId:', userId);
+
+    // Check if user exists and has permission
+    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM privacy_settings WHERE user_id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      // Create default privacy settings if none exist
+      const defaultSettings = {
+        user_id: userId,
+        profile_visibility: 'public',
+        privacy_notifications: true,
+        location_sharing: true,
+        biometric_auth: false,
+        two_factor_auth: true,
+        active_sessions: true,
+        data_download: true
+      };
+
+      const insertResult = await pool.query(
+        `INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [userId, defaultSettings.profile_visibility, defaultSettings.privacy_notifications, 
+         defaultSettings.location_sharing, defaultSettings.biometric_auth, 
+         defaultSettings.two_factor_auth, defaultSettings.active_sessions, defaultSettings.data_download]
+      );
+
+      res.json(insertResult.rows[0]);
+    } else {
+      res.json(result.rows[0]);
+    }
+  } catch (error) {
+    console.error('Error fetching privacy settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put('/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log('PUT /users/:userId/privacy-settings - User:', req.user.username, 'Role:', req.user.role, 'Requested userId:', userId, 'Body:', req.body);
+
+    // Check if user has permission
+    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+      console.log('Access denied for user:', req.user.id, 'requesting userId:', userId);
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const allowedFields = [
+      'profile_visibility', 'privacy_notifications', 'location_sharing',
+      'biometric_auth', 'two_factor_auth', 'active_sessions', 'data_download'
+    ];
+
+    const updates = {};
+    const values = [userId];
+    let paramCount = 2;
+
+    for (const [key, value] of Object.entries(req.body)) {
+      if (allowedFields.includes(key)) {
+        updates[key] = `$${paramCount}`;
+        values.push(value);
+        paramCount++;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      console.log('No valid fields to update');
+      return res.status(400).json({ success: false, error: 'No valid fields to update' });
+    }
+
+    const setClause = Object.entries(updates)
+      .map(([key, placeholder]) => `${key} = ${placeholder}`)
+      .join(', ');
+
+    // First try to update existing record
+    let result = await pool.query(`
+      UPDATE privacy_settings 
+      SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
+      WHERE user_id = $1 
+      RETURNING *
+    `, values);
+
+    // If no existing record, create one with default values
+    if (result.rows.length === 0) {
+      console.log('No existing privacy settings, creating new record for user:', userId);
+      
+      const defaultSettings = {
+        profile_visibility: 'public',
+        privacy_notifications: true,
+        location_sharing: true,
+        biometric_auth: false,
+        two_factor_auth: true,
+        active_sessions: true,
+        data_download: true
+      };
+
+      // Apply the updates to default settings
+      for (const [key, value] of Object.entries(req.body)) {
+        if (allowedFields.includes(key)) {
+          defaultSettings[key] = value;
+        }
+      }
+
+      result = await pool.query(`
+        INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+        RETURNING *
+      `, [
+        userId,
+        defaultSettings.profile_visibility,
+        defaultSettings.privacy_notifications,
+        defaultSettings.location_sharing,
+        defaultSettings.biometric_auth,
+        defaultSettings.two_factor_auth,
+        defaultSettings.active_sessions,
+        defaultSettings.data_download
+      ]);
+    }
+
+    const updatedSettings = result.rows[0];
+    console.log('Privacy settings updated successfully:', updatedSettings);
+
+    // Send consistent response format
+    res.status(200).json({
+      success: true,
+      message: 'Privacy settings updated successfully',
+      data: updatedSettings
+    });
+  } catch (error) {
+    console.error('Error updating privacy settings:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      details: error.message 
+    });
+  }
+});
+
 app.get('/api/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -4064,19 +4213,49 @@ app.put('/api/users/:userId/privacy-settings', authenticateToken, async (req, re
       .map(([key, placeholder]) => `${key} = ${placeholder}`)
       .join(', ');
 
-    const query = `
+    // First try to update existing record
+    let result = await pool.query(`
       UPDATE privacy_settings 
       SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
       WHERE user_id = $1 
       RETURNING *
-    `;
+    `, values);
 
-    console.log('Executing privacy settings update query:', query, 'with values:', values);
-    const result = await pool.query(query, values);
-
+    // If no existing record, create one with default values
     if (result.rows.length === 0) {
-      console.log('Privacy settings not found for user:', userId);
-      return res.status(404).json({ success: false, error: 'Privacy settings not found' });
+      console.log('No existing privacy settings, creating new record for user:', userId);
+      
+      const defaultSettings = {
+        profile_visibility: 'public',
+        privacy_notifications: true,
+        location_sharing: true,
+        biometric_auth: false,
+        two_factor_auth: true,
+        active_sessions: true,
+        data_download: true
+      };
+
+      // Apply the updates to default settings
+      for (const [key, value] of Object.entries(req.body)) {
+        if (allowedFields.includes(key)) {
+          defaultSettings[key] = value;
+        }
+      }
+
+      result = await pool.query(`
+        INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+        RETURNING *
+      `, [
+        userId,
+        defaultSettings.profile_visibility,
+        defaultSettings.privacy_notifications,
+        defaultSettings.location_sharing,
+        defaultSettings.biometric_auth,
+        defaultSettings.two_factor_auth,
+        defaultSettings.active_sessions,
+        defaultSettings.data_download
+      ]);
     }
 
     const updatedSettings = result.rows[0];
