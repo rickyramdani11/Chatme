@@ -5276,7 +5276,7 @@ app.post('/api/xendit/callback', express.raw({ type: 'application/json' }), asyn
         // Failed - mark as failed and refund user
         updateQuery = `
           UPDATE withdrawal_requests 
-          SET status = 'failed', failure_reason = $1, processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          SET status = 'failed', failure_reason = $1, processed_at = CURRENT_TIMESTAMP, updated_at =CURRENT_TIMESTAMP
           WHERE id = $2
         `;
         updateParams = [failureReason || `Payment ${status.toLowerCase()}`, withdrawalId];
