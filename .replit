@@ -159,3 +159,6 @@ run = ["sh", "-c", "cd server && npm start"]
 
 [agent]
 expertMode = true
+
+[objectStorage]
+defaultBucketID = "replit-objstore-2de7e2dd-f60c-4456-b348-7940f40a9ffe"
