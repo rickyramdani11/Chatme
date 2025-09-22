@@ -607,11 +607,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 10,
     overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#ffffff',
   },
   avatarImage: {
-    width: 60,
-    height: 60,
+    width: '100%',
+    height: '100%',
     borderRadius: 30,
+    resizeMode: 'cover',
   },
   avatarText: {
     color: '#fff',

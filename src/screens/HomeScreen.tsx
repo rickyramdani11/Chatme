@@ -242,7 +242,7 @@ const HomeScreen = ({ navigation }: any) => {
       // Listen for coin received notifications
       socketInstance.on('coin-received', (data) => {
         console.log('Coin received via socket:', data);
-        
+
         Alert.alert(
           '🪙 Coins Received!',
           `You received ${data.amount.toLocaleString()} coins from ${data.from}`,
@@ -293,7 +293,7 @@ const HomeScreen = ({ navigation }: any) => {
   useEffect(() => {
     if (banners.length > 1) {
       const bannerInterval = setInterval(() => {
-        setCurrentBannerIndex((prevIndex) => 
+        setCurrentBannerIndex((prevIndex) =>
           prevIndex === banners.length - 1 ? 0 : prevIndex + 1
         );
       }, 4000); // Change banner every 4 seconds
@@ -314,20 +314,20 @@ const HomeScreen = ({ navigation }: any) => {
       if (response.ok) {
         const data = await response.json();
         const newNotifications = data.notifications || [];
-        
+
         // Check for new coin notifications
         if (notifications.length > 0 && newNotifications.length > notifications.length) {
           const latestNotification = newNotifications[0];
           if (latestNotification.type === 'credit_received') {
             // Show alert for new coin notification
             Alert.alert(
-              '🪙 Coins Received!', 
+              '🪙 Coins Received!',
               latestNotification.message,
               [{ text: 'OK', onPress: () => fetchUserBalance() }]
             );
           }
         }
-        
+
         setNotifications(newNotifications);
         setUnreadNotifications(data.unreadCount || 0);
       }
@@ -495,12 +495,12 @@ const HomeScreen = ({ navigation }: any) => {
 
     // Convert to string if it's not already
     const lastSeenStr = String(lastSeen);
-    
+
     // Check if it's a very long number (timestamp) - limit to reasonable timestamp lengths
     if (/^\d{10,13}$/.test(lastSeenStr)) {
       const timestamp = parseInt(lastSeenStr);
       let lastSeenDate;
-      
+
       // If it's 13 digits, it's milliseconds
       if (lastSeenStr.length === 13) {
         lastSeenDate = new Date(timestamp);
@@ -540,7 +540,7 @@ const HomeScreen = ({ navigation }: any) => {
     const numericValue = parseFloat(lastSeenStr);
     if (!isNaN(numericValue) && numericValue >= 0 && numericValue < 100000 && lastSeenStr.length < 8) {
       const minutes = Math.round(numericValue);
-      
+
       if (minutes < 1) return 'Active now';
       if (minutes < 60) return `${minutes} min ago`;
       if (minutes < 1440) {
@@ -689,9 +689,9 @@ const HomeScreen = ({ navigation }: any) => {
   const handleViewProfile = () => {
     if (selectedFriend) {
       setShowFriendMenu(false);
-      navigation.navigate('Profile' as never, { 
+      navigation.navigate('Profile' as never, {
         userId: selectedFriend.id,
-        username: selectedFriend.name 
+        username: selectedFriend.name
       } as never);
     }
   };
@@ -795,11 +795,11 @@ const HomeScreen = ({ navigation }: any) => {
     // Determine avatar display logic
     let avatarDisplay;
     const avatarUri = friend.avatar;
-    
+
     // Check if avatar is a valid URL or server path
     const isValidAvatar = avatarUri && (
-      avatarUri.startsWith('http') || 
-      avatarUri.startsWith('https') || 
+      avatarUri.startsWith('http') ||
+      avatarUri.startsWith('https') ||
       avatarUri.startsWith('/api/users/avatar/') ||
       avatarUri.startsWith(`${API_BASE_URL}/api/users/avatar/`)
     );
@@ -810,10 +810,10 @@ const HomeScreen = ({ navigation }: any) => {
       if (avatarUri.startsWith('/api/users/avatar/')) {
         fullAvatarUrl = `${API_BASE_URL}${avatarUri}`;
       }
-      
+
       avatarDisplay = (
-        <Image 
-          source={{ uri: fullAvatarUrl }} 
+        <Image
+          source={{ uri: fullAvatarUrl }}
           style={styles.friendAvatar}
           onError={(error) => {
             console.log('Failed to load avatar:', fullAvatarUrl, error.nativeEvent?.error);
@@ -833,7 +833,7 @@ const HomeScreen = ({ navigation }: any) => {
 
     return (
       <View key={friend.id} style={styles.friendCard}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.friendInfo}
           onPress={() => handleFriendPress(friend)}
           activeOpacity={0.7}
@@ -901,8 +901,8 @@ const HomeScreen = ({ navigation }: any) => {
           </View>
           <View style={styles.userDetails}>
             <View style={styles.topRow}>
-              <TouchableOpacity 
-                style={styles.notificationButton} 
+              <TouchableOpacity
+                style={styles.notificationButton}
                 onPress={() => navigation.navigate('Notifications')}
               >
                 <Ionicons name="notifications" size={18} color="#fff" />
@@ -916,7 +916,7 @@ const HomeScreen = ({ navigation }: any) => {
               </TouchableOpacity>
               <Text style={styles.username}>{user?.username || 'developer'}</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.bottomRow}
               onPress={toggleStatus}
               activeOpacity={0.7}
@@ -936,7 +936,7 @@ const HomeScreen = ({ navigation }: any) => {
                 <Ionicons name="people" size={14} color="#4CAF50" />
                 <Text style={styles.activeUsersText}>{activeUsers}</Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.messageHistoryButtonSmall}
                 onPress={() => {
                   fetchChatHistory();
@@ -961,7 +961,7 @@ const HomeScreen = ({ navigation }: any) => {
             onPress={() => handleBannerClick(banners[currentBannerIndex])}
             activeOpacity={0.8}
           >
-            <Image 
+            <Image
               source={{ uri: `${API_BASE_URL}${banners[currentBannerIndex].imageUrl}` }}
               style={styles.bannerImage}
               resizeMode="cover"
@@ -975,7 +975,7 @@ const HomeScreen = ({ navigation }: any) => {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
-          
+
           {banners.length > 1 && (
             <View style={styles.bannerIndicators}>
               {banners.map((_, index) => (
@@ -997,7 +997,7 @@ const HomeScreen = ({ navigation }: any) => {
         <View style={styles.friendsHeader}>
           <Text style={styles.friendsTitle}>Friends</Text>
           <View style={styles.friendsControls}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.trophyButton}
               onPress={() => navigation.navigate('TopRank')}
             >
@@ -1135,7 +1135,7 @@ const HomeScreen = ({ navigation }: any) => {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.chatHistoryList}>
               {chatHistory.length === 0 ? (
                 <View style={styles.emptyChatHistory}>
@@ -1424,6 +1424,9 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ffffff',
   },
   friendAvatarText: {
     color: '#fff',
@@ -1546,7 +1549,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  
+
   // Friend Context Menu Styles
   modalOverlay: {
     flex: 1,
@@ -1608,7 +1611,7 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     color: '#333',
   },
-  
+
   // Message History Modal Styles
   messageHistoryModal: {
     backgroundColor: '#fff',
@@ -1734,7 +1737,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     marginLeft: 4,
   },
-  
+
   // Banner Styles
   bannerSection: {
     marginHorizontal: 20,

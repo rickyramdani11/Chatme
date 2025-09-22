@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -86,15 +85,15 @@ export default function FriendsList({
 
   const formatLastSeen = (lastSeen?: string) => {
     if (!lastSeen) return 'Active now';
-    
+
     if (lastSeen.includes('ago') || lastSeen.includes('Active') || lastSeen.includes('Recently')) {
       return lastSeen;
     }
-    
+
     const numericValue = parseFloat(lastSeen);
     if (!isNaN(numericValue)) {
       let minutes = numericValue;
-      
+
       if (numericValue > 1000000000000) {
         const lastSeenDate = new Date(numericValue);
         const now = new Date();
@@ -108,7 +107,7 @@ export default function FriendsList({
       } else {
         minutes = Math.round(numericValue);
       }
-      
+
       if (minutes < 1) return 'Active now';
       if (minutes < 60) return `${minutes} min ago`;
       if (minutes < 1440) {
@@ -118,12 +117,12 @@ export default function FriendsList({
       const days = Math.floor(minutes / 1440);
       return `${days}d ago`;
     }
-    
+
     const lastSeenDate = new Date(lastSeen);
     if (isNaN(lastSeenDate.getTime())) {
       return 'Recently';
     }
-    
+
     const now = new Date();
     const diffMs = now.getTime() - lastSeenDate.getTime();
     const diffMinutes = Math.floor(diffMs / 1000 / 60);
@@ -163,7 +162,7 @@ export default function FriendsList({
                   friend.avatar && friend.avatar.startsWith('http') ? friend.avatar : null,
           role: friend.role || 'user'
         }));
-        
+
         setFriends(transformedFriends);
       } else {
         console.error('Failed to fetch friends:', response.status);
@@ -370,7 +369,7 @@ export default function FriendsList({
   const renderFriend = (friend: Friend) => {
     let avatarDisplay;
     const avatarUri = friend.avatar;
-    
+
     const isValidAvatar = avatarUri && (
       avatarUri.startsWith('http') || 
       avatarUri.startsWith('https') || 
@@ -383,7 +382,7 @@ export default function FriendsList({
       if (avatarUri.startsWith('/api/users/avatar/')) {
         fullAvatarUrl = `${API_BASE_URL}${avatarUri}`;
       }
-      
+
       avatarDisplay = (
         <Image 
           source={{ uri: fullAvatarUrl }} 
@@ -419,7 +418,7 @@ export default function FriendsList({
             <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
           </View>
         </TouchableOpacity>
-        
+
         <View style={styles.actionButtons}>
           {searchText.length >= 2 && showAddButton ? (
             <>
@@ -640,6 +639,9 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#ffffff',
   },
   friendAvatarText: {
     color: '#fff',
