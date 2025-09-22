@@ -69,6 +69,7 @@ export default function StoreScreen({ navigation }: any) {
 
   const fetchHeadwearItems = async () => {
     try {
+      console.log('Fetching headwear items from:', `${API_BASE_URL}/api/store/headwear`);
       const response = await fetch(`${API_BASE_URL}/api/store/headwear`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -76,9 +77,16 @@ export default function StoreScreen({ navigation }: any) {
         },
       });
 
+      console.log('Headwear response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Headwear data received:', data);
         setHeadwearItems(data.items || []);
+        console.log('Total headwear items loaded:', (data.items || []).length);
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to fetch headwear:', response.status, errorText);
       }
     } catch (error) {
       console.error('Error fetching headwear items:', error);

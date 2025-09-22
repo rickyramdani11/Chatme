@@ -524,14 +524,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           {/* Avatar with decorative frame */}
           <View style={styles.avatarContainer}>
             <View style={styles.avatarFrame}>
-              {/* Avatar Frame Background */}
-              {profile.avatarFrame && (
-                <Image 
-                  source={{ uri: `${API_BASE_URL}${profile.avatarFrame}` }} 
-                  style={styles.avatarFrameImage}
-                />
-              )}
-              
+              {/* Avatar (base layer) */}
               <View style={styles.avatarInner}>
                 {profile.avatar ? (
                   <Image 
@@ -551,6 +544,15 @@ export default function ProfileScreen({ navigation, route }: any) {
                   </View>
                 )}
               </View>
+
+              {/* Avatar Frame Overlay (transparent PNG) */}
+              {profile.avatarFrame && (
+                <Image 
+                  source={{ uri: `${API_BASE_URL}${profile.avatarFrame}` }} 
+                  style={styles.avatarFrameImage}
+                  resizeMode="contain"
+                />
+              )}
             </View>
           </View>
 
@@ -863,28 +865,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: -50,
     marginBottom: 20,
+    backgroundColor: 'transparent',
   },
   avatarFrame: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
-    borderWidth: 0,
-    borderColor: '#FF69B4',
-    backgroundColor: 'transparent',
+    width: 84,
+    height: 84,
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 0,
+    backgroundColor: 'transparent',
   },
   avatarFrameImage: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 74,
-    height: 74,
-    borderRadius: 37,
+    width: 84,
+    height: 84,
     zIndex: 2,
-    resizeMode: 'cover',
+    backgroundColor: 'transparent',
   },
   avatarInner: {
     width: 74,
@@ -893,8 +891,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     zIndex: 1,
     position: 'absolute',
-    top: 0,
-    left: 0,
+    top: 5,
+    left: 5,
+    backgroundColor: 'transparent',
   },
   avatar: {
     width: 74,
