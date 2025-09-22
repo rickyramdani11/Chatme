@@ -75,11 +75,11 @@ export default function FriendsList({
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'admin': return '#FF6B35';
-      case 'mentor': return '#9C27B0';
-      case 'merchant': return '#FF9800';
+      case 'admin': return '#FF6B35'; // Orange untuk admin
+      case 'mentor': return '#9C27B0'; // Purple untuk mentor  
+      case 'merchant': return '#FF9800'; // Amber untuk merchant
       case 'user':
-      default: return '#333';
+      default: return '#333'; // Dark untuk user biasa
     }
   };
 
