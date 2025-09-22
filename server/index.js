@@ -4048,10 +4048,6 @@ app.post('/api/feed/posts/with-media', async (req, res) => {
   }
 });
 
-// Socket Gateway Configuration
-const SOCKET_GATEWAY_URL = process.env.SOCKET_GATEWAY_URL || 'http://0.0.0.0:5001';
-
-
 // Deduct coins for calls with recipient share (70% balance + 30% withdraw)
 app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
   const client = await pool.connect();
