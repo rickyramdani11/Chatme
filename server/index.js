@@ -385,16 +385,17 @@ const addUserEXP = async (userId, expAmount, activityType) => {
     const currentExp = currentUser.exp || 0;
     const currentLevel = currentUser.level || 1;
 
-    // Define EXP thresholds for leveling up (example)
+    // Define EXP thresholds for leveling up
     const expPerLevel = 1000; // 1000 EXP to reach next level
 
     const newExp = currentExp + expAmount;
     let newLevel = currentLevel;
     let leveledUp = false;
 
-    // Calculate new level
-    if (newExp >= currentLevel * expPerLevel) {
-      newLevel = Math.floor(newExp / expPerLevel) || 1;
+    // Calculate new level based on total EXP
+    const calculatedLevel = Math.floor(newExp / expPerLevel) + 1;
+    if (calculatedLevel > currentLevel) {
+      newLevel = calculatedLevel;
       leveledUp = true;
     }
 
@@ -406,13 +407,47 @@ const addUserEXP = async (userId, expAmount, activityType) => {
 
     console.log(`User ${userId} gained ${expAmount} EXP from ${activityType}. New EXP: ${newExp}, New Level: ${newLevel}`);
 
-    // Optionally, record EXP gain in a separate table for history
+    // Create exp history table if not exists
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_exp_history (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          activity_type VARCHAR(50) NOT NULL,
+          exp_gained INTEGER NOT NULL,
+          new_exp INTEGER NOT NULL,
+          new_level INTEGER NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (tableError) {
+      console.log('Exp history table already exists or creation failed:', tableError.message);
+    }
+
+    // Record EXP gain in history table
     await pool.query(`
       INSERT INTO user_exp_history (user_id, activity_type, exp_gained, new_exp, new_level)
       VALUES ($1, $2, $3, $4, $5)
     `, [userId, activityType, expAmount, newExp, newLevel]);
 
-    return { success: true, userId, expAmount, newExp, newLevel, leveledUp };
+    // Give level up rewards if user leveled up
+    if (leveledUp) {
+      const levelUpReward = newLevel * 100; // 100 coins per level
+      try {
+        await pool.query(`
+          INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)
+          ON CONFLICT (user_id) DO UPDATE SET 
+            balance = user_credits.balance + EXCLUDED.balance,
+            updated_at = CURRENT_TIMESTAMP
+        `, [userId, levelUpReward]);
+        
+        console.log(`Level up reward: ${levelUpReward} coins given to user ${userId} for reaching level ${newLevel}`);
+      } catch (rewardError) {
+        console.error('Error giving level up reward:', rewardError);
+      }
+    }
+
+    return { success: true, userId, expAmount, newExp, newLevel, leveledUp, levelUpReward: leveledUp ? newLevel * 100 : 0 };
 
   } catch (error) {
     console.error(`Error adding EXP for user ${userId}:`, error);
@@ -2450,6 +2485,76 @@ app.delete('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
   }
 });
 
+// Rankings endpoint for TopRankScreen
+app.get('/api/rankings/:type', async (req, res) => {
+  try {
+    const { type } = req.params;
+    console.log(`Fetching ${type} rankings...`);
+
+    let query, orderBy;
+
+    switch (type) {
+      case 'games':
+        // Ranking based on level and exp
+        query = `
+          SELECT u.id, u.username, u.avatar, u.level, u.verified, u.exp as score
+          FROM users u 
+          WHERE u.level > 1 OR u.exp > 0
+        `;
+        orderBy = 'ORDER BY u.level DESC, u.exp DESC LIMIT 100';
+        break;
+
+      case 'wealth':
+        // Ranking based on credits balance
+        query = `
+          SELECT u.id, u.username, u.avatar, u.level, u.verified, uc.balance as credits
+          FROM users u 
+          LEFT JOIN user_credits uc ON u.id = uc.user_id
+          WHERE uc.balance > 0
+        `;
+        orderBy = 'ORDER BY uc.balance DESC LIMIT 100';
+        break;
+
+      case 'gifts':
+        // Ranking based on total gifts received
+        query = `
+          SELECT u.id, u.username, u.avatar, u.level, u.verified, 
+                 COALESCE(SUM(ge.gift_price), 0) as total_gifts
+          FROM users u 
+          LEFT JOIN gift_earnings ge ON u.id = ge.user_id
+          GROUP BY u.id, u.username, u.avatar, u.level, u.verified
+          HAVING COALESCE(SUM(ge.gift_price), 0) > 0
+        `;
+        orderBy = 'ORDER BY total_gifts DESC LIMIT 100';
+        break;
+
+      default:
+        return res.status(400).json({ error: 'Invalid ranking type' });
+    }
+
+    const result = await pool.query(`${query} ${orderBy}`);
+
+    const rankings = result.rows.map((user, index) => ({
+      rank: index + 1,
+      id: user.id.toString(),
+      username: user.username,
+      avatar: user.avatar,
+      level: user.level || 1,
+      verified: user.verified || false,
+      score: user.score || 0,
+      credits: user.credits || 0,
+      totalGifts: user.total_gifts || 0
+    }));
+
+    console.log(`Returning ${rankings.length} ${type} rankings`);
+    res.json(rankings);
+
+  } catch (error) {
+    console.error(`Error fetching ${req.params.type} rankings:`, error);
+    res.status(500).json({ error: 'Failed to fetch rankings' });
+  }
+});
+
 // Debug endpoint to check available routes
 app.get('/debug/routes', (req, res) => {
   const routes = [];
@@ -3082,6 +3187,12 @@ app.post('/api/feed/posts', async (req, res) => {
 
     const newPost = result.rows[0];
 
+    // Award XP for creating a post
+    if (userId && userId !== 1) { // Don't give XP to default user
+      const expResult = await addUserEXP(userId, 50, 'post_created');
+      console.log('XP awarded for post creation:', expResult);
+    }
+
     // Get user role and other info
     const userInfoResult = await pool.query('SELECT role, verified, avatar FROM users WHERE id = $1', [userId]);
     const userInfo = userInfoResult.rows[0];
@@ -3176,6 +3287,12 @@ app.post('/api/feed/posts/:postId/comment', async (req, res) => {
     `, [postId, userId, user, content.trim()]);
 
     const newComment = commentResult.rows[0];
+
+    // Award XP for commenting
+    if (userId && userId !== 1) { // Don't give XP to default user
+      const expResult = await addUserEXP(userId, 25, 'comment_created');
+      console.log('XP awarded for comment creation:', expResult);
+    }
 
     // Get total comments count
     const countResult = await pool.query('SELECT COUNT(*) FROM post_comments WHERE post_id = $1', [postId]);
@@ -3277,11 +3394,19 @@ app.post('/api/users/:userId/follow', authenticateToken, async (req, res) => {
     try {
       if (action === 'follow') {
         // Add follow relationship
-        await pool.query(`
+        const insertResult = await pool.query(`
           INSERT INTO user_follows (follower_id, following_id, created_at) 
           VALUES ($1, $2, NOW()) 
           ON CONFLICT (follower_id, following_id) DO NOTHING
+          RETURNING *
         `, [currentUserId, userId]);
+        
+        // Award XP for following someone (only if it's a new follow)
+        if (insertResult.rows.length > 0) {
+          const expResult = await addUserEXP(currentUserId, 10, 'follow_user');
+          console.log('XP awarded for following user:', expResult);
+        }
+        
         console.log(`Added follow relationship: ${currentUserId} -> ${userId}`);
       } else if (action === 'unfollow') {
         // Remove follow relationship
@@ -6593,6 +6718,59 @@ app.post('/api/credits/transfer', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error transferring credits:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// XP Management Endpoints
+app.get('/api/user/exp', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const result = await pool.query('SELECT exp, level FROM users WHERE id = $1', [userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    const currentExp = user.exp || 0;
+    const currentLevel = user.level || 1;
+    const expPerLevel = 1000;
+    const expForCurrentLevel = (currentLevel - 1) * expPerLevel;
+    const expForNextLevel = currentLevel * expPerLevel;
+    const expProgress = currentExp - expForCurrentLevel;
+    const expNeeded = expForNextLevel - currentExp;
+
+    res.json({
+      currentExp: currentExp,
+      currentLevel: currentLevel,
+      expProgress: expProgress,
+      expNeeded: expNeeded,
+      expForNextLevel: expPerLevel,
+      totalExpForNextLevel: expForNextLevel
+    });
+  } catch (error) {
+    console.error('Error fetching user EXP:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/user/exp-history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const result = await pool.query(`
+      SELECT activity_type, exp_gained, new_exp, new_level, created_at
+      FROM user_exp_history 
+      WHERE user_id = $1 
+      ORDER BY created_at DESC 
+      LIMIT 50
+    `, [userId]);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching EXP history:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
