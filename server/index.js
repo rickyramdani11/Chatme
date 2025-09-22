@@ -62,6 +62,239 @@ const storageUpload = multer.diskStorage({
 const upload = multer({ storage: storageUpload });
 
 
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    console.log('Process terminated');
+    process.exit(0);
+  });
+});
+
+// Database configuration
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+// Test database connection
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('Error connecting to database:', err);
+  } else {
+    console.log('Successfully connected to PostgreSQL database');
+    release();
+  }
+});
+
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: '50mb' })); // Increased limit for potential file data
+app.use(express.urlencoded({ extended: true, limit: '50mb' })); // For form data
+
+// Error handling middleware for JSON parsing
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    console.error('Bad JSON:', err.message);
+    return res.status(400).json({ error: 'Invalid JSON format: ' + err.message });
+  }
+  next();
+});
+
+// Add request logging for API routes only
+app.use('/api', (req, res, next) => {
+  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+  if (req.path.includes('admin')) {
+    console.log('🔐 Admin endpoint accessed');
+    console.log('Headers:', {
+      authorization: req.headers.authorization ? 'Present' : 'Missing',
+      'content-type': req.headers['content-type']
+    });
+    console.log('Body:', req.body);
+  }
+  next();
+});
+
+// Also add request logging for chat routes
+app.use('/chat', (req, res, next) => {
+  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  next();
+});
+
+// Handle preflight requests
+app.options('*', cors());
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Middleware to authenticate JWT token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  console.log('=== AUTH TOKEN MIDDLEWARE ===');
+  console.log('Auth header:', authHeader ? 'Present' : 'Missing');
+  console.log('Token:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing');
+
+  if (token == null) {
+    console.log('No token provided');
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  // Validate token format
+  if (typeof token !== 'string' || token.split('.').length !== 3) {
+    console.log('Invalid token format');
+    return res.status(403).json({ error: 'Invalid token format' });
+  }
+
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
+    if (err) {
+      console.log('Token verification failed:', err.message);
+      if (err.name === 'TokenExpiredError') {
+        return res.status(403).json({ error: 'Token expired' });
+      } else if (err.name === 'JsonWebTokenError') {
+        return res.status(403).json({ error: 'Invalid token' });
+      }
+      return res.status(403).json({ error: 'Token verification failed' });
+    }
+
+    console.log('Token verified for user ID:', decoded.userId);
+
+    try {
+      // Try to select with pin column first, fallback without pin if it doesn't exist
+      let userResult;
+      try {
+        userResult = await pool.query('SELECT id, username, email, verified, pin, role, exp, level FROM users WHERE id = $1', [decoded.userId]);
+      } catch (pinError) {
+        if (pinError.code === '42703') { // Column doesn't exist
+          console.log('Pin column does not exist, querying without it');
+          userResult = await pool.query('SELECT id, username, email, verified, role, exp, level FROM users WHERE id = $1', [decoded.userId]);
+        } else {
+          throw pinError;
+        }
+      }
+
+      if (userResult.rows.length === 0) {
+        console.log('User not found for token:', decoded.userId);
+        return res.status(403).json({ error: 'User not found' });
+      }
+
+      const user = userResult.rows[0];
+      console.log('User authenticated:', user.username, 'Role:', user.role);
+
+      req.user = user; // Attach user info to request
+      req.user.userId = decoded.userId; // Add userId to req.user for credit endpoints
+      next(); // proceed to the next middleware or route handler
+    } catch (dbError) {
+      console.error('Database error during token authentication:', dbError);
+      res.status(500).json({ error: 'Database error during authentication' });
+    }
+  });
+};
+
+// In-memory database for non-critical data (posts will be moved to DB later)
+let posts = [];
+
+// Function to generate room description
+const generateRoomDescription = (roomName, creatorUsername) => {
+  return `${roomName} - Welcome to merchant official chatroom. This room is managed by ${creatorUsername}`;
+};
+
+let verificationTokens = [];
+
+// Email verification simulation (replace with real email service)
+const sendVerificationEmail = (email, token) => {
+  console.log(`=== EMAIL VERIFICATION ===`);
+  console.log(`To: ${email}`);
+  console.log(`Subject: Verify Your ChatMe Account`);
+  console.log(`Verification Link: http://0.0.0.0:5000/api/verify-email?token=${token}`);
+  console.log(`========================`);
+  return true;
+};
+
+// Function to add EXP to a user
+const addUserEXP = async (userId, expAmount, activityType) => {
+  try {
+    // Get current exp and level
+    const userResult = await pool.query('SELECT exp, level FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return { success: false, error: 'User not found' };
+    }
+
+    const currentUser = userResult.rows[0];
+    const currentExp = currentUser.exp || 0;
+    const currentLevel = currentUser.level || 1;
+
+    // Define EXP thresholds for leveling up (example)
+    const expPerLevel = 1000; // 1000 EXP to reach next level
+
+    const newExp = currentExp + expAmount;
+    let newLevel = currentLevel;
+    let leveledUp = false;
+
+    // Calculate new level
+    if (newExp >= currentLevel * expPerLevel) {
+      newLevel = Math.floor(newExp / expPerLevel) || 1;
+      leveledUp = true;
+    }
+
+    // Update user EXP and level
+    await pool.query(
+      'UPDATE users SET exp = $1, level = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      [newExp, newLevel, userId]
+    );
+
+    console.log(`User ${userId} gained ${expAmount} EXP from ${activityType}. New EXP: ${newExp}, New Level: ${newLevel}`);
+
+    // Optionally, record EXP gain in a separate table for history
+    await pool.query(`
+      INSERT INTO user_exp_history (user_id, activity_type, exp_gained, new_exp, new_level)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [userId, activityType, expAmount, newExp, newLevel]);
+
+    return { success: true, userId, expAmount, newExp, newLevel, leveledUp };
+
+  } catch (error) {
+    console.error(`Error adding EXP for user ${userId}:`, error);
+    return { success: false, error: error.message };
+  }
+};
+
+
+// Helper function to mask sensitive data in responses
+const maskSensitiveData = (user) => {
+  if (!user) return user;
+
+  return {
+    ...user,
+    email: user.email ? '***@***.***' : undefined,
+    phone: user.phone ? '***' + user.phone.slice(-4) : undefined,
+    role: user.role // Keep true role for proper authorization
+  };
+};
+
 // Store API endpoints
 
 // Get headwear items for store
@@ -237,240 +470,6 @@ app.get('/api/headwear/images/:imageName', (req, res) => {
     note: 'Replace this with actual image serving logic'
   });
 });
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  process.exit(1);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-    process.exit(0);
-  });
-});
-
-// Database configuration
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
-
-// Test database connection
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Error connecting to database:', err);
-  } else {
-    console.log('Successfully connected to PostgreSQL database');
-    release();
-  }
-});
-
-// Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' })); // Increased limit for potential file data
-app.use(express.urlencoded({ extended: true, limit: '50mb' })); // For form data
-
-// Error handling middleware for JSON parsing
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    console.error('Bad JSON:', err.message);
-    return res.status(400).json({ error: 'Invalid JSON format: ' + err.message });
-  }
-  next();
-});
-
-// Add request logging for API routes only
-app.use('/api', (req, res, next) => {
-  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-  if (req.path.includes('admin')) {
-    console.log('🔐 Admin endpoint accessed');
-    console.log('Headers:', {
-      authorization: req.headers.authorization ? 'Present' : 'Missing',
-      'content-type': req.headers['content-type']
-    });
-    console.log('Body:', req.body);
-  }
-  next();
-});
-
-// Also add request logging for chat routes
-app.use('/chat', (req, res, next) => {
-  console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-  console.log('Headers:', req.headers);
-  console.log('Body:', req.body);
-  next();
-});
-
-
-
-// Handle preflight requests
-app.options('*', cors());
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-// Middleware to authenticate JWT token
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  console.log('=== AUTH TOKEN MIDDLEWARE ===');
-  console.log('Auth header:', authHeader ? 'Present' : 'Missing');
-  console.log('Token:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing');
-
-  if (token == null) {
-    console.log('No token provided');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  // Validate token format
-  if (typeof token !== 'string' || token.split('.').length !== 3) {
-    console.log('Invalid token format');
-    return res.status(403).json({ error: 'Invalid token format' });
-  }
-
-  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
-    if (err) {
-      console.log('Token verification failed:', err.message);
-      if (err.name === 'TokenExpiredError') {
-        return res.status(403).json({ error: 'Token expired' });
-      } else if (err.name === 'JsonWebTokenError') {
-        return res.status(403).json({ error: 'Invalid token' });
-      }
-      return res.status(403).json({ error: 'Token verification failed' });
-    }
-
-    console.log('Token verified for user ID:', decoded.userId);
-
-    try {
-      // Try to select with pin column first, fallback without pin if it doesn't exist
-      let userResult;
-      try {
-        userResult = await pool.query('SELECT id, username, email, verified, pin, role, exp, level FROM users WHERE id = $1', [decoded.userId]);
-      } catch (pinError) {
-        if (pinError.code === '42703') { // Column doesn't exist
-          console.log('Pin column does not exist, querying without it');
-          userResult = await pool.query('SELECT id, username, email, verified, role, exp, level FROM users WHERE id = $1', [decoded.userId]);
-        } else {
-          throw pinError;
-        }
-      }
-
-      if (userResult.rows.length === 0) {
-        console.log('User not found for token:', decoded.userId);
-        return res.status(403).json({ error: 'User not found' });
-      }
-
-      const user = userResult.rows[0];
-      console.log('User authenticated:', user.username, 'Role:', user.role);
-
-      req.user = user; // Attach user info to request
-      req.user.userId = decoded.userId; // Add userId to req.user for credit endpoints
-      next(); // proceed to the next middleware or route handler
-    } catch (dbError) {
-      console.error('Database error during token authentication:', dbError);
-      res.status(500).json({ error: 'Database error during authentication' });
-    }
-  });
-};
-
-// In-memory database for non-critical data (posts will be moved to DB later)
-let posts = [];
-
-// Function to generate room description
-const generateRoomDescription = (roomName, creatorUsername) => {
-  return `${roomName} - Welcome to merchant official chatroom. This room is managed by ${creatorUsername}`;
-};
-
-let verificationTokens = [];
-
-// Email verification simulation (replace with real email service)
-const sendVerificationEmail = (email, token) => {
-  console.log(`=== EMAIL VERIFICATION ===`);
-  console.log(`To: ${email}`);
-  console.log(`Subject: Verify Your ChatMe Account`);
-  console.log(`Verification Link: http://0.0.0.0:5000/api/verify-email?token=${token}`);
-  console.log(`========================`);
-  return true;
-};
-
-// Function to add EXP to a user
-const addUserEXP = async (userId, expAmount, activityType) => {
-  try {
-    // Get current exp and level
-    const userResult = await pool.query('SELECT exp, level FROM users WHERE id = $1', [userId]);
-    if (userResult.rows.length === 0) {
-      return { success: false, error: 'User not found' };
-    }
-
-    const currentUser = userResult.rows[0];
-    const currentExp = currentUser.exp || 0;
-    const currentLevel = currentUser.level || 1;
-
-    // Define EXP thresholds for leveling up (example)
-    const expPerLevel = 1000; // 1000 EXP to reach next level
-
-    const newExp = currentExp + expAmount;
-    let newLevel = currentLevel;
-    let leveledUp = false;
-
-    // Calculate new level
-    if (newExp >= currentLevel * expPerLevel) {
-      newLevel = Math.floor(newExp / expPerLevel) || 1;
-      leveledUp = true;
-    }
-
-    // Update user EXP and level
-    await pool.query(
-      'UPDATE users SET exp = $1, level = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
-      [newExp, newLevel, userId]
-    );
-
-    console.log(`User ${userId} gained ${expAmount} EXP from ${activityType}. New EXP: ${newExp}, New Level: ${newLevel}`);
-
-    // Optionally, record EXP gain in a separate table for history
-    await pool.query(`
-      INSERT INTO user_exp_history (user_id, activity_type, exp_gained, new_exp, new_level)
-      VALUES ($1, $2, $3, $4, $5)
-    `, [userId, activityType, expAmount, newExp, newLevel]);
-
-    return { success: true, userId, expAmount, newExp, newLevel, leveledUp };
-
-  } catch (error) {
-    console.error(`Error adding EXP for user ${userId}:`, error);
-    return { success: false, error: error.message };
-  }
-};
-
-
-// Helper function to mask sensitive data in responses
-const maskSensitiveData = (user) => {
-  if (!user) return user;
-
-  return {
-    ...user,
-    email: user.email ? '***@***.***' : undefined,
-    phone: user.phone ? '***' + user.phone.slice(-4) : undefined,
-    role: user.role // Keep true role for proper authorization
-  };
-};
 
 // Auth routes
 // Registration endpoint

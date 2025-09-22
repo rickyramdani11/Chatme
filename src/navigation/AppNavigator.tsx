@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { RootStackParamList, TabParamList } from './types';
 
 import AuthScreen from '../screens/AuthScreen';
 import HomeScreen from '../screens/HomeScreen';
@@ -40,8 +41,8 @@ import StoreScreen from '../screens/StoreScreen';
 
 import { useAuth } from '../hooks';
 
-const Stack = createStackNavigator();
-const Tab = createMaterialTopTabNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
+const Tab = createMaterialTopTabNavigator<TabParamList>();
 
 function MainTabs() {
   return (
