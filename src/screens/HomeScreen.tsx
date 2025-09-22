@@ -210,14 +210,18 @@ const HomeScreen = ({ navigation }: any) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
         },
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (response.ok) {
         setUserStatus(newStatus);
+        console.log(`Status updated to: ${newStatus}`);
       } else {
-        throw new Error('Failed to update status');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
       }
     } catch (error) {
       console.error('Error updating status:', error);
@@ -668,8 +672,17 @@ const HomeScreen = ({ navigation }: any) => {
           roomDescription: `Private chat with ${username}`,
           type: 'private',
           targetUser: targetUser,
-          autoFocusTab: true
+          autoFocusTab: true,
+          targetStatus: chatData.targetStatus
         });
+      } else if (response.status === 423) {
+        // User is busy
+        const errorData = await response.json().catch(() => ({ error: 'This user is busy' }));
+        Alert.alert(
+          'User is Busy',
+          errorData.error || 'This user is currently busy and cannot be contacted',
+          [{ text: 'OK' }]
+        );
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Failed to create private chat:', errorData);

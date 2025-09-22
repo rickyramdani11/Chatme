@@ -846,6 +846,74 @@ io.on('connection', (socket) => {
       // Check if this is a private chat
       const isPrivateChat = roomId.startsWith('private_');
 
+      // For private chats, check target user status
+      if (isPrivateChat) {
+        try {
+          // Extract user IDs from room ID (format: private_id1_id2)
+          const roomParts = roomId.split('_');
+          if (roomParts.length >= 3) {
+            const userId1 = parseInt(roomParts[1]);
+            const userId2 = parseInt(roomParts[2]);
+            const targetUserId = userId1 === socket.userId ? userId2 : userId1;
+
+            // Get target user status
+            const targetUserResult = await pool.query('SELECT username, status FROM users WHERE id = $1', [targetUserId]);
+            
+            if (targetUserResult.rows.length > 0) {
+              const targetUser = targetUserResult.rows[0];
+              const targetStatus = targetUser.status || 'online';
+
+              // Send system message based on user status
+              if (targetStatus === 'offline') {
+                const systemMessage = {
+                  id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  sender: 'System',
+                  content: `${targetUser.username} is currently offline`,
+                  timestamp: new Date().toISOString(),
+                  roomId,
+                  role: 'system',
+                  level: 1,
+                  type: 'system'
+                };
+
+                io.to(roomId).emit('new-message', systemMessage);
+              } else if (targetStatus === 'away') {
+                const systemMessage = {
+                  id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  sender: 'System',
+                  content: `${targetUser.username} is currently away`,
+                  timestamp: new Date().toISOString(),
+                  roomId,
+                  role: 'system',
+                  level: 1,
+                  type: 'system'
+                };
+
+                io.to(roomId).emit('new-message', systemMessage);
+              } else if (targetStatus === 'busy') {
+                // Don't allow message sending if user is busy
+                const errorMessage = {
+                  id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  sender: 'System',
+                  content: `${targetUser.username} is currently busy and cannot receive messages`,
+                  timestamp: new Date().toISOString(),
+                  roomId,
+                  role: 'system',
+                  level: 1,
+                  type: 'error'
+                };
+
+                socket.emit('new-message', errorMessage);
+                return; // Don't process the original message
+              }
+            }
+          }
+        } catch (statusError) {
+          console.error('Error checking user status:', statusError);
+          // Continue with message sending if status check fails
+        }
+      }
+
       // Check if this is a special command that needs server-side handling
       const trimmedContent = content.trim();
 

@@ -164,6 +164,8 @@ export default function FriendsList({
         }));
 
         setFriends(transformedFriends);
+        // Fetch status for each friend
+        fetchFriendsStatus(transformedFriends);
       } else {
         console.error('Failed to fetch friends:', response.status);
       }
@@ -174,6 +176,37 @@ export default function FriendsList({
       setRefreshing(false);
     }
   };
+
+  const fetchFriendsStatus = async (friendsList = friends) => {
+    try {
+      const updatedFriends = await Promise.all(
+        friendsList.map(async (friend) => {
+          try {
+            const statusResponse = await fetch(`${API_BASE_URL}/api/user/${friend.id}/status`, {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              return { ...friend, status: statusData.status };
+            } else {
+              return { ...friend, status: 'offline' };
+            }
+          } catch (error) {
+            console.error(`Error fetching status for friend ${friend.name}:`, error);
+            return { ...friend, status: 'offline' };
+          }
+        })
+      );
+
+      setFriends(updatedFriends);
+    } catch (error) {
+      console.error('Error fetching friends status:', error);
+    }
+  };
+
 
   const searchUsers = async (query: string) => {
     if (query.length < 2) {
@@ -263,6 +296,18 @@ export default function FriendsList({
 
   const handleStartChat = () => {
     if (selectedFriend) {
+      if (selectedFriend.status === 'busy') {
+        Alert.alert('User is Busy', `${selectedFriend.name} is currently busy and cannot receive messages.`);
+        setShowFriendMenu(false);
+        return;
+      }
+      if (selectedFriend.status === 'offline') {
+        Alert.alert('User is Offline', `${selectedFriend.name} is currently offline. Your message will be delivered when they are back online.`);
+      }
+      if (selectedFriend.status === 'away') {
+        Alert.alert('User is Away', `${selectedFriend.name} is currently away. Your message will be delivered when they are back online.`);
+      }
+      
       setShowFriendMenu(false);
       startChat(selectedFriend.id, selectedFriend.name);
     }
@@ -356,7 +401,15 @@ export default function FriendsList({
 
   useEffect(() => {
     fetchFriends();
-  }, [user, token]);
+    // Fetch friends status periodically
+    const statusInterval = setInterval(() => {
+      if (friends.length > 0) {
+        fetchFriendsStatus();
+      }
+    }, 30000); // Update status every 30 seconds
+
+    return () => clearInterval(statusInterval);
+  }, [friends.length]); // Re-run effect when friends list changes to ensure interval is set up correctly
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -492,7 +545,7 @@ export default function FriendsList({
                 ? 'No users match your search term'
                 : searchText.length === 1
                 ? 'Type at least 2 characters to search users'
-                : 'Start adding friends to see them here'}
+                : 'No Friends Found'}
             </Text>
           </View>
         ) : (

@@ -17,6 +17,7 @@ interface User {
   signature?: string;
   role?: 'user' | 'merchant' | 'mentor' | 'admin';
   level?: number;
+  status?: 'online' | 'offline' | 'away' | 'busy';
 }
 
 interface AuthContextType {

@@ -203,7 +203,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         // Load current busy status if it's the user's own profile
         if (isOwnProfile && user?.username) {
           try {
-            const busyResponse = await fetch(`${API_BASE_URL}/api/user/${user.username}/busy-status`, {
+            const busyResponse = await fetch(`${API_BASE_URL}/api/user/busy-status`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',

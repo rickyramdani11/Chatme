@@ -496,6 +496,36 @@ export default function ChatScreen() {
           console.log('No previous messages for private chat');
           messages = [];
         }
+
+        // For private chats, add status message if target user has special status
+        const targetStatus = routeParams.targetStatus;
+        if (targetStatus && targetStatus !== 'online' && targetUser) {
+          const currentTime = new Date();
+          let statusMessage = '';
+          
+          if (targetStatus === 'offline') {
+            statusMessage = `${targetUser.username} is currently offline`;
+          } else if (targetStatus === 'away') {
+            statusMessage = `${targetUser.username} is currently away`;
+          } else if (targetStatus === 'busy') {
+            statusMessage = `${targetUser.username} is currently busy`;
+          }
+
+          if (statusMessage) {
+            const statusSystemMessage = {
+              id: `status_info_${roomId}_${Date.now()}`,
+              sender: 'System',
+              content: statusMessage,
+              timestamp: new Date(currentTime.getTime() - 1000), // 1 second earlier
+              roomId: roomId,
+              role: 'system',
+              level: 1,
+              type: 'system'
+            };
+
+            messages.push(statusSystemMessage);
+          }
+        }
       } else if (isSupport) {
         // Load messages for support chat
         try {
