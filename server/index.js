@@ -597,7 +597,7 @@ app.post('/api/families', authenticateToken, async (req, res) => {
         family_id INTEGER REFERENCES families(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL,
         username VARCHAR(50) NOT NULL,
-        role VARCHAR(20) DEFAULT 'member',
+        family_role VARCHAR(20) DEFAULT 'member',
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_active BOOLEAN DEFAULT true,
         UNIQUE(family_id, user_id)
@@ -627,9 +627,9 @@ app.post('/api/families', authenticateToken, async (req, res) => {
 
     const newFamily = familyResult.rows[0];
 
-    // Add creator as admin member
+    // Add creator as family admin (different from global admin role)
     await pool.query(`
-      INSERT INTO family_members (family_id, user_id, username, role)
+      INSERT INTO family_members (family_id, user_id, username, family_role)
       VALUES ($1, $2, $3, 'admin')
     `, [newFamily.id, userId, username]);
 
@@ -739,9 +739,9 @@ app.post('/api/families/:familyId/join', authenticateToken, async (req, res) => 
       return res.status(400).json({ error: 'Keluarga sudah penuh' });
     }
 
-    // Add user as member
+    // Add user as family member (family role, not global role)
     await pool.query(`
-      INSERT INTO family_members (family_id, user_id, username, role)
+      INSERT INTO family_members (family_id, user_id, username, family_role)
       VALUES ($1, $2, $3, 'member')
       ON CONFLICT (family_id, user_id) 
       DO UPDATE SET is_active = true, joined_at = CURRENT_TIMESTAMP
@@ -781,7 +781,7 @@ app.get('/api/users/:userId/family', async (req, res) => {
     const { userId } = req.params;
 
     const result = await pool.query(`
-      SELECT f.*, fm.role, fm.joined_at
+      SELECT f.*, fm.family_role, fm.joined_at
       FROM families f
       JOIN family_members fm ON f.id = fm.family_id
       WHERE fm.user_id = $1 AND fm.is_active = true
@@ -803,7 +803,7 @@ app.get('/api/users/:userId/family', async (req, res) => {
       members: family.members_count || 1,
       maxMembers: family.max_members || 50,
       level: family.level || 1,
-      role: family.role,
+      familyRole: family.family_role, // Separate from global user role
       joinedAt: family.joined_at,
       type: 'FAMILY'
     });
@@ -838,6 +838,127 @@ app.get('/api/families/cover/:imageId', async (req, res) => {
   } catch (error) {
     console.error('Error serving family cover:', error);
     res.status(500).json({ error: 'Error serving cover image' });
+  }
+});
+
+// Get family members with their family roles
+app.get('/api/families/:familyId/members', authenticateToken, async (req, res) => {
+  try {
+    const { familyId } = req.params;
+
+    // Check if user is a member of this family
+    const memberCheck = await pool.query(`
+      SELECT family_role FROM family_members 
+      WHERE family_id = $1 AND user_id = $2 AND is_active = true
+    `, [familyId, req.user.id]);
+
+    if (memberCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Access denied. You are not a member of this family.' });
+    }
+
+    const userFamilyRole = memberCheck.rows[0].family_role;
+
+    // Get all family members
+    const result = await pool.query(`
+      SELECT 
+        fm.user_id,
+        fm.username,
+        fm.family_role,
+        fm.joined_at,
+        u.avatar,
+        u.level,
+        u.verified
+      FROM family_members fm
+      JOIN users u ON fm.user_id = u.id
+      WHERE fm.family_id = $1 AND fm.is_active = true
+      ORDER BY 
+        CASE fm.family_role 
+          WHEN 'admin' THEN 1 
+          WHEN 'moderator' THEN 2 
+          ELSE 3 
+        END,
+        fm.joined_at ASC
+    `, [familyId]);
+
+    const members = result.rows.map(row => ({
+      userId: row.user_id.toString(),
+      username: row.username,
+      familyRole: row.family_role,
+      joinedAt: row.joined_at,
+      avatar: row.avatar,
+      level: row.level || 1,
+      verified: row.verified || false
+    }));
+
+    res.json({
+      members,
+      userFamilyRole, // Current user's role in this family
+      canManageRoles: userFamilyRole === 'admin' // Only family admins can manage roles
+    });
+
+  } catch (error) {
+    console.error('Error fetching family members:', error);
+    res.status(500).json({ error: 'Failed to fetch family members' });
+  }
+});
+
+// Update family member role (only family admins can do this)
+app.put('/api/families/:familyId/members/:userId/role', authenticateToken, async (req, res) => {
+  try {
+    const { familyId, userId } = req.params;
+    const { familyRole } = req.body;
+
+    if (!['member', 'moderator', 'admin'].includes(familyRole)) {
+      return res.status(400).json({ error: 'Invalid family role' });
+    }
+
+    // Check if requester is family admin
+    const adminCheck = await pool.query(`
+      SELECT family_role FROM family_members 
+      WHERE family_id = $1 AND user_id = $2 AND family_role = 'admin' AND is_active = true
+    `, [familyId, req.user.id]);
+
+    if (adminCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'Only family admins can change member roles' });
+    }
+
+    // Prevent demoting the family creator (first admin)
+    const creatorCheck = await pool.query(`
+      SELECT fm.user_id, f.created_by_id
+      FROM family_members fm
+      JOIN families f ON fm.family_id = f.id
+      WHERE fm.family_id = $1 AND fm.user_id = $2 AND fm.family_role = 'admin'
+      ORDER BY fm.joined_at ASC
+      LIMIT 1
+    `, [familyId, userId]);
+
+    if (creatorCheck.rows.length > 0 && creatorCheck.rows[0].user_id.toString() === creatorCheck.rows[0].created_by_id.toString() && familyRole !== 'admin') {
+      return res.status(400).json({ error: 'Cannot demote the family creator' });
+    }
+
+    // Update family role
+    const result = await pool.query(`
+      UPDATE family_members 
+      SET family_role = $1 
+      WHERE family_id = $2 AND user_id = $3 AND is_active = true
+      RETURNING username
+    `, [familyRole, familyId, userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Family member not found' });
+    }
+
+    console.log(`Family role updated: ${result.rows[0].username} is now ${familyRole} in family ${familyId}`);
+
+    res.json({
+      success: true,
+      message: `${result.rows[0].username} is now a family ${familyRole}`,
+      newFamilyRole: familyRole
+    });
+
+  } catch (error) {
+    console.error('Error updating family member role:', error);
+    res.status(500).json({ error: 'Failed to update family member role' });
   }
 });
 

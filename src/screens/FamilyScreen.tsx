@@ -135,6 +135,11 @@ export default function FamilyScreen({ navigation }: any) {
             <Text style={styles.familyDescription}>
               {userFamily.members}/{userFamily.maxMembers} anggota
             </Text>
+            {userFamily.familyRole && (
+              <Text style={styles.familyRoleText}>
+                Role: {userFamily.familyRole === 'admin' ? 'Admin' : userFamily.familyRole === 'moderator' ? 'Moderator' : 'Member'}
+              </Text>
+            )}
           </View>
           <View style={styles.levelBadge}>
             <Text style={styles.levelText}>LV{userFamily.level}</Text>
@@ -477,5 +482,11 @@ const styles = StyleSheet.create({
   },
   joinedButtonText: {
     color: '#4CAF50',
+  },
+  familyRoleText: {
+    fontSize: 12,
+    color: '#FF9800',
+    fontWeight: '500',
+    marginTop: 2,
   },
 });
