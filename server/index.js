@@ -105,6 +105,48 @@ pool.connect(async (err, client, release) => {
   } else {
     console.log('Successfully connected to PostgreSQL database');
     
+    // Create headwear tables if they don't exist
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS headwear_items (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          image VARCHAR(500),
+          price INTEGER NOT NULL DEFAULT 0,
+          duration_days INTEGER NOT NULL DEFAULT 30,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS user_headwear (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          headwear_id INTEGER REFERENCES headwear_items(id),
+          purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          expires_at TIMESTAMP NOT NULL,
+          is_active BOOLEAN DEFAULT true
+        )
+      `);
+
+      // Insert default headwear items if none exist
+      const existingItems = await client.query('SELECT COUNT(*) FROM headwear_items');
+      if (parseInt(existingItems.rows[0].count) === 0) {
+        await client.query(`
+          INSERT INTO headwear_items (name, description, image, price, duration_days) VALUES
+          ('Frame Avatar Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.jpeg', 50000, 30),
+          ('Frame Avatar Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 100000, 30)
+        `);
+        console.log('✅ Default headwear items created');
+      }
+
+      console.log('✅ Headwear tables initialized successfully');
+    } catch (tableError) {
+      console.error('Error creating headwear tables:', tableError);
+    }
+    
     // Load existing rooms from database
     try {
       const result = await client.query(`
@@ -492,6 +534,45 @@ app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error purchasing headwear:', error);
     res.status(500).json({ error: 'Failed to purchase headwear' });
+  }
+});
+
+// Get user's active headwear frame
+app.get('/api/user/active-headwear', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT uh.id, uh.expires_at, hi.name, hi.image
+      FROM user_headwear uh
+      JOIN headwear_items hi ON uh.headwear_id = hi.id
+      WHERE uh.user_id = $1 
+        AND uh.is_active = true 
+        AND uh.expires_at > NOW()
+      ORDER BY uh.purchased_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    if (result.rows.length > 0) {
+      const headwear = result.rows[0];
+      res.json({
+        hasActiveHeadwear: true,
+        headwear: {
+          id: headwear.id,
+          name: headwear.name,
+          image: headwear.image,
+          expiresAt: headwear.expires_at
+        }
+      });
+    } else {
+      res.json({
+        hasActiveHeadwear: false,
+        headwear: null
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching active headwear:', error);
+    res.status(500).json({ error: 'Failed to fetch active headwear' });
   }
 });
 
@@ -3876,6 +3957,47 @@ app.get('/uploads/gifts/:filename', (req, res) => {
   } catch (error) {
     console.error('Error serving gift file:', error);
     res.status(500).json({ error: 'Error serving gift file' });
+  }
+});
+
+// Serve frame avatar assets
+app.get('/assets/frame_ava/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, '../assets/frame_ava', filename);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Frame avatar file not found' });
+    }
+
+    // Determine content type
+    const ext = filename.toLowerCase().split('.').pop();
+    let contentType = 'image/png';
+
+    switch (ext) {
+      case 'gif':
+        contentType = 'image/gif';
+        break;
+      case 'jpg':
+      case 'jpeg':
+        contentType = 'image/jpeg';
+        break;
+      case 'webm':
+        contentType = 'video/webm';
+        break;
+      case 'png':
+      default:
+        contentType = 'image/png';
+        break;
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error serving frame avatar file:', error);
+    res.status(500).json({ error: 'Error serving frame avatar file' });
   }
 });
 

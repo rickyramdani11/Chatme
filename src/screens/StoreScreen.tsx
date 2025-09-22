@@ -175,7 +175,7 @@ export default function StoreScreen({ navigation }: any) {
           <Image 
             source={{ uri: `${API_BASE_URL}${item.image}` }} 
             style={styles.itemImage}
-            resizeMode="contain"
+            resizeMode="cover"
           />
           {isOwned && (
             <View style={styles.ownedBadge}>
@@ -306,7 +306,7 @@ export default function StoreScreen({ navigation }: any) {
                 <Image 
                   source={{ uri: `${API_BASE_URL}${selectedItem.image}` }} 
                   style={styles.modalItemImage}
-                  resizeMode="contain"
+                  resizeMode="cover"
                 />
                 <Text style={styles.modalItemName}>{selectedItem.name}</Text>
                 <Text style={styles.modalItemDescription}>{selectedItem.description}</Text>
@@ -463,7 +463,9 @@ const styles = StyleSheet.create({
   itemImage: {
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
   },
   ownedBadge: {
     position: 'absolute',
@@ -578,10 +580,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalItemImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 12,
     marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
   },
   modalItemName: {
     fontSize: 20,
