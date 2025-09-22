@@ -12,6 +12,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import RoomScreen from '../screens/RoomScreen';
 import ChatScreen from '../screens/ChatScreen';
+import PrivateChatScreen from '../screens/PrivateChatScreen';
 import ProfileScreen from '../screens/ProfileScreen'; // Assuming ProfileScreen is in ../screens/ProfileScreen
 import PrivacySecurityScreen from '../screens/PrivacySecurityScreen'; // Import the new screen
 import ChangePasswordScreen from '../screens/ChangePasswordScreen'; // Import ChangePasswordScreen
@@ -191,6 +192,7 @@ export default function AppNavigator() {
               headerShown: false
             }}
           />
+          <Stack.Screen name="PrivateChat" component={PrivateChatScreen} options={{ headerShown: false }} />
           <Stack.Screen
             name="Room"
             component={RoomScreen}

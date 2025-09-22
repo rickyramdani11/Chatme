@@ -354,7 +354,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           };
 
           // Navigate to private chat
-          navigation.navigate('Chat', {
+          navigation.navigate('PrivateChat', {
             roomId: privateChat.id,
             roomName: `Chat with ${profile.username}`,
             roomDescription: `Private chat with ${profile.username}`,

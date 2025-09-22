@@ -120,7 +120,7 @@ export default function ChatScreen() {
 
   // Get room data from navigation params  
   const routeParams = (route.params as any) || {};
-  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
+  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', isSupport } = routeParams;
 
   // Update refs whenever state changes to avoid stale closures
   useEffect(() => {
@@ -466,9 +466,9 @@ export default function ChatScreen() {
         return;
       }
 
-      // For private chats, don't try to load messages from room API
+      // For regular rooms, load messages from room API
       let messages = [];
-      if (type !== 'private' && !isSupport) { // Also exclude support chats from room message loading
+      if (!isSupport) { // Exclude support chats from room message loading
         // Load messages for the specific room
         try {
           const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${roomId}`, {
@@ -482,50 +482,7 @@ export default function ChatScreen() {
           console.log('No previous messages for room');
           messages = [];
         }
-      } else if (type === 'private') {
-        // For private chats, try to load private chat messages
-        try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/chat/private/${roomId}/messages`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'ChatMe-Mobile-App',
-            },
-          });
-          messages = messagesResponse.ok ? await messagesResponse.json() : [];
-        } catch (error) {
-          console.log('No previous messages for private chat');
-          messages = [];
-        }
-
-        // For private chats, add status message if target user has special status
-        const targetStatus = routeParams.targetStatus;
-        if (targetStatus && targetStatus !== 'online' && targetUser) {
-          const currentTime = new Date();
-          let statusMessage = '';
-          
-          if (targetStatus === 'offline') {
-            statusMessage = `${targetUser.username} is currently offline`;
-          } else if (targetStatus === 'away') {
-            statusMessage = `${targetUser.username} is currently away`;
-          } else if (targetStatus === 'busy') {
-            statusMessage = `${targetUser.username} is currently busy`;
-          }
-
-          if (statusMessage) {
-            const statusSystemMessage = {
-              id: `status_info_${roomId}_${Date.now()}`,
-              sender: 'System',
-              content: statusMessage,
-              timestamp: new Date(currentTime.getTime() - 1000), // 1 second earlier
-              roomId: roomId,
-              role: 'system',
-              level: 1,
-              type: 'system'
-            };
-
-            messages.push(statusSystemMessage);
-          }
-        }
+      
       } else if (isSupport) {
         // Load messages for support chat
         try {
@@ -568,9 +525,9 @@ export default function ChatScreen() {
           };
         }
 
-        // Create room info messages for room types (not private chats or support chats)
+        // Create room info messages for room types (not support chats)
         let roomInfoMessages = [];
-        if (type !== 'private' && !isSupport) {
+        if (!isSupport) {
           const currentTime = new Date();
 
           // Room description message
@@ -613,14 +570,14 @@ export default function ChatScreen() {
         // Combine room info messages with existing messages
         const allMessages = [...roomInfoMessages, ...messages];
 
-        // Create new tab for the room or private chat or support chat
+        // Create new tab for the room or support chat
         const newTab: ChatTab = {
           id: roomId,
           title: roomName,
           type: isSupport ? 'support' : (type || 'room'),
           messages: allMessages,
-          managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.createdBy || 'admin'),
-          description: roomDescription || (type === 'private' ? `Private chat with ${targetUser?.username}` : isSupport ? 'Support Chat' : `${roomName} room`),
+          managedBy: roomData?.managedBy || roomData?.createdBy || 'admin',
+          description: roomDescription || (isSupport ? 'Support Chat' : `${roomName} room`),
           moderators: roomData?.moderators || [],
           isSupport: isSupport
         };
@@ -645,8 +602,8 @@ export default function ChatScreen() {
         return newTabs;
       });
 
-      // Only add participant to room if it's not a private or support chat
-      if (user?.username && type !== 'private' && !isSupport) {
+      // Only add participant to room if it's not a support chat
+      if (user?.username && !isSupport) {
         await addParticipantToRoom(roomId, user.username, user.role || 'user');
       }
 
@@ -4181,7 +4138,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header with Gradient */}
       <LinearGradient
-        colors={chatTabs[activeTab]?.type === 'private' ? ['#FF9800', '#FF5722'] : chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
+        colors={chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
@@ -4191,28 +4148,7 @@ export default function ChatScreen() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
-          {chatTabs[activeTab]?.type === 'private' ? (
-            // Private Chat Header with Avatar
-            <View style={styles.privateChatHeaderContent}>
-              <View style={styles.privateChatAvatar}>
-                {targetUser?.avatar ? (
-                  <Image source={{ uri: targetUser.avatar }} style={styles.avatarImage} />
-                ) : (
-                  <View style={styles.defaultAvatarContainer}>
-                    <Text style={styles.avatarInitial}>
-                      {targetUser?.username ? targetUser.username.charAt(0).toUpperCase() : 'U'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.privateChatInfo}>
-                <Text style={styles.privateChatName}>
-                  {targetUser?.username || chatTabs[activeTab]?.title.replace('Chat with ', '')}
-                </Text>
-                <Text style={styles.privateChatStatus}>Online</Text>
-              </View>
-            </View>
-          ) : chatTabs[activeTab]?.isSupport ? (
+          {chatTabs[activeTab]?.isSupport ? (
             // Support Chat Header
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>Support Chat</Text>
@@ -4225,27 +4161,14 @@ export default function ChatScreen() {
             <View style={styles.headerTextContainer}>
               <Text style={[styles.headerTitle, { color: '#fff' }]}>{chatTabs[activeTab]?.title}</Text>
               <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
-                {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
+                Chatroom
                 {!isSocketConnected && ' • Reconnecting...'}
               </Text>
             </View>
           )}
 
           <View style={styles.headerIcons}>
-            {chatTabs[activeTab]?.type === 'private' ? (
-              // Private Chat Icons
-              <>
-                <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
-                  <Ionicons name="videocam-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
-                  <Ionicons name="call-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
-                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
-                </TouchableOpacity>
-              </>
-            ) : chatTabs[activeTab]?.isSupport ? (
+            {chatTabs[activeTab]?.isSupport ? (
               // Support Chat Icons (e.g., options for support)
               <>
                 <TouchableOpacity style={styles.headerIcon}>

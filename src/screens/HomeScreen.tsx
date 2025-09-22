@@ -666,7 +666,7 @@ const HomeScreen = ({ navigation }: any) => {
           avatar: null
         };
 
-        navigation.navigate('Chat', {
+        navigation.navigate('PrivateChat', {
           roomId: chatData.id,
           roomName: `Chat with ${username}`,
           roomDescription: `Private chat with ${username}`,
@@ -1164,14 +1164,25 @@ const HomeScreen = ({ navigation }: any) => {
                     onPress={() => {
                       setShowMessageHistory(false);
                       // Navigate to chat
-                      navigation.navigate('Chat', {
-                        roomId: chat.id,
-                        roomName: chat.name,
-                        roomDescription: chat.description,
-                        type: chat.type,
-                        targetUser: chat.targetUser,
-                        autoFocusTab: true
-                      });
+                      if (chat.type === 'private') {
+                        navigation.navigate('PrivateChat', {
+                          roomId: chat.id,
+                          roomName: chat.name,
+                          roomDescription: chat.description,
+                          type: chat.type,
+                          targetUser: chat.targetUser,
+                          autoFocusTab: true
+                        });
+                      } else {
+                        navigation.navigate('Chat', {
+                          roomId: chat.id,
+                          roomName: chat.name,
+                          roomDescription: chat.description,
+                          type: chat.type,
+                          targetUser: chat.targetUser,
+                          autoFocusTab: true
+                        });
+                      }
                     }}
                   >
                     <View style={styles.chatAvatarContainer}>
