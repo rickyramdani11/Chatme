@@ -228,7 +228,7 @@ app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
 // Serve headwear images (placeholder endpoint)
 app.get('/api/headwear/images/:imageName', (req, res) => {
   const { imageName } = req.params;
-  
+
   // For now, return a placeholder response
   // In production, you would serve actual headwear frame images
   res.status(200).json({
@@ -324,985 +324,6 @@ app.use('/chat', (req, res, next) => {
 // Handle preflight requests
 app.options('*', cors());
 
-// In-memory database for non-critical data (posts will be moved to DB later)
-let posts = [];
-
-// Function to save chat message to database
-const saveChatMessage = async (roomId, username, content, media = null, messageType = 'message', userRole = 'user', userLevel = 1, isPrivate = false) => {
-  try {
-    // Get user ID by username
-    const userResult = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : null;
-
-    const result = await pool.query(`
-      INSERT INTO chat_messages (
-        room_id, user_id, username, content, media_data,
-        message_type, user_role, user_level, is_private
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `, [
-      roomId,
-      userId,
-      username,
-      content,
-      media ? JSON.stringify(media) : null,
-      messageType,
-      userRole,
-      userLevel,
-      isPrivate
-    ]);
-
-    return result.rows[0];
-  } catch (error) {
-    console.error('Error saving chat message:', error);
-    return null;
-  }
-};
-
-// Initialize database tables
-const initTables = async () => {
-  try {
-    // Users table with additional fields
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        phone VARCHAR(20),
-        country VARCHAR(2),
-        gender VARCHAR(10),
-        role VARCHAR(20) DEFAULT 'user',
-        level INTEGER DEFAULT 1,
-        balance INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_verified BOOLEAN DEFAULT false,
-        avatar_filename VARCHAR(255),
-        last_login TIMESTAMP,
-        bio TEXT,
-        location VARCHAR(100),
-        birth_date DATE,
-        interests TEXT[],
-        privacy_settings JSONB DEFAULT '{}'::jsonb,
-        notification_settings JSONB DEFAULT '{}'::jsonb,
-        is_busy BOOLEAN DEFAULT false,
-        busy_message VARCHAR(255) DEFAULT 'This user is busy',
-        busy_until TIMESTAMP
-      )
-    `);
-
-    // Add missing columns if they don't exist (for existing databases)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_busy') THEN
-          ALTER TABLE users ADD COLUMN is_busy BOOLEAN DEFAULT false;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='busy_message') THEN
-          ALTER TABLE users ADD COLUMN busy_message VARCHAR(255) DEFAULT 'This user is busy';
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='busy_until') THEN
-          ALTER TABLE users ADD COLUMN busy_until TIMESTAMP;
-        END IF;
-      END $$;
-    `);
-
-    // Clean up legacy constraints that might cause issues
-    try {
-      await pool.query(`
-        DO $$
-        BEGIN
-          IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'legacy_balance_deprecated') THEN
-            ALTER TABLE user_credits DROP CONSTRAINT legacy_balance_deprecated;
-            RAISE NOTICE 'Removed legacy_balance_deprecated constraint';
-          END IF;
-        EXCEPTION
-          WHEN OTHERS THEN
-            RAISE NOTICE 'Could not remove legacy_balance_deprecated constraint: %', SQLERRM;
-        END $$;
-      `);
-      console.log('✅ Legacy constraints cleanup completed');
-    } catch (error) {
-      console.log('⚠️  Warning: Could not clean up legacy constraints:', error.message);
-    }
-
-    // Add CHECK constraints to existing tables if they don't exist
-    try {
-      await pool.query(`
-        DO $$
-        BEGIN
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_role_check') THEN
-            ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('user', 'admin', 'mentor', 'merchant'));
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_gender_check') THEN
-            ALTER TABLE users ADD CONSTRAINT users_gender_check CHECK (gender IN ('male', 'female', 'other', 'prefer_not_to_say'));
-          END IF;
-        END $$;
-      `);
-      console.log('✅ Database constraints for users table enforced successfully');
-    } catch (error) {
-      console.log('⚠️  Warning: Could not add some database constraints for users table:', error.message);
-    }
-
-    // Create rooms table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS rooms (
-        id BIGSERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        description TEXT,
-        managed_by VARCHAR(50),
-        type VARCHAR(20) DEFAULT 'room',
-        members INTEGER DEFAULT 0,
-        max_members INTEGER DEFAULT 100,
-        created_by VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Add updated_at column if it doesn't exist (for existing databases)
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='rooms' AND column_name='updated_at') THEN
-          ALTER TABLE rooms ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-        END IF;
-      END $$;
-    `);
-
-    // Create posts table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS posts (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        username VARCHAR(50) NOT NULL,
-        content TEXT,
-        media_files JSONB DEFAULT '[]',
-        likes INTEGER DEFAULT 0,
-        shares INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create post_comments table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS post_comments (
-        id BIGSERIAL PRIMARY KEY,
-        post_id INTEGER REFERENCES posts(id),
-        user_id INTEGER REFERENCES users(id),
-        username VARCHAR(50) NOT NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create privacy_settings table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS privacy_settings (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) UNIQUE,
-        profile_visibility VARCHAR(20) DEFAULT 'public',
-        privacy_notifications BOOLEAN DEFAULT true,
-        location_sharing BOOLEAN DEFAULT false,
-        biometric_auth BOOLEAN DEFAULT false,
-        two_factor_auth BOOLEAN DEFAULT true,
-        active_sessions BOOLEAN DEFAULT true,
-        data_download BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create user_activity_logs table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_activity_logs (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        activity_type VARCHAR(50) NOT NULL,
-        description TEXT,
-        ip_address INET,
-        user_agent TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create user_album table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_album (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        filename VARCHAR(255) NOT NULL,
-        file_data TEXT NOT NULL,
-        uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create user_gifts table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_gifts (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        gift_type VARCHAR(50) NOT NULL,
-        given_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create user_follows table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_follows (
-        id BIGSERIAL PRIMARY KEY,
-        follower_id INTEGER REFERENCES users(id),
-        following_id INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(follower_id, following_id)
-      )
-    `);
-
-    // Create user_achievements table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_achievements (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        achievement_type VARCHAR(50) NOT NULL,
-        count INTEGER DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, achievement_type)
-      )
-    `);
-
-    // Create chat_messages table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id BIGSERIAL PRIMARY KEY,
-        room_id VARCHAR(100) NOT NULL,
-        user_id INTEGER REFERENCES users(id),
-        username VARCHAR(50) NOT NULL,
-        content TEXT NOT NULL,
-        media_data TEXT,
-        message_type VARCHAR(20) DEFAULT 'message',
-        user_role VARCHAR(20) DEFAULT 'user',
-        user_level INTEGER DEFAULT 1,
-        is_private BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_chat_messages_room_id ON chat_messages(room_id);
-    `);
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
-    `);
-
-    // Support tables
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS support_tickets (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id VARCHAR(50) UNIQUE NOT NULL,
-        user_id INTEGER REFERENCES users(id),
-        subject VARCHAR(255) NOT NULL,
-        message TEXT NOT NULL,
-        category VARCHAR(50) NOT NULL,
-        priority VARCHAR(20) DEFAULT 'medium',
-        status VARCHAR(20) DEFAULT 'open',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS support_responses (
-        id BIGSERIAL PRIMARY KEY,
-        ticket_id VARCHAR(50) REFERENCES support_tickets(ticket_id),
-        user_id INTEGER REFERENCES users(id),
-        message TEXT NOT NULL,
-        response_type VARCHAR(20) DEFAULT 'user',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_feedback (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        type VARCHAR(50) NOT NULL,
-        message TEXT NOT NULL,
-        rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create user_credits table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_credits (
-        user_id INTEGER PRIMARY KEY,
-        balance INTEGER DEFAULT 0 CHECK (balance >= 0),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Remove any legacy columns and constraints that might cause issues
-    try {
-      await pool.query(`
-        DO $$
-        BEGIN
-          -- Remove legacy balance column if it exists
-          IF EXISTS (SELECT 1 FROM information_schema.columns 
-                     WHERE table_name='user_credits' AND column_name='legacy_balance') THEN
-            ALTER TABLE user_credits DROP COLUMN legacy_balance;
-            RAISE NOTICE 'Removed legacy_balance column';
-          END IF;
-          
-          -- Remove any other legacy constraints
-          IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'legacy_balance_deprecated') THEN
-            ALTER TABLE user_credits DROP CONSTRAINT legacy_balance_deprecated;
-            RAISE NOTICE 'Removed legacy_balance_deprecated constraint';
-          END IF;
-        EXCEPTION
-          WHEN OTHERS THEN
-            RAISE NOTICE 'Legacy cleanup warning: %', SQLERRM;
-        END $$;
-      `);
-    } catch (error) {
-      console.log('⚠️  Warning during user_credits legacy cleanup:', error.message);
-    }
-
-    // Create credit_transactions table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS credit_transactions (
-        id SERIAL PRIMARY KEY,
-        from_user_id INTEGER,
-        to_user_id INTEGER,
-        amount INTEGER NOT NULL,
-        type VARCHAR(20) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (from_user_id) REFERENCES users(id),
-        FOREIGN KEY (to_user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Create merchant_promotions table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS merchant_promotions (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        promoted_by INTEGER NOT NULL,
-        promoted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP NOT NULL,
-        status VARCHAR(20) DEFAULT 'active',
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGNKEY (promoted_by) REFERENCES users(id)
-      )
-    `);
-
-    // Create notifications table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        type VARCHAR(50) NOT NULL,
-        from_user_id INTEGER REFERENCES users(id),
-        from_username VARCHAR(50),
-        title VARCHAR(255) NOT NULL,
-        message TEXT NOT NULL,
-        is_read BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create private chats tables
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS private_chats (
-        id VARCHAR(255) PRIMARY KEY,
-        created_by VARCHAR(50) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS private_chat_participants (
-        id BIGSERIAL PRIMARY KEY,
-        chat_id VARCHAR(255) REFERENCES private_chats(id) ON DELETE CASCADE,
-        username VARCHAR(50) NOT NULL,
-        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(chat_id, username)
-      )
-    `);
-
-    // Create daily_login_rewards table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS daily_login_rewards (
-        id BIGSERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        login_date DATE NOT NULL,
-        exp_reward INTEGER NOT NULL,
-        consecutive_days INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, login_date)
-      )
-    `);
-
-    // Create custom_emojis table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS custom_emojis (
-        id BIGSERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        emoji VARCHAR(255) NOT NULL,
-        category VARCHAR(50) DEFAULT 'general',
-        created_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Update existing emoji column if it exists with smaller size
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name='custom_emojis' AND column_name='emoji' 
-                   AND character_maximum_length = 10) THEN
-          ALTER TABLE custom_emojis ALTER COLUMN emoji TYPE VARCHAR(255);
-        END IF;
-      END $$;
-    `);
-
-    // Create custom_gifts table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS custom_gifts (
-        id BIGSERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        icon VARCHAR(100) NOT NULL,
-        image VARCHAR(500),
-        animation TEXT,
-        price INTEGER NOT NULL DEFAULT 100 CHECK (price > 0),
-        type VARCHAR(20) DEFAULT 'static',
-        category VARCHAR(100) DEFAULT 'popular',
-        created_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create messages table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS messages (
-        id SERIAL PRIMARY KEY,
-        room_id INTEGER REFERENCES rooms(id) ON DELETE CASCADE,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        content TEXT NOT NULL,
-        type VARCHAR(20) DEFAULT 'text',
-        file_url TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    // Create password_resets table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS password_resets (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        token VARCHAR(255) UNIQUE NOT NULL,
-        expires_at TIMESTAMP NOT NULL,
-        used BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id)
-      );
-    `);
-
-    // Create emojis table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS emojis (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL,
-        filename VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create friendships table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS friendships (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        friend_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        status VARCHAR(20) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, friend_id)
-      )
-    `);
-
-    // Create user_exp_history table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_exp_history (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        activity_type VARCHAR(50) NOT NULL,
-        exp_gained INTEGER NOT NULL,
-        new_exp INTEGER NOT NULL,
-        new_level INTEGER NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create mentor_promotions table
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS mentor_promotions (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        promoted_by INTEGER NOT NULL,
-        promoted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP NOT NULL,
-        status VARCHAR(20) DEFAULT 'active',
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (promoted_by) REFERENCES users(id)
-      )
-    `);
-
-    // Create room_banned_users table if it doesn't exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS room_banned_users (
-        id SERIAL PRIMARY KEY,
-        room_id VARCHAR(50) NOT NULL,
-        banned_user_id VARCHAR(50),
-        banned_username VARCHAR(255) NOT NULL,
-        banned_by_id VARCHAR(50) NOT NULL,
-        banned_by_username VARCHAR(255) NOT NULL,
-        ban_reason TEXT,
-        banned_at TIMESTAMP DEFAULT NOW(),
-        expires_at TIMESTAMP,
-        is_active BOOLEAN DEFAULT true,
-        UNIQUE(room_id, banned_username)
-      )
-    `);
-
-    // Create banned_devices_ips table for device and IP bans
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS banned_devices_ips (
-        id SERIAL PRIMARY KEY,
-        user_id VARCHAR(50),
-        ban_type VARCHAR(10) NOT NULL CHECK (ban_type IN ('device', 'ip')),
-        target_value VARCHAR(255) NOT NULL,
-        ban_reason TEXT,
-        banned_by_id VARCHAR(50) NOT NULL,
-        banned_by_username VARCHAR(255) NOT NULL,
-        banned_at TIMESTAMP DEFAULT NOW(),
-        unbanned_at TIMESTAMP,
-        unbanned_by_id VARCHAR(50),
-        unbanned_by_username VARCHAR(255),
-        is_active BOOLEAN DEFAULT true,
-        UNIQUE(target_value, ban_type)
-      )
-    `);
-
-    console.log('✅ Room security and ban management tables initialized successfully');
-
-    // Create gift_earnings table for tracking user earnings from gifts (30% of gift value)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS gift_earnings (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        gift_id INTEGER,
-        gift_name VARCHAR(255),
-        gift_price INTEGER NOT NULL CHECK (gift_price > 0),
-        user_share INTEGER NOT NULL CHECK (user_share >= 0),
-        system_share INTEGER NOT NULL CHECK (system_share >= 0),
-        sender_user_id INTEGER,
-        sender_username VARCHAR(100),
-        room_id VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (sender_user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Create withdrawal_requests table for Xendit withdrawals
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS withdrawal_requests (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        amount INTEGER NOT NULL,
-        amount_usd DECIMAL(10,2) NOT NULL,
-        withdrawal_method VARCHAR(20) NOT NULL CHECK (withdrawal_method IN ('bank', 'ewallet')),
-        account_type VARCHAR(50),
-        account_name VARCHAR(255),
-        account_number VARCHAR(100),
-        bank_code VARCHAR(10),
-        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'cancelled')),
-        xendit_transaction_id VARCHAR(100),
-        failure_reason TEXT,
-        processed_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Create user_gift_earnings_balance table to track withdrawable gift earnings balance
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_gift_earnings_balance (
-        user_id INTEGER PRIMARY KEY,
-        balance INTEGER DEFAULT 0 CHECK (balance >= 0),
-        total_earned INTEGER DEFAULT 0 CHECK (total_earned >= 0),
-        total_withdrawn INTEGER DEFAULT 0 CHECK (total_withdrawn >= 0),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Create user_linked_accounts table for withdrawal account management
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_linked_accounts (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        account_id VARCHAR(50) NOT NULL,
-        account_name VARCHAR(100) NOT NULL,
-        account_number VARCHAR(100) NOT NULL,
-        holder_name VARCHAR(255) NOT NULL,
-        account_type VARCHAR(20) NOT NULL CHECK (account_type IN ('bank', 'ewallet')),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        UNIQUE(user_id, account_id)
-      )
-    `);
-
-    console.log('✅ Gift earnings and withdrawal tables initialized successfully');
-
-    // Create headwear_items table for store items
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS headwear_items (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        description TEXT,
-        image VARCHAR(500) NOT NULL,
-        price INTEGER NOT NULL CHECK (price > 0),
-        duration_days INTEGER DEFAULT 7,
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-
-    // Create user_headwear table for purchased headwear
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_headwear (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        headwear_id INTEGER NOT NULL,
-        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        expires_at TIMESTAMP NOT NULL,
-        is_active BOOLEAN DEFAULT true,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (headwear_id) REFERENCES headwear_items(id)
-      )
-    `);
-
-    // Insert default headwear items if none exist
-    const headwearCount = await pool.query('SELECT COUNT(*) FROM headwear_items WHERE is_active = true');
-    if (parseInt(headwearCount.rows[0].count) === 0) {
-      const defaultHeadwear = [
-        {
-          name: 'Golden Crown',
-          description: 'Mahkota emas eksklusif untuk avatar Anda',
-          image: '/api/headwear/images/golden-crown.png',
-          price: 50000,
-          duration_days: 7
-        },
-        {
-          name: 'Diamond Frame',
-          description: 'Bingkai berlian mewah yang berkilau',
-          image: '/api/headwear/images/diamond-frame.png',
-          price: 50000,
-          duration_days: 7
-        },
-        {
-          name: 'Royal Frame',
-          description: 'Bingkai kerajaan dengan ornamen elegan',
-          image: '/api/headwear/images/royal-frame.png',
-          price: 50000,
-          duration_days: 7
-        },
-        {
-          name: 'Fire Frame',
-          description: 'Bingkai api yang menawan dan bertenaga',
-          image: '/api/headwear/images/fire-frame.png',
-          price: 50000,
-          duration_days: 7
-        }
-      ];
-
-      for (const item of defaultHeadwear) {
-        await pool.query(`
-          INSERT INTO headwear_items (name, description, image, price, duration_days)
-          VALUES ($1, $2, $3, $4, $5)
-        `, [item.name, item.description, item.image, item.price, item.duration_days]);
-      }
-
-      console.log('✅ Default headwear items added to store');
-    }
-
-    console.log('✅ Headwear store tables initialized successfully');
-
-    // Add CHECK constraints to existing tables if they don't exist
-    try {
-      await pool.query(`
-        DO $$ 
-        BEGIN
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'custom_gifts_price_check') THEN
-            ALTER TABLE custom_gifts ADD CONSTRAINT custom_gifts_price_check CHECK (price > 0);
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'gift_earnings_price_check') THEN
-            ALTER TABLE gift_earnings ADD CONSTRAINT gift_earnings_price_check CHECK (gift_price > 0);
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'gift_earnings_shares_check') THEN
-            ALTER TABLE gift_earnings ADD CONSTRAINT gift_earnings_shares_check CHECK (user_share >= 0 AND system_share >= 0);
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_gift_earnings_balance_check') THEN
-            ALTER TABLE user_gift_earnings_balance ADD CONSTRAINT user_gift_earnings_balance_check CHECK (balance >= 0 AND total_earned >= 0 AND total_withdrawn >= 0);
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'user_credits_balance_check') THEN
-            ALTER TABLE user_credits ADD CONSTRAINT user_credits_balance_check CHECK (balance >= 0);
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'gift_earnings_sum_check') THEN
-            ALTER TABLE gift_earnings ADD CONSTRAINT gift_earnings_sum_check CHECK (user_share + system_share = gift_price);
-          END IF;
-          IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'headwear_items_price_check') THEN
-            ALTER TABLE headwear_items ADD CONSTRAINT headwear_items_price_check CHECK (price > 0);
-          END IF;
-        END $$;
-      `);
-      console.log('✅ Database constraints enforced successfully');
-    } catch (error) {
-      console.log('⚠️  Warning: Could not add some database constraints:', error.message);
-    }
-
-    // Add default admin user 'asu' if not exists
-    try {
-      const existingUser = await pool.query('SELECT id, role FROM users WHERE username = $1', ['asu']);
-      if (existingUser.rows.length === 0) {
-        const hashedPassword = await bcrypt.hash('123456', 10);
-        const adminUser = await pool.query(`
-          INSERT INTO users (username, email, password, role, verified, exp, level, last_login)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          RETURNING id, username, role, exp, level
-        `, ['asu', 'asu@admin.com', hashedPassword, 'admin', true, 0, 1, new Date()]);
-
-        // Initialize admin user with credits
-        await pool.query(`
-          INSERT INTO user_credits (user_id, balance)
-          VALUES ($1, $2)
-          ON CONFLICT (user_id) DO UPDATE SET balance = $2
-        `, [adminUser.rows[0].id, 100000]);
-
-        console.log('Admin user "asu" created successfully with 100,000 coins:', adminUser.rows[0]);
-      } else {
-        // Always ensure user has admin role and credentials on server start
-        const userId = existingUser.rows[0].id;
-        const currentRole = existingUser.rows[0].role;
-
-        if (currentRole !== 'admin') {
-          console.log(`Fixing user "asu" role from "${currentRole}" to "admin"`);
-        }
-
-        await pool.query('UPDATE users SET role = $1, verified = $2 WHERE username = $3', ['admin', true, 'asu']);
-
-        // Check if user has credits, if not add them
-        const creditsResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
-        if (creditsResult.rows.length === 0) {
-          await pool.query(`
-            INSERT INTO user_credits (user_id, balance)
-            VALUES ($1, $2)
-          `, [userId, 100000]);
-        }
-
-        // Verify the role was set correctly
-        const verifyResult = await pool.query('SELECT role FROM users WHERE username = $1', ['asu']);
-        const finalRole = verifyResult.rows[0]?.role;
-        console.log(`User "asu" role verified: ${finalRole} (should be admin)`);
-
-        if (finalRole === 'admin') {
-          console.log('✅ Admin user "asu" role successfully maintained');
-        } else {
-          console.error('❌ Failed to maintain admin role for user "asu"');
-        }
-      }
-    } catch (adminError) {
-      console.error('Error creating/updating admin user:', adminError);
-    }
-  } catch (error) {
-    console.error('Error initializing database:', error);
-  }
-};
-
-// Load rooms from database on startup
-const loadRoomsFromDatabase = async () => {
-  try {
-    const result = await pool.query('SELECT * FROM rooms ORDER BY created_at ASC');
-
-    // Clear in-memory rooms and load from database
-    rooms.length = 0;
-
-    result.rows.forEach(dbRoom => {
-      rooms.push({
-        id: dbRoom.id.toString(),
-        name: dbRoom.name,
-        description: dbRoom.description,
-        managedBy: dbRoom.managed_by,
-        type: dbRoom.type,
-        members: dbRoom.members || 0,
-        maxMembers: dbRoom.max_members,
-        createdBy: dbRoom.created_by,
-        createdAt: dbRoom.created_at
-      });
-    });
-
-    // If no rooms in database, add default rooms
-    if (rooms.length === 0) {
-      const defaultRooms = [
-        {
-          name: 'General Chat',
-          description: 'General Chat - Welcome to merchant official chatroom',
-          managedBy: 'admin_user',
-          type: 'room',
-          members: 0,
-          maxMembers: 100,
-          createdBy: 'admin_user'
-        },
-        {
-          name: 'Tech Talk',
-          description: 'Tech Talk - Welcome to merchant official chatroom',
-          managedBy: 'tech_admin',
-          type: 'room',
-          members: 0,
-          maxMembers: 50,
-          createdBy: 'tech_admin'
-        },
-        {
-          name: 'Indonesia',
-          description: 'Indonesia - Welcome to merchant official chatroom',
-          managedBy: 'admin_user',
-          type: 'room',
-          members: 0,
-          maxMembers: 80,
-          createdBy: 'admin_user'
-        }
-      ];
-
-      for (const roomData of defaultRooms) {
-        const result = await pool.query(`
-          INSERT INTO rooms (name, description, managed_by, type, members, max_members, created_by)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-          RETURNING *
-        `, [roomData.name, roomData.description, roomData.managedBy, roomData.type, roomData.members, roomData.maxMembers, roomData.createdBy]);
-
-        const dbRoom = result.rows[0];
-        rooms.push({
-          id: dbRoom.id.toString(),
-          name: dbRoom.name,
-          description: dbRoom.description,
-          managedBy: dbRoom.managed_by,
-          type: dbRoom.type,
-          members: dbRoom.members,
-          maxMembers: dbRoom.max_members,
-          createdBy: dbRoom.created_by,
-          createdAt: dbRoom.created_at
-        });
-      }
-    }
-
-    console.log(`Loaded ${rooms.length} rooms from database:`, rooms.map(r => `${r.name} (ID: ${r.id})`));
-  } catch (error) {
-    console.error('Error loading rooms from database:', error);
-  }
-};
-
-// Initialize database on startup
-initTables().then(() => {
-  loadRoomsFromDatabase();
-
-  // Ensure upload directories exist
-  const uploadsDir = path.join(__dirname, 'uploads');
-  const giftsDir = path.join(uploadsDir, 'gifts');
-  const emojisDir = path.join(uploadsDir, 'emojis');
-  const mediaDir = path.join(uploadsDir, 'media');
-
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
-  if (!fs.existsSync(giftsDir)) {
-    fs.mkdirSync(giftsDir, { recursive: true });
-  }
-  if (!fs.existsSync(emojisDir)) {
-    fs.mkdirSync(emojisDir, { recursive: true });
-  }
-  if (!fs.existsSync(mediaDir)) {
-    fs.mkdirSync(mediaDir, { recursive: true });
-  }
-
-  console.log('Upload directories initialized');
-});
-// Rooms data - starts with initial rooms
-const rooms = [
-  {
-    id: '1',
-    name: 'General Chat',
-    description: 'General Chat - Welcome to merchant official chatroom',
-    managedBy: 'admin_user',
-    type: 'room',
-    members: 0,
-    maxMembers: 100,
-    createdBy: 'admin_user'
-  },
-  {
-    id: '2',
-    name: 'Tech Talk',
-    description: 'Tech Talk - Welcome to merchant official chatroom',
-    managedBy: 'tech_admin',
-    type: 'room',
-    members: 0,
-    maxMembers: 50,
-    createdBy: 'tech_admin'
-  },
-  {
-    id: '3',
-    name: 'Indonesia',
-    description: 'Indonesia - Welcome to merchant official chatroom',
-    managedBy: 'admin_user',
-    type: 'room',
-    members: 0,
-    maxMembers: 80,
-    createdBy: 'admin_user'
-  }
-];
-
-// Initialize participant data structure
-const roomParticipants = {}; // { roomId: [ { id, username, role, isOnline, joinedAt, lastSeen }, ... ], ... }
-
-// Socket.IO handling removed - now handled by dedicated gateway server
-
-// Function to generate room description
-const generateRoomDescription = (roomName, creatorUsername) => {
-  return `${roomName} - Welcome to merchant official chatroom. This room is managed by ${creatorUsername}`;
-};
-
-let verificationTokens = [];
-
-// Email verification simulation (replace with real email service)
-const sendVerificationEmail = (email, token) => {
-  console.log(`=== EMAIL VERIFICATION ===`);
-  console.log(`To: ${email}`);
-  console.log(`Subject: Verify Your ChatMe Account`);
-  console.log(`Verification Link: http://0.0.0.0:5000/api/verify-email?token=${token}`);
-  console.log(`========================`);
-  return true;
-};
-
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Middleware to authenticate JWT token
@@ -1368,6 +389,26 @@ const authenticateToken = (req, res, next) => {
       res.status(500).json({ error: 'Database error during authentication' });
     }
   });
+};
+
+// In-memory database for non-critical data (posts will be moved to DB later)
+let posts = [];
+
+// Function to generate room description
+const generateRoomDescription = (roomName, creatorUsername) => {
+  return `${roomName} - Welcome to merchant official chatroom. This room is managed by ${creatorUsername}`;
+};
+
+let verificationTokens = [];
+
+// Email verification simulation (replace with real email service)
+const sendVerificationEmail = (email, token) => {
+  console.log(`=== EMAIL VERIFICATION ===`);
+  console.log(`To: ${email}`);
+  console.log(`Subject: Verify Your ChatMe Account`);
+  console.log(`Verification Link: http://0.0.0.0:5000/api/verify-email?token=${token}`);
+  console.log(`========================`);
+  return true;
 };
 
 // Function to add EXP to a user
@@ -3895,7 +2936,7 @@ app.get('/api/users/avatar/:avatarId', async (req, res) => {
         if (dbResult.rows.length === 0) {
           dbResult = await pool.query(
             'SELECT file_data, filename FROM user_album WHERE filename LIKE $1 LIMIT 1',
-            [`${avatarId}%`]
+            [`%${avatarId}%`]
           );
         }
 
@@ -4180,19 +3221,19 @@ app.put('/api/users/:userId/profile', authenticateToken, async (req, res) => {
       values.push(gender);
     }
     if (birthDate !== undefined) {
-      updates.push(`birth_date = $${paramCounter++}`);
+      updateFields.push(`birth_date = $${paramCounter++}`);
       values.push(birthDate === null || birthDate === '' ? null : birthDate);
     }
     if (country !== undefined) {
-      updates.push(`country = $${paramCounter++}`);
+      updateFields.push(`country = $${paramCounter++}`);
       values.push(country);
     }
     if (signature !== undefined) {
-      updates.push(`signature = $${paramCounter++}`);
+      updateFields.push(`signature = $${paramCounter++}`);
       values.push(signature);
     }
 
-    if (updates.length === 0) {
+    if (updateFields.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
@@ -4536,6 +3577,7 @@ app.get('/api/lowcard/games', (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
@@ -5682,7 +4724,20 @@ app.get('/api/user/gift-earnings-balance', authenticateToken, async (req, res) =
     const exchangeRate = await getExchangeRate();
     const balanceUSD = giftBalance.balance / exchangeRate;
     const minWithdrawCoins = Math.floor(10 * exchangeRate); // 10 USD equivalent
-    const canWithdraw = giftBalance.balance >= minWithdrawCoins;
+    const feeRate = 0.05; // Default fee rate, will be adjusted by type below
+    let netAmount = 0;
+
+
+    // Get linked account details
+    const accountResult = await pool.query(`
+      SELECT account_id FROM user_linked_accounts WHERE user_id = $1 LIMIT 1
+    `, [userId]);
+
+    let linkedAccountExists = accountResult.rows.length > 0;
+
+    // If no linked account, we can't determine min withdrawal for specific types,
+    // but can still show general balance info.
+    // The withdrawal endpoint will check for specific linked account details.
 
     res.json({
       balance: giftBalance.balance,
@@ -5692,7 +4747,8 @@ app.get('/api/user/gift-earnings-balance', authenticateToken, async (req, res) =
       minWithdrawCoins,
       minWithdrawUSD: 10,
       exchangeRate,
-      canWithdraw
+      canWithdraw: giftBalance.balance >= minWithdrawCoins && linkedAccountExists, // Check if linked account exists to determine if withdrawal is possible
+      hasLinkedAccount: linkedAccountExists
     });
 
   } catch (error) {
@@ -6982,7 +6038,7 @@ app.post('/auth/login', async (req, res) => {
 // Admin credit management endpoints
 app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
   const client = await pool.connect();
-  
+
   try {
     console.log('=== ADMIN ADD CREDITS REQUEST ===');
     console.log('User ID:', req.user.id);
@@ -7015,7 +6071,7 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
     try {
       // Check if user already has credits record
       const creditsResult = await client.query('SELECT balance FROM user_credits WHERE user_id = $1', [targetUser.id]);
-      
+
       if (creditsResult.rows.length === 0) {
         // Create new credits record with only required fields
         await client.query(`
@@ -7049,7 +6105,7 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('Transaction error:', error);
-      
+
       // Check if it's a constraint error
       if (error.code === '23514') {
         return res.status(400).json({ 
@@ -7057,7 +6113,7 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
           details: 'Legacy constraint issue detected'
         });
       }
-      
+
       throw error;
     }
 
