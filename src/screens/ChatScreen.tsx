@@ -4537,6 +4537,7 @@ export default function ChatScreen() {
                           styles.participantRole,
                           { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
                         ]>{
+                          (() => {
                             const currentRoom = chatTabs[activeTab];
                             const isOwner = currentRoom && currentRoom.managedBy === participant.username;
                             const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
@@ -4550,7 +4551,8 @@ export default function ChatScreen() {
                               case 'mentor': return '🎓 Mentor';
                               default: return '👤 User';
                             }
-                          })()}
+                          })()
+                        }
                         </Text>
                         {mutedUsers.includes(participant.username) && (
                           <Text style={styles.mutedIndicator}>🔇 Muted</Text>
