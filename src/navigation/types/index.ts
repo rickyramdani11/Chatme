@@ -53,6 +53,7 @@ export type RootStackParamList = {
   };
   FamilyScreen: undefined;
   CreateFamilyScreen: undefined;
+  FamilyDetailScreen: { familyId: string };
 };
 
 export type TabParamList = {

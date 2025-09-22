@@ -41,6 +41,8 @@ import StoreScreen from '../screens/StoreScreen';
 import FamilyScreen from '../screens/FamilyScreen';
 // Import CreateFamilyScreen
 import CreateFamilyScreen from '../screens/CreateFamilyScreen';
+// Import FamilyDetailScreen
+import FamilyDetailScreen from '../screens/FamilyDetailScreen';
 
 
 import { useAuth } from '../hooks';
@@ -217,6 +219,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="CreateFamilyScreen"
             component={CreateFamilyScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="FamilyDetailScreen"
+            component={FamilyDetailScreen}
             options={{ headerShown: false }}
           />
         </>

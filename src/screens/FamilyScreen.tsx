@@ -173,7 +173,9 @@ export default function FamilyScreen({ navigation }: any) {
         </View>
         <View style={styles.familyDetails}>
           <View style={styles.familyNameRow}>
-            <Text style={styles.familyItemName}>{family.name}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('FamilyDetailScreen', { familyId: family.id })}>
+              <Text style={[styles.familyItemName, styles.clickableFamilyName]}>{family.name}</Text>
+            </TouchableOpacity>
             <View style={styles.familyLevelBadge}>
               <Text style={styles.familyLevelText}>LV{family.level}</Text>
             </View>
@@ -488,5 +490,9 @@ const styles = StyleSheet.create({
     color: '#FF9800',
     fontWeight: '500',
     marginTop: 2,
+  },
+  clickableFamilyName: {
+    color: '#4CAF50',
+    textDecorationLine: 'underline',
   },
 });

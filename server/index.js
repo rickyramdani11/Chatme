@@ -862,6 +862,45 @@ app.get('/api/users/:userId/family', async (req, res) => {
   }
 });
 
+// Get specific family details
+app.get('/api/families/:familyId', async (req, res) => {
+  try {
+    const { familyId } = req.params;
+
+    const result = await pool.query(`
+      SELECT 
+        f.*,
+        COUNT(fm.id) as actual_members_count
+      FROM families f
+      LEFT JOIN family_members fm ON f.id = fm.family_id AND fm.is_active = true
+      WHERE f.id = $1
+      GROUP BY f.id
+    `, [familyId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Family not found' });
+    }
+
+    const family = result.rows[0];
+
+    res.json({
+      id: family.id.toString(),
+      name: family.name,
+      description: family.description,
+      coverImage: family.cover_image,
+      createdBy: family.created_by_username,
+      membersCount: family.actual_members_count || 1,
+      maxMembers: family.max_members || 50,
+      level: family.level || 1,
+      createdAt: family.created_at
+    });
+
+  } catch (error) {
+    console.error('Error fetching family details:', error);
+    res.status(500).json({ error: 'Failed to fetch family details' });
+  }
+});
+
 // Get user's family badge info (for ProfileScreen)
 app.get('/api/users/:userId/family-badge', async (req, res) => {
   try {
