@@ -24,7 +24,7 @@
         "background-processing",
         "background-fetch"
       ],
-      "bundleIdentifier": "com.chatme1.app",
+      "bundleIdentifier": "com.chatme.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app needs access to your camera for video calls",
@@ -44,7 +44,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.chatme1.app"
+      "package": "com.chatme.app"
     },
     "web": {
       "bundler": "metro",
