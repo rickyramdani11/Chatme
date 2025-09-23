@@ -614,33 +614,26 @@ export default function ProfileScreen({ navigation, route }: any) {
               { transform: [{ scale: scaleAnim }] }
             ]}
           >
-            <View style={styles.avatarFrame}>
-              <LinearGradient
-                colors={['#667eea', '#764ba2']}
-                style={styles.avatarBorder}
-              >
-                <View style={styles.avatarInner}>
-                  {profile.avatar ? (
-                    <Image 
-                      source={{ uri: profile.avatar }} 
-                      style={styles.avatar}
-                      onError={(error) => {
-                        console.log('Avatar loading failed:', error.nativeEvent.error);
-                        setProfile(prev => prev ? { ...prev, avatar: null } : null);
-                      }}
-                    />
-                  ) : (
-                    <LinearGradient
-                      colors={['#667eea', '#764ba2']}
-                      style={styles.defaultAvatar}
-                    >
-                      <Text style={styles.avatarText}>
-                        {profile.username.charAt(0).toUpperCase()}
-                      </Text>
-                    </LinearGradient>
-                  )}
-                </View>
-              </LinearGradient>
+            <View style={styles.simpleAvatarContainer}>
+              {profile.avatar ? (
+                <Image 
+                  source={{ uri: profile.avatar }} 
+                  style={styles.simpleAvatar}
+                  onError={(error) => {
+                    console.log('Avatar loading failed:', error.nativeEvent.error);
+                    setProfile(prev => prev ? { ...prev, avatar: null } : null);
+                  }}
+                />
+              ) : (
+                <LinearGradient
+                  colors={['#667eea', '#764ba2']}
+                  style={styles.simpleDefaultAvatar}
+                >
+                  <Text style={styles.avatarText}>
+                    {profile.username.charAt(0).toUpperCase()}
+                  </Text>
+                </LinearGradient>
+              )}
             </View>
           </Animated.View>
 
@@ -665,15 +658,13 @@ export default function ProfileScreen({ navigation, route }: any) {
                 style={styles.statsGradient}
               >
                 <TouchableOpacity style={styles.statItem}>
-                  <Text style={styles.statText}>
-                    Mengikuti <Text style={styles.statNumber}>[{profile.following || 0}]</Text>
-                  </Text>
+                  <Text style={styles.statLabel}>Mengikuti</Text>
+                  <Text style={styles.statNumber}>[{profile.following || followingCount || 0}]</Text>
                 </TouchableOpacity>
                 <View style={styles.statDivider} />
                 <TouchableOpacity style={styles.statItem}>
-                  <Text style={styles.statText}>
-                    Pengikut <Text style={styles.statNumber}>[{profile.followers || 0}]</Text>
-                  </Text>
+                  <Text style={styles.statLabel}>Pengikut</Text>
+                  <Text style={styles.statNumber}>[{profile.followers || followersCount || 0}]</Text>
                 </TouchableOpacity>
               </LinearGradient>
             </View>
@@ -1021,29 +1012,30 @@ const styles = StyleSheet.create({
     marginTop: -60,
     marginBottom: 25,
   },
-  avatarFrame: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarBorder: {
-    width: 94,
-    height: 94,
-    borderRadius: 47,
-    padding: 3,
-    shadowColor: '#667eea',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  
-  avatarInner: {
+  simpleAvatarContainer: {
     width: 88,
     height: 88,
     borderRadius: 44,
     overflow: 'hidden',
     backgroundColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  simpleAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 44,
+    resizeMode: 'cover',
+  },
+  simpleDefaultAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatar: {
     width: '100%',
@@ -1116,16 +1108,18 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     height: 30,
   },
-  statText: {
-    color: '#2c3e50',
-    fontSize: 16,
-    fontWeight: '600',
+  statLabel: {
+    color: '#7f8c8d',
+    fontSize: 14,
+    fontWeight: '500',
     textAlign: 'center',
+    marginBottom: 4,
   },
   statNumber: {
     color: '#667eea',
     fontSize: 18,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   bio: {
     color: '#7f8c8d',
