@@ -2320,9 +2320,9 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
 
       // Record gift transaction
       await pool.query(`
-        INSERT INTO gift_earnings (user_id, gift_id, gift_name, gift_price, sender_username, earnings, room_id, is_private)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [recipientId, giftId, `Gift ${giftId}`, giftPrice, senderUsername, earnings, roomId, isPrivate || false]);
+        INSERT INTO gift_earnings (user_id, gift_id, gift_name, gift_price, sender_username, user_share, system_share, room_id, is_private)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [recipientId, giftId, `Gift ${giftId}`, giftPrice, senderUsername, earnings, giftPrice - earnings, roomId, isPrivate || false]);
 
       // Record credit transaction
       await pool.query(`
@@ -5557,9 +5557,9 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
 
       // Record gift earnings for recipient
       await client.query(`
-        INSERT INTO gift_earnings (user_id, gift_id, gift_name, gift_price, user_share, system_share, sender_user_id, sender_username, room_id)
+        INSERT INTO gift_earnings (user_id, gift_id, gift_name, gift_price, user_share, system_share, sender_username, room_id, is_private)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-`, [recipientUserId, giftId, giftName, giftPrice, recipientShare, systemShare, senderId, senderUsername, roomId]);
+      `, [recipientUserId, giftId, giftName, giftPrice, recipientShare, systemShare, senderUsername, roomId, isPrivate || false]);
 
       // Atomic upsert for gift earnings balance - prevents race conditions
       await client.query(`
