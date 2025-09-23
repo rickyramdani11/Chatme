@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,12 @@ import {
   Image,
   Alert,
   RefreshControl,
-  Platform,
-  Modal
+  ActivityIndicator,
+  Modal,
+  SafeAreaView,
+  Dimensions,
+  FlatList,
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +30,7 @@ interface Friend {
   lastSeen?: string;
   avatar?: string;
   role?: string;
+  username?: string; // Added username for consistency
 }
 
 // Placeholder for Room type, assuming it's defined elsewhere
@@ -56,6 +61,27 @@ const HomeScreen = ({ navigation }: any) => {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const { token } = useAuth();
   const [socket, setSocket] = useState(null);
+
+  // Animation for blinking border
+  const borderBlinkAnim = useRef(new Animated.Value(1)).current;
+
+  // Animation setup for blinking border
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(borderBlinkAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(borderBlinkAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, [borderBlinkAnim]);
 
 
   // Fetch friends from server
@@ -1081,18 +1107,37 @@ const HomeScreen = ({ navigation }: any) => {
           activeOpacity={1}
           onPress={() => setShowFriendMenu(false)}
         >
-          <View style={styles.friendContextMenu}>
+          <Animated.View style={[
+            styles.friendContextMenu,
+            {
+              borderColor: borderBlinkAnim.interpolate({
+                inputRange: [0.3, 1],
+                outputRange: ['#667eea', '#E8F4FD'],
+              }),
+              shadowColor: borderBlinkAnim.interpolate({
+                inputRange: [0.3, 1],
+                outputRange: ['#667eea', '#000'],
+              }),
+            }
+          ]}>
             <View style={styles.friendMenuHeader}>
-              <View style={[styles.friendMenuAvatar, { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name) : '#9E9E9E' }]}>
+              <View style={[
+                styles.friendMenuAvatar,
+                { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username) : '#9E9E9E' }
+              ]}>
                 {selectedFriend?.avatar ? (
-                  <Image source={{ uri: selectedFriend.avatar }} style={styles.friendMenuAvatarImage} />
+                  <Image
+                    source={{ uri: selectedFriend.avatar }}
+                    style={styles.friendMenuAvatarImage}
+                    onError={() => console.log('Failed to load friend menu avatar')}
+                  />
                 ) : (
                   <Text style={styles.friendMenuAvatarText}>
-                    {selectedFriend?.name?.charAt(0).toUpperCase() || 'U'}
+                    {selectedFriend?.name?.charAt(0).toUpperCase() || selectedFriend?.username?.charAt(0).toUpperCase() || 'U'}
                   </Text>
                 )}
               </View>
-              <Text style={styles.friendMenuName}>{selectedFriend?.name}</Text>
+              <Text style={styles.friendMenuName}>{selectedFriend?.name || selectedFriend?.username}</Text>
             </View>
 
             <TouchableOpacity
@@ -1126,7 +1171,7 @@ const HomeScreen = ({ navigation }: any) => {
               <Ionicons name="flag-outline" size={20} color="#F44336" />
               <Text style={[styles.friendMenuText, { color: '#F44336' }]}>Report</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </TouchableOpacity>
       </Modal>
 
@@ -1591,6 +1636,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+    borderWidth: 3, // Added border width for animated border
   },
   friendMenuHeader: {
     alignItems: 'center',
