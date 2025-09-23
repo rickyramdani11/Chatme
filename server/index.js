@@ -6,7 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const { Pool } = require('pg');
 const fs = require('fs');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto'); // Required for JWT and signature verification
 
