@@ -5700,7 +5700,7 @@ app.get('/api/user/withdrawal-history', authenticateToken, async (req, res) => {
 // Debug endpoint to list media files
 app.get('/api/debug/media-files', (req, res) => {
   try {
-    const mediaDir = path.join(__dirname, 'uploads, 'media');
+    const mediaDir = path.join(__dirname, 'uploads', 'media');
 
     if (!fs.existsSync(mediaDir)) {
       return res.json({ 
