@@ -330,6 +330,16 @@ pool.connect(async (err, client, release) => {
         )
       `);
 
+      // Add is_private column if it doesn't exist
+      try {
+        await client.query(`
+          ALTER TABLE gift_earnings ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false
+        `);
+        console.log('✅ is_private column added to gift_earnings table');
+      } catch (alterError) {
+        console.log('is_private column might already exist or other issue:', alterError.message);
+      }
+
       console.log('✅ Withdrawal system and gift earnings tables initialized successfully');
     } catch (tableError) {
       console.error('Error creating withdrawal system tables:', tableError);
