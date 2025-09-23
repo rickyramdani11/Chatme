@@ -29,6 +29,7 @@ interface Friend {
   status: StatusType;
   lastSeen?: string;
   avatar?: string;
+  role?: string;
 }
 
 export default function FriendsScreen() {
@@ -71,6 +72,16 @@ export default function FriendsScreen() {
     const firstChar = name?.charAt(0).toUpperCase() || 'A';
     const index = firstChar.charCodeAt(0) % colors.length;
     return colors[index];
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin': return '#FF6B35'; // Orange untuk admin
+      case 'mentor': return '#9C27B0'; // Purple untuk mentor  
+      case 'merchant': return '#FF9800'; // Amber untuk merchant
+      case 'user':
+      default: return '#333'; // Dark untuk user biasa
+    }
   };
 
   const formatLastSeen = (lastSeen?: string) => {
@@ -169,7 +180,8 @@ export default function FriendsScreen() {
           status: friend.status || 'offline',
           lastSeen: friend.last_seen || friend.lastSeen || 'Recently',
           avatar: friend.avatar && friend.avatar.startsWith('/api/') ? `${API_BASE_URL}${friend.avatar}` : 
-                  friend.avatar && friend.avatar.startsWith('http') ? friend.avatar : null
+                  friend.avatar && friend.avatar.startsWith('http') ? friend.avatar : null,
+          role: friend.role || 'user'
         }));
         
         setFriends(transformedFriends);
@@ -210,7 +222,8 @@ export default function FriendsScreen() {
           status: user.status || 'offline',
           lastSeen: user.last_seen || 'Recently',
           avatar: user.avatar && user.avatar.startsWith('/api/') ? `${API_BASE_URL}${user.avatar}` : 
-                  user.avatar && user.avatar.startsWith('http') ? user.avatar : null
+                  user.avatar && user.avatar.startsWith('http') ? user.avatar : null,
+          role: user.role || 'user'
         }));
         setFriends(transformedUsers);
       }
@@ -397,7 +410,7 @@ export default function FriendsScreen() {
           <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(friend.status) }]} />
         </View>
         <View style={styles.friendDetails}>
-          <Text style={styles.friendName}>{friend.name}</Text>
+          <Text style={[styles.friendName, { color: getRoleColor(friend.role || 'user') }]}>{friend.name}</Text>
           <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
         </View>
       </TouchableOpacity>
