@@ -4835,7 +4835,7 @@ export default function ChatScreen() {
                             resizeMode="contain"
                           />
                         )
-                      )}
+                      ) : null}
                     </View>
                     <Text style={styles.newGiftName}>{gift.name}</Text>
                     <View style={styles.giftPriceContainer}>
