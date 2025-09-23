@@ -309,7 +309,23 @@ pool.connect(async (err, client, release) => {
         )
       `);
 
-      console.log('✅ Withdrawal system tables initialized successfully');
+      // Create gift earnings table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS gift_earnings (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          gift_id VARCHAR(50) NOT NULL,
+          gift_name VARCHAR(255) NOT NULL,
+          gift_price INTEGER NOT NULL,
+          sender_username VARCHAR(50) NOT NULL,
+          earnings INTEGER NOT NULL,
+          room_id VARCHAR(50),
+          is_private BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      console.log('✅ Withdrawal system and gift earnings tables initialized successfully');
     } catch (tableError) {
       console.error('Error creating withdrawal system tables:', tableError);
     }
@@ -2203,6 +2219,129 @@ app.get('/api/gifts', async (req, res) => {
   } catch (error) {
     console.error('Error fetching gifts for picker:', error);
     res.status(500).json({ error: 'Failed to fetch gifts' });
+  }
+});
+
+// Check gift balance endpoint
+app.post('/api/gifts/check-balance', authenticateToken, async (req, res) => {
+  try {
+    const { giftPrice } = req.body;
+    const userId = req.user.id;
+
+    if (!giftPrice) {
+      return res.status(400).json({ error: 'Gift price is required' });
+    }
+
+    // Get user balance
+    const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
+    const currentBalance = balanceResult.rows.length > 0 ? balanceResult.rows[0].balance : 0;
+
+    const canAfford = currentBalance >= giftPrice;
+
+    res.json({
+      canAfford,
+      currentBalance,
+      giftPrice
+    });
+
+  } catch (error) {
+    console.error('Error checking gift balance:', error);
+    res.status(500).json({ error: 'Failed to check balance' });
+  }
+});
+
+// Gift purchase endpoint
+app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
+  try {
+    const { giftId, giftPrice, recipientUsername, roomId, isPrivate } = req.body;
+    const userId = req.user.id;
+    const senderUsername = req.user.username;
+
+    console.log('=== GIFT PURCHASE REQUEST ===');
+    console.log('Gift ID:', giftId);
+    console.log('Price:', giftPrice);
+    console.log('Sender:', senderUsername);
+    console.log('Recipient:', recipientUsername);
+    console.log('Room ID:', roomId);
+    console.log('Is Private:', isPrivate);
+
+    if (!giftId || !giftPrice || !recipientUsername) {
+      return res.status(400).json({ error: 'Gift ID, price, and recipient are required' });
+    }
+
+    // Start transaction
+    await pool.query('BEGIN');
+
+    try {
+      // Check sender balance
+      const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
+      const currentBalance = balanceResult.rows.length > 0 ? balanceResult.rows[0].balance : 0;
+
+      if (currentBalance < giftPrice) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient balance' });
+      }
+
+      // Get recipient user ID
+      const recipientResult = await pool.query('SELECT id FROM users WHERE username = $1', [recipientUsername]);
+      if (recipientResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'Recipient not found' });
+      }
+
+      const recipientId = recipientResult.rows[0].id;
+
+      // Deduct from sender
+      await pool.query(
+        'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+        [giftPrice, userId]
+      );
+
+      // Calculate earnings for recipient (70% of gift price)
+      const earnings = Math.floor(giftPrice * 0.7);
+
+      // Add earnings to recipient's gift earnings balance
+      await pool.query(`
+        INSERT INTO user_gift_earnings_balance (user_id, balance, total_earned)
+        VALUES ($1, $2, $2)
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          balance = user_gift_earnings_balance.balance + $2,
+          total_earned = user_gift_earnings_balance.total_earned + $2,
+          updated_at = CURRENT_TIMESTAMP
+      `, [recipientId, earnings]);
+
+      // Record gift transaction
+      await pool.query(`
+        INSERT INTO gift_earnings (user_id, gift_id, gift_name, gift_price, sender_username, earnings, room_id, is_private)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [recipientId, giftId, `Gift ${giftId}`, giftPrice, senderUsername, earnings, roomId, isPrivate || false]);
+
+      // Record credit transaction
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
+        VALUES ($1, $2, $3, 'gift_purchase')
+      `, [userId, recipientId, giftPrice]);
+
+      await pool.query('COMMIT');
+
+      console.log(`Gift purchased successfully: ${senderUsername} -> ${recipientUsername}, Price: ${giftPrice}, Earnings: ${earnings}`);
+
+      res.json({
+        success: true,
+        message: 'Gift sent successfully',
+        earnings: earnings,
+        newBalance: currentBalance - giftPrice
+      });
+
+    } catch (transactionError) {
+      await pool.query('ROLLBACK');
+      throw transactionError;
+    }
+
+  } catch (error) {
+    console.error('Error purchasing gift:', error);
+    res.status(500).json({ error: 'Failed to send gift' });
   }
 });
 

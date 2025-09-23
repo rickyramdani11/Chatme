@@ -2914,7 +2914,7 @@ export default function ChatScreen() {
               Alert.alert('Success', `${selectedParticipant?.username} has been unmuted`);
             } else {
               setMutedUsers(prev => [...prev, selectedParticipant?.username]);
-              Alert.Alert('Success', `${selectedParticipant?.username} has been muted`);
+              Alert.alert('Success', `${selectedParticipant?.username} has been muted`);
             }
 
             // Emit mute event via socket
@@ -4835,13 +4835,6 @@ export default function ChatScreen() {
                             resizeMode="contain"
                           />
                         )
-                      ) : (
-                        <Text style={styles.newGiftIcon}>{gift.icon}</Text>
-                      )}
-                      {gift.type === 'animated' && (
-                        <View style={styles.animatedBadge}>
-                          <Text style={styles.animatedBadgeText}>✨</Text>
-                        </View>
                       )}
                     </View>
                     <Text style={styles.newGiftName}>{gift.name}</Text>
@@ -6451,47 +6444,6 @@ const styles = StyleSheet.create({
   },
   giftIcon: {
     fontSize: 40,
-  },
-  animatedBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#FF69B4',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  animatedBadgeText: {
-    fontSize: 10,
-    color: 'white',
-  },
-  giftName: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 6,
-    textAlign: 'center',
-    minHeight: 28,
-    lineHeight: 14,
-  },
-  giftPriceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  giftPrice: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginLeft: 2,
-  },
-  giftPreviewImage: {
-    width: 60,
-    height: 70,
-    borderRadius: 8,
-    resizeMode: 'contain',
   },
   // Auto scroll button styles
   autoScrollButton: {
