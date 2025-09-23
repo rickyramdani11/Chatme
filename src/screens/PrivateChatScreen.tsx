@@ -466,20 +466,148 @@ export default function PrivateChatScreen() {
   };
 
   const loadEmojis = async () => {
-    // Load emojis logic here - simplified version
-    const basicEmojis = [
-      { emoji: '😀', type: 'text', name: 'Happy' },
-      { emoji: '😂', type: 'text', name: 'Laugh' },
-      { emoji: '🥰', type: 'text', name: 'Love' },
-      { emoji: '😊', type: 'text', name: 'Smile' },
-      { emoji: '😍', type: 'text', name: 'Heart Eyes' },
-    ];
-    setEmojiList(basicEmojis);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/emojis`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const emojis = await response.json();
+        setEmojiList(emojis);
+      } else {
+        // Fallback to basic emojis
+        const basicEmojis = [
+          { emoji: '😀', type: 'text', name: 'Happy' },
+          { emoji: '😂', type: 'text', name: 'Laugh' },
+          { emoji: '🥰', type: 'text', name: 'Love' },
+          { emoji: '😊', type: 'text', name: 'Smile' },
+          { emoji: '😍', type: 'text', name: 'Heart Eyes' },
+        ];
+        setEmojiList(basicEmojis);
+      }
+    } catch (error) {
+      console.error('Error loading emojis:', error);
+      const basicEmojis = [
+        { emoji: '😀', type: 'text', name: 'Happy' },
+        { emoji: '😂', type: 'text', name: 'Laugh' },
+        { emoji: '🥰', type: 'text', name: 'Love' },
+        { emoji: '😊', type: 'text', name: 'Smile' },
+        { emoji: '😍', type: 'text', name: 'Heart Eyes' },
+      ];
+      setEmojiList(basicEmojis);
+    }
+  };
+
+  const loadGifts = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/gifts`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const gifts = await response.json();
+        setGiftList(gifts);
+      } else {
+        // Fallback to default gifts - using consistent integer IDs
+        const defaultGifts = [
+          { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+          { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+          { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
+          { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
+          { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
+        ];
+        setGiftList(defaultGifts);
+      }
+    } catch (error) {
+      console.error('Error loading gifts:', error);
+      const defaultGifts = [
+        { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+        { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+        { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
+        { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
+        { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
+      ];
+      setGiftList(defaultGifts);
+    }
   };
 
   const handleEmojiSelect = (emoji: any) => {
     setMessage(prev => prev + emoji.emoji);
     setShowEmojiPicker(false);
+  };
+
+  const handleGiftSelect = async (gift: any) => {
+    try {
+      // Check balance first
+      const balanceResponse = await fetch(`${API_BASE_URL}/api/gifts/check-balance`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          giftPrice: gift.price
+        }),
+      });
+
+      if (balanceResponse.ok) {
+        const balanceData = await balanceResponse.json();
+        if (!balanceData.canAfford) {
+          Alert.alert('Insufficient Balance', `You need ${gift.price} coins to send this gift. Current balance: ${balanceData.currentBalance} coins`);
+          setShowGiftPicker(false);
+          return;
+        }
+      }
+
+      // Proceed with gift purchase for private chat
+      const response = await fetch(`${API_BASE_URL}/api/gift/purchase`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          giftId: gift.id,
+          giftPrice: gift.price,
+          recipientUsername: targetUser?.username,
+          roomId: roomId,
+          isPrivate: true
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Private gift sent successfully:', result);
+
+        // Send gift message via socket for private chat
+        if (socket && user) {
+          socket.emit('send-private-gift', {
+            giftId: gift.id,
+            gift: gift,
+            to: targetUser?.username,
+            from: user.username,
+            roomId: roomId,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        // Show success message
+        Alert.alert('Gift Sent!', `You sent ${gift.name} ${gift.icon} to ${targetUser?.username}`);
+        setShowGiftPicker(false);
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Failed to send gift');
+      }
+    } catch (error) {
+      console.error('Error sending private gift:', error);
+      Alert.alert('Error', 'Failed to send gift. Please try again.');
+    }
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -628,7 +756,13 @@ export default function PrivateChatScreen() {
             >
               <Ionicons name="happy-outline" size={24} color="white" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.giftButton} onPress={() => setShowGiftPicker(true)}>
+            <TouchableOpacity 
+              style={styles.giftButton} 
+              onPress={() => {
+                loadGifts();
+                setShowGiftPicker(true);
+              }}
+            >
               <Ionicons name="gift-outline" size={24} color="#FF69B4" />
             </TouchableOpacity>
             <TextInput
@@ -699,6 +833,49 @@ export default function PrivateChatScreen() {
               <Ionicons name="copy-outline" size={20} color="#333" />
               <Text style={styles.messageMenuText}>Copy Message</Text>
             </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Gift Picker Modal */}
+      <Modal
+        visible={showGiftPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowGiftPicker(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowGiftPicker(false)}
+        >
+          <View style={styles.giftPickerContainer}>
+            <View style={styles.giftPickerModal}>
+              <View style={styles.giftPickerHeader}>
+                <Text style={styles.giftPickerTitle}>Send Gift</Text>
+                <TouchableOpacity 
+                  style={styles.giftCloseButton}
+                  onPress={() => setShowGiftPicker(false)}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.giftScrollContent}>
+                <View style={styles.giftGrid}>
+                  {giftList.map((gift, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.giftItem}
+                      onPress={() => handleGiftSelect(gift)}
+                    >
+                      <Text style={styles.giftEmoji}>{gift.icon}</Text>
+                      <Text style={styles.giftName}>{gift.name}</Text>
+                      <Text style={styles.giftPrice}>{gift.price} coins</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1046,6 +1223,78 @@ const styles = StyleSheet.create({
     color: '#333',
     marginLeft: 12,
     fontWeight: '500',
+  },
+  // Gift Picker styles
+  giftPickerContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
+  giftPickerModal: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    maxHeight: 400,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  giftPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  giftPickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  giftCloseButton: {
+    padding: 4,
+  },
+  giftScrollContent: {
+    maxHeight: 300,
+  },
+  giftGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 12,
+    justifyContent: 'space-around',
+  },
+  giftItem: {
+    width: 90,
+    height: 100,
+    margin: 6,
+    padding: 8,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  giftEmoji: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  giftName: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  giftPrice: {
+    fontSize: 9,
+    color: '#FF6B35',
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   // Gift Animation styles
   giftAnimationOverlay: {

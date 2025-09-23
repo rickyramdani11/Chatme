@@ -620,7 +620,7 @@ export default function ChatScreen() {
           // Join support room with admin status
           socket.emit('join-support-room', {
             supportRoomId: roomId,
-            isAdmin: user?.role === 'admin',
+            isAdmin: currentUser.role === 'admin',
             silent: shouldBeSilent
           });
         } else {
@@ -4152,7 +4152,6 @@ export default function ChatScreen() {
         { url: require('../../assets/emoticon/yuck.png'), type: 'image', name: 'Yuck' },
         { url: require('../../assets/emoticon/yum.png'), type: 'image', name: 'Yum' },
       ];
-
       console.log('Loading emojis from:', `${API_BASE_URL}/api/emojis`);
       const response = await fetch(`${API_BASE_URL}/api/emojis`, {
         method: 'GET',
@@ -4200,164 +4199,112 @@ export default function ChatScreen() {
       // Local gift assets
       const localGifts = [
         {
-          id: 'local_1',
-          name: 'Lion Animation',
-          icon: '🦁',
+          id: '1001',
+          name: 'Lucky Rose',
+          icon: '🌹',
           price: 150,
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Lion.gif'),
-          category: 'animals'
-        },
-        {
-          id: 'local_2',
-          name: 'Lion Image',
-          icon: '🦁',
-          price: 100,
           type: 'static',
-          image: require('../../assets/gift/image/lion_img.gif'),
-          category: 'animals'
+          category: 'popular'
         },
         {
-          id: 'local_3',
-          name: 'Love Animation',
-          icon: '💕',
-          price: 200,
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Love.mp4'),
-          category: 'romance'
-        },
-        {
-          id: 'local_4',
-          name: 'UFO Animation',
-          icon: '🛸',
+          id: '1002',
+          name: 'Ionceng',
+          icon: '🔔',
           price: 300,
+          type: 'static',
+          category: 'popular'
+        },
+        {
+          id: '1003',
+          name: 'Lucky Pearls',
+          icon: '🦪',
+          price: 500,
+          type: 'static',
+          category: 'lucky'
+        },
+        {
+          id: '1004',
+          name: 'Kertas Perkamen',
+          icon: '📜',
+          price: 4500,
+          type: 'static',
+          category: 'bangsa'
+        },
+        {
+          id: '1005',
+          name: 'Kincir Angin',
+          icon: '🌪️',
+          price: 100000,
           type: 'animated',
-          animation: require('../../assets/gift/animated/Ufonew.mp4'),
-          category: 'space'
+          category: 'set kostum'
         },
         {
-          id: 'local_5',
-          name: 'Mermaid',
-          icon: '🧜‍♀️',
-          price: 80,
-          type: 'static',
-          image: require('../../assets/gift/image/duyung.png'),
-          category: 'fantasy'
+          id: '1006',
+          name: 'Blind Box',
+          icon: '📦',
+          price: 1880000,
+          type: 'animated',
+          category: 'tas saya'
         },
         {
-          id: 'local_6',
-          name: 'Princess Mermaid',
-          icon: '👸',
-          price: 120,
-          type: 'static',
-          image: require('../../assets/gift/image/putri_duyung.png'),
-          category: 'fantasy'
+          id: '1007',
+          name: 'Hiasan Berlapis',
+          icon: '✨',
+          price: 1000000,
+          type: 'animated',
+          category: 'bangsa'
         },
         {
-          id: 'local_7',
-          name: 'Girl',
-          icon: '👧',
-          price: 90,
-          type: 'static',
-          image: require('../../assets/gift/image/girl.png'),
-          category: 'people'
-        },
-        {
-          id: 'local_8',
-          name: 'Dolphin',
-          icon: '🐬',
-          price: 110,
-          type: 'static',
-          image: require('../../assets/gift/image/lumba.png'),
-          category: 'animals'
+          id: '1008',
+          name: 'Doa Bintang',
+          icon: '⭐',
+          price: 10000000,
+          type: 'animated',
+          category: 'tas saya'
         },
       ];
 
-      console.log('Loading gifts from:', `${API_BASE_URL}/api/gifts`);
+      console.log('Loading gifts from API...');
       const response = await fetch(`${API_BASE_URL}/api/gifts`, {
-        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
         },
       });
 
-      let serverGifts = [];
       if (response.ok) {
-        serverGifts = await response.json();
-        console.log('Server gifts loaded:', serverGifts.length);
+        const gifts = await response.json();
+        console.log('Gifts loaded from API:', gifts.length);
+        setGiftList(gifts);
       } else {
-        console.error('Failed to load server gifts');
-        // Fallback to default gifts
-        serverGifts = [
-          { id: '1', name: 'Heart', icon: '❤️', price: 10, type: 'static' },
-          { id: '2', name: 'Rose', icon: '🌹', price: 20, type: 'static' },
-          { id: '3', name: 'Crown', icon: '👑', price: 50, type: 'static' },
-          { id: '4', name: 'Diamond', icon: '💎', price: 100, type: 'static' },
-          { id: '5', name: 'Rocket', icon: '🚀', price: 200, type: 'animated' },
+        console.error('Failed to load gifts from API');
+        // Fallback to default gifts if API fails - using consistent integer IDs
+        const defaultGifts = [
+          { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+          { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+          { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
+          { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
+          { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
+          { id: '1006', name: 'Blind Box', icon: '📦', price: 1880000, type: 'animated', category: 'tas saya' },
+          { id: '1007', name: 'Hiasan Berlapis', icon: '✨', price: 1000000, type: 'animated', category: 'bangsa' },
+          { id: '1008', name: 'Doa Bintang', icon: '⭐', price: 10000000, type: 'animated', category: 'tas saya' },
         ];
+        setGiftList(defaultGifts);
       }
-
-      // Combine local gifts with server gifts
-      const allGifts = [...localGifts, ...serverGifts];
-      setGiftList(allGifts);
-      console.log('Total gifts loaded:', allGifts.length);
     } catch (error) {
       console.error('Error loading gifts:', error);
-      // Fallback with local gifts and defaults
-      const fallbackGifts = [
-        {
-          id: 'local_1',
-          name: 'Lion Animation',
-          icon: '🦁',
-          price: 150,
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Lion.gif'),
-          category: 'animals'
-        },
-        {
-          id: 'local_2',
-          name: 'Lion Image',
-          icon: '🦁',
-          price: 100,
-          type: 'static',
-          image: require('../../assets/gift/image/lion_img.gif'),
-          category: 'animals'
-        },
-        {
-          id: 'local_3',
-          name: 'Love Animation',
-          icon: '💕',
-          price: 200,
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Love.mp4'),
-          category: 'romance'
-        },
-        {
-          id: 'local_4',
-          name: 'UFO Animation',
-          icon: '🛸',
-          price: 300,
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Ufonew.mp4'),
-          category: 'space'
-        },
-        {
-          id: 'local_5',
-          name: 'Mermaid',
-          icon: '🧜‍♀️',
-          price: 80,
-          type: 'static',
-          image: require('../../assets/gift/image/duyung.png'),
-          category: 'fantasy'
-        },
-        { id: '1', name: 'Heart', icon: '❤️', price: 10, type: 'static' },
-        { id: '2', name: 'Rose', icon: '🌹', price: 20, type: 'static' },
-        { id: '3', name: 'Crown', icon: '👑', price: 50, type: 'static' },
-        { id: '4', name: 'Diamond', icon: '💎', price: 100, type: 'static' },
-        { id: '5', name: 'Rocket', icon: '🚀', price: 200, type: 'animated' },
+      // Fallback to default gifts - using consistent integer IDs
+      const defaultGifts = [
+        { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+        { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+        { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
+        { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
+        { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
+        { id: '1006', name: 'Blind Box', icon: '📦', price: 1880000, type: 'animated', category: 'tas saya' },
+        { id: '1007', name: 'Hiasan Berlapis', icon: '✨', price: 1000000, type: 'animated', category: 'bangsa' },
+        { id: '1008', name: 'Doa Bintang', icon: '⭐', price: 10000000, type: 'animated', category: 'tas saya' },
       ];
-      setGiftList(fallbackGifts);
+      setGiftList(defaultGifts);
     }
   };
 
@@ -5190,9 +5137,15 @@ export default function ChatScreen() {
                         {emoji.type === 'text' ? (
                           <Text style={styles.emojiText}>{emoji.emoji}</Text>
                         ) : emoji.type === 'image' && typeof emoji.url === 'string' ? (
-                          <Image source={{ uri: `${API_BASE_URL}${emoji.url}` }} style={styles.emojiImage} />
+                          <Image
+                            source={{ uri: `${API_BASE_URL}${emoji.url}` }}
+                            style={styles.emojiImage}
+                          />
                         ) : emoji.type === 'image' && typeof emoji.url === 'number' ? (
-                          <Image source={emoji.url} style={styles.emojiImage} />
+                          <Image
+                            source={emoji.url}
+                            style={styles.emojiImage}
+                          />
                         ) : (
                           <Text style={styles.emojiText}>🙂</Text>
                         )}
