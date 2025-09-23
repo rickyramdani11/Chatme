@@ -12,6 +12,9 @@ const { router: authRouter, authenticateToken } = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const chatRouter = require('./routes/chat');
 const creditsRouter = require('./routes/credits');
+const feedRouter = require('./routes/feed');
+const roomsRouter = require('./routes/rooms');
+const withdrawRouter = require('./routes/withdraw');
 const fetch = require('node-fetch'); // Import node-fetch
 
 // Import LowCard bot using CommonJS require
@@ -118,6 +121,16 @@ pool.connect(async (err, client, release) => {
         console.log('✅ Avatar frame column added to users table');
       } catch (alterError) {
         console.log('Avatar frame column might already exist or other issue:', alterError.message);
+      }
+
+      // Add status column to users table if it doesn't exist
+      try {
+        await client.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'offline'
+        `);
+        console.log('✅ Status column added to users table');
+      } catch (alterError) {
+        console.log('Status column might already exist or other issue:', alterError.message);
       }
 
       // Create headwear tables if they don't exist
@@ -250,6 +263,57 @@ pool.connect(async (err, client, release) => {
       console.error('Error creating families tables:', tableError);
     }
 
+    // Create withdrawal system tables if they don't exist
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS user_gift_earnings_balance (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER UNIQUE NOT NULL,
+          balance INTEGER DEFAULT 0,
+          total_earned INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS user_linked_accounts (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          account_type VARCHAR(20) NOT NULL,
+          account_id VARCHAR(50) NOT NULL,
+          account_name VARCHAR(100) NOT NULL,
+          account_number VARCHAR(50) NOT NULL,
+          account_holder_name VARCHAR(100) NOT NULL,
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS withdrawal_requests (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          amount_usd DECIMAL(10,2) NOT NULL,
+          amount_coins INTEGER NOT NULL,
+          account_id INTEGER NOT NULL,
+          account_type VARCHAR(20) NOT NULL,
+          account_details JSONB NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending',
+          fee_percentage DECIMAL(5,2) DEFAULT 3.0,
+          net_amount_idr DECIMAL(12,2) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          processed_at TIMESTAMP,
+          notes TEXT
+        )
+      `);
+
+      console.log('✅ Withdrawal system tables initialized successfully');
+    } catch (tableError) {
+      console.error('Error creating withdrawal system tables:', tableError);
+    }
+
     // Load existing rooms from database
     try {
       const result = await client.query(`
@@ -333,6 +397,9 @@ app.use('/api/users', usersRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/credits', creditsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/feed', feedRouter);
+app.use('/api/rooms', roomsRouter);
+app.use('/api', withdrawRouter);
 
 // JWT authentication middleware is now imported from auth module
 
@@ -3267,17 +3334,7 @@ app.put('/api/user/status', (req, res) => {
   }
 });
 
-// Get rooms endpoint
-app.get('/api/rooms', (req, res) => {
-  try {
-    console.log('GET /api/rooms -', new Date().toISOString());
-    console.log('Headers:', req.headers);
-    res.json(rooms);
-  } catch (error) {
-    console.error('Error fetching rooms:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Room endpoints moved to /routes/rooms.js
 
 // Get chat history for user
 app.get('/api/chat/history', authenticateToken, async (req, res) => {
@@ -3365,138 +3422,9 @@ app.get('/api/chat/history', authenticateToken, async (req, res) => {
   }
 });
 
-// Get all posts
-app.get('/api/feed/posts', async (req, res) => {
-  try {
-    console.log('Fetching feed posts...');
+// Feed endpoints moved to /routes/feed.js
 
-    const result = await pool.query(`
-      SELECT
-        p.*,
-        u.role,
-        u.verified,
-        u.avatar,
-        u.level,
-        COALESCE(
-          (SELECT JSON_AGG(
-            JSON_BUILD_OBJECT(
-              'id', pc.id,
-              'user', pc.username,
-              'content', pc.content,
-              'timestamp', pc.created_at
-            )
-          ) FROM post_comments pc WHERE pc.post_id = p.id),
-          '[]'::json
-        ) as comments
-      FROM posts p
-      JOIN users u ON p.user_id = u.id
-      ORDER BY p.created_at DESC
-    `);
-
-    const postsWithComments = result.rows.map(row => {
-      // Process avatar URL properly
-      let avatarUrl = row.avatar;
-      if (avatarUrl && avatarUrl.startsWith('/api/')) {
-        avatarUrl = `${API_BASE_URL}${avatarUrl}`;
-      } else if (!avatarUrl || avatarUrl.length <= 2) {
-        // If no avatar or just single character, use first letter
-        avatarUrl = row.username?.charAt(0).toUpperCase() || 'U';
-      }
-
-      return {
-        id: row.id.toString(),
-        user: row.username,
-        username: row.username,
-        content: row.content,
-        timestamp: row.created_at,
-        likes: row.likes,
-        comments: row.comments || [],
-        shares: row.shares,
-        level: row.level || 1,
-        avatar: avatarUrl,
-        role: row.role,
-        verified: row.verified,
-        mediaFiles: row.media_files || []
-      };
-    });
-
-    console.log('Processed avatars for posts:', postsWithComments.slice(0, 3).map(p => ({ 
-      username: p.username, 
-      avatar: p.avatar 
-    })));
-
-    res.json(postsWithComments);
-  } catch (error) {
-    console.error('Error fetching posts:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Create new post
-app.post('/api/feed/posts', async (req, res) => {
-  try {
-    console.log('=== CREATE POST REQUEST ===');
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
-
-    const { content, user, username, level = 1, avatar = 'U' } = req.body;
-
-    // Find user by username
-    const userResult = await pool.query('SELECT id, level FROM users WHERE username = $1', [username || user]);
-    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : 1; // Default to user ID 1 if not found
-    const userLevel = userResult.rows.length > 0 ? userResult.rows[0].level : 1;
-
-    if (!content && !user) {
-      console.log('Missing content and user');
-      return res.status(400).json({ error: 'Content or user is required' });
-    }
-
-    if (!user) {
-      console.log('Missing user');
-      return res.status(400).json({ error: 'User is required' });
-    }
-
-    const result = await pool.query(`
-      INSERT INTO posts (user_id, username, content, likes, shares)
-      VALUES ($1, $2, $3, 0, 0)
-      RETURNING *
-    `, [userId, username || user, content ? content.trim() : '']);
-
-    const newPost = result.rows[0];
-
-    // Award XP for creating a post
-    if (userId && userId !== 1) { // Don't give XP to default user
-      const expResult = await addUserEXP(userId, 50, 'post_created');
-      console.log('XP awarded for post creation:', expResult);
-    }
-
-    // Get user role and other info
-    const userInfoResult = await pool.query('SELECT role, verified, avatar FROM users WHERE id = $1', [userId]);
-    const userInfo = userInfoResult.rows[0];
-
-    const responsePost = {
-      id: newPost.id.toString(),
-      user: newPost.username,
-      username: newPost.username,
-      content: newPost.content,
-      timestamp: newPost.created_at,
-      likes: newPost.likes,
-      comments: [],
-      shares: newPost.shares,
-      level: userLevel,
-      avatar: userInfo.avatar || newPost.username?.charAt(0).toUpperCase(),
-      role: userInfo.role,
-      verified: userInfo.verified,
-      mediaFiles: []
-    };
-
-    console.log('New post created successfully:', newPost.id);
-    res.status(201).json(responsePost);
-  } catch (error) {
-    console.error('Error creating post:', error);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
-  }
-});
+// Post creation endpoints moved to /routes/feed.js
 
 // Like/Unlike post
 app.post('/api/feed/posts/:postId/like', async (req, res) => {
