@@ -519,13 +519,30 @@ io.on('connection', (socket) => {
         }
       }
 
-      // 3. All security checks passed - check if already in room
+      // 3. Check if already in room and prevent multiple joins from same user
       const isAlreadyInRoom = socket.rooms.has(roomId);
       const existingParticipant = roomParticipants[roomId]?.find(p => p.username === username);
+      
+      // Get user's session tracking info
+      let userInfo = connectedUsers.get(socket.id);
+      if (!userInfo) {
+        userInfo = {
+          userId: socket.userId,
+          announcedRooms: new Set()
+        };
+        connectedUsers.set(socket.id, userInfo);
+      }
+
+      // Check if this user has already joined this room in this session
+      const hasJoinedThisSession = userInfo.announcedRooms?.has(roomId);
       
       // Log the join attempt with more detail
       if (silent) {
         console.log(`🔄 ${username} reconnecting to room ${roomId} via gateway (silent)`);
+      } else if (hasJoinedThisSession) {
+        console.log(`🚫 ${username} already joined room ${roomId} in this session - ignoring duplicate`);
+        socket.emit('join-room-success', { roomId, username });
+        return;
       } else {
         console.log(`🚪 ${username} joining room ${roomId} via gateway (new join)`);
       }
@@ -534,24 +551,12 @@ io.on('connection', (socket) => {
       socket.join(roomId);
 
       // Update connected user info
-      let userInfo = connectedUsers.get(socket.id);
-      if (userInfo) {
-        userInfo.roomId = roomId;
-        userInfo.username = username;
-        userInfo.role = role;
-      } else {
-        // Create user info if it doesn't exist
-        userInfo = {
-          userId: socket.userId,
-          roomId: roomId,
-          username: username,
-          role: role
-        };
-        connectedUsers.set(socket.id, userInfo);
-      }
+      userInfo.roomId = roomId;
+      userInfo.username = username;
+      userInfo.role = role;
 
       // Store socket info for bot commands
-      socket.userId = socket.userId || userInfo?.userId;
+      socket.userId = socket.userId;
       socket.username = username;
 
       // Add participant to room
@@ -591,16 +596,14 @@ io.on('connection', (socket) => {
 
       // Only broadcast join message if:
       // 1. Not silent (not a reconnection)
-      // 2. User was not already online (prevent duplicate messages but allow legitimate returns)
+      // 2. User was not already online 
       // 3. Join hasn't been announced for this socket session
       // 4. Not a private chat
-      // Reuse userInfo that was already declared above
-      const alreadyAnnouncedInSession = userInfo?.announcedRooms?.has(roomId);
-      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !alreadyAnnouncedInSession && !isPrivateChat;
+      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasJoinedThisSession && !isPrivateChat;
       
       if (shouldBroadcastJoin) {
         const joinMessage = {
-          id: Date.now().toString(),
+          id: `join_${Date.now()}_${username}_${roomId}`,
           sender: username,
           content: `${username} joined the room`,
           timestamp: new Date().toISOString(),
@@ -613,20 +616,16 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('user-joined', joinMessage);
         
         // Mark room as announced for this socket session
-        if (userInfo?.announcedRooms) {
-          userInfo.announcedRooms.add(roomId);
-        }
+        userInfo.announcedRooms.add(roomId);
       } else {
         if (silent) {
           console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
         } else if (isPrivateChat) {
           console.log(`💬 Private chat join - no broadcast for ${username} in room ${roomId}`);
-        } else {
-          if (wasAlreadyOnline) {
-            console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
-          } else if (alreadyAnnouncedInSession) {
-            console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced this session)`);
-          }
+        } else if (hasJoinedThisSession) {
+          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced this session)`);
+        } else if (wasAlreadyOnline) {
+          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
         }
       }
 
@@ -1690,43 +1689,55 @@ io.on('connection', (socket) => {
       const isPrivateChat = userInfo.roomId.startsWith('private_');
       const isSupportChat = userInfo.roomId.startsWith('support_');
 
-      // Remove from room participants
-      if (roomParticipants[userInfo.roomId]) {
-        const participantBefore = roomParticipants[userInfo.roomId].find(p => p.socketId === socket.id);
+      // Check if user has other active connections in the same room
+      const userOtherConnections = [...connectedUsers.entries()].filter(([socketId, info]) => 
+        socketId !== socket.id && 
+        info.username === userInfo.username && 
+        info.roomId === userInfo.roomId
+      );
+
+      const hasOtherActiveConnections = userOtherConnections.length > 0;
+
+      // Remove from room participants only if no other connections exist
+      if (roomParticipants[userInfo.roomId] && !hasOtherActiveConnections) {
+        const participantBefore = roomParticipants[userInfo.roomId].find(p => p.username === userInfo.username);
         
-        roomParticipants[userInfo.roomId] = roomParticipants[userInfo.roomId].filter(
-          p => p.socketId !== socket.id
-        );
-
-        // Notify room about updated participants only if participant existed
         if (participantBefore) {
+          // Mark as offline instead of removing completely
+          participantBefore.isOnline = false;
+          participantBefore.lastSeen = new Date().toISOString();
+          participantBefore.socketId = null;
+
+          // Notify room about updated participants
           io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
-        }
 
-        // Only broadcast leave message for public rooms (not private chats or support chats)
-        // and only if the participant actually existed in the room
-        if (!isPrivateChat && !isSupportChat && participantBefore) {
-          const leaveMessage = {
-            id: Date.now().toString(),
-            sender: userInfo.username,
-            content: `${userInfo.username} left the room`,
-            timestamp: new Date().toISOString(),
-            roomId: userInfo.roomId,
-            type: 'leave',
-            userRole: userInfo.role || 'user'
-          };
+          // Only broadcast leave message for public rooms (not private chats or support chats)
+          // and only if this was the last connection for this user
+          if (!isPrivateChat && !isSupportChat) {
+            const leaveMessage = {
+              id: `leave_${Date.now()}_${userInfo.username}_${userInfo.roomId}`,
+              sender: userInfo.username,
+              content: `${userInfo.username} left the room`,
+              timestamp: new Date().toISOString(),
+              roomId: userInfo.roomId,
+              type: 'leave',
+              userRole: userInfo.role || 'user'
+            };
 
-          socket.to(userInfo.roomId).emit('user-left', leaveMessage);
-          console.log(`📢 Broadcasting leave message for ${userInfo.username} in room ${userInfo.roomId}`);
-        } else {
-          if (isPrivateChat) {
-            console.log(`💬 Private chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
-          } else if (isSupportChat) {
-            console.log(`🆘 Support chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
-          } else if (!participantBefore) {
-            console.log(`👻 User ${userInfo.username} was not a participant in room ${userInfo.roomId} - no broadcast`);
+            socket.to(userInfo.roomId).emit('user-left', leaveMessage);
+            console.log(`📢 Broadcasting leave message for ${userInfo.username} in room ${userInfo.roomId}`);
+          } else {
+            if (isPrivateChat) {
+              console.log(`💬 Private chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+            } else if (isSupportChat) {
+              console.log(`🆘 Support chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+            }
           }
         }
+      } else if (hasOtherActiveConnections) {
+        console.log(`🔄 User ${userInfo.username} has other active connections in room ${userInfo.roomId} - no leave broadcast`);
+      } else {
+        console.log(`👻 User ${userInfo.username} was not a participant in room ${userInfo.roomId} - no broadcast`);
       }
     }
 
