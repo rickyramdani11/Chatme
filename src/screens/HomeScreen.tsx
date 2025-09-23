@@ -776,7 +776,7 @@ const HomeScreen = ({ navigation }: any) => {
 
     Alert.alert(
       'Report User',
-      `Are you sure you want to report ${selectedFriend.name}?`,
+      `Are you sure you want to report ${selectedFriend.name || selectedFriend.username}?`,
       [
         {
           text: 'Cancel',
@@ -787,6 +787,8 @@ const HomeScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Reporting user:', selectedFriend.id, selectedFriend.name);
+              
               const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/report`, {
                 method: 'POST',
                 headers: {
@@ -795,19 +797,23 @@ const HomeScreen = ({ navigation }: any) => {
                   'User-Agent': 'ChatMe-Mobile-App',
                 },
                 body: JSON.stringify({
-                  reason: 'inappropriate_behavior'
+                  reason: 'inappropriate_behavior',
+                  reportedUserId: selectedFriend.id,
+                  reportedUsername: selectedFriend.name || selectedFriend.username
                 })
               });
 
               if (response.ok) {
-                Alert.alert('Success', `${selectedFriend.name} has been reported`);
+                Alert.alert('✅ Success', `${selectedFriend.name || selectedFriend.username} has been reported to administrators`);
                 setShowFriendMenu(false);
               } else {
-                Alert.alert('Error', 'Failed to report user');
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Report failed:', response.status, errorData);
+                Alert.alert('❌ Error', errorData.error || 'Failed to report user. Please try again.');
               }
             } catch (error) {
               console.error('Error reporting user:', error);
-              Alert.alert('Error', 'Failed to report user');
+              Alert.alert('❌ Network Error', 'Failed to report user. Please check your connection and try again.');
             }
           }
         }
@@ -1165,7 +1171,7 @@ const HomeScreen = ({ navigation }: any) => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.friendMenuItem, styles.lastFriendMenuItem]}
+              style={styles.friendMenuItem}
               onPress={handleReportUser}
             >
               <Ionicons name="flag-outline" size={20} color="#F44336" />
@@ -1672,9 +1678,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-  },
-  lastFriendMenuItem: {
-    borderBottomWidth: 0,
+    backgroundColor: 'transparent',
   },
   friendMenuText: {
     fontSize: 16,
