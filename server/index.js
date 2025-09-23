@@ -271,6 +271,7 @@ pool.connect(async (err, client, release) => {
           user_id INTEGER UNIQUE NOT NULL,
           balance INTEGER DEFAULT 0,
           total_earned INTEGER DEFAULT 0,
+          total_withdrawn INTEGER DEFAULT 0,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -284,7 +285,7 @@ pool.connect(async (err, client, release) => {
           account_id VARCHAR(50) NOT NULL,
           account_name VARCHAR(100) NOT NULL,
           account_number VARCHAR(50) NOT NULL,
-          account_holder_name VARCHAR(100) NOT NULL,
+          holder_name VARCHAR(100) NOT NULL,
           is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -296,16 +297,19 @@ pool.connect(async (err, client, release) => {
           id SERIAL PRIMARY KEY,
           user_id INTEGER NOT NULL,
           amount_usd DECIMAL(10,2) NOT NULL,
-          amount_coins INTEGER NOT NULL,
-          account_id INTEGER NOT NULL,
+          amount INTEGER NOT NULL,
+          withdrawal_method VARCHAR(20) NOT NULL,
           account_type VARCHAR(20) NOT NULL,
-          account_details JSONB NOT NULL,
+          account_name VARCHAR(100) NOT NULL,
+          account_number VARCHAR(50) NOT NULL,
           status VARCHAR(20) DEFAULT 'pending',
-          fee_percentage DECIMAL(5,2) DEFAULT 3.0,
-          net_amount_idr DECIMAL(12,2) NOT NULL,
+          failure_reason TEXT,
+          xendit_transaction_id VARCHAR(255),
+          fee_percentage DECIMAL(5,2) DEFAULT 0.03,
+          net_amount DECIMAL(12,2) NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           processed_at TIMESTAMP,
-          notes TEXT
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
 
@@ -318,9 +322,10 @@ pool.connect(async (err, client, release) => {
           gift_name VARCHAR(255) NOT NULL,
           gift_price INTEGER NOT NULL,
           sender_username VARCHAR(50) NOT NULL,
-          earnings INTEGER NOT NULL,
           room_id VARCHAR(50),
           is_private BOOLEAN DEFAULT false,
+          user_share INTEGER NOT NULL,
+          system_share INTEGER NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
@@ -3709,7 +3714,7 @@ app.post('/api/users/:userId/follow', authenticateToken, async (req, res) => {
     const { action } = req.body;
     const currentUserId = req.user.id;
 
-    console.log('=== FOLLOW/UNFOLLOW REQUEST ===');
+    console.log('=== FOLLOW/UNFOLLOWREQUEST ===');
     console.log('Current User ID:', currentUserId);
     console.log('Target User ID:', userId);
     console.log('Action:', action);
@@ -4481,9 +4486,9 @@ app.get('/users/:userId/privacy-settings', authenticateToken, async (req, res) =
         data_download: true
       };
 
-      const insertResult = await pool.query(
-        `INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      const insertResult = await pool.query(`
+        INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
         [userId, defaultSettings.profile_visibility, defaultSettings.privacy_notifications, 
          defaultSettings.location_sharing, defaultSettings.biometric_auth, 
          defaultSettings.two_factor_auth, defaultSettings.active_sessions, defaultSettings.data_download]
@@ -4909,7 +4914,7 @@ app.get('/api/lowcard/games', (req, res) => {
       id: fileId,
       filename,
       type, // 'photo' or 'video'
-      data: base64Data, // base64 data without data URL prefix
+      data: base64Data, // base64 data
       uploadedBy: user,
       uploadedAt: new Date().toISOString(),
       url: `/api/feed/media/${fileId}`, // URL to access the file
@@ -5338,7 +5343,8 @@ app.post('/api/user/deduct-coins', authenticateToken, async (req, res) => {
       // Add 70% to recipient's regular balance
       await client.query(`
         INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)
-        ON CONFLICT (user_id) DO UPDATE SET 
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
           balance = user_credits.balance + EXCLUDED.balance,
           updated_at = CURRENT_TIMESTAMP
       `, [recipientId, recipientBalanceShare]);
@@ -5916,8 +5922,8 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Error processing gift purchase:', error);
-    res.status(500).json({ error: 'Failed to process gift purchase' });
+    console.error('Error purchasing gift:', error);
+    res.status(500).json({ error: 'Failed to send gift' });
   } finally {
     client.release();
   }
@@ -5954,7 +5960,6 @@ app.get('/api/user/gift-earnings-balance', authenticateToken, async (req, res) =
 
     const giftBalance = result.rows[0];
     const exchangeRate = await getExchangeRate();
-    const balanceUSD = giftBalance.balance / exchangeRate;
     const minWithdrawCoins = Math.floor(10 * exchangeRate); // 10 USD equivalent
     const feeRate = 0.05; // Default fee rate, will be adjusted by type below
     let netAmount = 0;
@@ -7047,7 +7052,9 @@ app.get('/api/feed/posts', async (req, res) => {
       // Process avatar URL properly
       let avatarUrl = row.avatar;
       if (avatarUrl && avatarUrl.startsWith('/api/')) {
-        avatarUrl = `${API_BASE_URL}${avatarUrl}`;
+        // Extract avatar ID from the URL
+        const avatarId = avatarUrl.split('/').pop();
+        avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${avatarId}`;
       } else if (!avatarUrl || avatarUrl.length <= 2) {
         // If no avatar or just single character, use first letter
         avatarUrl = row.username?.charAt(0).toUpperCase() || 'U';
