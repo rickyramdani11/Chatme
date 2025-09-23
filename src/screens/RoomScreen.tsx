@@ -266,9 +266,6 @@ export default function RoomScreen() {
           <View style={styles.roomInfo}>
             <View style={styles.roomNameContainer}>
               <Text style={styles.roomName}>{room.name}</Text>
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>Lv.1</Text>
-              </View>
               {isLocked && (
                 <Ionicons 
                   name="lock-closed" 
@@ -492,10 +489,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     marginHorizontal: 20,
-    marginVertical: 15,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 12,
+    marginVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
@@ -606,22 +603,7 @@ const styles = StyleSheet.create({
     color: '#CC5500', // Dark orange color
     marginRight: 8,
   },
-  levelBadge: {
-    backgroundColor: '#229c93',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginRight: 6,
-    minWidth: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  levelText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: 'white',
-  },
+  
   lockIcon: {
     marginLeft: 4,
   },
