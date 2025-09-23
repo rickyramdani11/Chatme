@@ -289,6 +289,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   const fetchAlbumPhotos = async () => {
     try {
+      console.log('Fetching album photos for user:', userId);
       const response = await fetch(`${API_BASE_URL}/api/users/${userId}/album`, {
         headers: {
           'Content-Type': 'application/json',
@@ -299,10 +300,15 @@ export default function ProfileScreen({ navigation, route }: any) {
 
       if (response.ok) {
         const photos = await response.json();
+        console.log('Album photos fetched:', photos.length, 'photos');
         setAlbumPhotos(photos);
+      } else {
+        console.log('Album photos response not ok:', response.status);
+        setAlbumPhotos([]);
       }
     } catch (error) {
       console.error('Error fetching album:', error);
+      setAlbumPhotos([]);
     }
   };
 
@@ -572,11 +578,18 @@ export default function ProfileScreen({ navigation, route }: any) {
         <View style={styles.backgroundImageContainer}>
           <Image 
             source={
-              albumPhotos.length > 0 
+              albumPhotos.length > 0 && albumPhotos[0]?.url
                 ? { uri: `${API_BASE_URL}${albumPhotos[0].url}` }
                 : require('../../assets/Bg_profile/Bg_profile.jpeg')
             } 
-            style={styles.backgroundImage} 
+            style={styles.backgroundImage}
+            resizeMode="cover"
+            onError={(error) => {
+              console.log('Background image loading failed:', error.nativeEvent.error);
+            }}
+            onLoad={() => {
+              console.log('Background image loaded successfully');
+            }}
           />
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
@@ -947,6 +960,8 @@ const styles = StyleSheet.create({
   backgroundImageContainer: {
     height: 300,
     position: 'relative',
+    backgroundColor: '#f0f0f0',
+    overflow: 'hidden',
   },
   backgroundImage: {
     width: '100%',
