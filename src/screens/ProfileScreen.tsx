@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,7 +11,8 @@ import {
   SafeAreaView,
   FlatList,
   Modal,
-  TextInput
+  TextInput,
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -88,11 +90,17 @@ export default function ProfileScreen({ navigation, route }: any) {
   const [albumPhotos, setAlbumPhotos] = useState<AlbumPhoto[]>([]);
   const [familyBadge, setFamilyBadge] = useState<FamilyBadge | null>(null);
 
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
   // State for busy status
   const [isBusy, setIsBusy] = useState(false);
   const [busyMessage, setBusyMessage] = useState('This user is busy');
   const [showBusyModal, setShowBusyModal] = useState(false);
-
 
   // State for reporting
   const [showReportModal, setShowReportModal] = useState(false);
@@ -110,7 +118,6 @@ export default function ProfileScreen({ navigation, route }: any) {
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
-
   // Get user ID from route params or use current user
   const userId = route?.params?.userId || user?.id;
   const isOwnProfile = userId === user?.id;
@@ -119,7 +126,55 @@ export default function ProfileScreen({ navigation, route }: any) {
     fetchUserProfile();
     fetchAlbumPhotos();
     fetchFamilyBadge();
+    startAnimations();
   }, [userId]);
+
+  const startAnimations = () => {
+    // Start entrance animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Header animation
+    setTimeout(() => {
+      Animated.timing(headerOpacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    }, 300);
+
+    // Pulse animation for living status
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -441,37 +496,41 @@ export default function ProfileScreen({ navigation, route }: any) {
     }
   };
 
-
   const renderAlbumPhoto = ({ item }: { item: AlbumPhoto }) => (
-    <View style={styles.albumPhotoItem}>
+    <Animated.View style={[styles.albumPhotoItem, { opacity: fadeAnim }]}>
       <Image 
         source={{ uri: `${API_BASE_URL}${item.url}` }} 
         style={styles.albumPhotoImage} 
       />
-    </View>
+    </Animated.View>
   );
 
   const renderGift = ({ item }: { item: Gift }) => (
-    <View style={styles.giftItem}>
+    <Animated.View style={[styles.giftItem, { transform: [{ scale: scaleAnim }] }]}>
       <Text style={styles.giftIcon}>{item.icon}</Text>
       <Text style={styles.giftCount}>{item.count}</Text>
-    </View>
+    </Animated.View>
   );
 
   const renderAchievement = ({ item }: { item: Achievement }) => (
-    <View style={styles.achievementItem}>
+    <Animated.View style={[styles.achievementItem, { transform: [{ scale: scaleAnim }] }]}>
       <Text style={styles.achievementIcon}>{item.icon}</Text>
       <Text style={styles.achievementName}>{item.name}</Text>
       {item.count && <Text style={styles.achievementCount}>{item.count}</Text>}
-    </View>
+    </Animated.View>
   );
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          style={styles.loadingContainer}
+        >
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <Text style={styles.loadingText}>Loading...</Text>
+          </Animated.View>
+        </LinearGradient>
       </SafeAreaView>
     );
   }
@@ -488,18 +547,28 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with background image */}
-      <View style={styles.header}>
+      {/* Animated Header */}
+      <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <LinearGradient
+            colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+            style={styles.headerButtonGradient}
+          >
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </LinearGradient>
         </TouchableOpacity>
         <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-horizontal" size={24} color="#fff" />
+          <LinearGradient
+            colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+            style={styles.headerButtonGradient}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
+          </LinearGradient>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Background Image Area */}
+        {/* Background Image Area with Gradient Overlay */}
         <View style={styles.backgroundImageContainer}>
           <Image 
             source={
@@ -509,43 +578,71 @@ export default function ProfileScreen({ navigation, route }: any) {
             } 
             style={styles.backgroundImage} 
           />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
+            style={styles.backgroundOverlay}
+          />
 
-          {/* Living Status */}
+          {/* Living Status with pulse animation */}
           {profile.isOnline && (
-            <View style={styles.livingStatus}>
-              <View style={styles.livingDot} />
-              <Text style={styles.livingText}>Living</Text>
-            </View>
+            <Animated.View style={[styles.livingStatus, { transform: [{ scale: pulseAnim }] }]}>
+              <LinearGradient
+                colors={['#FF6B35', '#FF8E53']}
+                style={styles.livingGradient}
+              >
+                <View style={styles.livingDot} />
+                <Text style={styles.livingText}>Living</Text>
+              </LinearGradient>
+            </Animated.View>
           )}
         </View>
 
-        {/* Profile Content */}
-        <View style={styles.profileContent}>
-          {/* Avatar with decorative frame */}
-          <View style={styles.avatarContainer}>
+        {/* Profile Content with slide animation */}
+        <Animated.View 
+          style={[
+            styles.profileContent,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          {/* Avatar with decorative frame and scale animation */}
+          <Animated.View 
+            style={[
+              styles.avatarContainer,
+              { transform: [{ scale: scaleAnim }] }
+            ]}
+          >
             <View style={styles.avatarFrame}>
-              {/* Avatar (base layer) */}
-              <View style={styles.avatarInner}>
-                {profile.avatar ? (
-                  <Image 
-                    source={{ uri: profile.avatar }} 
-                    style={styles.avatar}
-                    onError={(error) => {
-                      console.log('Avatar loading failed:', error.nativeEvent.error);
-                      // Reset avatar to null so fallback renders
-                      setProfile(prev => prev ? { ...prev, avatar: null } : null);
-                    }}
-                  />
-                ) : (
-                  <View style={styles.defaultAvatar}>
-                    <Text style={styles.avatarText}>
-                      {profile.username.charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <LinearGradient
+                colors={['#667eea', '#764ba2']}
+                style={styles.avatarBorder}
+              >
+                <View style={styles.avatarInner}>
+                  {profile.avatar ? (
+                    <Image 
+                      source={{ uri: profile.avatar }} 
+                      style={styles.avatar}
+                      onError={(error) => {
+                        console.log('Avatar loading failed:', error.nativeEvent.error);
+                        setProfile(prev => prev ? { ...prev, avatar: null } : null);
+                      }}
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={['#667eea', '#764ba2']}
+                      style={styles.defaultAvatar}
+                    >
+                      <Text style={styles.avatarText}>
+                        {profile.username.charAt(0).toUpperCase()}
+                      </Text>
+                    </LinearGradient>
+                  )}
+                </View>
+              </LinearGradient>
 
-              {/* Avatar Frame Overlay (transparent PNG) */}
+              {/* Avatar Frame Overlay */}
               {profile.avatarFrame && (
                 <Image 
                   source={{ uri: `${API_BASE_URL}${profile.avatarFrame}` }} 
@@ -554,7 +651,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 />
               )}
             </View>
-          </View>
+          </Animated.View>
 
           {/* User Info */}
           <View style={styles.userInfo}>
@@ -570,16 +667,22 @@ export default function ProfileScreen({ navigation, route }: any) {
               </View>
             )}
 
-            {/* Stats */}
+            {/* Stats with glass morphism effect */}
             <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>ikuti</Text>
-                <Text style={styles.statNumber}>{profile.following}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Pengemar</Text>
-                <Text style={styles.statNumber}>{profile.followers}</Text>
-              </View>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+                style={styles.statsGradient}
+              >
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>ikuti</Text>
+                  <Text style={styles.statNumber}>{profile.following}</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Pengemar</Text>
+                  <Text style={styles.statNumber}>{profile.followers}</Text>
+                </View>
+              </LinearGradient>
             </View>
 
             {/* Bio */}
@@ -587,20 +690,26 @@ export default function ProfileScreen({ navigation, route }: any) {
               <Text style={styles.bio}>{profile.bio}</Text>
             )}
 
-            {/* Family Badge */}
+            {/* Family Badge with enhanced gradient */}
             {familyBadge && (
               <TouchableOpacity 
-                style={[styles.familyBadge, { backgroundColor: getFamilyLevelColor(familyBadge.familyLevel) }]}
+                style={styles.familyBadgeContainer}
                 onPress={() => navigation.navigate('FamilyDetailScreen', { familyId: familyBadge.familyId })}
               >
-                <View style={styles.familyBadgeIcon}>
-                  <View style={styles.familyIconCircle}>
-                    <Ionicons name="diamond" size={16} color="#4A90E2" />
+                <LinearGradient
+                  colors={[getFamilyLevelColor(familyBadge.familyLevel), 
+                          `${getFamilyLevelColor(familyBadge.familyLevel)}CC`]}
+                  style={styles.familyBadge}
+                >
+                  <View style={styles.familyBadgeIcon}>
+                    <View style={styles.familyIconCircle}>
+                      <Ionicons name="diamond" size={16} color="#4A90E2" />
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.familyBadgeName} numberOfLines={1}>
-                  {familyBadge.familyName}
-                </Text>
+                  <Text style={styles.familyBadgeName} numberOfLines={1}>
+                    {familyBadge.familyName}
+                  </Text>
+                </LinearGradient>
               </TouchableOpacity>
             )}
           </View>
@@ -619,12 +728,12 @@ export default function ProfileScreen({ navigation, route }: any) {
             </View>
           )}
 
-          {/* Action Buttons */}
+          {/* Enhanced Action Buttons */}
           {!isOwnProfile && (
             <View style={styles.actionButtons}>
-              <TouchableOpacity onPress={handleFollow}>
+              <TouchableOpacity onPress={handleFollow} style={styles.followButtonContainer}>
                 <LinearGradient
-                  colors={isFollowing ? ['#E0E0E0', '#BDBDBD'] : ['#FF69B4', '#FF1493']}
+                  colors={isFollowing ? ['#E0E0E0', '#BDBDBD'] : ['#FF6B35', '#FF8E53']}
                   style={styles.followButton}
                 >
                   <Text style={[
@@ -637,7 +746,12 @@ export default function ProfileScreen({ navigation, route }: any) {
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
-                <Ionicons name="chatbubble" size={16} color="#FF69B4" />
+                <LinearGradient
+                  colors={['rgba(255,107,53,0.1)', 'rgba(255,142,83,0.1)']}
+                  style={styles.messageButtonGradient}
+                >
+                  <Ionicons name="chatbubble" size={16} color="#FF6B35" />
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           )}
@@ -647,7 +761,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             <View style={styles.albumSection}>
               <Text style={styles.sectionTitle}>Album</Text>
               <FlatList
-                data={albumPhotos.slice(0, 6)} // Show max 6 photos
+                data={albumPhotos.slice(0, 6)}
                 renderItem={renderAlbumPhoto}
                 numColumns={3}
                 scrollEnabled={false}
@@ -675,41 +789,51 @@ export default function ProfileScreen({ navigation, route }: any) {
             <>
               {/* Busy Status Control */}
               <View style={styles.busyStatusSection}>
-                <View style={styles.busyStatusHeader}>
-                  <Text style={styles.busyStatusTitle}>Busy Status</Text>
-                  <TouchableOpacity
-                    style={styles.busyToggle}
-                    onPress={handleBusyToggle}
-                  >
-                    <View style={[styles.toggleSwitch, isBusy && styles.toggleSwitchActive]}>
-                      <View style={[styles.toggleThumb, isBusy && styles.toggleThumbActive]} />
-                    </View>
-                    <Text style={styles.busyToggleText}>
-                      {isBusy ? 'Busy' : 'Available'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                  style={styles.busyStatusGradient}
+                >
+                  <View style={styles.busyStatusHeader}>
+                    <Text style={styles.busyStatusTitle}>Busy Status</Text>
+                    <TouchableOpacity
+                      style={styles.busyToggle}
+                      onPress={handleBusyToggle}
+                    >
+                      <View style={[styles.toggleSwitch, isBusy && styles.toggleSwitchActive]}>
+                        <View style={[styles.toggleThumb, isBusy && styles.toggleThumbActive]} />
+                      </View>
+                      <Text style={styles.busyToggleText}>
+                        {isBusy ? 'Busy' : 'Available'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
 
-                {isBusy && (
-                  <TouchableOpacity
-                    style={styles.busyMessageButton}
-                    onPress={() => setShowBusyModal(true)}
-                  >
-                    <Ionicons name="create-outline" size={16} color="#666" />
-                    <Text style={styles.busyMessageText}>{busyMessage}</Text>
-                  </TouchableOpacity>
-                )}
+                  {isBusy && (
+                    <TouchableOpacity
+                      style={styles.busyMessageButton}
+                      onPress={() => setShowBusyModal(true)}
+                    >
+                      <Ionicons name="create-outline" size={16} color="#666" />
+                      <Text style={styles.busyMessageText}>{busyMessage}</Text>
+                    </TouchableOpacity>
+                  )}
+                </LinearGradient>
               </View>
 
               <View style={styles.editActions}>
                 <TouchableOpacity
-                  style={styles.saveButton}
+                  style={styles.saveButtonContainer}
                   onPress={() => navigation.navigate('EditProfile')} 
                   disabled={loading}
                 >
-                  <Text style={styles.saveButtonText}>
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </Text>
+                  <LinearGradient
+                    colors={['#667eea', '#764ba2']}
+                    style={styles.saveButton}
+                  >
+                    <Text style={styles.saveButtonText}>
+                      {loading ? 'Saving...' : 'Edit Profile'}
+                    </Text>
+                  </LinearGradient>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -721,7 +845,7 @@ export default function ProfileScreen({ navigation, route }: any) {
               </View>
             </>
           )}
-        </View>
+        </Animated.View>
       </ScrollView>
 
       {/* Busy Message Modal */}
@@ -732,7 +856,10 @@ export default function ProfileScreen({ navigation, route }: any) {
         onRequestClose={() => setShowBusyModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.busyModalContainer}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.9)']}
+            style={styles.busyModalContainer}
+          >
             <View style={styles.busyModalHeader}>
               <Text style={styles.busyModalTitle}>Edit Busy Message</Text>
               <TouchableOpacity onPress={() => setShowBusyModal(false)}>
@@ -760,14 +887,18 @@ export default function ProfileScreen({ navigation, route }: any) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.busyModalSaveButton}
                   onPress={handleBusyMessageUpdate}
                 >
-                  <Text style={styles.busyModalSaveText}>Save</Text>
+                  <LinearGradient
+                    colors={['#007AFF', '#0051D0']}
+                    style={styles.busyModalSaveButton}
+                  >
+                    <Text style={styles.busyModalSaveText}>Save</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </LinearGradient>
         </View>
       </Modal>
     </SafeAreaView>
@@ -777,7 +908,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f7fa',
   },
   header: {
     position: 'absolute',
@@ -791,14 +922,21 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 25,
+    overflow: 'hidden',
   },
   menuButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  headerButtonGradient: {
+    padding: 12,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   content: {
     flex: 1,
@@ -809,8 +947,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#333',
-    fontSize: 16,
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
   },
   errorContainer: {
     flex: 1,
@@ -830,308 +969,371 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
   },
+  backgroundOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   livingStatus: {
     position: 'absolute',
     bottom: 20,
     right: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  livingGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF69B4',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   livingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#fff',
-    marginRight: 6,
+    marginRight: 8,
   },
   livingText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
   profileContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    marginTop: -25,
-    paddingTop: 20,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -30,
+    paddingTop: 25,
     paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
   },
   avatarContainer: {
     alignItems: 'center',
-    marginTop: -50,
-    marginBottom: 20,
-    backgroundColor: 'transparent',
+    marginTop: -60,
+    marginBottom: 25,
   },
   avatarFrame: {
-    width: 84,
-    height: 84,
     position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+  },
+  avatarBorder: {
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+    padding: 3,
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
   },
   avatarFrameImage: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 84,
-    height: 84,
+    top: -5,
+    left: -5,
+    width: 94,
+    height: 94,
     zIndex: 2,
-    backgroundColor: 'transparent',
   },
   avatarInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     overflow: 'hidden',
-    zIndex: 1,
-    position: 'absolute',
-    top: 7,
-    left: 7,
     backgroundColor: '#f0f0f0',
-    borderWidth: 2,
-    borderColor: '#ffffff',
   },
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 35,
+    borderRadius: 44,
     resizeMode: 'cover',
   },
   defaultAvatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 35,
-    backgroundColor: '#333',
+    borderRadius: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
   },
   userInfo: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 25,
   },
   nameContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   username: {
-    color: '#333',
-    fontSize: 22,
+    color: '#2c3e50',
+    fontSize: 26,
     fontWeight: 'bold',
     marginRight: 8,
   },
   userRole: {
-    color: '#FF69B4',
+    color: '#FF6B35',
     fontSize: 18,
     fontWeight: '600',
   },
   countryContainer: {
-    marginBottom: 15,
+    marginBottom: 20,
   },
   countryFlag: {
-    fontSize: 24,
+    fontSize: 28,
   },
   statsContainer: {
+    marginBottom: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  statsGradient: {
     flexDirection: 'row',
-    marginBottom: 15,
+    paddingVertical: 20,
+    paddingHorizontal: 30,
   },
   statItem: {
     alignItems: 'center',
-    marginHorizontal: 25,
+    flex: 1,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    marginHorizontal: 20,
   },
   statLabel: {
-    color: '#666',
+    color: '#7f8c8d',
     fontSize: 14,
-    marginBottom: 2,
+    marginBottom: 4,
+    fontWeight: '500',
   },
   statNumber: {
-    color: '#333',
-    fontSize: 18,
+    color: '#2c3e50',
+    fontSize: 20,
     fontWeight: 'bold',
   },
   bio: {
-    color: '#666',
-    fontSize: 14,
+    color: '#7f8c8d',
+    fontSize: 16,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  familyBadgeContainer: {
+    marginTop: 15,
+    alignSelf: 'center',
+    borderRadius: 30,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   familyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 15,
-    alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 25,
-    minWidth: 120,
-    maxWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    minWidth: 140,
+    maxWidth: 220,
   },
   familyBadgeIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   familyIconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   familyBadgeName: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
     flex: 1,
   },
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30,
-    gap: 15,
+    marginBottom: 35,
+    gap: 20,
+  },
+  followButtonContainer: {
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   followButton: {
-    paddingHorizontal: 25,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 30,
+    paddingVertical: 12,
   },
   followButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
   messageButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#FF69B4',
-    padding: 8,
-    borderRadius: 20,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  messageButtonGradient: {
+    padding: 12,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    borderRadius: 25,
   },
   albumSection: {
-    marginBottom: 25,
+    marginBottom: 30,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
+    color: '#2c3e50',
+    marginBottom: 20,
   },
   albumGrid: {
-    gap: 8,
+    gap: 12,
   },
   albumPhotoItem: {
     flex: 1,
-    margin: 4,
+    margin: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   albumPhotoImage: {
     width: '100%',
-    height: 100,
-    borderRadius: 8,
+    height: 120,
+    resizeMode: 'cover',
   },
   giftsSection: {
-    marginBottom: 25,
+    marginBottom: 30,
   },
   giftsContainer: {
     paddingRight: 20,
   },
   giftItem: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 15,
     alignItems: 'center',
-    minWidth: 60,
+    minWidth: 70,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   giftIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: 28,
+    marginBottom: 6,
   },
   giftCount: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#2c3e50',
   },
-  ownProfileActions: {
-    marginBottom: 30,
-  },
-  editButton: {
-    backgroundColor: '#FF69B4',
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  // Achievements styles
   achievementsSection: {
-    marginBottom: 25,
+    marginBottom: 30,
   },
   achievementsContainer: {
     paddingRight: 20,
   },
   achievementItem: {
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
-    padding: 12,
-    marginRight: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 15,
     alignItems: 'center',
-    minWidth: 80,
+    minWidth: 90,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   achievementIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: 28,
+    marginBottom: 6,
   },
   achievementName: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#2c3e50',
     textAlign: 'center',
   },
   achievementCount: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#FF69B4',
-    marginTop: 2,
+    color: '#FF6B35',
+    marginTop: 4,
   },
-  // Edit Profile Screen Styles (assuming these are relevant for context)
   editActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 20,
-    marginBottom: 20,
+    marginTop: 25,
+    marginBottom: 25,
+  },
+  saveButtonContainer: {
+    borderRadius: 15,
+    overflow: 'hidden',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   saveButton: {
-    backgroundColor: '#FF69B4',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 35,
   },
   saveButtonText: {
     color: '#fff',
@@ -1139,129 +1341,53 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    backgroundColor: '#E0E0E0',
+    paddingVertical: 15,
+    paddingHorizontal: 35,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   cancelButtonText: {
-    color: '#333',
+    color: '#7f8c8d',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  // Report Modal Styles
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  reportModalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 20,
-    maxWidth: 400,
-    width: '90%',
-  },
-  reportModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  reportModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  reportModalContent: {
-    padding: 20,
-  },
-  reportModalLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-  },
-  reportReasonInput: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 15,
-    minHeight: 50,
-  },
-  reportDescriptionInput: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  reportModalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 20,
-  },
-  reportModalCancelButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-  },
-  reportModalCancelText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  reportModalSubmitButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#FF69B4',
-  },
-  reportModalSubmitText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '500',
   },
   // Busy status styles
   busyStatusSection: {
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    marginBottom: 25,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  busyStatusGradient: {
+    padding: 20,
   },
   busyStatusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   busyStatusTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#2c3e50',
   },
   busyToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   toggleSwitch: {
-    width: 50,
-    height: 30,
-    borderRadius: 15,
+    width: 60,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#E0E0E0',
     justifyContent: 'center',
-    padding: 2,
+    padding: 3,
   },
   toggleSwitchActive: {
     backgroundColor: '#4CAF50',
@@ -1272,91 +1398,107 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     backgroundColor: '#fff',
     alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
   },
   busyToggleText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: '#2c3e50',
   },
   busyMessageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    gap: 8,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 12,
+    gap: 10,
   },
   busyMessageText: {
     flex: 1,
     fontSize: 14,
-    color: '#666',
+    color: '#7f8c8d',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   busyModalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    borderRadius: 20,
     marginHorizontal: 20,
     maxWidth: 400,
     width: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
   },
   busyModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 25,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   busyModalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#2c3e50',
   },
   busyModalContent: {
-    padding: 20,
+    padding: 25,
   },
   busyModalLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginBottom: 15,
   },
   busyMessageInput: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 12,
+    padding: 15,
     fontSize: 16,
-    color: '#333',
-    minHeight: 80,
+    color: '#2c3e50',
+    minHeight: 90,
     textAlignVertical: 'top',
+    backgroundColor: 'rgba(255,255,255,0.9)',
   },
   busyModalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: 20,
+    gap: 15,
+    marginTop: 25,
   },
   busyModalCancelButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   busyModalCancelText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 16,
+    color: '#7f8c8d',
     fontWeight: '500',
   },
   busyModalSaveButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#007AFF',
+    paddingHorizontal: 25,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   busyModalSaveText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#fff',
     fontWeight: '500',
   },
