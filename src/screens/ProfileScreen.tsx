@@ -607,7 +607,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             }
           ]}
         >
-          {/* Avatar with decorative frame and scale animation */}
+          {/* Avatar without frame - headwear will be used instead */}
           <Animated.View 
             style={[
               styles.avatarContainer,
@@ -641,15 +641,6 @@ export default function ProfileScreen({ navigation, route }: any) {
                   )}
                 </View>
               </LinearGradient>
-
-              {/* Avatar Frame Overlay */}
-              {profile.avatarFrame && (
-                <Image 
-                  source={{ uri: `${API_BASE_URL}${profile.avatarFrame}` }} 
-                  style={styles.avatarFrameImage}
-                  resizeMode="contain"
-                />
-              )}
             </View>
           </Animated.View>
 
@@ -1040,14 +1031,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
   },
-  avatarFrameImage: {
-    position: 'absolute',
-    top: -5,
-    left: -5,
-    width: 94,
-    height: 94,
-    zIndex: 2,
-  },
+  
   avatarInner: {
     width: 88,
     height: 88,
