@@ -1454,7 +1454,476 @@ export default function ChatScreen() {
     }
   }, [roomId, autoFocusTab, chatTabs.length]);
 
-  // Socket listeners are now managed in the main socket initialization useEffect above
+  // Socket event listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (newMessage: Message) => {
+      console.log('Received new message:', { sender: newMessage.sender, content: newMessage.content, roomId: newMessage.roomId });
+
+      // Ensure timestamp is a proper Date object
+      if (typeof newMessage.timestamp === 'string') {
+        newMessage.timestamp = new Date(newMessage.timestamp);
+      }
+
+      setChatTabs(prevTabs => {
+        const updatedTabs = prevTabs.map(tab => {
+          if (tab.id === newMessage.roomId) {
+            // Replace optimistic message if it exists, otherwise add new message
+            const existingIndex = tab.messages.findIndex(msg =>
+              msg.id === newMessage.id ||
+              (msg.sender === newMessage.sender && msg.content === newMessage.content && msg.id.startsWith('temp_'))
+            );
+
+            let updatedMessages;
+            if (existingIndex !== -1) {
+              // Replace optimistic message with real message
+              updatedMessages = [...tab.messages];
+              updatedMessages[existingIndex] = { ...newMessage };
+              console.log('Replaced optimistic message with real message');
+            } else {
+              // Always add system messages without duplicate check (they're from server and should be shown)
+              if (newMessage.sender === 'System') {
+                updatedMessages = [...tab.messages, newMessage];
+                console.log('System message added to tab:', tab.id);
+              } else {
+                // For user messages, be more lenient with duplicate checking to prevent message loss
+                const isDuplicate = tab.messages.some(msg =>
+                  msg.id === newMessage.id ||
+                  (msg.sender === newMessage.sender &&
+                   msg.content === newMessage.content &&
+                   Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 1000)
+                );
+
+                if (!isDuplicate) {
+                  updatedMessages = [...tab.messages, newMessage];
+                  console.log('User message added to tab:', tab.id, 'Total messages:', updatedMessages.length);
+                } else {
+                  console.log('Duplicate user message filtered out');
+                  return tab; // Don't update if duplicate
+                }
+              }
+            }
+
+            // Auto-scroll for ALL messages if autoscroll is enabled and user is not manually scrolling
+            if (autoScrollEnabledRef.current && !isUserScrollingRef.current) {
+              setTimeout(() => {
+                console.log('Auto-scrolling to end for room:', tab.id);
+                flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
+              }, 100);
+            }
+
+            return { ...tab, messages: updatedMessages };
+          }
+          return tab;
+        });
+
+        console.log('Updated chatTabs with new message, total tabs:', updatedTabs.length);
+        return updatedTabs;
+      });
+
+      // Track unread messages for other tabs using refs to avoid stale closures
+      const currentRoomId = chatTabsRef.current[activeTabRef.current]?.id;
+      if (newMessage.roomId !== currentRoomId && newMessage.sender !== userRef.current?.username) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
+        }));
+      }
+
+      // Force scroll to bottom for current room messages with better timing using refs
+      if (newMessage.roomId === chatTabsRef.current[activeTabRef.current]?.id) {
+        setTimeout(() => {
+          console.log('Forcing scroll for current room message:', newMessage.roomId);
+          if (flatListRefs.current[newMessage.roomId]) {
+            flatListRefs.current[newMessage.roomId]?.scrollToEnd({ animated: true });
+          }
+        }, 150);
+      }
+    };
+
+    const handleParticipantsUpdated = (updatedParticipants: any[]) => {
+      console.log('Participants updated:', updatedParticipants.length);
+      setParticipants(updatedParticipants);
+
+      // Update the "Currently in the room" message with new participants using refs
+      const currentTabs = chatTabsRef.current;
+      const currentActiveTab = activeTabRef.current;
+      if (currentTabs[currentActiveTab] && currentTabs[currentActiveTab].type !== 'private' && updatedParticipants.length > 0) {
+        const currentRoomId = currentTabs[currentActiveTab].id;
+        const participantNames = updatedParticipants.map(p => p.username).join(', ');
+        const updatedContent = `Currently in the room: ${participantNames}`;
+
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab => {
+            if (tab.id === currentRoomId) {
+              const updatedMessages = tab.messages.map(msg => {
+                if (msg.id === `room_info_current_${currentRoomId}`) {
+                  return { ...msg, content: updatedContent };
+                }
+                return msg;
+              });
+              return { ...tab, messages: updatedMessages };
+            }
+            return tab;
+          })
+        );
+      }
+    };
+
+    const handleUserJoined = (joinMessage: Message) => {
+      const targetTab = chatTabsRef.current.find(tab => tab.id === joinMessage.roomId);
+      const isPrivateChat = targetTab?.type === 'private';
+      const isSupportChat = targetTab?.isSupport;
+
+      if (!isPrivateChat && !isSupportChat) {
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === joinMessage.roomId
+              ? { ...tab, messages: [...tab.messages, joinMessage] }
+              : tab
+          )
+        );
+      } else {
+        console.log('Skipping join message for private/support chat.');
+      }
+    };
+
+    const handleUserLeft = (leaveMessage: Message) => {
+      const targetTab = chatTabsRef.current.find(tab => tab.id === leaveMessage.roomId);
+      const isPrivateChat = targetTab?.type === 'private';
+      const isSupportChat = targetTab?.isSupport;
+
+      if (!isPrivateChat && !isSupportChat) {
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === leaveMessage.roomId
+              ? { ...tab, messages: [...tab.messages, leaveMessage] }
+              : tab
+          )
+        );
+      } else {
+        console.log('Skipping leave message for private/support chat.');
+      }
+    };
+
+    const handleReceiveGift = (data: any) => {
+      console.log('Received gift broadcast:', data);
+      setActiveGiftAnimation({
+        ...data.gift,
+        sender: data.sender,
+        timestamp: data.timestamp,
+      });
+
+      giftScaleAnim.setValue(0.3);
+      giftOpacityAnim.setValue(0);
+
+      Animated.parallel([
+        Animated.spring(giftScaleAnim, {
+          toValue: 1,
+          tension: 80,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+        Animated.timing(giftOpacityAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      const isVideoGift = data.gift.animation && (
+        (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+        (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+      );
+
+      if (!isVideoGift) {
+        const duration = data.gift.type === 'animated' ? 5000 : 3000;
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(giftScaleAnim, {
+              toValue: 1.1,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(giftOpacityAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            setActiveGiftAnimation(null);
+          });
+        }, duration);
+      }
+
+      const giftMessage: Message = {
+        id: `gift_${Date.now()}_${data.sender}`,
+        sender: data.sender,
+        content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
+        timestamp: new Date(data.timestamp),
+        roomId: chatTabs[activeTab]?.id || data.roomId,
+        role: data.role || 'user',
+        level: data.level || 1,
+        type: 'gift'
+      };
+
+      setChatTabs(prevTabs =>
+        prevTabs.map(tab =>
+          tab.id === (chatTabs[activeTab]?.id || data.roomId)
+            ? { ...tab, messages: [...tab.messages, giftMessage] }
+            : tab
+        )
+      );
+    };
+
+    const handleReceivePrivateGift = (data: any) => {
+      console.log('Received private gift:', data);
+      setActiveGiftAnimation({
+        ...data.gift,
+        sender: data.from,
+        recipient: user?.username,
+        timestamp: data.timestamp,
+        isPrivate: true
+      });
+
+      giftScaleAnim.setValue(0.3);
+      giftOpacityAnim.setValue(0);
+
+      Animated.parallel([
+        Animated.spring(giftScaleAnim, {
+          toValue: 1,
+          tension: 80,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+        Animated.timing(giftOpacityAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      const isVideoGift = data.gift.animation && (
+        (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+        (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+      );
+
+      if (!isVideoGift) {
+        const duration = data.gift.type === 'animated' ? 5000 : 3000;
+        setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(giftScaleAnim, {
+              toValue: 1.1,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(giftOpacityAnim, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            setActiveGiftAnimation(null);
+          });
+        }, duration);
+      }
+    };
+
+    const handleUserTyping = (data: any) => { /* Handle typing indicators if needed */ };
+    const handleSupportMessage = (supportMessage: Message) => {
+      console.log('Received support message:', supportMessage);
+      if (typeof supportMessage.timestamp === 'string') {
+        supportMessage.timestamp = new Date(supportMessage.timestamp);
+      }
+      setChatTabs(prevTabs =>
+        prevTabs.map(tab => {
+          if (tab.id === supportMessage.roomId && tab.isSupport) {
+            const updatedMessages = [...tab.messages, supportMessage];
+            if (autoScrollEnabled && !isUserScrolling) {
+              setTimeout(() => {
+                flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
+              }, 30);
+            }
+            return { ...tab, messages: updatedMessages };
+          }
+          return tab;
+        })
+      );
+
+      const currentTab = chatTabs[activeTab];
+      if (currentTab && currentTab.id !== supportMessage.roomId && currentTab.isSupport) {
+        setUnreadCounts(prev => ({
+          ...prev,
+          [supportMessage.roomId]: (prev[supportMessage.roomId] || 0) + 1
+        }));
+      }
+    };
+    const handleAdminJoined = (data) => {
+      console.log('Admin joined support chat:', data);
+      const adminMessage: Message = {
+        id: `admin_join_${Date.now()}`,
+        sender: 'System',
+        content: data.message,
+        timestamp: new Date(),
+        roomId: currentRoomId,
+        role: 'system',
+        level: 1,
+        type: 'join'
+      };
+      setChatTabs(prevTabs =>
+        prevTabs.map(tab =>
+          tab.id === currentRoomId
+            ? { ...tab, messages: [...tab.messages, adminMessage] }
+            : tab
+        )
+      );
+    };
+    const handleRoomLocked = (data) => { console.log('Room locked:', data); Alert.alert('Room Locked', `Room ${data.roomId} has been locked by ${data.lockedBy}`); };
+    const handleRoomUnlocked = (data) => { console.log('Room unlocked:', data); Alert.alert('Room Unlocked', `Room ${data.roomId} has been unlocked`); };
+    const handleUserKicked = (data) => {
+      console.log('User kicked event:', data);
+      if (data.kickedUser === user?.username) {
+        Alert.alert('You have been kicked', `You were kicked from ${data.roomName} by ${data.kickedBy}`);
+        setChatTabs(prevTabs => prevTabs.filter(tab => tab.id !== data.roomId));
+      } else {
+        setParticipants(prev => prev.filter(p => p.username !== data.kickedUser));
+      }
+    };
+    const handleUserBanned = (data) => {
+      console.log('User banned event:', data);
+      if (data.bannedUser === user?.username) {
+        if (data.action === 'ban') {
+          setBannedUsers(prev => [...prev, data.bannedUser]);
+          Alert.alert('You have been banned', `You were banned from ${data.roomName} by ${data.bannedBy}`);
+          setChatTabs(prevTabs => prevTabs.filter(tab => tab.id !== data.roomId));
+        } else {
+          setBannedUsers(prev => prev.filter(username => username !== data.bannedUser));
+          Alert.alert('You have been unbanned', `You were unbanned from ${data.roomName} by ${data.bannedBy}`);
+        }
+      } else {
+        if (data.action === 'ban') {
+          setParticipants(prev => prev.filter(p => p.username !== data.bannedUser));
+        }
+      }
+    };
+    const handleUserMuted = (data) => {
+      console.log('User muted event:', data);
+      if (data.mutedUser === user?.username) {
+        if (data.action === 'mute') {
+          setMutedUsers(prev => [...prev, data.mutedUser]);
+          Alert.alert('You have been muted', `You were muted by ${data.mutedBy}`);
+        } else {
+          setMutedUsers(prev => prev.filter(username => username !== data.mutedUser));
+          Alert.alert('You have been unmuted', `You were unmuted by ${data.mutedBy}`);
+        }
+      }
+    };
+    const handleForceLeaveRoom = (data) => { console.log('Force leave room:', data); Alert.alert('Left Room', `You have been removed from ${data.roomName}`); };
+    const handleIncomingCall = (callData) => {
+      console.log('Received incoming call:', callData);
+      setIncomingCallData(callData);
+      setShowIncomingCallModal(true);
+    };
+    const handleCallResponse = (responseData) => {
+      console.log('Call response received:', responseData);
+      setCallRinging(false);
+      if (responseData.response === 'accept') {
+        Alert.alert('Call Accepted', `${responseData.responderName} accepted your call`, [{ text: 'Start Call', onPress: () => { setShowCallModal(true); startCallTimer(incomingCallData?.callType || 'video'); } }]);
+      } else {
+        Alert.alert('Call Declined', `${responseData.responderName} declined your call`);
+      }
+    };
+    const handleCallEnded = (endData) => {
+      console.log('Call ended:', endData);
+      setCallRinging(false);
+      setShowCallModal(false);
+      setShowIncomingCallModal(false);
+      endCall();
+      Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
+    };
+    const handleCoinReceived = (data) => { console.log('Coin received:', data); };
+
+    // Moderation action response listeners
+    socket?.on('kick-user-success', (data) => {
+      Alert.alert('✅ Success', `${data.targetUsername} has been kicked from the room`);
+      // Remove from local participants list
+      setParticipants(prev => prev.filter(p => p.username !== data.targetUsername));
+    });
+
+    socket?.on('kick-user-error', (data) => {
+      Alert.alert('❌ Error', data.error || 'Failed to kick user');
+    });
+
+    socket?.on('ban-user-success', (data) => {
+      Alert.alert('✅ Success', `${data.targetUsername} has been ${data.action}ned`);
+      if (data.action === 'ban') {
+        setBannedUsers(prev => [...prev, data.targetUsername]);
+        setParticipants(prev => prev.filter(p => p.username !== data.targetUsername));
+      } else {
+        setBannedUsers(prev => prev.filter(username => username !== data.targetUsername));
+      }
+    });
+
+    socket?.on('ban-user-error', (data) => {
+      Alert.alert('❌ Error', data.error || 'Failed to ban/unban user');
+    });
+
+    socket?.on('mute-user-success', (data) => {
+      Alert.alert('✅ Success', `${data.targetUsername} has been ${data.action}d`);
+      if (data.action === 'mute') {
+        setMutedUsers(prev => [...prev, data.targetUsername]);
+      } else {
+        setMutedUsers(prev => prev.filter(username => username !== data.targetUsername));
+      }
+    });
+
+    socket?.on('mute-user-error', (data) => {
+      Alert.alert('❌ Error', data.error || 'Failed to mute/unmute user');
+    });
+
+    socket?.on('lock-room-success', (data) => {
+      Alert.alert('✅ Success', `Room has been ${data.action}ed`);
+    });
+
+    socket?.on('lock-room-error', (data) => {
+      Alert.alert('❌ Error', data.error || 'Failed to lock/unlock room');
+    });
+
+    // Cleanup listeners when component unmounts or socket changes
+    return () => {
+      socket?.off('new-message', handleNewMessage);
+      socket?.off('participants-updated', handleParticipantsUpdated);
+      socket?.off('user-joined', handleUserJoined);
+      socket?.off('user-left', handleUserLeft);
+      socket?.off('receiveGift', handleReceiveGift);
+      socket?.off('receive-private-gift', handleReceivePrivateGift);
+      socket?.off('user-typing', handleUserTyping);
+      socket?.off('support-message', handleSupportMessage);
+      socket?.off('admin-joined', handleAdminJoined);
+      socket?.off('room-locked', handleRoomLocked);
+      socket?.off('room-unlocked', handleRoomUnlocked);
+      socket?.off('user-kicked', handleUserKicked);
+      socket?.off('user-banned', handleUserBanned);
+      socket?.off('user-muted', handleUserMuted);
+      socket?.off('force-leave-room', handleForceLeaveRoom);
+      socket?.off('incoming-call', handleIncomingCall);
+      socket?.off('call-response-received', handleCallResponse);
+      socket?.off('call-ended', handleCallEnded);
+      socket?.off('coin-received', handleCoinReceived);
+
+      // Remove moderation response listeners
+      socket?.off('kick-user-success');
+      socket?.off('kick-user-error');
+      socket?.off('ban-user-success');
+      socket?.off('ban-user-error');
+      socket?.off('mute-user-success');
+      socket?.off('mute-user-error');
+      socket?.off('lock-room-success');
+      socket?.off('lock-room-error');
+    };
+  }, [socket]); // Re-run effect if socket changes
+
 
   const loadRooms = async () => {
     try {
@@ -1941,13 +2410,13 @@ export default function ChatScreen() {
               )
             );
 
-            socket?.emit('sendMessage', {
+            setBannedUsers(prev => [...prev, targetUsername]);
+
+            socket?.emit('ban-user', {
               roomId: currentRoomId,
-              sender: 'System',
-              content: `🚫 ${targetUsername} has been banned from the room by ${user?.username}`,
-              role: 'system',
-              level: 1,
-              type: 'ban'
+              bannedUser: targetUsername,
+              bannedBy: user?.username,
+              action: 'ban'
             });
           } else {
             const errorMessage = {
@@ -2835,8 +3304,8 @@ export default function ChatScreen() {
   };
 
   const handleKickUser = async () => {
-    if (user?.role !== 'admin' && user?.role !== 'mentor') {
-      Alert.alert('Error', 'Only admins and mentors can kick users');
+    if (!selectedParticipant?.username) {
+      Alert.alert('Error', 'No user selected');
       return;
     }
 
@@ -2852,30 +3321,32 @@ export default function ChatScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Remove from participants
               const roomId = chatTabs[activeTab]?.id;
-              if (roomId && participants.some(p => p.username === selectedParticipant?.username)) {
-                setParticipants(prev => prev.filter(p => p.username !== selectedParticipant?.username));
-
-                // Emit kick event via socket
-                socket?.emit('kick-user', {
-                  roomId,
-                  kickedUser: selectedParticipant?.username,
-                  kickedBy: user?.username
-                });
-
-                Alert.alert('Success', `${selectedParticipant?.username} has been kicked from the room`);
-              } else {
-                Alert.alert('Error', 'User not found in the current room.');
+              if (!roomId) {
+                Alert.alert('Error', 'No active room found');
+                return;
               }
+
+              // Show loading
+              Alert.alert('Processing', 'Kicking user...');
+
+              // Emit kick event via socket - server will handle permission checking
+              socket?.emit('kick-user', {
+                roomId,
+                targetUsername: selectedParticipant.username,
+                reason: 'Kicked by moderator'
+              });
+
             } catch (error) {
-              Alert.alert('Error', 'Failed to kick user');
+              console.error('Error kicking user:', error);
+              Alert.alert('Error', 'Failed to kick user. Please try again.');
             }
           }
         }
       ]
     );
   };
+
 
   const handleBlockUser = () => {
     setShowParticipantMenu(false);
@@ -3480,7 +3951,7 @@ export default function ChatScreen() {
               {/* Display card image if available */}
               {item.image && (
                 <Image
-                  source={{ uri: `${API_BASE_URL}${item.image}` }}
+                  source                  source={{ uri: `${API_BASE_URL}${item.image}` }}
                   style={styles.cardMessageImage}
                   resizeMode="contain"
                 />
@@ -4820,6 +5291,7 @@ export default function ChatScreen() {
                         (typeof gift.animation === 'string' && gift.animation.toLowerCase().includes('.mp4')) ||
                         (gift.name && (gift.name.toLowerCase().includes('love') || gift.name.toLowerCase().includes('ufo'))) ? (
                           <Video
+                            ref={giftVideoRef}
                             source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
                             style={styles.giftImage}
                             resizeMode="contain"
@@ -5593,11 +6065,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
   },
-  levelText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: 'white',
-  },
   roleBadge: {
     borderRadius: 8,
     paddingHorizontal: 4,
@@ -6081,7 +6548,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  // roleBadgeText is defined above
   actionText: {
     fontSize: 13,
     color: '#666',
