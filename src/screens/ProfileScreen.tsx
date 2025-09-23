@@ -651,22 +651,18 @@ export default function ProfileScreen({ navigation, route }: any) {
               </View>
             )}
 
-            {/* Stats with clear display format */}
-            <View style={styles.statsContainer}>
-              <LinearGradient
-                colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.85)']}
-                style={styles.statsGradient}
-              >
-                <TouchableOpacity style={styles.statItem}>
-                  <Text style={styles.statLabel}>Mengikuti</Text>
-                  <Text style={styles.statNumber}>[{profile.following || followingCount || 0}]</Text>
-                </TouchableOpacity>
-                <View style={styles.statDivider} />
-                <TouchableOpacity style={styles.statItem}>
-                  <Text style={styles.statLabel}>Pengikut</Text>
-                  <Text style={styles.statNumber}>[{profile.followers || followersCount || 0}]</Text>
-                </TouchableOpacity>
-              </LinearGradient>
+            {/* Follow Stats */}
+            <View style={styles.followStatsContainer}>
+              <TouchableOpacity style={styles.followStatItem}>
+                <Text style={styles.followStatText}>
+                  Ikuti <Text style={styles.followStatNumber}>[{profile.followers || followersCount || 0}]</Text>
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.followStatItem}>
+                <Text style={styles.followStatText}>
+                  Mengikuti <Text style={styles.followStatNumber}>[{profile.following || followingCount || 0}]</Text>
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Bio */}
@@ -1081,45 +1077,26 @@ const styles = StyleSheet.create({
   countryFlag: {
     fontSize: 28,
   },
-  statsContainer: {
-    marginBottom: 25,
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 15,
-    elevation: 8,
-  },
-  statsGradient: {
+  followStatsContainer: {
     flexDirection: 'row',
-    paddingVertical: 25,
-    paddingHorizontal: 30,
-  },
-  statItem: {
+    justifyContent: 'center',
     alignItems: 'center',
-    flex: 1,
-    paddingVertical: 8,
+    marginBottom: 25,
+    gap: 30,
   },
-  statDivider: {
-    width: 2,
-    backgroundColor: 'rgba(103,126,234,0.3)',
-    marginHorizontal: 15,
-    borderRadius: 1,
-    height: 30,
+  followStatItem: {
+    alignItems: 'center',
   },
-  statLabel: {
-    color: '#7f8c8d',
-    fontSize: 14,
-    fontWeight: '500',
+  followStatText: {
+    color: '#2c3e50',
+    fontSize: 16,
+    fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 4,
   },
-  statNumber: {
+  followStatNumber: {
     color: '#667eea',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
   bio: {
     color: '#7f8c8d',
