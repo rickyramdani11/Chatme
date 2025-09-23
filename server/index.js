@@ -412,6 +412,7 @@ app.options('*', cors());
 
 // Import and mount route modules
 const adminRouter = require('./routes/admin');
+const supportRouter = require('./routes/support'); // Import support routes
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
@@ -421,6 +422,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/feed', feedRouter);
 app.use('/api/rooms', roomsRouter);
 app.use('/api', withdrawRouter);
+app.use('/api/support', supportRouter); // Mount support routes
 
 // JWT authentication middleware is now imported from auth module
 
@@ -4456,333 +4458,12 @@ app.post('/api/feed/upload', (req, res) => {
       });
     }
 
-// Privacy Settings API Endpoints (both /api and non-/api routes for compatibility)
-app.get('/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    console.log('GET /users/:userId/privacy-settings - User:', req.user.username, 'Role:', req.user.role, 'Requested userId:', userId);
-
-    // Check if user exists and has permission
-    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    const result = await pool.query(
-      'SELECT * FROM privacy_settings WHERE user_id = $1',
-      [userId]
-    );
-
-    if (result.rows.length === 0) {
-      // Create default privacy settings if none exist
-      const defaultSettings = {
-        user_id: userId,
-        profile_visibility: 'public',
-        privacy_notifications: true,
-        location_sharing: true,
-        biometric_auth: false,
-        two_factor_auth: true,
-        active_sessions: true,
-        data_download: true
-      };
-
-      const insertResult = await pool.query(`
-        INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [userId, defaultSettings.profile_visibility, defaultSettings.privacy_notifications, 
-         defaultSettings.location_sharing, defaultSettings.biometric_auth, 
-         defaultSettings.two_factor_auth, defaultSettings.active_sessions, defaultSettings.data_download]
-      );
-
-      res.json(insertResult.rows[0]);
-    } else {
-      res.json(result.rows[0]);
-    }
-  } catch (error) {
-    console.error('Error fetching privacy settings:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    console.log('PUT /users/:userId/privacy-settings - User:', req.user.username, 'Role:', req.user.role, 'Requested userId:', userId, 'Body:', req.body);
-
-    // Check if user has permission
-    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
-      console.log('Access denied for user:', req.user.id, 'requesting userId:', userId);
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    const allowedFields = [
-      'profile_visibility', 'privacy_notifications', 'location_sharing',
-      'biometric_auth', 'two_factor_auth', 'active_sessions', 'data_download'
-    ];
-
-    const updates = {};
-    const values = [userId];
-    let paramCount = 2;
-
-    for (const [key, value] of Object.entries(req.body)) {
-      if (allowedFields.includes(key)) {
-        updates[key] = `$${paramCount}`;
-        values.push(value);
-        paramCount++;
-      }
-    }
-
-    if (Object.keys(updates).length === 0) {
-      console.log('No valid fields to update');
-      return res.status(400).json({ success: false, error: 'No valid fields to update' });
-    }
-
-    const setClause = Object.entries(updates)
-      .map(([key, placeholder]) => `${key} = ${placeholder}`)
-      .join(', ');
-
-    // First try to update existing record
-    let result = await pool.query(`
-      UPDATE privacy_settings 
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
-      WHERE user_id = $1 
-      RETURNING *
-    `, values);
-
-    // If no existing record, create one with default values
-    if (result.rows.length === 0) {
-      console.log('No existing privacy settings, creating new record for user:', userId);
-
-      const defaultSettings = {
-        profile_visibility: 'public',
-        privacy_notifications: true,
-        location_sharing: true,
-        biometric_auth: false,
-        two_factor_auth: true,
-        active_sessions: true,
-        data_download: true
-      };
-
-      // Apply the updates to default settings
-      for (const [key, value] of Object.entries(req.body)) {
-        if (allowedFields.includes(key)) {
-          defaultSettings[key] = value;
-        }
-      }
-
-      result = await pool.query(`
-        INSERT INTO privacy_settings (user_id, profile_visibility, privacy_notifications, location_sharing, biometric_auth, two_factor_auth, active_sessions, data_download)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
-        RETURNING *
-      `, [
-        userId,
-        defaultSettings.profile_visibility,
-        defaultSettings.privacy_notifications,
-        defaultSettings.location_sharing,
-        defaultSettings.biometric_auth,
-        defaultSettings.two_factor_auth,
-        defaultSettings.active_sessions,
-        defaultSettings.data_download
-      ]);
-    }
-
-    const updatedSettings = result.rows[0];
-    console.log('Privacy settings updated successfully:', updatedSettings);
-
-    // Send consistent response format
-    res.status(200).json({
-      success: true,
-      message: 'Privacy settings updated successfully',
-      data: updatedSettings
-    });
-  } catch (error) {
-    console.error('Error updating privacy settings:', error);
-    res.status(500).json({ 
-      success: false,
-      error: 'Internal server error',
-      details: error.message 
-    });
-  }
-});
-
-app.post('/api/users/:userId/download-data', authenticateToken, async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    console.log('POST /api/users/:userId/download-data - User:', req.user.username, 'Role:', req.user.role, 'Requested userId:', userId);
-
-    // Check if user has permission
-    if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    // Log the data download request
-    await pool.query(
-      `INSERT INTO user_activity_logs (user_id, activity_type, description, created_at)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
-      [userId, 'data_download_request', 'User requested data download']
-    );
-
-    // In a real implementation, you would:
-    // 1. Queue a background job to collect user data
-    // 2. Generate a downloadable file
-    // 3. Send an email/notification when ready
-
-    res.json({ 
-      message: 'Data download request received. You will be notified when your data is ready.',
-      request_id: `download_${userId}_${Date.now()}`
-    });
-  } catch (error) {
-    console.error('Error processing data download request:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// LowCard Bot API Endpoints
-app.get('/api/lowcard/status/:roomId', (req, res) => {
-  try {
-    const { roomId } = req.params;
-
-    if (!lowCardBot) {
-      return res.status(503).json({ error: 'LowCard bot is not available' });
-    }
-
-    const status = lowCardBot.getBotStatus(roomId);
-    const isActive = lowCardBot.isBotActiveInRoom(roomId);
-
-    res.json({
-      roomId,
-      status,
-      isActive
-    });
-  } catch (error) {
-    console.error('Error getting LowCard status:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/lowcard/command', async (req, res) => {
-  try {
-    const { roomId, message, userId, username } = req.body;
-
-    if (!lowCardBot) {
-      return res.status(503).json({ error: 'LowCard bot is not available' });
-    }
-
-    if (!roomId || !message || !userId || !username) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: roomId, message, userId, username' 
-      });
-    }
-
-    // Process the command
-    await lowCardBot.processLowCardCommand(io, roomId, message, userId, username);
-
-    res.json({
-      success: true,
-      message: 'Command processed successfully'
-    });
-  } catch (error) {
-    console.error('Error processing LowCard command:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/lowcard/init/:roomId', async (req, res) => {
-  try {
-    const { roomId } = req.params;
-    const { username } = req.body;
-
-    if (!lowCardBot) {
-      return res.status(503).json({ error: 'LowCard bot is not available' });
-    }
-
-    if (!roomId) {
-      return res.status(400).json({ error: 'Room ID is required' });
-    }
-
-    // Initialize bot in the room
-    await lowCardBot.processLowCardCommand(io, roomId, '/init_bot', username || 'system', username || 'system');
-
-    res.json({
-      success: true,
-      message: `LowCard bot initialized in room ${roomId}`
-    });
-  } catch (error) {
-    console.error('Error initializing LowCard bot:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/lowcard/shutdown/:roomId', async (req, res) => {
-  try {
-    const { roomId } = req.params;
-
-    if (!lowCardBot) {
-      return res.status(503).json({ error: 'LowCard bot is not available' });
-    }
-
-    if (!roomId) {
-      return res.status(400).json({ error: 'Room ID is required' });
-    }
-
-    // Shutdown bot in the room
-    await lowCardBot.processLowCardCommand(io, roomId, '/bot off', 'system', 'system');
-
-    res.json({
-      success: true,
-      message: `LowCard bot shutdown in room ${roomId}`
-    });
-  } catch (error) {
-    console.error('Error shutting down LowCard bot:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get all active LowCard games
-app.get('/api/lowcard/games', (req, res) => {
-  try {
-    if (!lowCardBot) {
-      return res.status(503).json({ error: 'LowCard bot is not available' });
-    }
-
-    // Get all rooms and check which ones have active bots
-    const activeGames = [];
-    rooms.forEach(room => {
-      const isActive = lowCardBot.isBotActiveInRoom(room.id);
-      if (isActive) {
-        const status = lowCardBot.getBotStatus(room.id);
-        activeGames.push({
-          roomId: room.id,
-          roomName: room.name,
-          status,
-          isActive
-        });
-      }
-    });
-
-    res.json({
-      totalGames: activeGames.length,
-      games: activeGames
-    });
-  } catch (error) {
-    console.error('Error getting active LowCard games:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-
-
-
-    const { type, data, filename, user } = req.body;
-
     // Detailed validation with specific error messages
     const missingFields = [];
-    if (!type) missingFields.push('type');
-    if (!data) missingFields.push('data');
-    if (!filename) missingFields.push('filename');
-    if (!user) missingFields.push('user');
+    if (!req.body.type) missingFields.push('type');
+    if (!req.body.data) missingFields.push('data');
+    if (!req.body.filename) missingFields.push('filename');
+    if (!req.body.user) missingFields.push('user');
 
     if (missingFields.length > 0) {
       console.error('Missing required fields:', missingFields);
@@ -4790,43 +4471,43 @@ app.get('/api/lowcard/games', (req, res) => {
         error: `Missing required fields: ${missingFields.join(', ')}`,
         missingFields: missingFields,
         received: {
-          type: type || 'missing',
-          data: data ? `${data.length} characters` : 'missing',
-          filename: filename || 'missing',
-          user: user || 'missing'
+          type: req.body.type || 'missing',
+          data: req.body.data ? `${req.body.data.length} characters` : 'missing',
+          filename: req.body.filename || 'missing',
+          user: req.body.user || 'missing'
         }
       });
     }
 
     // Validate file type
     const validTypes = ['photo', 'video'];
-    if (!validTypes.includes(type)) {
-      console.error('Invalid file type:', type);
+    if (!validTypes.includes(req.body.type)) {
+      console.error('Invalid file type:', req.body.type);
       return res.status(400).json({
-        error: `Invalid file type "${type}". Must be one of: ${validTypes.join(', ')}`
+        error: `Invalid file type "${req.body.type}". Must be one of: ${validTypes.join(', ')}`
       });
     }
 
     // Validate filename
-    if (typeof filename !== 'string' || filename.trim().length === 0) {
-      console.error('Invalid filename:', filename);
+    if (typeof req.body.filename !== 'string' || req.body.filename.trim().length === 0) {
+      console.error('Invalid filename:', req.body.filename);
       return res.status(400).json({ error: 'Filename must be a non-empty string' });
     }
 
     // Validate user
-    if (typeof user !== 'string' || user.trim().length === 0) {
-      console.error('Invalid user:', user);
+    if (typeof req.body.user !== 'string' || req.body.user.trim().length === 0) {
+      console.error('Invalid user:', req.body.user);
       return res.status(400).json({ error: 'User must be a non-empty string' });
     }
 
     // Validate base64 data
-    if (typeof data !== 'string' || data.length === 0) {
+    if (typeof req.body.data !== 'string' || req.body.data.length === 0) {
       console.error('Data is not a string or is empty');
       return res.status(400).json({ error: 'Data must be a non-empty string' });
     }
 
     // Check for placeholder data
-    if (data === 'video_placeholder' || data === 'photo_placeholder') {
+    if (req.body.data === 'video_placeholder' || req.body.data === 'photo_placeholder') {
       console.error('Received placeholder data');
       return res.status(400).json({
         error: 'File processing failed. Please try selecting the file again.'
@@ -4834,23 +4515,23 @@ app.get('/api/lowcard/games', (req, res) => {
     }
 
     let isValidBase64 = false;
-    let actualData = data;
+    let actualData = req.body.data;
 
-    if (data.startsWith('data:')) {
+    if (req.body.data.startsWith('data:')) {
       // Extract base64 data from data URL
-      const base64Match = data.match(/^data:[^;]+;base64,(.+)$/);
+      const base64Match = req.body.data.match(/^data:[^;]+;base64,(.+)$/);
       if (base64Match) {
         actualData = base64Match[1];
         isValidBase64 = true;
       }
-    } else if (data.match(/^[A-Za-z0-9+/]+={0,2}$/)) {
+    } else if (req.body.data.match(/^[A-Za-z0-9+/]+={0,2}$/)) {
       isValidBase64 = true;
-      actualData = data;
+      actualData = req.body.data;
     }
 
     // Check minimum data length (should be more than a few bytes for real media)
     if (actualData.length < 100) {
-      console.error('Data too short for', type, 'length:', actualData.length);
+      console.error('Data too short for', req.body.type, 'length:', actualData.length);
       return res.status(400).json({
         error: 'File data appears to be corrupted or incomplete. Please try uploading again.'
       });
@@ -4869,11 +4550,11 @@ app.get('/api/lowcard/games', (req, res) => {
     // Generate unique filename with proper extension
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
-    let fileExtension = path.extname(filename);
+    let fileExtension = path.extname(req.body.filename);
 
     // If no extension, determine from type and content
     if (!fileExtension) {
-      if (type === 'video') {
+      if (req.body.type === 'video') {
         fileExtension = '.mp4'; // Default to mp4 for videos
       } else {
         fileExtension = '.jpg'; // Default to jpg for photos
@@ -4912,10 +4593,10 @@ app.get('/api/lowcard/games', (req, res) => {
 
     const uploadedFile = {
       id: fileId,
-      filename,
-      type, // 'photo' or 'video'
+      filename: req.body.filename,
+      type: req.body.type, // 'photo' or 'video'
       data: base64Data, // base64 data
-      uploadedBy: user,
+      uploadedBy: req.body.user,
       uploadedAt: new Date().toISOString(),
       url: `/api/feed/media/${fileId}`, // URL to access the file
       size: Buffer.byteLength(base64Data, 'base64') // Accurate file size in bytes
@@ -4927,14 +4608,14 @@ app.get('/api/lowcard/games', (req, res) => {
     }
     global.uploadedFiles[fileId] = uploadedFile;
 
-    console.log(`${type} uploaded:`, filename, 'by', user, `Size: ${uploadedFile.size} bytes`);
+    console.log(`${req.body.type} uploaded:`, req.body.filename, 'by', req.body.user, `Size: ${uploadedFile.size} bytes`);
 
     res.json({
       success: true,
       fileId: fileId.replace(fileExtension, ''), // Return ID without extension for compatibility
       url: `/api/feed/media/${fileId}`, // But use full filename in URL
-      filename: filename,
-      type: type
+      filename: req.body.filename,
+      type: req.body.type
     });
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -5233,7 +4914,7 @@ app.post('/api/feed/posts/with-media', async (req, res) => {
 
     // Find user by username
     const userResult = await pool.query('SELECT id, level FROM users WHERE username = $1', [username || user]);
-    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : 1;
+    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : 1; // Default to user ID 1 if not found
     const userLevel = userResult.rows.length > 0 ? userResult.rows[0].level : 1;
 
     if (!user) {
@@ -7049,7 +6730,6 @@ app.get('/api/feed/posts', async (req, res) => {
     `);
 
     const postsWithComments = result.rows.map(row => {
-      // Process avatar URL properly
       let avatarUrl = row.avatar;
       if (avatarUrl && avatarUrl.startsWith('/api/')) {
         // Extract avatar ID from the URL
