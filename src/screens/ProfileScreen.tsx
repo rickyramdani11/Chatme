@@ -502,11 +502,11 @@ export default function ProfileScreen({ navigation, route }: any) {
         {/* Background Image Area */}
         <View style={styles.backgroundImageContainer}>
           <Image 
-            source={{ 
-              uri: albumPhotos.length > 0 
-                ? `${API_BASE_URL}${albumPhotos[0].url}` 
-                : 'https://images.unsplash.com/photo-1557804506-669a67965ba0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'
-            }} 
+            source={
+              albumPhotos.length > 0 
+                ? { uri: `${API_BASE_URL}${albumPhotos[0].url}` }
+                : require('../../assets/Bg_profile/Bg_profile.jpeg')
+            } 
             style={styles.backgroundImage} 
           />
 
