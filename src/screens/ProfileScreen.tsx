@@ -658,20 +658,22 @@ export default function ProfileScreen({ navigation, route }: any) {
               </View>
             )}
 
-            {/* Stats with enhanced glass morphism effect */}
+            {/* Stats with clear display format */}
             <View style={styles.statsContainer}>
               <LinearGradient
                 colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.85)']}
                 style={styles.statsGradient}
               >
                 <TouchableOpacity style={styles.statItem}>
-                  <Text style={styles.statNumber}>{profile.following || 0}</Text>
-                  <Text style={styles.statLabel}>Mengikuti</Text>
+                  <Text style={styles.statText}>
+                    Mengikuti <Text style={styles.statNumber}>[{profile.following || 0}]</Text>
+                  </Text>
                 </TouchableOpacity>
                 <View style={styles.statDivider} />
                 <TouchableOpacity style={styles.statItem}>
-                  <Text style={styles.statNumber}>{profile.followers || 0}</Text>
-                  <Text style={styles.statLabel}>Pengikut</Text>
+                  <Text style={styles.statText}>
+                    Pengikut <Text style={styles.statNumber}>[{profile.followers || 0}]</Text>
+                  </Text>
                 </TouchableOpacity>
               </LinearGradient>
             </View>
@@ -1105,24 +1107,25 @@ const styles = StyleSheet.create({
   statItem: {
     alignItems: 'center',
     flex: 1,
+    paddingVertical: 8,
   },
   statDivider: {
     width: 2,
     backgroundColor: 'rgba(103,126,234,0.3)',
-    marginHorizontal: 25,
+    marginHorizontal: 15,
     borderRadius: 1,
+    height: 30,
   },
-  statLabel: {
-    color: '#7f8c8d',
-    fontSize: 14,
+  statText: {
+    color: '#2c3e50',
+    fontSize: 16,
     fontWeight: '600',
-    marginTop: 4,
+    textAlign: 'center',
   },
   statNumber: {
-    color: '#2c3e50',
-    fontSize: 24,
+    color: '#667eea',
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 2,
   },
   bio: {
     color: '#7f8c8d',
