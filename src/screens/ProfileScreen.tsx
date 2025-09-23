@@ -658,21 +658,21 @@ export default function ProfileScreen({ navigation, route }: any) {
               </View>
             )}
 
-            {/* Stats with glass morphism effect */}
+            {/* Stats with enhanced glass morphism effect */}
             <View style={styles.statsContainer}>
               <LinearGradient
-                colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+                colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.85)']}
                 style={styles.statsGradient}
               >
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>ikuti</Text>
-                  <Text style={styles.statNumber}>{profile.following}</Text>
-                </View>
+                <TouchableOpacity style={styles.statItem}>
+                  <Text style={styles.statNumber}>{profile.following || 0}</Text>
+                  <Text style={styles.statLabel}>Mengikuti</Text>
+                </TouchableOpacity>
                 <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Pengemar</Text>
-                  <Text style={styles.statNumber}>{profile.followers}</Text>
-                </View>
+                <TouchableOpacity style={styles.statItem}>
+                  <Text style={styles.statNumber}>{profile.followers || 0}</Text>
+                  <Text style={styles.statLabel}>Pengikut</Text>
+                </TouchableOpacity>
               </LinearGradient>
             </View>
 
@@ -724,24 +724,28 @@ export default function ProfileScreen({ navigation, route }: any) {
             <View style={styles.actionButtons}>
               <TouchableOpacity onPress={handleFollow} style={styles.followButtonContainer}>
                 <LinearGradient
-                  colors={isFollowing ? ['#E0E0E0', '#BDBDBD'] : ['#FF6B35', '#FF8E53']}
+                  colors={isFollowing ? ['#4CAF50', '#45A049'] : ['#667eea', '#764ba2']}
                   style={styles.followButton}
                 >
-                  <Text style={[
-                    styles.followButtonText,
-                    isFollowing && { color: '#666' }
-                  ]}>
-                    {isFollowing ? 'Following' : 'Follow'}
+                  <Ionicons 
+                    name={isFollowing ? "checkmark-circle" : "person-add"} 
+                    size={18} 
+                    color="#fff" 
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.followButtonText}>
+                    {isFollowing ? 'Mengikuti' : 'Ikuti'}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
                 <LinearGradient
-                  colors={['rgba(255,107,53,0.1)', 'rgba(255,142,83,0.1)']}
+                  colors={['#FF6B35', '#FF8E53']}
                   style={styles.messageButtonGradient}
                 >
-                  <Ionicons name="chatbubble" size={16} color="#FF6B35" />
+                  <Ionicons name="chatbubble" size={18} color="#fff" />
+                  <Text style={styles.messageButtonText}>Pesan</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -1084,18 +1088,18 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   statsContainer: {
-    marginBottom: 20,
+    marginBottom: 25,
     borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 8,
   },
   statsGradient: {
     flexDirection: 'row',
-    paddingVertical: 20,
+    paddingVertical: 25,
     paddingHorizontal: 30,
   },
   statItem: {
@@ -1103,20 +1107,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statDivider: {
-    width: 1,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    marginHorizontal: 20,
+    width: 2,
+    backgroundColor: 'rgba(103,126,234,0.3)',
+    marginHorizontal: 25,
+    borderRadius: 1,
   },
   statLabel: {
     color: '#7f8c8d',
     fontSize: 14,
-    marginBottom: 4,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 4,
   },
   statNumber: {
     color: '#2c3e50',
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
+    marginBottom: 2,
   },
   bio: {
     color: '#7f8c8d',
@@ -1174,9 +1180,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 35,
-    gap: 20,
+    gap: 15,
+    paddingHorizontal: 20,
   },
   followButtonContainer: {
+    flex: 1,
+    borderRadius: 25,
+    overflow: 'hidden',
+    shadowColor: '#667eea',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  followButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 25,
+    paddingVertical: 14,
+  },
+  followButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  messageButton: {
+    flex: 1,
     borderRadius: 25,
     overflow: 'hidden',
     shadowColor: '#FF6B35',
@@ -1185,29 +1215,18 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  followButton: {
-    paddingHorizontal: 30,
-    paddingVertical: 12,
+  messageButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 25,
+    paddingVertical: 14,
+    gap: 8,
   },
-  followButtonText: {
+  messageButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  messageButton: {
-    borderRadius: 25,
-    overflow: 'hidden',
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  messageButtonGradient: {
-    padding: 12,
-    borderWidth: 2,
-    borderColor: '#FF6B35',
-    borderRadius: 25,
+    fontWeight: 'bold',
   },
   albumSection: {
     marginBottom: 30,
