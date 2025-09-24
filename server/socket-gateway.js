@@ -108,6 +108,29 @@ const initRoomSecurityTables = async () => {
   }
 };
 
+// Create private_messages table if it doesn't exist
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS private_messages (
+          id SERIAL PRIMARY KEY,
+          chat_id VARCHAR(255) NOT NULL,
+          sender_id INTEGER NOT NULL REFERENCES users(id),
+          message TEXT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          is_read BOOLEAN DEFAULT false
+        )
+      `);
+
+      // Add is_read column if it doesn't exist (for existing databases)
+      try {
+        await pool.query(`
+          ALTER TABLE private_messages 
+          ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false
+        `);
+      } catch (error) {
+        // Column might already exist, ignore error
+        console.log('is_read column might already exist:', error.message);
+      }
+
 // Initialize tables on startup
 initRoomSecurityTables();
 
@@ -522,7 +545,7 @@ io.on('connection', (socket) => {
       // 3. Check if already in room and prevent multiple joins from same user
       const isAlreadyInRoom = socket.rooms.has(roomId);
       const existingParticipant = roomParticipants[roomId]?.find(p => p.username === username);
-      
+
       // Get user's session tracking info
       let userInfo = connectedUsers.get(socket.id);
       if (!userInfo) {
@@ -535,7 +558,7 @@ io.on('connection', (socket) => {
 
       // Check if this user has already joined this room in this session
       const hasJoinedThisSession = userInfo.announcedRooms?.has(roomId);
-      
+
       // Log the join attempt with more detail
       if (silent) {
         console.log(`🔄 ${username} reconnecting to room ${roomId} via gateway (silent)`);
@@ -546,7 +569,7 @@ io.on('connection', (socket) => {
       } else {
         console.log(`🚪 ${username} joining room ${roomId} via gateway (new join)`);
       }
-      
+
       // Always join the socket room (this is safe to call multiple times)
       socket.join(roomId);
 
@@ -566,10 +589,10 @@ io.on('connection', (socket) => {
 
       let participant = roomParticipants[roomId].find(p => p.username === username);
       const wasAlreadyParticipant = !!participant;
-      
+
       // Check if participant was already online BEFORE updating the status
       const wasAlreadyOnline = wasAlreadyParticipant && participant?.isOnline;
-      
+
       if (participant) {
         // Update existing participant
         participant.isOnline = true;
@@ -600,7 +623,7 @@ io.on('connection', (socket) => {
       // 3. Join hasn't been announced for this socket session
       // 4. Not a private chat
       const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasJoinedThisSession && !isPrivateChat;
-      
+
       if (shouldBroadcastJoin) {
         const joinMessage = {
           id: `join_${Date.now()}_${username}_${roomId}`,
@@ -614,7 +637,7 @@ io.on('connection', (socket) => {
 
         console.log(`📢 Broadcasting join message for ${username} in room ${roomId}`);
         socket.to(roomId).emit('user-joined', joinMessage);
-        
+
         // Mark room as announced for this socket session
         userInfo.announcedRooms.add(roomId);
       } else {
@@ -687,7 +710,7 @@ io.on('connection', (socket) => {
   // Join support room event
   socket.on('join-support-room', async (data) => {
     const { supportRoomId, isAdmin, silent } = data;
-    
+
     if (!supportRoomId) {
       console.log('❌ Invalid join-support-room data:', data);
       socket.emit('join-support-room-error', { error: 'Invalid support room data provided' });
@@ -845,36 +868,6 @@ io.on('connection', (socket) => {
       // Check if this is a private chat
       const isPrivateChat = roomId.startsWith('private_');
 
-      // Send notification to other participants in private chat
-      if (isPrivateChat && !trimmedContent.startsWith('/')) {
-        try {
-          const roomParts = roomId.split('_');
-          if (roomParts.length >= 3) {
-            const userId1 = parseInt(roomParts[1]);
-            const userId2 = parseInt(roomParts[2]);
-            const targetUserId = userId1 === socket.userId ? userId2 : userId1;
-
-            // Find target user socket
-            const targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
-              userInfo.userId === targetUserId
-            );
-
-            if (targetSocket) {
-              const [targetSocketId] = targetSocket;
-              // Send private message notification
-              io.to(targetSocketId).emit('private-message-notification', {
-                chatId: roomId,
-                from: sender,
-                content: content,
-                timestamp: new Date().toISOString()
-              });
-            }
-          }
-        } catch (notifError) {
-          console.error('Error sending private message notification:', notifError);
-        }
-      }
-
       // For private chats, check target user status
       if (isPrivateChat) {
         try {
@@ -887,7 +880,7 @@ io.on('connection', (socket) => {
 
             // Get target user status
             const targetUserResult = await pool.query('SELECT username, status FROM users WHERE id = $1', [targetUserId]);
-            
+
             if (targetUserResult.rows.length > 0) {
               const targetUser = targetUserResult.rows[0];
               const targetStatus = targetUser.status || 'online';
@@ -1036,6 +1029,22 @@ io.on('connection', (socket) => {
           true // isPrivate
         );
         console.log(`💾 Private chat message saved to database: ${roomId}`);
+
+        // Save to private_messages table for notification tracking
+        try {
+          const userResult = await pool.query('SELECT id FROM users WHERE username = $1', [sender]);
+          const senderId = userResult.rows.length > 0 ? userResult.rows[0].id : null;
+
+          if (senderId) {
+            await pool.query(`
+              INSERT INTO private_messages (chat_id, sender_id, message, is_read)
+              VALUES ($1, $2, $3, false)
+            `, [roomId, senderId, content]);
+            console.log(`💾 Private message saved for notifications: ${roomId}`);
+          }
+        } catch (error) {
+          console.error('Error saving private message for notifications:', error);
+        }
       }
 
       // Broadcast message to room
@@ -1674,7 +1683,7 @@ io.on('connection', (socket) => {
     if (targetSocket) {
       const [targetSocketId] = targetSocket;
       io.to(targetSocketId).emit('new-notification', notification);
-      
+
       // Special handling for coin notifications - show immediate alert
       if (notification.type === 'credit_received') {
         io.to(targetSocketId).emit('coin-received', {
@@ -1684,7 +1693,7 @@ io.on('connection', (socket) => {
           timestamp: new Date().toISOString()
         });
       }
-      
+
       console.log(`Notification sent to ${targetUsername || targetUserId}`);
     } else {
       console.log(`Target user ${targetUsername || targetUserId} not found for notification`);
@@ -1731,7 +1740,7 @@ io.on('connection', (socket) => {
       // Remove from room participants only if no other connections exist
       if (roomParticipants[userInfo.roomId] && !hasOtherActiveConnections) {
         const participantBefore = roomParticipants[userInfo.roomId].find(p => p.username === userInfo.username);
-        
+
         if (participantBefore) {
           // Mark as offline instead of removing completely
           participantBefore.isOnline = false;

@@ -365,4 +365,61 @@ router.get('/history', authenticateToken, async (req, res) => {
   }
 });
 
+// Get private chat notifications for user
+router.get('/notifications/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Get all private chats for the user with unread message counts
+    const result = await pool.query(`
+      SELECT 
+        pc.id as chat_id,
+        pc.participants,
+        COUNT(CASE WHEN pm.is_read = false AND pm.sender_id != $1 THEN 1 END) as unread_count,
+        MAX(pm.created_at) as last_message_time
+      FROM private_chats pc
+      LEFT JOIN private_messages pm ON pc.id = pm.chat_id
+      WHERE $1 = ANY(pc.participants)
+      GROUP BY pc.id, pc.participants
+      HAVING COUNT(CASE WHEN pm.is_read = false AND pm.sender_id != $1 THEN 1 END) > 0
+      ORDER BY MAX(pm.created_at) DESC
+    `, [userId]);
+
+    const notifications = result.rows.map(row => ({
+      chatId: row.chat_id,
+      participants: row.participants,
+      unreadCount: parseInt(row.unread_count),
+      lastMessageTime: row.last_message_time
+    }));
+
+    res.json(notifications);
+  } catch (error) {
+    console.error('Error getting private chat notifications:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mark private chat messages as read
+router.post('/mark-read', async (req, res) => {
+  try {
+    const { chatId, userId } = req.body;
+
+    if (!chatId || !userId) {
+      return res.status(400).json({ error: 'Chat ID and User ID are required' });
+    }
+
+    // Mark all messages in this chat as read for this user
+    await pool.query(`
+      UPDATE private_messages 
+      SET is_read = true 
+      WHERE chat_id = $1 AND sender_id != $2 AND is_read = false
+    `, [chatId, userId]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
