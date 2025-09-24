@@ -28,6 +28,7 @@ import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
+import { ParticipantsList } from '../components';
 import * as Clipboard from 'expo-clipboard';
 
 const { width } = Dimensions.get('window');
@@ -4965,96 +4966,15 @@ export default function ChatScreen() {
       </Modal>
 
       {/* Participants List Modal */}
-      <Modal
+      <ParticipantsList
         visible={showParticipants}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowParticipants(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.participantsModal}>
-            <View style={styles.participantsHeader}>
-              <Text style={styles.participantsTitle}>Room Participants</Text>
-              <TouchableOpacity onPress={() => setShowParticipants(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.participantsList}>
-              {participants.length > 0 ? (
-                participants.map((participant, index) => (
-                  <TouchableOpacity
-                    key={`${participant.username}-${participant.id || index}`}
-                    style={[
-                      styles.participantItem,
-                      { backgroundColor: getRoleBackgroundColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
-                    ]}
-                    onPress={() => handleParticipantPress(participant)}
-                  >
-                    <View style={[
-                      styles.participantAvatar,
-                      { backgroundColor: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
-                    ]}>
-                      <Text style={styles.participantAvatarText}>
-                        {participant.username ? participant.username.charAt(0).toUpperCase() : 'U'}
-                      </Text>
-                    </View>
-                    <View style={styles.participantInfo}>
-                      <Text style={[
-                        styles.participantName,
-                        { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
-                      ]}>
-                        {participant.username || 'Unknown User'}
-                      </Text>
-                      <View style={styles.participantRoleContainer}>
-                        <Text style={[
-                          styles.participantRole,
-                          { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
-                        ]}>
-                        {(() => {
-                          const currentRoom = chatTabs[activeTab];
-                          const isOwner = currentRoom && currentRoom.managedBy === participant.username;
-                          const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
-
-                            if (isOwner) return '👤 Owner';
-                            if (isModerator) return '🛡️ Moderator';
-
-                            switch (participant.role) {
-                              case 'admin': return '👑 Admin';
-                              case 'merchant': return '🏪 Merchant';
-                              case 'mentor': return '🎓 Mentor';
-                              default: return '👤 User';
-                            }
-                          })()
-                        }
-                        </Text>
-                        {mutedUsers.includes(participant.username) && (
-                          <Text style={styles.mutedIndicator}>🔇 Muted</Text>
-                        )}
-                        {blockedUsers.includes(participant.username) && (
-                          <Text style={styles.blockedIndicator}>🚫 Blocked</Text>
-                        )}
-                      </View>
-                    </View>
-                    <View style={[
-                      styles.participantStatus,
-                      { backgroundColor: participant.isOnline ? '#4CAF50' : '#9E9E9E' }
-                    ]}>
-                      <Text style={styles.participantStatusText}>
-                        {participant.isOnline ? 'Online' : 'Offline'}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View style={styles.noParticipants}>
-                  <Text style={styles.noParticipantsText}>No participants found</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowParticipants(false)}
+        participants={participants}
+        currentUser={user}
+        currentRoom={chatTabs[activeTab]}
+        loading={false}
+        onParticipantPress={handleParticipantPress}
+      />
 
       {/* Participant Context Menu Modal */}
       <Modal
@@ -6265,103 +6185,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
-  participantsModal: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    marginHorizontal: 20,
-    maxHeight: '80%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  participantsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  participantsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },  participantsList: {
-    maxHeight: 400,
-  },
-  participantItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    marginHorizontal: 8,
-    marginVertical: 2,
-    borderRadius: 8,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  participantAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#229c93',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: '#fff',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  participantAvatarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  participantInfo: {
-    flex: 1,
-  },
-  participantName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 2,
-  },
-  participantRole: {
-    fontSize: 13,
-    color: '#666',
-    fontWeight: '600',
-  },
-  participantStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  participantStatusText: {
-    fontSize: 12,
-    color: 'white',
-    fontWeight: '500',
-  },
-  noParticipants: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  noParticipantsText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
+  
   // Emoji Picker Styles
   emojiModalOverlay: {
     flex: 1,
@@ -6517,23 +6341,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontWeight: '500',
   },
-  // Status indicators in participant list
-  participantRoleContainer: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  mutedIndicator: {
-    fontSize: 12,
-    color: '#9C27B0',
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  blockedIndicator: {
-    fontSize: 12,
-    color: '#FF9800',
-    fontWeight: '500',
-    marginTop: 2,
-  },
+  
   // Join/Leave message styles
   joinLeaveMessageContainer: {
     marginVertical: 4,
