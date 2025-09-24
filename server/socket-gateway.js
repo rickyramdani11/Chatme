@@ -1,18 +1,21 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const { Pool } = require('pg');
+
+import express from 'express';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import cors from 'cors';
+import jwt from 'jsonwebtoken';
+import pkg from 'pg';
+const { Pool } = pkg;
+import crypto from 'crypto';
 
 // Import LowCard bot
-const { processLowCardCommand } = require('./games/lowcard.js');
+import { processLowCardCommand } from './games/lowcard.js';
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 
 // Socket.IO Gateway Configuration
-const io = socketIo(server, {
+const io = new SocketIOServer(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
@@ -22,7 +25,6 @@ const io = socketIo(server, {
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
 // Generate a secure random secret if JWT_SECRET is not provided
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  const crypto = require('crypto');
   const randomSecret = crypto.randomBytes(64).toString('hex');
   console.warn('⚠️  WARNING: JWT_SECRET not set in environment. Using randomly generated secret.');
   console.warn('⚠️  Set JWT_SECRET environment variable for production use.');
@@ -109,30 +111,37 @@ const initRoomSecurityTables = async () => {
 };
 
 // Create private_messages table if it doesn't exist
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS private_messages (
-          id SERIAL PRIMARY KEY,
-          chat_id VARCHAR(255) NOT NULL,
-          sender_id INTEGER NOT NULL REFERENCES users(id),
-          message TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          is_read BOOLEAN DEFAULT false
-        )
-      `);
+const initPrivateMessagesTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS private_messages (
+        id SERIAL PRIMARY KEY,
+        chat_id VARCHAR(255) NOT NULL,
+        sender_id INTEGER NOT NULL REFERENCES users(id),
+        message TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_read BOOLEAN DEFAULT false
+      )
+    `);
 
-      // Add is_read column if it doesn't exist (for existing databases)
-      try {
-        await pool.query(`
-          ALTER TABLE private_messages 
-          ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false
-        `);
-      } catch (error) {
-        // Column might already exist, ignore error
-        console.log('is_read column might already exist:', error.message);
-      }
+    // Add is_read column if it doesn't exist (for existing databases)
+    try {
+      await pool.query(`
+        ALTER TABLE private_messages 
+        ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false
+      `);
+    } catch (error) {
+      // Column might already exist, ignore error
+      console.log('is_read column might already exist:', error.message);
+    }
+  } catch (error) {
+    console.error('Error initializing private messages table:', error);
+  }
+};
 
 // Initialize tables on startup
 initRoomSecurityTables();
+initPrivateMessagesTable();
 
 // Server-side permission verification functions
 const hasPermission = async (userId, username, roomId, action) => {
@@ -224,7 +233,7 @@ const isRoomLocked = async (roomId) => {
 
 const verifyRoomPassword = async (roomId, password) => {
   try {
-    const bcrypt = require('bcrypt');
+    const bcrypt = await import('bcrypt');
 
     const result = await pool.query('SELECT password_hash FROM room_security WHERE room_id = $1', [roomId]);
 
@@ -232,7 +241,7 @@ const verifyRoomPassword = async (roomId, password) => {
       return false;
     }
 
-    return await bcrypt.compare(password, result.rows[0].password_hash);
+    return await bcrypt.default.compare(password, result.rows[0].password_hash);
   } catch (error) {
     console.error('Error verifying room password:', error);
     return false;
@@ -319,11 +328,11 @@ setInterval(cleanupExpiredBans, 60 * 60 * 1000);
 // Room lock management functions
 const lockRoom = async (roomId, lockingUserId, lockingUsername, password = null) => {
   try {
-    const bcrypt = require('bcrypt');
+    const bcrypt = await import('bcrypt');
     let passwordHash = null;
 
     if (password) {
-      passwordHash = await bcrypt.hash(password, 10);
+      passwordHash = await bcrypt.default.hash(password, 10);
     }
 
     const result = await pool.query(`
@@ -957,18 +966,6 @@ io.on('connection', (socket) => {
           level: 1,
           type: 'system'
         };
-
-        // Skip database save for temporary chat
-        // await saveChatMessage(
-        //   roomId,
-        //   'System',
-        //   rollMessage.content,
-        //   null,
-        //   'system',
-        //   'system',
-        //   1,
-        //   false
-        // );
 
         // Broadcast roll result to room
         io.to(roomId).emit('new-message', rollMessage);
