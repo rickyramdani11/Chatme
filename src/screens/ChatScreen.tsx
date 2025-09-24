@@ -320,6 +320,9 @@ export default function ChatScreen() {
     setCallCost(0);
     setTotalDeducted(0);
     setShowCallModal(false);
+    setCallRinging(false);
+    setShowIncomingCallModal(false);
+    setIncomingCallData(null);
   };
 
   const handleVideoCall = async () => {
@@ -1163,7 +1166,7 @@ export default function ChatScreen() {
 
     const initializeSocket = () => {
       console.log('Initializing socket connection...');
-      console.log('Gateway URL:', SOCKET_URL); // Use SOCKET_URL which points to the gateway
+      console.log('Gateway URL:', SOCKET_URL);
 
       if (!token) {
         console.error('No authentication token available');
@@ -1188,21 +1191,21 @@ export default function ChatScreen() {
         console.log('Cleaning up existing socket before creating new one');
         socket.removeAllListeners();
         socket.disconnect();
+        setSocket(null);
       }
 
       // Initialize socket connection to gateway with better stability options
-      const newSocket = io(SOCKET_URL, { // Use SOCKET_URL
-        transports: ['polling', 'websocket'], // Start with polling first for better Replit compatibility
+      const newSocket = io(SOCKET_URL, {
+        transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
         autoConnect: true,
         reconnection: true,
-        reconnectionDelay: 1000,
+        reconnectionDelay: 2000,
         reconnectionDelayMax: 10000,
-        reconnectionAttempts: 10, // Increased attempts for better persistence
-        timeout: 30000, // Increased timeout for better connection stability
-        forceNew: false,
+        reconnectionAttempts: 5,
+        timeout: 20000,
+        forceNew: true, // Always create new connection
         upgrade: true,
-        rememberUpgrade: false, // Don't remember upgrade for better compatibility
-        closeOnBeforeunload: false, // Keep connection alive during app state changes
+        rememberUpgrade: true,
         auth: {
           token: token
         }
@@ -1386,6 +1389,11 @@ export default function ChatScreen() {
         reconnectTimeoutRef.current = null;
       }
 
+      if (callIntervalRef.current) {
+        clearInterval(callIntervalRef.current);
+        callIntervalRef.current = null;
+      }
+
       isInitializingSocketRef.current = false;
       hadConnectedRef.current = false;
       // Don't clear joinedRoomsRef on routine cleanup - only clear on disconnect/logout
@@ -1395,6 +1403,7 @@ export default function ChatScreen() {
       if (socket) {
         socket.removeAllListeners();
         socket.disconnect();
+        setSocket(null);
       }
     };
   }, []);
@@ -1476,6 +1485,12 @@ export default function ChatScreen() {
   // Socket event listeners
   useEffect(() => {
     if (!socket) return;
+
+    // Clear existing listeners first
+    socket.removeAllListeners('new-message');
+    socket.removeAllListeners('user-joined');
+    socket.removeAllListeners('user-left');
+    socket.removeAllListeners('participants-updated');
 
     const handleNewMessage = (newMessage: Message) => {
       console.log('Received new message:', { sender: newMessage.sender, content: newMessage.content, roomId: newMessage.roomId });
