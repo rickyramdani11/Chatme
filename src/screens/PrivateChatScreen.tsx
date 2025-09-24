@@ -62,6 +62,18 @@ export default function PrivateChatScreen() {
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
   const giftOpacityAnim = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList<Message> | null>(null);
+  
+  // Call functionality states
+  const [isInCall, setIsInCall] = useState(false);
+  const [callType, setCallType] = useState<'video' | 'audio' | null>(null);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [callTimer, setCallTimer] = useState(0);
+  const [callCost, setCallCost] = useState(0);
+  const [totalDeducted, setTotalDeducted] = useState(0);
+  const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
+  const [incomingCallData, setIncomingCallData] = useState<any>(null);
+  const [callRinging, setCallRinging] = useState(false);
 
   // Get user and token
   const { user, token } = useAuth();
@@ -187,6 +199,79 @@ export default function PrivateChatScreen() {
             setActiveGiftAnimation(null);
           });
         }, duration);
+      });
+
+      // Listen for incoming calls
+      socketInstance.on('incoming-call', (callData) => {
+        console.log('Received incoming call:', callData);
+        setIncomingCallData(callData);
+        setShowIncomingCallModal(true);
+      });
+
+      // Listen for call responses
+      socketInstance.on('call-response-received', (responseData) => {
+        console.log('Call response received:', responseData);
+        setCallRinging(false);
+
+        if (responseData.response === 'accept') {
+          Alert.alert(
+            'Call Accepted',
+            `${responseData.responderName} accepted your call`,
+            [
+              {
+                text: 'Start Call',
+                onPress: () => {
+                  setShowCallModal(true);
+                  startCallTimer(incomingCallData?.callType || 'video');
+                }
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Call Declined',
+            `${responseData.responderName} declined your call`
+          );
+        }
+      });
+
+      // Listen for call initiated confirmation
+      socketInstance.on('call-initiated', (confirmData) => {
+        console.log('Call initiated:', confirmData);
+        Alert.alert(
+          'Calling...',
+          `Calling ${confirmData.targetUsername}...`,
+          [
+            {
+              text: 'Cancel Call',
+              style: 'cancel',
+              onPress: () => {
+                setCallRinging(false);
+                socketInstance.emit('end-call', {
+                  targetUsername: confirmData.targetUsername,
+                  endedBy: user?.username
+                });
+              }
+            }
+          ]
+        );
+      });
+
+      // Listen for call errors
+      socketInstance.on('call-error', (errorData) => {
+        console.log('Call error:', errorData);
+        setCallRinging(false);
+        Alert.alert('Call Error', errorData.error);
+      });
+
+      // Listen for call ended
+      socketInstance.on('call-ended', (endData) => {
+        console.log('Call ended:', endData);
+        setCallRinging(false);
+        setShowCallModal(false);
+        setShowIncomingCallModal(false);
+        endCall();
+        Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
       });
     };
 
@@ -354,6 +439,11 @@ export default function PrivateChatScreen() {
   };
 
   const handleVideoCall = async () => {
+    if (!targetUser?.username) {
+      Alert.alert('Error', 'No target user for call');
+      return;
+    }
+
     const hasBalance = await checkUserBalance(2500);
     if (!hasBalance) {
       Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start a video call');
@@ -362,15 +452,16 @@ export default function PrivateChatScreen() {
 
     Alert.alert(
       'Start Video Call',
-      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser?.username}?`,
+      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Start Call', 
           onPress: () => {
             if (socket && user) {
+              setCallRinging(true);
               socket.emit('initiate-call', {
-                targetUsername: targetUser?.username,
+                targetUsername: targetUser.username,
                 callType: 'video',
                 callerId: user.id,
                 callerName: user.username
@@ -383,6 +474,11 @@ export default function PrivateChatScreen() {
   };
 
   const handleAudioCall = async () => {
+    if (!targetUser?.username) {
+      Alert.alert('Error', 'No target user for call');
+      return;
+    }
+
     const hasBalance = await checkUserBalance(2500);
     if (!hasBalance) {
       Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start an audio call');
@@ -391,15 +487,16 @@ export default function PrivateChatScreen() {
 
     Alert.alert(
       'Start Audio Call',
-      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser?.username}?`,
+      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Start Call', 
           onPress: () => {
             if (socket && user) {
+              setCallRinging(true);
               socket.emit('initiate-call', {
-                targetUsername: targetUser?.username,
+                targetUsername: targetUser.username,
                 callType: 'audio',
                 callerId: user.id,
                 callerName: user.username
@@ -429,6 +526,139 @@ export default function PrivateChatScreen() {
       console.error('Error checking balance:', error);
       return false;
     }
+  };
+
+  const deductCoins = async (amount: number, type: string, description: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount,
+          type: `${type}_call`,
+          description: `${type} call for ${description}`,
+          recipientUsername: targetUser?.username
+        }),
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error deducting coins:', error);
+      return false;
+    }
+  };
+
+  const startCallTimer = (type: 'video' | 'audio') => {
+    setIsInCall(true);
+    setCallType(type);
+    setCallTimer(0);
+    setCallCost(0);
+    setTotalDeducted(0);
+
+    callIntervalRef.current = setInterval(() => {
+      setCallTimer(prev => {
+        const newTime = prev + 1;
+        const elapsedMinutes = Math.ceil(newTime / 60);
+
+        // Calculate display cost based on elapsed minutes
+        let displayCost = 0;
+        if (elapsedMinutes >= 1) {
+          displayCost = 2500; // First minute
+          if (elapsedMinutes > 1) {
+            displayCost += (elapsedMinutes - 1) * 2000; // Additional minutes
+          }
+        }
+        setCallCost(displayCost);
+
+        // Deduct coins every 20 seconds with proper rate distribution
+        if (newTime % 20 === 0 && newTime > 0) {
+          const currentMinute = Math.ceil(newTime / 60);
+          const intervalInMinute = Math.floor(((newTime - 1) % 60) / 20) + 1;
+
+          let intervalCost;
+          if (currentMinute === 1) {
+            intervalCost = intervalInMinute === 1 ? 834 : 833;
+          } else {
+            intervalCost = intervalInMinute === 3 ? 666 : 667;
+          }
+
+          setTotalDeducted(prev => prev + intervalCost);
+          deductCoins(intervalCost, type, `${(newTime/60).toFixed(2)} minutes`);
+        }
+
+        return newTime;
+      });
+    }, 1000);
+  };
+
+  const endCall = () => {
+    if (callIntervalRef.current) {
+      clearInterval(callIntervalRef.current);
+      callIntervalRef.current = null;
+    }
+
+    const finalEarnings = Math.floor(totalDeducted * 0.7);
+    if (finalEarnings > 0) {
+      Alert.alert(
+        'Call Ended',
+        `Total earnings: ${finalEarnings} coins (70% of ${totalDeducted} coins spent)`,
+        [{ text: 'OK' }]
+      );
+    }
+
+    setIsInCall(false);
+    setCallType(null);
+    setCallTimer(0);
+    setCallCost(0);
+    setTotalDeducted(0);
+    setShowCallModal(false);
+  };
+
+  const formatCallTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleAcceptCall = async () => {
+    if (!incomingCallData) return;
+
+    const hasBalance = await checkUserBalance(2500);
+    if (!hasBalance) {
+      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to accept this call');
+      handleDeclineCall();
+      return;
+    }
+
+    if (socket && user) {
+      socket.emit('call-response', {
+        callerId: incomingCallData.callerId,
+        response: 'accept',
+        responderName: user.username
+      });
+    }
+
+    setShowIncomingCallModal(false);
+    setShowCallModal(true);
+    startCallTimer(incomingCallData.callType);
+  };
+
+  const handleDeclineCall = () => {
+    if (!incomingCallData) return;
+
+    if (socket && user) {
+      socket.emit('call-response', {
+        callerId: incomingCallData.callerId,
+        response: 'decline',
+        responderName: user.username
+      });
+    }
+
+    setShowIncomingCallModal(false);
+    setIncomingCallData(null);
   };
 
   const formatTime = (timestamp: Date) => {
@@ -905,6 +1135,106 @@ export default function PrivateChatScreen() {
           </Animated.View>
         </View>
       )}
+
+      {/* Call Modal */}
+      <Modal
+        visible={showCallModal}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={endCall}
+      >
+        <View style={styles.callModalContainer}>
+          <View style={styles.callHeader}>
+            <Text style={styles.callHeaderText}>
+              {callType === 'video' ? 'Video Call' : 'Audio Call'}
+            </Text>
+            <Text style={styles.callTargetName}>
+              {targetUser?.username}
+            </Text>
+            <Text style={styles.callTimer}>
+              {formatCallTime(callTimer)}
+            </Text>
+            <Text style={styles.callCost}>
+              Cost: {callCost} coins
+            </Text>
+          </View>
+
+          <View style={styles.videoCallContainer}>
+            {isInCall && (
+              <View style={{ flex: 1, backgroundColor: '#000' }}>
+                <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
+                  Call Active with {targetUser?.username}
+                </Text>
+                <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
+                  {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
+                </Text>
+                <Text style={{ color: '#FFD700', textAlign: 'center', marginTop: 5 }}>
+                  Cost: {callCost} coins
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.callControls}>
+            <TouchableOpacity
+              style={[styles.callButton, styles.endCallButton]}
+              onPress={endCall}
+            >
+              <Ionicons name="call" size={30} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Incoming Call Modal */}
+      <Modal
+        visible={showIncomingCallModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleDeclineCall}
+      >
+        <View style={styles.incomingCallOverlay}>
+          <View style={styles.incomingCallModal}>
+            <View style={styles.incomingCallHeader}>
+              <Text style={styles.incomingCallTitle}>
+                {incomingCallData?.callType === 'video' ? 'Video' : 'Audio'} Call
+              </Text>
+              <Text style={styles.incomingCallSubtitle}>Incoming call from</Text>
+              <Text style={styles.callerName}>{incomingCallData?.callerName}</Text>
+            </View>
+
+            <View style={styles.callerAvatar}>
+              <Text style={styles.callerAvatarText}>
+                {incomingCallData?.callerName?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            </View>
+
+            <View style={styles.callRateInfo}>
+              <Text style={styles.callRateText}>Call Rates:</Text>
+              <Text style={styles.callRateDetail}>• First minute: 2,500 coins</Text>
+              <Text style={styles.callRateDetail}>• After 1st minute: 2,000 coins/minute</Text>
+            </View>
+
+            <View style={styles.incomingCallButtons}>
+              <TouchableOpacity
+                style={[styles.callActionButton, styles.declineButton]}
+                onPress={handleDeclineCall}
+              >
+                <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: '135deg' }] }} />
+                <Text style={styles.callActionText}>Decline</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.callActionButton, styles.acceptButton]}
+                onPress={handleAcceptCall}
+              >
+                <Ionicons name="call" size={30} color="white" />
+                <Text style={styles.callActionText}>Accept</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1354,5 +1684,149 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     opacity: 0.9,
+  },
+  // Call Modal Styles
+  callModalContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
+  callHeader: {
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    alignItems: 'center',
+  },
+  callHeaderText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 5,
+  },
+  callTargetName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 10,
+  },
+  callTimer: {
+    fontSize: 16,
+    color: '#4CAF50',
+    marginBottom: 5,
+  },
+  callCost: {
+    fontSize: 14,
+    color: '#FFD700',
+  },
+  videoCallContainer: {
+    flex: 1,
+  },
+  callControls: {
+    position: 'absolute',
+    bottom: 50,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  callButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 15,
+  },
+  endCallButton: {
+    backgroundColor: '#F44336',
+  },
+  // Incoming Call Modal Styles
+  incomingCallOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  incomingCallModal: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    minWidth: 300,
+  },
+  incomingCallHeader: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  incomingCallTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  incomingCallSubtitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 10,
+  },
+  callerName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2196F3',
+  },
+  callerAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#2196F3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  callerAvatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  callRateInfo: {
+    alignItems: 'center',
+    marginBottom: 30,
+    paddingHorizontal: 20,
+  },
+  callRateText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  callRateDetail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  incomingCallButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+  },
+  callActionButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 20,
+  },
+  declineButton: {
+    backgroundColor: '#F44336',
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  callActionText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: 'bold',
+    marginTop: 5,
   },
 });

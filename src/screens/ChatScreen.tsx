@@ -1906,9 +1906,7 @@ export default function ChatScreen() {
       socket?.off('user-banned', handleUserBanned);
       socket?.off('user-muted', handleUserMuted);
       socket?.off('force-leave-room', handleForceLeaveRoom);
-      socket?.off('incoming-call', handleIncomingCall);
-      socket?.off('call-response-received', handleCallResponse);
-      socket?.off('call-ended', handleCallEnded);
+      // Removed call event listeners from here
       socket?.off('coin-received', handleCoinReceived);
 
       // Remove moderation response listeners
