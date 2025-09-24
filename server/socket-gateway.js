@@ -24,13 +24,7 @@ const io = new SocketIOServer(server, {
 
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
 // Generate a secure random secret if JWT_SECRET is not provided
-const JWT_SECRET = process.env.JWT_SECRET || (() => {
-  const randomSecret = crypto.randomBytes(64).toString('hex');
-  console.warn('⚠️  WARNING: JWT_SECRET not set in environment. Using randomly generated secret.');
-  console.warn('⚠️  Set JWT_SECRET environment variable for production use.');
-  console.warn(`⚠️  Generated secret: ${randomSecret}`);
-  return randomSecret;
-})();
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_for_development_only';
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://0.0.0.0:5000';
 
 // Database configuration
@@ -440,7 +434,13 @@ const authenticateSocket = async (socket, next) => {
   }
 
   try {
+    // Add more detailed JWT validation
     const decoded = jwt.verify(token, JWT_SECRET);
+    
+    if (!decoded.userId) {
+      console.log('Socket authentication failed: Invalid token payload');
+      return next(new Error('Authentication error: Invalid token payload'));
+    }
 
     // Get complete user information from database
     const userResult = await pool.query('SELECT id, username, role FROM users WHERE id = $1', [decoded.userId]);
@@ -461,8 +461,16 @@ const authenticateSocket = async (socket, next) => {
     console.log(`Socket authenticated for user: ${user.username} (ID: ${user.id}, Role: ${user.role})`);
     next();
   } catch (error) {
-    console.log('Socket authentication failed:', error.message);
-    return next(new Error('Authentication error: Invalid token'));
+    if (error.name === 'TokenExpiredError') {
+      console.log('Socket authentication failed: Token expired');
+      return next(new Error('Authentication error: Token expired'));
+    } else if (error.name === 'JsonWebTokenError') {
+      console.log('Socket authentication failed: Invalid token');
+      return next(new Error('Authentication error: Invalid token'));
+    } else {
+      console.log('Socket authentication failed:', error.message);
+      return next(new Error('Authentication error: Token validation failed'));
+    }
   }
 };
 

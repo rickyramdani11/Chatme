@@ -1,18 +1,11 @@
 // Central API configuration for the app
 const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV === 'development';
 
-export const getApiUrl = (): string => {
-  // Use Replit domain with HTTPS/WSS support
-  return 'https://5e576e71-4f85-4705-be66-7a229774bebd-00-1eb96n9vqg789.sisko.replit.dev';
-};
+// API Configuration - Ensure consistent base URL
+const REPLIT_URL = 'https://5e576e71-4f85-4705-be66-7a229774bebd-00-1eb96n9vqg789.sisko.replit.dev';
 
-export const getSocketUrl = (): string => {
-  // Connect to GATEWAY server on port 8000 (use https for Socket.IO)
-  return 'https://5e576e71-4f85-4705-be66-7a229774bebd-00-1eb96n9vqg789.sisko.replit.dev:8000';
-};
-
-export const API_BASE_URL = getApiUrl();
-export const SOCKET_URL = getSocketUrl();
+export const API_BASE_URL = REPLIT_URL;
+export const SOCKET_URL = `${REPLIT_URL}:8000`;
 
 // Socket.IO configuration - Using dedicated GATEWAY server  
 export const SOCKET_CONFIG = {

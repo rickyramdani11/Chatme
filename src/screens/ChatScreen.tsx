@@ -629,7 +629,7 @@ export default function ChatScreen() {
           // Join support room with admin status
           socket.emit('join-support-room', {
             supportRoomId: roomId,
-            isAdmin: currentUser.role === 'admin',
+            isAdmin: user?.role === 'admin',
             silent: shouldBeSilent
           });
         } else {
@@ -2184,7 +2184,7 @@ export default function ChatScreen() {
     const command = parts[0].toLowerCase();
     const args = parts.slice(1);
 
-    // Don't show command message in UI - only show system responses
+    // Don't show message in UI - only show system responses
     // This prevents commands like /roll, /me, /whois from appearing as user messages
 
     switch (command) {
@@ -3999,7 +3999,7 @@ export default function ChatScreen() {
               {/* Display card image if available */}
               {item.image && (
                 <Image
-                  source                  source={{ uri: `${API_BASE_URL}${item.image}` }}
+                  source={{ uri: `${API_BASE_URL}${item.image}` }}
                   style={styles.cardMessageImage}
                   resizeMode="contain"
                 />
@@ -6185,7 +6185,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
-  
+
   // Emoji Picker Styles
   emojiModalOverlay: {
     flex: 1,
@@ -6341,7 +6341,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontWeight: '500',
   },
-  
+
   // Join/Leave message styles
   joinLeaveMessageContainer: {
     marginVertical: 4,

@@ -118,6 +118,23 @@ mode = "sequential"
 task = "shell.exec"
 args = "node server/admin-web.js"
 
+[[workflows.workflow]]
+name = "Start Full Stack Fixed"
+author = 47646032
+mode = "parallel"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "JWT_SECRET=your_super_secret_key_for_development_only node server/index.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "JWT_SECRET=your_super_secret_key_for_development_only node server/socket-gateway.js"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel --no-web"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000

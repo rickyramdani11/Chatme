@@ -38,7 +38,7 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:${PORT}`); // For constructing image URLs
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key'; // JWT secret key
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_for_development_only'; // JWT secret key
 
 // Multer storage configuration for emojis
 const storageEmoji = multer.diskStorage({
