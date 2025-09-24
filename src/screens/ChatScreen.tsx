@@ -7328,8 +7328,7 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     fontWeight: '500',
   },
-});<replit_final_file>
-import React, { useState, useEffect, useRef } from 'react';
+});
 import {
   View,
   Text,
