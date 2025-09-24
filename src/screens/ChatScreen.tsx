@@ -19,6 +19,7 @@ import {
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
+  PanResponder,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -115,6 +116,10 @@ export default function ChatScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
+  // Auto-scroll button draggable position
+  const [buttonPosition, setButtonPosition] = useState({ x: width - 80, y: 200 });
+  const buttonPanRef = useRef(new Animated.ValueXY({ x: width - 80, y: 200 })).current;
+
   // New state for private chat notifications
   const [showPrivateChatMenu, setShowPrivateChatMenu] = useState(false);
   const [privateChatNotifications, setPrivateChatNotifications] = useState<Record<string, number>>({}); // Store unread counts for private chats
@@ -123,6 +128,48 @@ export default function ChatScreen() {
   const getTotalPrivateChatNotifications = () => {
     return Object.values(privateChatNotifications).reduce((sum, count) => sum + count, 0);
   };
+
+  // Pan responder for draggable button
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      buttonPanRef.setOffset({
+        x: buttonPosition.x,
+        y: buttonPosition.y,
+      });
+      buttonPanRef.setValue({ x: 0, y: 0 });
+    },
+    onPanResponderMove: Animated.event(
+      [null, { dx: buttonPanRef.x, dy: buttonPanRef.y }],
+      { useNativeDriver: false }
+    ),
+    onPanResponderRelease: (evt, gestureState) => {
+      buttonPanRef.flattenOffset();
+      
+      // Get the final position
+      let newX = buttonPosition.x + gestureState.dx;
+      let newY = buttonPosition.y + gestureState.dy;
+      
+      // Keep button within screen bounds
+      const buttonSize = 48;
+      const minX = 10;
+      const maxX = width - buttonSize - 10;
+      const minY = 100;
+      const maxY = Dimensions.get('window').height - 200;
+      
+      newX = Math.max(minX, Math.min(maxX, newX));
+      newY = Math.max(minY, Math.min(maxY, newY));
+      
+      setButtonPosition({ x: newX, y: newY });
+      
+      // Animate to final position
+      Animated.spring(buttonPanRef, {
+        toValue: { x: newX, y: newY },
+        useNativeDriver: false,
+      }).start();
+    },
+  });
 
   // Get user and token before any refs that depend on them
   const { user, token } = useAuth();
@@ -4768,27 +4815,38 @@ export default function ChatScreen() {
               </TouchableWithoutFeedback>
             ))}
           </ScrollView>
-          {/* Auto Scroll Toggle Button */}
-          <TouchableOpacity
-            style={styles.autoScrollButton}
-            onPress={() => {
-              setAutoScrollEnabled(!autoScrollEnabled);
-              // If enabling autoscroll, immediately scroll to bottom
-              if (!autoScrollEnabled && chatTabs[activeTab]) {
-                const currentRoomId = chatTabs[activeTab].id;
-                setTimeout(() => {
-                  flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-                }, 100);
-                setIsUserScrolling(false);
+          {/* Auto Scroll Toggle Button - Draggable */}
+          <Animated.View
+            style={[
+              styles.autoScrollButton,
+              {
+                left: buttonPanRef.x,
+                top: buttonPanRef.y,
               }
-            }}
+            ]}
+            {...panResponder.panHandlers}
           >
-            <Ionicons
-              name={autoScrollEnabled ? "arrow-down-circle" : "arrow-down-circle-outline"}
-              size={30}
-              color="white"
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.draggableButtonInner}
+              onPress={() => {
+                setAutoScrollEnabled(!autoScrollEnabled);
+                // If enabling autoscroll, immediately scroll to bottom
+                if (!autoScrollEnabled && chatTabs[activeTab]) {
+                  const currentRoomId = chatTabs[activeTab].id;
+                  setTimeout(() => {
+                    flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
+                  }, 100);
+                  setIsUserScrolling(false);
+                }
+              }}
+            >
+              <Ionicons
+                name={autoScrollEnabled ? "arrow-down-circle" : "arrow-down-circle-outline"}
+                size={30}
+                color="white"
+              />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
 
         {/* Message Input */}
@@ -6751,11 +6809,14 @@ const styles = StyleSheet.create({
   giftIcon: {
     fontSize: 40,
   },
-  // Auto scroll button styles
+  // Auto scroll button styles - draggable
   autoScrollButton: {
     position: 'absolute',
-    bottom: 120, // Adjusted position to be above the input field
-    right: 20,
+    width: 48,
+    height: 48,
+    zIndex: 10,
+  },
+  draggableButtonInner: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -6767,7 +6828,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    zIndex: 10,
   },
   // Styles for userGiftRole, etc.
   userGiftRole: {
