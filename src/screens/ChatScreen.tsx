@@ -1196,16 +1196,17 @@ export default function ChatScreen() {
 
       // Initialize socket connection to gateway with better stability options
       const newSocket = io(SOCKET_URL, {
-        transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
+        transports: ['polling', 'websocket'], // Start with polling for better compatibility
         autoConnect: true,
         reconnection: true,
-        reconnectionDelay: 2000,
-        reconnectionDelayMax: 10000,
-        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 10,
         timeout: 20000,
-        forceNew: true, // Always create new connection
+        forceNew: false, // Allow session reuse when possible
         upgrade: true,
-        rememberUpgrade: true,
+        rememberUpgrade: false, // Don't remember upgrade to avoid session issues
+        closeOnBeforeunload: false,
         auth: {
           token: token
         }
@@ -1285,8 +1286,15 @@ export default function ChatScreen() {
         setIsSocketConnected(false);
         isInitializingSocketRef.current = false;
 
-        // Don't attempt reconnection if it's a network issue
-        if (error.message && error.message.includes('websocket error')) {
+        // Handle specific error cases
+        if (error.message && error.message.includes('Session ID unknown')) {
+          console.log('Session ID error detected, creating fresh connection');
+          // Clear any stored session data and retry
+          if (socket) {
+            socket.disconnect();
+            setSocket(null);
+          }
+        } else if (error.message && error.message.includes('websocket error')) {
           console.log('WebSocket specific error detected, will retry with polling');
         }
 

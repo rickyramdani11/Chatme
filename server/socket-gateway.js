@@ -18,8 +18,15 @@ const server = createServer(app);
 const io = new SocketIOServer(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  allowEIO3: true,
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  maxHttpBufferSize: 1e6
 });
 
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
@@ -477,12 +484,29 @@ const authenticateSocket = async (socket, next) => {
 // Apply authentication middleware
 io.use(authenticateSocket);
 
-// Handle connection errors
+// Handle connection errors with better session management
 io.engine.on("connection_error", (err) => {
-  console.log('❌ Socket connection error:', err.req);
+  console.log('❌ Socket connection error:', err.req ? 'Request object present' : 'No request object');
   console.log('❌ Error code:', err.code);
   console.log('❌ Error message:', err.message);
   console.log('❌ Error context:', err.context);
+  
+  // Handle session ID errors specifically
+  if (err.message === 'Session ID unknown' && err.context?.sid) {
+    console.log(`🔄 Clearing unknown session: ${err.context.sid}`);
+    // Let the client reconnect with a fresh session
+  }
+});
+
+// Add engine error handling for unknown sessions
+io.engine.on("initial_headers", (headers, req) => {
+  headers["Access-Control-Allow-Origin"] = "*";
+  headers["Access-Control-Allow-Credentials"] = "true";
+});
+
+// Handle session validation
+io.engine.on("headers", (headers, req) => {
+  headers["Access-Control-Allow-Origin"] = "*";
 });
 
 io.on('connection', (socket) => {
