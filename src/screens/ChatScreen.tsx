@@ -7386,12 +7386,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-</new_str>
-</changes>
-<replit_final_file>
-// The user wants to add a private chat notification icon to the ChatScreen header that shows unread private chat messages with a red notification badge.
-
-import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
