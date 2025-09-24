@@ -1,4 +1,3 @@
-
 const express = require('express');
 const { Pool } = require('pg');
 const { authenticateToken } = require('./auth');
@@ -87,34 +86,125 @@ router.post('/private', authenticateToken, async (req, res) => {
   }
 });
 
-// Get private chat messages
-router.get('/private/:chatId/messages', async (req, res) => {
+// Get private chat list for user
+router.get('/private/list', authenticateToken, async (req, res) => {
   try {
-    const { chatId } = req.params;
+    const userId = req.user.id;
 
-    const result = await pool.query(`
-      SELECT cm.*, u.role, u.level 
-      FROM chat_messages cm
-      LEFT JOIN users u ON cm.user_id = u.id
-      WHERE cm.room_id = $1 AND cm.is_private = true
-      ORDER BY cm.created_at ASC
-    `, [chatId]);
+    const query = `
+      SELECT 
+        pc.id,
+        pc.created_at,
+        CASE 
+          WHEN pc.participant_1 = $1 THEN u2.username
+          ELSE u1.username
+        END as target_username,
+        CASE 
+          WHEN pc.participant_1 = $1 THEN u2.id
+          ELSE u1.id
+        END as target_user_id,
+        CASE 
+          WHEN pc.participant_1 = $1 THEN u2.role
+          ELSE u1.role
+        END as target_role,
+        CASE 
+          WHEN pc.participant_1 = $1 THEN u2.level
+          ELSE u1.level
+        END as target_level,
+        pm.message as last_message,
+        pm.created_at as last_message_time,
+        COUNT(CASE WHEN pm.sender_id != $1 AND pm.is_read = false THEN 1 END) as unread_count
+      FROM private_chats pc
+      LEFT JOIN users u1 ON pc.participant_1 = u1.id
+      LEFT JOIN users u2 ON pc.participant_2 = u2.id
+      LEFT JOIN private_messages pm ON pc.id = pm.chat_id
+      WHERE pc.participant_1 = $1 OR pc.participant_2 = $1
+      GROUP BY pc.id, u1.username, u1.id, u1.role, u1.level, u2.username, u2.id, u2.role, u2.level, pm.message, pm.created_at
+      ORDER BY COALESCE(pm.created_at, pc.created_at) DESC
+    `;
 
-    const messages = result.rows.map(row => ({
-      id: row.id.toString(),
-      sender: row.username,
-      content: row.content,
-      timestamp: row.created_at,
-      roomId: row.room_id,
-      role: row.role || 'user',
-      level: row.level || 1,
-      type: row.message_type || 'message'
+    const result = await pool.query(query, [userId]);
+
+    const chatList = result.rows.map(row => ({
+      id: row.id,
+      name: `Chat with ${row.target_username}`,
+      lastMessage: row.last_message || 'No messages yet',
+      timestamp: row.last_message_time || row.created_at,
+      targetUser: {
+        id: row.target_user_id,
+        username: row.target_username,
+        role: row.target_role || 'user',
+        level: row.target_level || 1
+      },
+      unreadCount: parseInt(row.unread_count) || 0
     }));
 
-    res.json(messages);
+    res.json(chatList);
+
   } catch (error) {
-    console.error('Error fetching private chat messages:', error);
-    res.status(500).json({ error: 'Failed to fetch private chat messages' });
+    console.error('Error loading private chat list:', error);
+    res.status(500).json({ error: 'Failed to load private chat list' });
+  }
+});
+
+// Get private chat messages
+router.get('/private/:chatId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+
+    console.log(`Loading messages for private chat: ${chatId}, User: ${userId}`);
+
+    // Verify user is participant in this chat
+    const chatQuery = `
+      SELECT * FROM private_chats 
+      WHERE id = $1 AND (participant_1 = $2 OR participant_2 = $2)
+    `;
+    const chatResult = await pool.query(chatQuery, [chatId, userId]);
+
+    if (chatResult.rows.length === 0) {
+      return res.status(403).json({ error: 'Access denied to this chat' });
+    }
+
+    // Mark messages as read for this user
+    await pool.query(
+      'UPDATE private_messages SET is_read = true WHERE chat_id = $1 AND sender_id != $2',
+      [chatId, userId]
+    );
+
+    // Get messages
+    const messagesQuery = `
+      SELECT 
+        pm.*,
+        u.username as sender,
+        u.role,
+        u.level
+      FROM private_messages pm
+      JOIN users u ON pm.sender_id = u.id
+      WHERE pm.chat_id = $1
+      ORDER BY pm.created_at ASC
+      LIMIT 100
+    `;
+
+    const messagesResult = await pool.query(messagesQuery, [chatId]);
+
+    const messages = messagesResult.rows.map(row => ({
+      id: row.id.toString(),
+      sender: row.sender,
+      content: row.message,
+      timestamp: row.created_at,
+      roomId: chatId,
+      role: row.role || 'user',
+      level: row.level || 1,
+      type: 'message'
+    }));
+
+    console.log(`Loaded ${messages.length} messages for private chat ${chatId}`);
+    res.json(messages);
+
+  } catch (error) {
+    console.error('Error loading private chat messages:', error);
+    res.status(500).json({ error: 'Failed to load messages' });
   }
 });
 
@@ -199,7 +289,7 @@ router.delete('/private/:chatId/messages', authenticateToken, async (req, res) =
 router.get('/history', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.userId;
-    
+
     const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
