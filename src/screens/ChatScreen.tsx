@@ -20,7 +20,6 @@ import {
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
@@ -4295,7 +4294,7 @@ export default function ChatScreen() {
       console.error('Error loading gifts:', error);
       // Fallback to default gifts - using consistent integer IDs
       const defaultGifts = [
-        { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+        { id: '1001', name: 'Lucky Rose', icon:'🌹', price: 150, type: 'static', category: 'popular' },
         { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
         { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
         { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
@@ -7273,18 +7272,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 20,
   },
-  acceptButton: {
-    backgroundColor: '#4CAF50',
-  },
-  declineButton: {
-    backgroundColor: '#F44336',
-  },
-  callActionText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 5,
-  },
   // Gift Message Styles
   giftMessageContainer: {
     marginBottom: 8,
@@ -7341,7 +7328,8 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     fontWeight: '500',
   },
-});
+});<replit_final_file>
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7363,7 +7351,6 @@ import {
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
 } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
@@ -11387,7 +11374,7 @@ export default function ChatScreen() {
         { emoji: '🙁', type: 'text', name: 'Slightly Frowning Face' },
         { emoji: '😖', type: 'text', name: 'Confounded Face' },
         { emoji: '😞', type: 'text', name: 'Disappointed Face' },
-        { emoji: '😟', type: 'text', name: 'Worried Face' },
+        { emoji:'😟', type: 'text', name: 'Worried Face' },
         { emoji: '😤', type: 'text', name: 'Face with Steam From Nose' },
         { emoji: '😢', type: 'text', name: 'Crying Face' },
         { emoji: '😭', type: 'text', name: 'Loudly Crying Face' },
@@ -11447,7 +11434,7 @@ export default function ChatScreen() {
         { url: require('../../assets/emoticon/drooling.png'), type: 'image', name: 'Drooling' },
         { url: require('../../assets/emoticon/err.png'), type: 'image', name: 'Err' },
         { url: require('../../assets/emoticon/ffootball.png'), type: 'image', name: 'Football' },
-        { url: require('../../assets/emoticon/ffootballtrophy.png'), type: 'image', name: 'Football Trophy},
+        { url: require('../../assets/emoticon/ffootballtrophy.png'), type: 'image', name: 'Football Trophy' },
         { url: require('../../assets/emoticon/fgoal.png'), type: 'image', name: 'Goal' },
         { url: require('../../assets/emoticon/fgoalpost.png'), type: 'image', name: 'Goal Post' },
         { url: require('../../assets/emoticon/fgoldenboot.png'), type: 'image', name: 'Golden Boot' },
@@ -14615,18 +14602,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 20,
-  },
-  acceptButton: {
-    backgroundColor: '#4CAF50',
-  },
-  declineButton: {
-    backgroundColor: '#F44336',
-  },
-  callActionText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 5,
   },
   // Gift Message Styles
   giftMessageContainer: {
