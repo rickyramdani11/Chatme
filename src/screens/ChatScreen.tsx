@@ -30,7 +30,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import { ParticipantsList } from '../components';
-// import * as Clipboard from 'expo-clipboard'; // Removed duplicate import
+import * as Clipboard from 'expo-clipboard';
 
 const { width } = Dimensions.get('window');
 
