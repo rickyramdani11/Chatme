@@ -1515,7 +1515,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'gift':
         return (
-          <ScrollView style={styles.giftFormContainer} contentContainerStyle={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.giftFormCard}>
               <Text style={styles.formTitle}>Add New Gift</Text>
 
@@ -1606,14 +1606,33 @@ export default function AdminScreen({ navigation }: any) {
             <View style={styles.giftListContainer}>
               <Text style={styles.giftListTitle}>Gift yang Sudah Ditambahkan</Text>
               {gifts.length > 0 ? (
-                <FlatList
-                  data={gifts}
-                  renderItem={renderGiftItem}
-                  keyExtractor={(item) => item.id}
-                  numColumns={2}
-                  scrollEnabled={false}
-                  contentContainerStyle={styles.giftGrid}
-                />
+                <View style={styles.giftGridContainer}>
+                  {gifts.map((gift, index) => (
+                    <View key={gift.id} style={[styles.itemCard, { width: '48%', marginHorizontal: '1%' }]}>
+                      <View style={styles.itemHeader}>
+                        <View style={styles.giftDisplayContainer}>
+                          {gift.image ? (
+                            <Image source={{ uri: `${API_BASE_URL}${gift.image}` }} style={styles.giftItemImage} />
+                          ) : (
+                            <Text style={styles.itemEmoji}>{gift.icon}</Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          style={styles.deleteButton}
+                          onPress={() => handleDeleteItem(gift.id, 'gift')}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#F44336" />
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.itemName}>{gift.name}</Text>
+                      <Text style={styles.itemPrice}>{gift.price} credits</Text>
+                      <Text style={styles.itemType}>{gift.type}</Text>
+                      {gift.category && gift.category !== 'lucky' && (
+                        <Text style={styles.itemCategory}>{gift.category}</Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
               ) : (
                 <View style={styles.emptyGiftList}>
                   <Ionicons name="gift-outline" size={40} color="#ccc" />
@@ -3255,7 +3274,6 @@ const styles = StyleSheet.create({
   },
   giftFormContainer: {
     flex: 1,
-    padding: 16,
   },
   giftFormCard: {
     backgroundColor: '#fff',
@@ -3370,6 +3388,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   giftGrid: {
+    paddingBottom: 10,
+  },
+  giftGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     paddingBottom: 10,
   },
   emptyGiftList: {
