@@ -2118,15 +2118,32 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    const { name, icon, price, type = 'static', category = 'popular', giftImage, imageType, imageName } = req.body;
+    const { 
+      name, 
+      icon, 
+      price, 
+      type = 'static', 
+      category = 'popular', 
+      giftImage, 
+      imageType, 
+      imageName,
+      hasAnimation = false,
+      isAnimated = false,
+      duration = null
+    } = req.body;
 
     if (!name || !icon || !price) {
       return res.status(400).json({ error: 'Name, icon, and price are required' });
     }
 
-    let imagePath = null;
+    if (!giftImage) {
+      return res.status(400).json({ error: 'Gift image/video is required' });
+    }
 
-    // Handle gift image upload
+    let imagePath = null;
+    let animationPath = null;
+
+    // Handle gift image/video upload
     if (giftImage && imageType && imageName) {
       try {
         // Create uploads directory if it doesn't exist
@@ -2137,38 +2154,85 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
 
         // Generate unique filename
         const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
-        // Extract file extension from imageType (e.g., 'image/jpeg' -> 'jpeg')
+        // Extract file extension from imageType (e.g., 'image/jpeg' -> 'jpeg', 'video/mp4' -> 'mp4')
         const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
+        
+        // Validate file type
+        const allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'mov'];
+        if (!allowedExtensions.includes(fileExtension)) {
+          return res.status(400).json({ 
+            error: 'Invalid file type. Only PNG, JPG, JPEG, GIF, MP4, WebM, and MOV files are allowed.' 
+          });
+        }
+
         const filename = `gift_${uniqueSuffix}.${fileExtension}`;
         const filepath = path.join(uploadsDir, filename);
 
-        // Write base64 image to file
-        const imageBuffer = Buffer.from(giftImage, 'base64');
-        fs.writeFileSync(filepath, imageBuffer);
+        // Write base64 data to file
+        const fileBuffer = Buffer.from(giftImage, 'base64');
+        
+        // Check file size limits
+        const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension);
+        const maxSize = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024; // 15MB for videos, 5MB for images
+        
+        if (fileBuffer.length > maxSize) {
+          return res.status(400).json({ 
+            error: `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.` 
+          });
+        }
 
-        imagePath = `/uploads/gifts/${filename}`;
-        console.log('Gift image saved:', filename);
+        fs.writeFileSync(filepath, fileBuffer);
+
+        const filePath = `/uploads/gifts/${filename}`;
+        
+        // For video files or animated GIFs, store as animation
+        if (isVideo || fileExtension === 'gif' || isAnimated) {
+          animationPath = filePath;
+          // For videos, also store a thumbnail/image reference
+          imagePath = filePath;
+        } else {
+          imagePath = filePath;
+        }
+
+        console.log('Gift file saved:', {
+          filename,
+          size: fileBuffer.length,
+          type: imageType,
+          isVideo: isVideo,
+          isAnimated: isAnimated || fileExtension === 'gif'
+        });
+
       } catch (error) {
-        console.error('Error saving gift image:', error);
-        return res.status(500).json({ error: 'Failed to save gift image' });
+        console.error('Error saving gift file:', error);
+        return res.status(500).json({ error: 'Failed to save gift file: ' + error.message });
       }
     }
 
+    // Determine the final type based on file and settings
+    const finalType = (hasAnimation || isAnimated || animationPath) ? 'animated' : 'static';
+
     const result = await pool.query(`
-      INSERT INTO custom_gifts (name, icon, image, price, type, category, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO custom_gifts (name, icon, image, animation, price, type, category, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [name, icon, imagePath, parseInt(price), type, category, req.user.id]);
+    `, [name, icon, imagePath, animationPath, parseInt(price), finalType, category, req.user.id]);
 
     const gift = result.rows[0];
-    if (gift.image) {
-      gift.image = `${API_BASE_URL}${gift.image}`;
-    }
+    
+    // Return full URLs for images and animations
+    const responseGift = {
+      ...gift,
+      id: gift.id.toString(),
+      image: gift.image ? `${API_BASE_URL}${gift.image}` : null,
+      animation: gift.animation ? `${API_BASE_URL}${gift.animation}` : null
+    };
 
-    res.json(gift);
+    console.log('Gift created successfully:', responseGift.name);
+    res.json(responseGift);
+    
   } catch (error) {
     console.error('Error adding gift:', error);
-    res.status(500).json({ error: 'Failed to add gift' });
+    res.status(500).json({ error: 'Failed to add gift: ' + error.message });
   }
 });
 

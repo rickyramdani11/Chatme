@@ -563,23 +563,18 @@ export default function AdminScreen({ navigation }: any) {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All, // Allow both images and videos
-        allowsEditing: true,
-        aspect: [1, 1],
+        allowsEditing: false, // Disable editing to prevent video processing errors
         quality: 0.8,
         base64: true,
         allowsMultipleSelection: false,
         videoMaxDuration: 30, // Allow up to 30 seconds for video gifts
-        videoQuality: ImagePicker.VideoQuality.High,
+        videoQuality: ImagePicker.VideoQuality.Medium, // Use medium quality to avoid processing issues
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
 
-        if (!asset.base64) {
-          Alert.alert('Error', 'Failed to process the file. Please try again.');
-          return;
-        }
-
+        // Handle video files differently - they might not have base64
         const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
         const allowedExtensions = ['png', 'gif', 'jpg', 'jpeg', 'mp4', 'webm', 'mov'];
 
@@ -588,8 +583,42 @@ export default function AdminScreen({ navigation }: any) {
           return;
         }
 
-        const fileSizeInBytes = (asset.base64.length * 3) / 4;
         const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
+        
+        // For videos, we might not have base64, so handle differently
+        if (isVideo && !asset.base64) {
+          // For video files without base64, we'll use the URI and handle server-side
+          setUploadedGiftImage({
+            uri: asset.uri,
+            base64: null,
+            type: `video/${fileExtension}`,
+            name: `gift_${Date.now()}.${fileExtension}`,
+            extension: fileExtension || 'mp4',
+            isAnimated: true,
+            duration: asset.duration || null,
+            width: asset.width || 0,
+            height: asset.height || 0
+          });
+
+          console.log('Video file selected (no base64):', {
+            name: `gift_${Date.now()}.${fileExtension}`,
+            type: `video/${fileExtension}`,
+            duration: asset.duration,
+            width: asset.width,
+            height: asset.height
+          });
+          
+          Alert.alert('Video Selected', 'Video file selected successfully. Note: Video files will be processed on upload.');
+          return;
+        }
+
+        // For images and GIFs with base64
+        if (!asset.base64) {
+          Alert.alert('Error', 'Failed to process the file. Please try again.');
+          return;
+        }
+
+        const fileSizeInBytes = (asset.base64.length * 3) / 4;
         const maxSize = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024; // 15MB for videos, 5MB for images/GIFs
 
         if (fileSizeInBytes > maxSize) {
@@ -610,7 +639,9 @@ export default function AdminScreen({ navigation }: any) {
           name: `gift_${Date.now()}.${fileExtension}`,
           extension: fileExtension || 'png',
           isAnimated: fileExtension === 'gif' || isVideo,
-          duration: asset.duration || null
+          duration: asset.duration || null,
+          width: asset.width || 0,
+          height: asset.height || 0
         });
 
         console.log('Gift file selected:', {
@@ -623,7 +654,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error picking gift file:', error);
-      Alert.alert('Error', 'Failed to pick gift file');
+      Alert.alert('Error', 'Failed to pick gift file: ' + error.message);
     }
   };
 
@@ -637,25 +668,54 @@ export default function AdminScreen({ navigation }: any) {
       return;
     }
 
+    if (!uploadedGiftImage) {
+      Alert.alert('Error', 'File gift harus dipilih');
+      return;
+    }
+
     setLoading(true);
     try {
+      const isVideo = uploadedGiftImage.type?.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(uploadedGiftImage.extension || '');
+      
       const requestBody: any = {
         name: itemName.trim(),
         icon: '🎁',
         price: parseInt(itemPrice),
-        type: selectedFile ? 'animated' : 'static',
+        type: isVideo || uploadedGiftImage.isAnimated ? 'animated' : 'static',
         category: 'popular'
       };
 
-      if (uploadedGiftImage) {
+      // Handle video files (might not have base64)
+      if (isVideo && !uploadedGiftImage.base64) {
+        Alert.alert('Info', 'Video files are being processed. This may take a moment...');
+        // For now, we'll skip video upload without base64
+        // In a real implementation, you'd handle file upload differently
+        throw new Error('Video file processing not yet implemented. Please use GIF files for animated gifts.');
+      }
+
+      if (uploadedGiftImage && uploadedGiftImage.base64) {
         requestBody.giftImage = uploadedGiftImage.base64;
         requestBody.imageType = uploadedGiftImage.type;
         requestBody.imageName = uploadedGiftImage.name;
+        
+        if (isVideo) {
+          requestBody.hasAnimation = true;
+          requestBody.isAnimated = true;
+          requestBody.duration = uploadedGiftImage.duration;
+        }
       }
 
       if (selectedFile) {
         requestBody.hasAnimation = true;
       }
+
+      console.log('Sending gift data:', {
+        name: requestBody.name,
+        type: requestBody.type,
+        hasBase64: !!requestBody.giftImage,
+        fileType: requestBody.imageType,
+        isVideo: isVideo
+      });
 
       const response = await fetch(`${API_BASE_URL}/api/admin/gifts`, {
         method: 'POST',
@@ -1569,7 +1629,21 @@ export default function AdminScreen({ navigation }: any) {
                 </TouchableOpacity>
                 {uploadedGiftImage && (
                   <View style={styles.formPreviewContainer}>
-                    <Image source={{ uri: uploadedGiftImage.uri }} style={styles.formPreviewImage} />
+                    {uploadedGiftImage.type?.startsWith('video/') ? (
+                      <View style={styles.videoPreviewContainer}>
+                        <Ionicons name="videocam" size={40} color="#FF6B35" />
+                        <Text style={styles.videoPreviewText}>
+                          Video: {uploadedGiftImage.name}
+                        </Text>
+                        {uploadedGiftImage.duration && (
+                          <Text style={styles.videoDurationText}>
+                            Duration: {Math.round(uploadedGiftImage.duration / 1000)}s
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Image source={{ uri: uploadedGiftImage.uri }} style={styles.formPreviewImage} />
+                    )}
                     <TouchableOpacity
                       style={styles.formRemoveButton}
                       onPress={() => setUploadedGiftImage(null)}
