@@ -7274,10 +7274,7 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     fontWeight: '500',
   },
-});The gift picker modal has been updated to use a white background, consistent sizing for gift items, and proper display of gift images.
-
-<replit_final_file>
-import React, { useState, useEffect, useRef } from 'react';
+});
 import {
   View,
   Text,
