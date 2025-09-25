@@ -120,13 +120,23 @@ export default function ChatHistoryScreen() {
   };
 
   const handleChatPress = (chat: ChatHistoryItem) => {
-    if (chat.type === 'private' && chat.targetUser) {
+    if (chat.type === 'private') {
+      // Ensure we have proper targetUser data for private chat
+      const targetUser = chat.targetUser || {
+        id: chat.id.replace('private_', '').split('_')[1] || 'unknown',
+        username: chat.name.replace('Chat with ', '') || 'Unknown User',
+        role: 'user',
+        level: 1,
+        avatar: null
+      };
+
       (navigation as any).navigate('PrivateChat', {
         roomId: chat.id,
         roomName: chat.name,
-        roomDescription: `Private chat with ${chat.targetUser.username}`,
+        roomDescription: `Private chat with ${targetUser.username}`,
         type: 'private',
-        targetUser: chat.targetUser,
+        targetUser: targetUser,
+        targetStatus: 'online', // Default status
         autoFocusTab: true
       });
     } else if (chat.type === 'support') {

@@ -47,6 +47,21 @@ export type RootStackParamList = {
     autoFocusTab?: boolean;
     isSupport?: boolean;
   };
+  PrivateChat: {
+    roomId: string;
+    roomName: string;
+    roomDescription?: string;
+    type: 'private';
+    targetUser: {
+      id: string;
+      username: string;
+      role?: string;
+      level?: number;
+      avatar?: string;
+    };
+    targetStatus?: 'online' | 'offline' | 'away' | 'busy';
+    autoFocusTab?: boolean;
+  };
   Room: {
     roomId?: string;
     roomName?: string;
