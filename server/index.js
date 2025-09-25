@@ -2024,6 +2024,43 @@ app.get('/uploads/banners/:filename', (req, res) => {
   }
 });
 
+// Serve gift images and videos
+app.get('/uploads/gifts/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filepath = path.join(__dirname, 'uploads', 'gifts', filename);
+
+    if (fs.existsSync(filepath)) {
+      // Set appropriate content type based on file extension
+      const ext = path.extname(filename).toLowerCase();
+      const contentTypes = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.mov': 'video/quicktime',
+        '.gif': 'image/gif',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg'
+      };
+
+      const contentType = contentTypes[ext] || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+      
+      // For video files, enable partial content support
+      if (contentType.startsWith('video/')) {
+        res.setHeader('Accept-Ranges', 'bytes');
+      }
+      
+      res.sendFile(filepath);
+    } else {
+      res.status(404).json({ error: 'Gift file not found' });
+    }
+  } catch (error) {
+    console.error('Error serving gift file:', error);
+    res.status(500).json({ error: 'Failed to serve gift file' });
+  }
+});
+
 // Admin endpoints for gift management
 app.get('/api/admin/gifts', authenticateToken, async (req, res) => {
   try {

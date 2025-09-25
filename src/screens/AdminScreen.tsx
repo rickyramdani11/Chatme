@@ -379,7 +379,7 @@ export default function AdminScreen({ navigation }: any) {
     try {
       setBannersLoading(true);
       console.log('Loading banners with token:', token ? 'Present' : 'Missing');
-      
+
       const response = await fetch(`${API_BASE_URL}/api/admin/banners`, {
         headers: {
           'Content-Type': 'application/json',
@@ -557,59 +557,73 @@ export default function AdminScreen({ navigation }: any) {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'We need camera roll permissions to upload gift images.');
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload gift files.');
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        mediaTypes: ImagePicker.MediaTypeOptions.All, // Allow both images and videos
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
         base64: true,
         allowsMultipleSelection: false,
-        videoMaxDuration: 10,
+        videoMaxDuration: 30, // Allow up to 30 seconds for video gifts
+        videoQuality: ImagePicker.VideoQuality.High,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
 
         if (!asset.base64) {
-          Alert.alert('Error', 'Failed to process the image. Please try again.');
+          Alert.alert('Error', 'Failed to process the file. Please try again.');
           return;
         }
 
         const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
-        if (!['png', 'gif', 'jpg', 'jpeg', 'webm'].includes(fileExtension || '')) {
-          Alert.alert('Invalid file type', 'Please select PNG, GIF, JPG, JPEG, or WebM files only.');
+        const allowedExtensions = ['png', 'gif', 'jpg', 'jpeg', 'mp4', 'webm', 'mov'];
+
+        if (!allowedExtensions.includes(fileExtension || '')) {
+          Alert.alert('Invalid file type', 'Please select PNG, GIF, JPG, JPEG, MP4, WebM, or MOV files only.');
           return;
         }
 
         const fileSizeInBytes = (asset.base64.length * 3) / 4;
-        const maxSize = fileExtension === 'webm' ? 10 * 1024 * 1024 : 2 * 1024 * 1024;
+        const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
+        const maxSize = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024; // 15MB for videos, 5MB for images/GIFs
 
         if (fileSizeInBytes > maxSize) {
-          Alert.alert('File too large', `Please select a file smaller than ${fileExtension === 'webm' ? '10MB' : '2MB'}.`);
+          Alert.alert('File too large', `Please select a file smaller than ${isVideo ? '15MB' : '5MB'}.`);
           return;
+        }
+
+        // Determine content type
+        let contentType = `image/${fileExtension}`;
+        if (isVideo) {
+          contentType = `video/${fileExtension}`;
         }
 
         setUploadedGiftImage({
           uri: asset.uri,
           base64: asset.base64,
-          type: fileExtension === 'webm' ? 'video/webm' : `image/${fileExtension}`,
+          type: contentType,
           name: `gift_${Date.now()}.${fileExtension}`,
-          extension: fileExtension || 'png'
+          extension: fileExtension || 'png',
+          isAnimated: fileExtension === 'gif' || isVideo,
+          duration: asset.duration || null
         });
 
         console.log('Gift file selected:', {
           name: `gift_${Date.now()}.${fileExtension}`,
           size: fileSizeInBytes,
-          type: fileExtension === 'webm' ? 'video/webm' : `image/${fileExtension}`
+          type: contentType,
+          isAnimated: fileExtension === 'gif' || isVideo,
+          duration: asset.duration
         });
       }
     } catch (error) {
-      console.error('Error picking gift image:', error);
-      Alert.alert('Error', 'Failed to pick gift image');
+      console.error('Error picking gift file:', error);
+      Alert.alert('Error', 'Failed to pick gift file');
     }
   };
 
@@ -3908,7 +3922,7 @@ const styles = StyleSheet.create({
   deleteBannerText: {
     color: '#F44336',
     fontSize: 12,
-    marginLeft: 4,
+    marginLeft: 5,
   },
   emptyBannerList: {
     alignItems: 'center',
@@ -4144,5 +4158,27 @@ const styles = StyleSheet.create({
   capacityEditOptionTextSelected: {
     color: '#673AB7',
     fontWeight: '600',
+  },
+
+  // Video preview styles
+  videoPreviewContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 20,
+    marginTop: 10,
+  },
+  videoPreviewText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+  },
+  videoDurationText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
   },
 });

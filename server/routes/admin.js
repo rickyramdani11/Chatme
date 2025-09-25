@@ -166,13 +166,29 @@ router.get('/gifts', authenticateToken, adminOnly, async (req, res) => {
 // Add gift
 router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const { name, icon, price, type = 'static', category = 'popular', giftImage, imageType, imageName } = req.body;
+    const { 
+      name, 
+      icon, 
+      price, 
+      type = 'static', 
+      category = 'popular', 
+      giftImage, 
+      imageType, 
+      imageName,
+      hasAnimation = false,
+      animationType = null
+    } = req.body;
 
     if (!name || !icon || !price) {
       return res.status(400).json({ error: 'Name, icon, and price are required' });
     }
 
+    if (!giftImage) {
+      return res.status(400).json({ error: 'Gift media file is required' });
+    }
+
     let imagePath = null;
+    let animationPath = null;
 
     if (giftImage && imageType && imageName) {
       try {
@@ -183,28 +199,67 @@ router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
 
         const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
         const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
+        
+        // Validate file type
+        const allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'mov'];
+        if (!allowedExtensions.includes(fileExtension)) {
+          return res.status(400).json({ 
+            error: 'Invalid file type. Only PNG, JPG, JPEG, GIF, MP4, WebM, and MOV files are allowed.' 
+          });
+        }
+
         const filename = `gift_${uniqueSuffix}.${fileExtension}`;
         const filepath = path.join(uploadsDir, filename);
 
-        const imageBuffer = Buffer.from(giftImage, 'base64');
-        fs.writeFileSync(filepath, imageBuffer);
+        const fileBuffer = Buffer.from(giftImage, 'base64');
+        
+        // Check file size limits
+        const maxSize = ['mp4', 'webm', 'mov'].includes(fileExtension) ? 15 * 1024 * 1024 : 5 * 1024 * 1024;
+        if (fileBuffer.length > maxSize) {
+          return res.status(400).json({ 
+            error: `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.` 
+          });
+        }
 
-        imagePath = `/uploads/gifts/${filename}`;
+        fs.writeFileSync(filepath, fileBuffer);
+
+        const filePath = `/uploads/gifts/${filename}`;
+        
+        // For video files or GIFs, store as animation
+        if (['mp4', 'webm', 'mov', 'gif'].includes(fileExtension)) {
+          animationPath = filePath;
+          // For videos, also store a thumbnail/image reference
+          imagePath = filePath;
+        } else {
+          imagePath = filePath;
+        }
+
+        console.log('Gift file saved:', {
+          filename,
+          size: fileBuffer.length,
+          type: imageType,
+          isAnimated: hasAnimation,
+          animationType
+        });
+
       } catch (error) {
-        console.error('Error saving gift image:', error);
-        return res.status(500).json({ error: 'Failed to save gift image' });
+        console.error('Error saving gift file:', error);
+        return res.status(500).json({ error: 'Failed to save gift file' });
       }
     }
 
     const result = await pool.query(`
-      INSERT INTO custom_gifts (name, icon, image, price, type, category, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO custom_gifts (name, icon, image, animation, price, type, category, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [name, icon, imagePath, parseInt(price), type, category, req.user.id]);
+    `, [name, icon, imagePath, animationPath, parseInt(price), type, category, req.user.id]);
 
     const gift = result.rows[0];
     if (gift.image) {
       gift.image = `${API_BASE_URL}${gift.image}`;
+    }
+    if (gift.animation) {
+      gift.animation = `${API_BASE_URL}${gift.animation}`;
     }
 
     res.json(gift);
