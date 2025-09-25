@@ -788,7 +788,7 @@ const HomeScreen = ({ navigation }: any) => {
           onPress: async () => {
             try {
               console.log('Reporting user:', selectedFriend.id, selectedFriend.name);
-              
+
               const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/report`, {
                 method: 'POST',
                 headers: {
@@ -984,8 +984,8 @@ const HomeScreen = ({ navigation }: any) => {
               <TouchableOpacity
                 style={styles.messageHistoryButtonSmall}
                 onPress={() => {
-                  fetchChatHistory();
-                  setShowMessageHistory(true);
+                  // fetchChatHistory(); // No longer needed as navigation handles data fetching
+                  navigation.navigate('ChatHistory');
                 }}
               >
                 <Ionicons name="chatbubbles" size={14} color="#fff" />
@@ -1181,7 +1181,7 @@ const HomeScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </Modal>
 
-      {/* Message History Modal */}
+      {/* Message History Modal - This modal is no longer used and can be removed */}
       <Modal
         visible={showMessageHistory}
         transparent={true}

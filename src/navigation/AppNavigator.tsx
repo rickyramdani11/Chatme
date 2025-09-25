@@ -44,7 +44,8 @@ import FamilyScreen from '../screens/FamilyScreen';
 import CreateFamilyScreen from '../screens/CreateFamilyScreen';
 // Import FamilyDetailScreen
 import FamilyDetailScreen from '../screens/FamilyDetailScreen';
-
+// Import ChatHistoryScreen
+import ChatHistoryScreen from '../screens/ChatHistoryScreen';
 
 import { useAuth } from '../hooks';
 
@@ -226,6 +227,12 @@ export default function AppNavigator() {
           <Stack.Screen
             name="FamilyDetailScreen"
             component={FamilyDetailScreen}
+            options={{ headerShown: false }}
+          />
+          {/* Add ChatHistory screen to Stack Navigator */}
+          <Stack.Screen
+            name="ChatHistory"
+            component={ChatHistoryScreen}
             options={{ headerShown: false }}
           />
         </>
