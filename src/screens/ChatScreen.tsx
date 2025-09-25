@@ -5158,7 +5158,9 @@ export default function ChatScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
-      </Modal{/* Emoji Picker Modal */}
+      </Modal>
+
+      {/* Emoji Picker Modal */}
       <Modal
         visible={showEmojiPicker}
         transparent={true}
