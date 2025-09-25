@@ -661,6 +661,23 @@ export default function PrivateChatScreen() {
     setIncomingCallData(null);
   };
 
+  const renderMessageContent = (content: string) => {
+    // Split content by @ mentions and style them
+    const parts = content.split(/(@\w+)/g);
+
+    return parts.map((part, index) => {
+      if (part.startsWith('@')) {
+        // Style @ mentions with purple color
+        return (
+          <Text key={index} style={styles.mentionText}>
+            {part}
+          </Text>
+        );
+      }
+      return part;
+    });
+  };
+
   const formatTime = (timestamp: Date) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('id-ID', {
@@ -878,7 +895,7 @@ export default function PrivateChatScreen() {
                   {item.sender}: 
                 </Text>
                 <Text style={styles.messageContent}>
-                  {item.content}
+                  {renderMessageContent(item.content)}
                 </Text>
               </Text>
             </View>
@@ -1828,5 +1845,9 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     marginTop: 5,
+  },
+  mentionText: {
+    color: '#9C27B0',
+    fontWeight: 'bold',
   },
 });

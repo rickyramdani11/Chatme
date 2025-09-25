@@ -904,7 +904,7 @@ export default function ChatScreen() {
             Alert.alert('You have been muted', `You were muted by ${data.mutedBy}`);
           } else {
             setMutedUsers(prev => prev.filter(username => username !== data.mutedUser));
-            Alert.alert('You have been unmuted', `You were unmuted by ${data.mutedBy}`);
+            Alert.Alert('You have been unmuted', `You were unmuted by ${data.mutedBy}`);
           }
         }
       });
@@ -1011,7 +1011,6 @@ export default function ChatScreen() {
       // Listen for private gift notifications
       socketInstance.on('receive-private-gift', (data: any) => {
         console.log('Received private gift:', data);
-
         // Show animation for recipient
         setActiveGiftAnimation({
           ...data.gift,
@@ -6480,7 +6479,7 @@ const styles = StyleSheet.create({
     color: '#8B4513', // Warna coklat untuk content
   },
   systemMessageContainer: {
-    marginVertical: 4,
+    marginBottom: 6,
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFF3E0',
@@ -6619,6 +6618,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#E0E0E0', // Light border
     position: 'relative',
@@ -7083,7 +7083,7 @@ const styles = StyleSheet.create({
   },
   // Mention Text Style
   mentionText: {
-    color: '#FF6B35',
+    color: '#9C27B0', // Purple color for mentions
     fontWeight: 'bold',
   },
   // Call Modal Styles
