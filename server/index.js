@@ -267,6 +267,24 @@ pool.connect(async (err, client, release) => {
       console.error('Error creating families tables:', tableError);
     }
 
+    // Create tokens table for verification tokens and cleanup
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS tokens (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL,
+          token VARCHAR(255) NOT NULL UNIQUE,
+          token_type VARCHAR(50) NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          is_used BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log('✅ Tokens table initialized successfully');
+    } catch (tableError) {
+      console.error('Error creating tokens table:', tableError);
+    }
+
     // Create withdrawal system tables if they don't exist
     try {
       await client.query(`
@@ -5818,6 +5836,28 @@ app.post('/api/admin/cleanup-missing-avatars', authenticateToken, async (req, re
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Cleanup expired tokens automatically
+const cleanupExpiredTokens = async () => {
+  try {
+    const result = await pool.query(`
+      DELETE FROM tokens 
+      WHERE expires_at < NOW() AND is_used = false
+    `);
+    
+    if (result.rowCount > 0) {
+      console.log(`✅ Cleaned up ${result.rowCount} expired tokens`);
+    }
+  } catch (error) {
+    console.error('Error cleaning up expired tokens:', error.message);
+  }
+};
+
+// Run token cleanup every hour
+setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
+
+// Initial cleanup on startup
+cleanupExpiredTokens();
 
 // Cleanup missing media files from posts (admin only)
 app.post('/api/admin/cleanup-missing-media', authenticateToken, async (req, res) => {
