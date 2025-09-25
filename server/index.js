@@ -5837,27 +5837,7 @@ app.post('/api/admin/cleanup-missing-avatars', authenticateToken, async (req, re
   }
 });
 
-// Cleanup expired tokens automatically
-const cleanupExpiredTokens = async () => {
-  try {
-    const result = await pool.query(`
-      DELETE FROM tokens 
-      WHERE expires_at < NOW() AND is_used = false
-    `);
-    
-    if (result.rowCount > 0) {
-      console.log(`✅ Cleaned up ${result.rowCount} expired tokens`);
-    }
-  } catch (error) {
-    console.error('Error cleaning up expired tokens:', error.message);
-  }
-};
 
-// Run token cleanup every hour
-setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
-
-// Initial cleanup on startup
-cleanupExpiredTokens();
 
 // Cleanup missing media files from posts (admin only)
 app.post('/api/admin/cleanup-missing-media', authenticateToken, async (req, res) => {
