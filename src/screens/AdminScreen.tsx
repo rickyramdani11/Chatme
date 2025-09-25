@@ -1770,8 +1770,8 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'banners':
         return (
-          <ScrollView style={styles.bannerContainer} contentContainerStyle={styles.bannerContainer} showsVerticalScrollIndicator={false}>
-            <View style={styles.bannerFormCard}>
+          <ScrollView style={styles.bannerContainer} showsVerticalScrollIndicator={false}>
+            <View style={[styles.bannerFormCard, { marginHorizontal: 16, marginTop: 16 }]}>
               <Text style={styles.formTitle}>Add New Banner</Text>
 
               <View style={styles.formGroup}>
@@ -1858,7 +1858,7 @@ export default function AdminScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.bannerListContainer}>
+            <View style={[styles.bannerListContainer, { marginHorizontal: 16, marginBottom: 16 }]}>
               <Text style={styles.bannerListTitle}>Existing Banners</Text>
               {bannersLoading ? (
                 <ActivityIndicator size="large" color="#E91E63" />
@@ -3834,7 +3834,6 @@ const styles = StyleSheet.create({
   // Banner Management Styles
   bannerContainer: {
     flex: 1,
-    padding: 16,
   },
   bannerFormCard: {
     backgroundColor: '#fff',
