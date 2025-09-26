@@ -1,82 +1,53 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Modal,
-  Alert,
+  ScrollView,
   TextInput,
-  ActivityIndicator,
+  Alert,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../hooks';
 import { API_BASE_URL } from '../utils/apiConfig';
 
 interface RoomManagementProps {
   visible: boolean;
   onClose: () => void;
-  currentRoom: any;
+  roomId: string;
+  roomName: string;
   currentUser: any;
-  token: string;
   socket: any;
-  participants: any[];
-}
-
-interface BannedUser {
-  id: string;
-  banned_username: string;
-  banned_by_username: string;
-  ban_reason: string;
-  banned_at: string;
-  expires_at?: string;
-}
-
-interface Moderator {
-  id: string;
-  username: string;
-  role: string;
-  assigned_by_username: string;
-  assigned_at: string;
-  can_ban: boolean;
-  can_kick: boolean;
-  can_mute: boolean;
 }
 
 export default function RoomManagement({
   visible,
   onClose,
-  currentRoom,
+  roomId,
+  roomName,
   currentUser,
-  token,
-  socket,
-  participants
+  socket
 }: RoomManagementProps) {
+  const { token } = useAuth();
   const [activeTab, setActiveTab] = useState<'moderators' | 'banned'>('moderators');
-  const [moderators, setModerators] = useState<Moderator[]>([]);
-  const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
+  const [moderators, setModerators] = useState<any[]>([]);
+  const [bannedUsers, setBannedUsers] = useState<any[]>([]);
+  const [newModeratorUsername, setNewModeratorUsername] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showAddModerator, setShowAddModerator] = useState(false);
-  const [selectedUsername, setSelectedUsername] = useState('');
 
-  // Check if current user can manage room
-  const canManageRoom = () => {
-    if (!currentUser || !currentRoom) return false;
-    return (
-      currentUser.role === 'admin' ||
-      currentRoom.managedBy === currentUser.username ||
-      (currentRoom.moderators && currentRoom.moderators.includes(currentUser.username))
-    );
-  };
+  useEffect(() => {
+    if (visible) {
+      loadModerators();
+      loadBannedUsers();
+    }
+  }, [visible, roomId]);
 
-  // Load moderators
   const loadModerators = async () => {
-    if (!currentRoom?.id) return;
-    
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${currentRoom.id}/moderators`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/moderators`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -86,25 +57,15 @@ export default function RoomManagement({
       if (response.ok) {
         const data = await response.json();
         setModerators(data);
-      } else {
-        console.error('Failed to load moderators');
-        setModerators([]);
       }
     } catch (error) {
       console.error('Error loading moderators:', error);
-      setModerators([]);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Load banned users
   const loadBannedUsers = async () => {
-    if (!currentRoom?.id) return;
-    
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${currentRoom.id}/banned`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/banned`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -114,41 +75,34 @@ export default function RoomManagement({
       if (response.ok) {
         const data = await response.json();
         setBannedUsers(data);
-      } else {
-        console.error('Failed to load banned users');
-        setBannedUsers([]);
       }
     } catch (error) {
       console.error('Error loading banned users:', error);
-      setBannedUsers([]);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Add moderator
-  const handleAddModerator = async () => {
-    if (!selectedUsername.trim() || !currentRoom?.id) return;
+  const addModerator = async () => {
+    if (!newModeratorUsername.trim()) {
+      Alert.alert('Error', 'Please enter a username');
+      return;
+    }
 
+    setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${currentRoom.id}/moderators`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/moderators`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: selectedUsername.trim(),
-          can_ban: true,
-          can_kick: true,
-          can_mute: true,
+          username: newModeratorUsername.trim()
         }),
       });
 
       if (response.ok) {
-        Alert.alert('Success', `${selectedUsername} has been added as moderator`);
-        setSelectedUsername('');
-        setShowAddModerator(false);
+        Alert.alert('Success', `${newModeratorUsername} has been added as moderator`);
+        setNewModeratorUsername('');
         loadModerators();
       } else {
         const error = await response.json();
@@ -158,10 +112,10 @@ export default function RoomManagement({
       console.error('Error adding moderator:', error);
       Alert.alert('Error', 'Failed to add moderator');
     }
+    setLoading(false);
   };
 
-  // Remove moderator
-  const handleRemoveModerator = async (moderatorId: string, username: string) => {
+  const removeModerator = async (username: string) => {
     Alert.alert(
       'Remove Moderator',
       `Are you sure you want to remove ${username} as moderator?`,
@@ -172,7 +126,7 @@ export default function RoomManagement({
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await fetch(`${API_BASE_URL}/api/rooms/${currentRoom.id}/moderators/${moderatorId}`, {
+              const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/moderators/${username}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -197,8 +151,7 @@ export default function RoomManagement({
     );
   };
 
-  // Unban user
-  const handleUnbanUser = async (bannedUserId: string, username: string) => {
+  const unbanUser = async (username: string) => {
     Alert.alert(
       'Unban User',
       `Are you sure you want to unban ${username}?`,
@@ -211,29 +164,15 @@ export default function RoomManagement({
               // Emit unban via socket
               if (socket) {
                 socket.emit('ban-user', {
-                  roomId: currentRoom.id,
-                  targetUsername: username,
-                  action: 'unban',
-                  reason: `Unbanned by ${currentUser?.username}`
+                  roomId: roomId,
+                  bannedUser: username,
+                  bannedBy: currentUser?.username,
+                  action: 'unban'
                 });
               }
 
-              // Also call API endpoint
-              const response = await fetch(`${API_BASE_URL}/api/rooms/${currentRoom.id}/banned/${bannedUserId}`, {
-                method: 'DELETE',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json',
-                },
-              });
-
-              if (response.ok) {
-                Alert.alert('Success', `${username} has been unbanned`);
-                loadBannedUsers();
-              } else {
-                const error = await response.json();
-                Alert.alert('Error', error.error || 'Failed to unban user');
-              }
+              Alert.alert('Success', `${username} has been unbanned`);
+              loadBannedUsers();
             } catch (error) {
               console.error('Error unbanning user:', error);
               Alert.alert('Error', 'Failed to unban user');
@@ -244,47 +183,68 @@ export default function RoomManagement({
     );
   };
 
-  // Load data when modal opens
-  useEffect(() => {
-    if (visible && canManageRoom()) {
-      loadModerators();
-      loadBannedUsers();
-    }
-  }, [visible, currentRoom?.id]);
-
-  if (!canManageRoom()) {
-    return (
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Access Denied</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.content}>
-              <Text style={styles.errorText}>You don't have permission to manage this room.</Text>
-            </View>
-          </View>
+  const renderModerator = ({ item }: { item: any }) => (
+    <View style={styles.listItem}>
+      <View style={styles.userInfo}>
+        <View style={styles.userAvatar}>
+          <Text style={styles.userAvatarText}>
+            {item.username?.charAt(0).toUpperCase() || 'M'}
+          </Text>
         </View>
-      </Modal>
-    );
-  }
+        <View style={styles.userDetails}>
+          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.userRole}>Moderator</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => removeModerator(item.username)}
+      >
+        <Ionicons name="close" size={20} color="#F44336" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderBannedUser = ({ item }: { item: any }) => (
+    <View style={styles.listItem}>
+      <View style={styles.userInfo}>
+        <View style={styles.userAvatar}>
+          <Text style={styles.userAvatarText}>
+            {item.username?.charAt(0).toUpperCase() || 'B'}
+          </Text>
+        </View>
+        <View style={styles.userDetails}>
+          <Text style={styles.username}>{item.username}</Text>
+          <Text style={styles.userRole}>Banned</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        style={styles.unbanButton}
+        onPress={() => unbanUser(item.username)}
+      >
+        <Text style={styles.unbanButtonText}>Unban</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Room Management</Text>
+            <Text style={styles.title}>Room Management</Text>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
 
-          {/* Tab Navigation */}
+          <Text style={styles.roomName}>{roomName}</Text>
+
           <View style={styles.tabContainer}>
             <TouchableOpacity
               style={[styles.tab, activeTab === 'moderators' && styles.activeTab]}
@@ -304,136 +264,50 @@ export default function RoomManagement({
             </TouchableOpacity>
           </View>
 
-          {/* Content */}
-          <ScrollView style={styles.content}>
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#667eea" />
-                <Text style={styles.loadingText}>Loading...</Text>
-              </View>
-            ) : (
-              <>
-                {/* Moderators Tab */}
-                {activeTab === 'moderators' && (
-                  <View>
-                    <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>Room Moderators</Text>
-                      <TouchableOpacity
-                        style={styles.addButton}
-                        onPress={() => setShowAddModerator(true)}
-                      >
-                        <Ionicons name="add" size={20} color="#fff" />
-                        <Text style={styles.addButtonText}>Add</Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    {moderators.length === 0 ? (
-                      <Text style={styles.emptyText}>No moderators assigned</Text>
-                    ) : (
-                      moderators.map((moderator) => (
-                        <View key={moderator.id} style={styles.listItem}>
-                          <View style={styles.listItemInfo}>
-                            <Text style={styles.listItemName}>{moderator.username}</Text>
-                            <Text style={styles.listItemSubtext}>
-                              Added by {moderator.assigned_by_username}
-                            </Text>
-                            <View style={styles.permissionsList}>
-                              {moderator.can_ban && <Text style={styles.permission}>Ban</Text>}
-                              {moderator.can_kick && <Text style={styles.permission}>Kick</Text>}
-                              {moderator.can_mute && <Text style={styles.permission}>Mute</Text>}
-                            </View>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.removeButton}
-                            onPress={() => handleRemoveModerator(moderator.id, moderator.username)}
-                          >
-                            <Ionicons name="trash-outline" size={20} color="#FF6B35" />
-                          </TouchableOpacity>
-                        </View>
-                      ))
-                    )}
-                  </View>
-                )}
-
-                {/* Banned Users Tab */}
-                {activeTab === 'banned' && (
-                  <View>
-                    <Text style={styles.sectionTitle}>Banned Users</Text>
-
-                    {bannedUsers.length === 0 ? (
-                      <Text style={styles.emptyText}>No banned users</Text>
-                    ) : (
-                      bannedUsers.map((bannedUser) => (
-                        <View key={bannedUser.id} style={styles.listItem}>
-                          <View style={styles.listItemInfo}>
-                            <Text style={styles.listItemName}>{bannedUser.banned_username}</Text>
-                            <Text style={styles.listItemSubtext}>
-                              Banned by {bannedUser.banned_by_username}
-                            </Text>
-                            {bannedUser.ban_reason && (
-                              <Text style={styles.listItemReason}>
-                                Reason: {bannedUser.ban_reason}
-                              </Text>
-                            )}
-                            <Text style={styles.listItemDate}>
-                              {new Date(bannedUser.banned_at).toLocaleDateString()}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.unbanButton}
-                            onPress={() => handleUnbanUser(bannedUser.id, bannedUser.banned_username)}
-                          >
-                            <Ionicons name="checkmark-circle-outline" size={20} color="#4CAF50" />
-                            <Text style={styles.unbanButtonText}>Unban</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ))
-                    )}
-                  </View>
-                )}
-              </>
-            )}
-          </ScrollView>
-
-          {/* Add Moderator Modal */}
-          <Modal
-            visible={showAddModerator}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setShowAddModerator(false)}
-          >
-            <View style={styles.addModalOverlay}>
-              <View style={styles.addModalContainer}>
-                <Text style={styles.addModalTitle}>Add Moderator</Text>
-                
-                <TextInput
-                  style={styles.addModalInput}
-                  placeholder="Enter username"
-                  value={selectedUsername}
-                  onChangeText={setSelectedUsername}
-                  autoCapitalize="none"
-                />
-
-                <View style={styles.addModalButtons}>
+          <View style={styles.content}>
+            {activeTab === 'moderators' ? (
+              <View style={styles.tabContent}>
+                <View style={styles.addSection}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter username to add as moderator"
+                    value={newModeratorUsername}
+                    onChangeText={setNewModeratorUsername}
+                    autoCapitalize="none"
+                  />
                   <TouchableOpacity
-                    style={styles.addModalCancelButton}
-                    onPress={() => {
-                      setShowAddModerator(false);
-                      setSelectedUsername('');
-                    }}
+                    style={styles.addButton}
+                    onPress={addModerator}
+                    disabled={loading}
                   >
-                    <Text style={styles.addModalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.addModalConfirmButton}
-                    onPress={handleAddModerator}
-                  >
-                    <Text style={styles.addModalConfirmText}>Add</Text>
+                    <Text style={styles.addButtonText}>Add</Text>
                   </TouchableOpacity>
                 </View>
+
+                <FlatList
+                  data={moderators}
+                  renderItem={renderModerator}
+                  keyExtractor={(item) => item.id || item.username}
+                  style={styles.list}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>No moderators added yet</Text>
+                  }
+                />
               </View>
-            </View>
-          </Modal>
+            ) : (
+              <View style={styles.tabContent}>
+                <FlatList
+                  data={bannedUsers}
+                  renderItem={renderBannedUser}
+                  keyExtractor={(item) => item.id || item.username}
+                  style={styles.list}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>No banned users</Text>
+                  }
+                />
+              </View>
+            )}
+          </View>
         </View>
       </View>
     </Modal>
@@ -444,34 +318,32 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    marginHorizontal: 20,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
     maxHeight: '80%',
-    width: '90%',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    marginBottom: 10,
   },
-  headerTitle: {
+  title: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  roomName: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -485,191 +357,107 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#667eea',
+    borderBottomColor: '#8B5CF6',
   },
   tabText: {
     fontSize: 16,
     color: '#666',
-    fontWeight: '500',
   },
   activeTabText: {
-    color: '#667eea',
+    color: '#8B5CF6',
     fontWeight: '600',
   },
   content: {
+    flex: 1,
+  },
+  tabContent: {
+    flex: 1,
     padding: 20,
-    maxHeight: 400,
   },
-  loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 10,
-  },
-  sectionHeader: {
+  addSection: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    gap: 10,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#667eea',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 8,
+    justifyContent: 'center',
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 14,
-    marginLeft: 4,
     fontWeight: '600',
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginTop: 20,
+  list: {
+    flex: 1,
   },
   listItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
-  listItemInfo: {
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
   },
-  listItemName: {
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#8B5CF6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  userAvatarText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  userDetails: {
+    flex: 1,
+  },
+  username: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
   },
-  listItemSubtext: {
+  userRole: {
     fontSize: 14,
     color: '#666',
-    marginTop: 2,
-  },
-  listItemReason: {
-    fontSize: 13,
-    color: '#FF6B35',
-    marginTop: 2,
-    fontStyle: 'italic',
-  },
-  listItemDate: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 2,
-  },
-  permissionsList: {
-    flexDirection: 'row',
-    marginTop: 4,
-  },
-  permission: {
-    fontSize: 12,
-    color: '#667eea',
-    backgroundColor: '#e8eeff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 4,
   },
   removeButton: {
     padding: 8,
   },
   unbanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e8f5e8',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 6,
   },
   unbanButtonText: {
-    color: '#4CAF50',
-    fontSize: 14,
-    marginLeft: 4,
-    fontWeight: '600',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    padding: 20,
-  },
-  // Add Moderator Modal Styles
-  addModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addModalContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 40,
-    width: '80%',
-  },
-  addModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  addModalInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  addModalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  addModalCancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    marginRight: 8,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  addModalConfirmButton: {
-    flex: 1,
-    paddingVertical: 12,
-    marginLeft: 8,
-    backgroundColor: '#667eea',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  addModalCancelText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  addModalConfirmText: {
     color: '#fff',
-    fontSize: 16,
     fontWeight: '600',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 16,
+    marginTop: 40,
   },
 });
