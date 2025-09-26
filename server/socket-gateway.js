@@ -439,6 +439,7 @@ app.get('/health', (req, res) => {
 // In-memory storage for active rooms and participants
 const roomParticipants = {}; // { roomId: [ { id, username, role, socketId }, ... ] }
 const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
+const joinedRoomsRef = { current: new Set() }; // Track globally joined rooms to prevent duplicate broadcasts
 
 // Socket authentication middleware
 const authenticateSocket = async (socket, next) => {
