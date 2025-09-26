@@ -924,7 +924,7 @@ const HomeScreen = ({ navigation }: any) => {
     <View style={styles.container}>
       {/* Header with Avatar and Controls */}
       <LinearGradient
-        colors={['#8B5CF6', '#3B82F6']}
+        colors={['#FF6B35', '#FF4500']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
