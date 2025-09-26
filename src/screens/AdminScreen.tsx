@@ -584,7 +584,7 @@ export default function AdminScreen({ navigation }: any) {
         }
 
         const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
-        
+
         // For videos, we might not have base64, so handle differently
         if (isVideo && !asset.base64) {
           // For video files without base64, we'll use the URI and handle server-side
@@ -607,7 +607,7 @@ export default function AdminScreen({ navigation }: any) {
             width: asset.width,
             height: asset.height
           });
-          
+
           Alert.alert('Video Selected', 'Video file selected successfully. Note: Video files will be processed on upload.');
           return;
         }
@@ -676,7 +676,7 @@ export default function AdminScreen({ navigation }: any) {
     setLoading(true);
     try {
       const isVideo = uploadedGiftImage.type?.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(uploadedGiftImage.extension || '');
-      
+
       const requestBody: any = {
         name: itemName.trim(),
         icon: '🎁',
@@ -688,7 +688,6 @@ export default function AdminScreen({ navigation }: any) {
       // Handle video files (might not have base64)
       if (isVideo && !uploadedGiftImage.base64) {
         Alert.alert('Info', 'Video files are being processed. This may take a moment...');
-        // For now, we'll skip video upload without base64
         // In a real implementation, you'd handle file upload differently
         throw new Error('Video file processing not yet implemented. Please use GIF files for animated gifts.');
       }
@@ -697,7 +696,7 @@ export default function AdminScreen({ navigation }: any) {
         requestBody.giftImage = uploadedGiftImage.base64;
         requestBody.imageType = uploadedGiftImage.type;
         requestBody.imageName = uploadedGiftImage.name;
-        
+
         if (isVideo) {
           requestBody.hasAnimation = true;
           requestBody.isAnimated = true;
@@ -1783,7 +1782,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'admin-credit':
         return (
-          <ScrollView style={styles.creditTransferContainer} contentContainerStyle={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.creditTransferCard}>
               <Text style={styles.creditTransferTitle}>Add Credits (Admin)</Text>
 
@@ -1978,7 +1977,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'rooms':
         return (
-          <ScrollView style={styles.roomManageContainer} contentContainerStyle={styles.roomManageContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.roomManageContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.roomManageHeader}>
               <Text style={styles.roomManageTitle}>Room Management</Text>
               <TouchableOpacity
@@ -2164,7 +2163,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'status':
         return (
-          <ScrollView style={styles.statusContainer} contentContainerStyle={styles.statusContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.statusContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.statusHeader}>
               <Text style={styles.statusTitle}>User Status & Information</Text>
               <TouchableOpacity
@@ -2271,7 +2270,7 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'ban-manage':
         return (
-          <ScrollView style={styles.banManageContainer} contentContainerStyle={styles.banManageContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.banManageContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.banManageHeader}>
               <Text style={styles.banManageTitle}>Ban Management System</Text>
               <TouchableOpacity
@@ -2429,7 +2428,7 @@ export default function AdminScreen({ navigation }: any) {
 
       default:
         return (
-          <ScrollView style={styles.creditTransferContainer} contentContainerStyle={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.creditTransferCard}>
               <Text style={styles.creditTransferTitle}>Transfer Credit</Text>
 
@@ -2971,8 +2970,6 @@ const styles = StyleSheet.create({
   // Coming Soon Style
   banManageContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   comingSoonContainer: {
     alignItems: 'center',
@@ -3191,11 +3188,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: '#FF6B35',
+    borderStyle: 'dashed',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 20,
     backgroundColor: '#FFF8F0',
-    borderStyle: 'dashed',
   },
   uploadButtonText: {
     fontSize: 16,
