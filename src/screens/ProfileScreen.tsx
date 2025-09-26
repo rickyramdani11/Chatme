@@ -82,6 +82,16 @@ const getFamilyLevelColor = (level: number): string => {
   }
 };
 
+// Helper function to get user level badge color
+const getUserLevelBadgeColor = (level: number): string => {
+  if (level >= 1 && level <= 10) return '#4CAF50'; // Green
+  if (level >= 10 && level <= 25) return '#2196F3'; // Blue
+  if (level >= 25 && level <= 50) return '#FF6F00'; // Dark Orange
+  if (level >= 50 && level <= 75) return '#F57F17'; // Dark Yellow
+  if (level >= 75 && level <= 100) return '#C62828'; // Dark Red
+  return '#4CAF50'; // Default green
+};
+
 export default function ProfileScreen({ navigation, route }: any) {
   const { user, token } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);

@@ -836,6 +836,16 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  // Helper function to get level badge color
+  const getLevelBadgeColor = (level: number): string => {
+    if (level >= 1 && level <= 10) return '#4CAF50'; // Green
+    if (level >= 10 && level <= 25) return '#2196F3'; // Blue
+    if (level >= 25 && level <= 50) return '#FF6F00'; // Dark Orange
+    if (level >= 50 && level <= 75) return '#F57F17'; // Dark Yellow
+    if (level >= 75 && level <= 100) return '#C62828'; // Dark Red
+    return '#4CAF50'; // Default green
+  };
+
   const renderFriend = (friend: Friend) => {
     // Determine avatar display logic
     let avatarDisplay;
@@ -966,7 +976,7 @@ const HomeScreen = ({ navigation }: any) => {
               onPress={toggleStatus}
               activeOpacity={0.7}
             >
-              <View style={styles.levelBadge}>
+              <View style={[styles.levelBadge, { backgroundColor: getLevelBadgeColor(user?.level || 1) }]}>
                 <Text style={styles.levelText}>Lv.{user?.level || 1}</Text>
               </View>
               <View style={styles.statusContainer}>
@@ -1346,7 +1356,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   levelBadge: {
-    backgroundColor: 'rgba(156, 39, 176, 0.9)',
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,

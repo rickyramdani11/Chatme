@@ -3649,6 +3649,35 @@ export default function ChatScreen() {
     }
   };
 
+  // Function to handlePopupMenuPress - used for Clear Chat option
+  const handlePopupMenuPress = (action: 'clear') => {
+    if (action === 'clear') {
+      Alert.alert(
+        'Clear Chat',
+        'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel', onPress: () => setShowPopupMenu(false) },
+          {
+            text: 'Clear',
+            style: 'destructive',
+            onPress: () => {
+              const currentRoomId = chatTabs[activeTab]?.id;
+              if (currentRoomId) {
+                setChatTabs(prevTabs =>
+                  prevTabs.map(tab =>
+                    tab.id === currentRoomId ? { ...tab, messages: [] } : tab
+                  )
+                );
+              }
+              setShowPopupMenu(false);
+              Alert.alert('Chat Cleared', 'All messages in this chat have been removed.');
+            }
+          }
+        ]
+      );
+    }
+  };
+
   // Map of local emoticon names to their require paths
   const localEmoticonsMap: { [key: string]: any } = {
     'Angry Old': require('../../assets/emoticon/angryold.png'),
@@ -6064,16 +6093,10 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   levelBadgeContainer: {
-    backgroundColor: '#229c93',
-    borderRadius: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 1,
+    borderRadius: 12,
+    marginHorizontal: 4,
   },
   levelBadgeText: {
     fontSize: 8,
@@ -6549,7 +6572,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     height: '70%',
     paddingBottom: 20,
-    elevation: 8, // Add shadow for depth
+    elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,

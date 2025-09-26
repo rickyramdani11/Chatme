@@ -133,6 +133,16 @@ export default function FeedScreen() {
     }
   };
 
+  // Helper function to get level badge color
+  const getLevelBadgeColor = (level: number): string => {
+    if (level >= 1 && level <= 10) return '#4CAF50'; // Green
+    if (level >= 10 && level <= 25) return '#2196F3'; // Blue
+    if (level >= 25 && level <= 50) return '#FF6F00'; // Dark Orange
+    if (level >= 50 && level <= 75) return '#F57F17'; // Dark Yellow
+    if (level >= 75 && level <= 100) return '#C62828'; // Dark Red
+    return '#4CAF50'; // Default green
+  };
+
   // Helper function to check if URL is a YouTube URL
   const isYouTubeUrl = (url: string) => {
     return url.includes('youtube.com') || url.includes('youtu.be');
@@ -716,7 +726,7 @@ export default function FeedScreen() {
                 <View style={[styles.roleBadge, { backgroundColor: getRoleColor(post.role) }]}>
                   <Text style={styles.roleText}>{getRoleBadgeText(post.role)}</Text>
                 </View>
-                <View style={styles.levelBadge}>
+                <View style={[styles.levelBadge, { backgroundColor: getLevelBadgeColor(post.level) }]}>
                   <Ionicons name="heart" size={12} color="white" />
                   <Text style={styles.levelText}>{post.level}</Text>
                 </View>
@@ -1366,7 +1376,6 @@ const styles = StyleSheet.create({
   levelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4CAF50',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
