@@ -1905,4 +1905,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-</replit_final_file>
