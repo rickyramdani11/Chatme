@@ -543,6 +543,44 @@ router.post('/posts/with-media', async (req, res) => {
   }
 });
 
+// Delete post
+router.delete('/posts/:postId', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { username, role } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    // Get the post to check ownership
+    const postResult = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const post = postResult.rows[0];
+
+    // Check if user can delete this post (owner or admin)
+    if (post.username !== username && role !== 'admin') {
+      return res.status(403).json({ error: 'You can only delete your own posts' });
+    }
+
+    // Delete related comments first
+    await pool.query('DELETE FROM post_comments WHERE post_id = $1', [postId]);
+
+    // Delete the post
+    await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
+
+    console.log(`Post ${postId} deleted by ${username} (${role || 'user'})`);
+
+    res.json({ success: true, message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Serve uploaded media files
 router.get('/media/:fileId', (req, res) => {
   try {

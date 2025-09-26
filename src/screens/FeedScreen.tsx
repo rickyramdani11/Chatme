@@ -93,6 +93,7 @@ export default function FeedScreen() {
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
+  const [showPostMenu, setShowPostMenu] = useState<string | null>(null);
   
   const videoRef = useRef<Video>(null);
 
@@ -520,6 +521,54 @@ export default function FeedScreen() {
     }
   };
 
+  // Handle delete post
+  const handleDeletePost = async (postId: string, postUsername: string) => {
+    // Check if user can delete this post
+    if (postUsername !== user?.username && user?.role !== 'admin') {
+      Alert.alert('Error', 'You can only delete your own posts');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/api/feed/posts/${postId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  username: user?.username,
+                  role: user?.role
+                }),
+              });
+
+              if (response.ok) {
+                // Remove post from local state
+                setFeedPosts(prev => prev.filter(post => post.id !== postId));
+                setShowPostMenu(null);
+                Alert.alert('Success', 'Post deleted successfully');
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete post');
+              }
+            } catch (error) {
+              console.error('Error deleting post:', error);
+              Alert.alert('Error', `Failed to delete post: ${error.message}`);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Handle comment
   const handleComment = (post: FeedPost) => {
     setSelectedPost(post);
@@ -655,23 +704,48 @@ export default function FeedScreen() {
             <View style={styles.onlineIndicator} />
           </TouchableOpacity>
         <View style={styles.postInfo}>
-          <TouchableOpacity onPress={() => handleUserClick(post)}>
-            <View style={styles.userInfo}>
-              <Text style={[styles.username, { color: getRoleColor(post.role) }]}>
-                {post.username}
-              </Text>
-              {post.verified && (
-                <Ionicons name="checkmark-circle" size={16} color="#4CAF50" style={{ marginLeft: 4 }} />
-              )}
-              <View style={[styles.roleBadge, { backgroundColor: getRoleColor(post.role) }]}>
-                <Text style={styles.roleText}>{getRoleBadgeText(post.role)}</Text>
+          <View style={styles.postInfoHeader}>
+            <TouchableOpacity onPress={() => handleUserClick(post)} style={{ flex: 1 }}>
+              <View style={styles.userInfo}>
+                <Text style={[styles.username, { color: getRoleColor(post.role) }]}>
+                  {post.username}
+                </Text>
+                {post.verified && (
+                  <Ionicons name="checkmark-circle" size={16} color="#4CAF50" style={{ marginLeft: 4 }} />
+                )}
+                <View style={[styles.roleBadge, { backgroundColor: getRoleColor(post.role) }]}>
+                  <Text style={styles.roleText}>{getRoleBadgeText(post.role)}</Text>
+                </View>
+                <View style={styles.levelBadge}>
+                  <Ionicons name="heart" size={12} color="white" />
+                  <Text style={styles.levelText}>{post.level}</Text>
+                </View>
               </View>
-              <View style={styles.levelBadge}>
-                <Ionicons name="heart" size={12} color="white" />
-                <Text style={styles.levelText}>{post.level}</Text>
-              </View>
+            </TouchableOpacity>
+            
+            {/* Three-dot menu - show only for own posts or admin */}
+            {(post.username === user?.username || user?.role === 'admin') && (
+              <TouchableOpacity
+                style={styles.postMenuButton}
+                onPress={() => setShowPostMenu(showPostMenu === post.id ? null : post.id)}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
+              </TouchableOpacity>
+            )}
+          </View>
+          {/* Post Menu Dropdown */}
+          {showPostMenu === post.id && (
+            <View style={styles.postMenuDropdown}>
+              <TouchableOpacity
+                style={styles.postMenuItem}
+                onPress={() => handleDeletePost(post.id, post.username)}
+              >
+                <Ionicons name="trash-outline" size={16} color="#F44336" />
+                <Text style={[styles.postMenuText, { color: '#F44336' }]}>Delete Post</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          )}
+
           <Text style={styles.postContent}>{post.content}</Text>
           
           {/* Video URL Display */}
@@ -891,6 +965,7 @@ export default function FeedScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        onScrollBeginDrag={() => setShowPostMenu(null)}
       >
         {/* Post Creation Card */}
         <View style={styles.createPostCard}>
@@ -1623,5 +1698,41 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.75)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
+  },
+  postInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  postMenuButton: {
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  postMenuDropdown: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+    minWidth: 120,
+  },
+  postMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  postMenuText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
