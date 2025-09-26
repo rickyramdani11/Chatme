@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -29,6 +28,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
+import GiftVideo from './GiftVideo'; // Import the GiftVideo component
 
 const { width } = Dimensions.get('window');
 
@@ -62,7 +62,11 @@ export default function PrivateChatScreen() {
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
   const giftOpacityAnim = useRef(new Animated.Value(0)).current;
   const flatListRef = useRef<FlatList<Message> | null>(null);
-  
+
+  // State for gift video
+  const [showGiftVideo, setShowGiftVideo] = useState(false);
+  const [currentGiftVideoSource, setCurrentGiftVideoSource] = useState<any>(null);
+
   // Call functionality states
   const [isInCall, setIsInCall] = useState(false);
   const [callType, setCallType] = useState<'video' | 'audio' | null>(null);
@@ -157,48 +161,55 @@ export default function PrivateChatScreen() {
       socketInstance.on('receive-private-gift', (data: any) => {
         console.log('Received private gift:', data);
 
-        setActiveGiftAnimation({
-          ...data.gift,
-          sender: data.from,
-          recipient: user?.username,
-          timestamp: data.timestamp,
-          isPrivate: true
-        });
+        // Handle MP4 video gifts
+        if (data.gift.type === 'animated' && data.gift.videoSource) {
+          setCurrentGiftVideoSource(data.gift.videoSource);
+          setShowGiftVideo(true);
+        } else {
+          // Handle other gift types (like animated icons)
+          setActiveGiftAnimation({
+            ...data.gift,
+            sender: data.from,
+            recipient: user?.username,
+            timestamp: data.timestamp,
+            isPrivate: true
+          });
 
-        giftScaleAnim.setValue(0.3);
-        giftOpacityAnim.setValue(0);
+          giftScaleAnim.setValue(0.3);
+          giftOpacityAnim.setValue(0);
 
-        Animated.parallel([
-          Animated.spring(giftScaleAnim, {
-            toValue: 1,
-            tension: 80,
-            friction: 6,
-            useNativeDriver: true,
-          }),
-          Animated.timing(giftOpacityAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ]).start();
-
-        const duration = data.gift.type === 'animated' ? 5000 : 3000;
-        setTimeout(() => {
           Animated.parallel([
-            Animated.timing(giftScaleAnim, {
-              toValue: 1.1,
-              duration: 400,
+            Animated.spring(giftScaleAnim, {
+              toValue: 1,
+              tension: 80,
+              friction: 6,
               useNativeDriver: true,
             }),
             Animated.timing(giftOpacityAnim, {
-              toValue: 0,
-              duration: 400,
+              toValue: 1,
+              duration: 600,
               useNativeDriver: true,
             }),
-          ]).start(() => {
-            setActiveGiftAnimation(null);
-          });
-        }, duration);
+          ]).start();
+
+          const duration = data.gift.type === 'animated' ? 5000 : 3000;
+          setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(giftScaleAnim, {
+                toValue: 1.1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(giftOpacityAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setActiveGiftAnimation(null);
+            });
+          }, duration);
+        }
       });
 
       // Listen for incoming calls
@@ -347,7 +358,7 @@ export default function PrivateChatScreen() {
           const statusMessages = [];
           if (targetStatus && targetStatus !== 'online' && targetUser) {
             let statusMessage = '';
-            
+
             if (targetStatus === 'offline') {
               statusMessage = `${targetUser.username} is currently offline`;
             } else if (targetStatus === 'away') {
@@ -455,8 +466,8 @@ export default function PrivateChatScreen() {
       `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Start Call', 
+        {
+          text: 'Start Call',
           onPress: () => {
             if (socket && user) {
               setCallRinging(true);
@@ -490,8 +501,8 @@ export default function PrivateChatScreen() {
       `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Start Call', 
+        {
+          text: 'Start Call',
           onPress: () => {
             if (socket && user) {
               setCallRinging(true);
@@ -759,7 +770,19 @@ export default function PrivateChatScreen() {
 
       if (response.ok) {
         const gifts = await response.json();
-        setGiftList(gifts);
+        // Ensure videoSource is included for MP4 gifts if available
+        const processedGifts = gifts.map((gift: any) => {
+          if (gift.name === 'Animated Gift MP4') { // Example: Identify MP4 gift by name
+            return {
+              ...gift,
+              // Use a require statement for local videos or a URL for remote videos
+              videoSource: require('./assets/gift.mp4'),
+              type: 'animated_video' // Custom type for video gifts
+            };
+          }
+          return gift;
+        });
+        setGiftList(processedGifts);
       } else {
         // Fallback to default gifts - using consistent integer IDs
         const defaultGifts = [
@@ -768,6 +791,7 @@ export default function PrivateChatScreen() {
           { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
           { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
           { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
+          { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('./assets/gift.mp4') }, // Example MP4 gift
         ];
         setGiftList(defaultGifts);
       }
@@ -779,6 +803,7 @@ export default function PrivateChatScreen() {
         { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
         { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
         { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
+        { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('./assets/gift.mp4') }, // Example MP4 gift
       ];
       setGiftList(defaultGifts);
     }
@@ -836,7 +861,7 @@ export default function PrivateChatScreen() {
         if (socket && user) {
           socket.emit('send-private-gift', {
             giftId: gift.id,
-            gift: gift,
+            gift: gift, // Pass the whole gift object to include videoSource if applicable
             to: targetUser?.username,
             from: user.username,
             roomId: roomId,
@@ -861,7 +886,7 @@ export default function PrivateChatScreen() {
     // Handle system messages
     if (item.sender === 'System' || item.role === 'system') {
       return (
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.systemMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -877,7 +902,7 @@ export default function PrivateChatScreen() {
 
     // Regular message
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.messageContainer}
         onLongPress={() => handleMessageLongPress(item)}
       >
@@ -892,7 +917,7 @@ export default function PrivateChatScreen() {
                   styles.senderName,
                   { color: getRoleColor(item.role) }
                 ]}>
-                  {item.sender}: 
+                  {item.sender}:
                 </Text>
                 <Text style={styles.messageContent}>
                   {renderMessageContent(item.content)}
@@ -937,9 +962,9 @@ export default function PrivateChatScreen() {
                 {targetUser?.username || roomName?.replace('Chat with ', '')}
               </Text>
               <Text style={styles.privateChatStatus}>
-                {targetStatus === 'online' ? 'Online' : 
-                 targetStatus === 'away' ? 'Away' : 
-                 targetStatus === 'busy' ? 'Busy' : 
+                {targetStatus === 'online' ? 'Online' :
+                 targetStatus === 'away' ? 'Away' :
+                 targetStatus === 'busy' ? 'Busy' :
                  targetStatus === 'offline' ? 'Offline' : 'Online'}
               </Text>
             </View>
@@ -952,8 +977,8 @@ export default function PrivateChatScreen() {
             <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
               <Ionicons name="call-outline" size={24} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.headerIcon} 
+            <TouchableOpacity
+              style={styles.headerIcon}
               onPress={() => setShowMessageMenu(true)}
             >
               <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
@@ -1000,8 +1025,8 @@ export default function PrivateChatScreen() {
           ]}
         >
           <View style={styles.inputWrapper}>
-            <TouchableOpacity 
-              style={styles.emojiButton} 
+            <TouchableOpacity
+              style={styles.emojiButton}
               onPress={() => {
                 loadEmojis();
                 setShowEmojiPicker(true);
@@ -1009,8 +1034,8 @@ export default function PrivateChatScreen() {
             >
               <Ionicons name="happy-outline" size={24} color="white" />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.giftButton} 
+            <TouchableOpacity
+              style={styles.giftButton}
               onPress={() => {
                 loadGifts();
                 setShowGiftPicker(true);
@@ -1091,8 +1116,8 @@ export default function PrivateChatScreen() {
             ) : (
               // General private chat menu when ellipsis is pressed
               <>
-                <TouchableOpacity 
-                  style={styles.messageMenuItem} 
+                <TouchableOpacity
+                  style={styles.messageMenuItem}
                   onPress={() => {
                     setShowMessageMenu(false);
                     navigation.navigate('Profile', { userId: targetUser?.username });
@@ -1101,8 +1126,8 @@ export default function PrivateChatScreen() {
                   <Ionicons name="person-outline" size={20} color="#333" />
                   <Text style={styles.messageMenuText}>View Profile</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
+
+                <TouchableOpacity
                   style={styles.messageMenuItem}
                   onPress={() => {
                     setShowMessageMenu(false);
@@ -1113,17 +1138,17 @@ export default function PrivateChatScreen() {
                   <Text style={styles.messageMenuText}>Search Messages</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.messageMenuItem}
                   onPress={() => {
                     setShowMessageMenu(false);
                     Alert.alert(
-                      'Clear Chat History', 
+                      'Clear Chat History',
                       'Are you sure you want to clear this chat history? This action cannot be undone.',
                       [
                         { text: 'Cancel', style: 'cancel' },
-                        { 
-                          text: 'Clear', 
+                        {
+                          text: 'Clear',
                           style: 'destructive',
                           onPress: () => {
                             setMessages([]);
@@ -1138,7 +1163,7 @@ export default function PrivateChatScreen() {
                   <Text style={[styles.messageMenuText, { color: '#FF6B35' }]}>Clear Chat</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.messageMenuItem, styles.lastMenuItem]}
                   onPress={() => {
                     setShowMessageMenu(false);
@@ -1170,7 +1195,7 @@ export default function PrivateChatScreen() {
             <View style={styles.giftPickerModal}>
               <View style={styles.giftPickerHeader}>
                 <Text style={styles.giftPickerTitle}>Send Gift</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.giftCloseButton}
                   onPress={() => setShowGiftPicker(false)}
                 >
@@ -1200,7 +1225,7 @@ export default function PrivateChatScreen() {
       {/* Gift Animation Overlay */}
       {activeGiftAnimation && (
         <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
-          <Animated.View 
+          <Animated.View
             style={[
               styles.fullScreenAnimationContainer,
               {
@@ -1223,105 +1248,15 @@ export default function PrivateChatScreen() {
         </View>
       )}
 
-      {/* Call Modal */}
-      <Modal
-        visible={showCallModal}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={endCall}
-      >
-        <View style={styles.callModalContainer}>
-          <View style={styles.callHeader}>
-            <Text style={styles.callHeaderText}>
-              {callType === 'video' ? 'Video Call' : 'Audio Call'}
-            </Text>
-            <Text style={styles.callTargetName}>
-              {targetUser?.username}
-            </Text>
-            <Text style={styles.callTimer}>
-              {formatCallTime(callTimer)}
-            </Text>
-            <Text style={styles.callCost}>
-              Cost: {callCost} coins
-            </Text>
-          </View>
-
-          <View style={styles.videoCallContainer}>
-            {isInCall && (
-              <View style={{ flex: 1, backgroundColor: '#000' }}>
-                <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
-                  Call Active with {targetUser?.username}
-                </Text>
-                <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
-                  {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
-                </Text>
-                <Text style={{ color: '#FFD700', textAlign: 'center', marginTop: 5 }}>
-                  Cost: {callCost} coins
-                </Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.callControls}>
-            <TouchableOpacity
-              style={[styles.callButton, styles.endCallButton]}
-              onPress={endCall}
-            >
-              <Ionicons name="call" size={30} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Incoming Call Modal */}
-      <Modal
-        visible={showIncomingCallModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={handleDeclineCall}
-      >
-        <View style={styles.incomingCallOverlay}>
-          <View style={styles.incomingCallModal}>
-            <View style={styles.incomingCallHeader}>
-              <Text style={styles.incomingCallTitle}>
-                {incomingCallData?.callType === 'video' ? 'Video' : 'Audio'} Call
-              </Text>
-              <Text style={styles.incomingCallSubtitle}>Incoming call from</Text>
-              <Text style={styles.callerName}>{incomingCallData?.callerName}</Text>
-            </View>
-
-            <View style={styles.callerAvatar}>
-              <Text style={styles.callerAvatarText}>
-                {incomingCallData?.callerName?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
-
-            <View style={styles.callRateInfo}>
-              <Text style={styles.callRateText}>Call Rates:</Text>
-              <Text style={styles.callRateDetail}>• First minute: 2,500 coins</Text>
-              <Text style={styles.callRateDetail}>• After 1st minute: 2,000 coins/minute</Text>
-            </View>
-
-            <View style={styles.incomingCallButtons}>
-              <TouchableOpacity
-                style={[styles.callActionButton, styles.declineButton]}
-                onPress={handleDeclineCall}
-              >
-                <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: '135deg' }] }} />
-                <Text style={styles.callActionText}>Decline</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.callActionButton, styles.acceptButton]}
-                onPress={handleAcceptCall}
-              >
-                <Ionicons name="call" size={30} color="white" />
-                <Text style={styles.callActionText}>Accept</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Gift Video Component for MP4 Animations */}
+      <GiftVideo
+        visible={showGiftVideo}
+        source={currentGiftVideoSource}
+        onEnd={() => {
+          setShowGiftVideo(false);
+          setCurrentGiftVideoSource(null);
+        }}
+      />
     </SafeAreaView>
   );
 }
