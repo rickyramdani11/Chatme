@@ -162,11 +162,11 @@ export default function PrivateChatScreen() {
         console.log('Received private gift:', data);
 
         // Handle MP4 video gifts
-        if (data.gift.type === 'animated' && data.gift.videoSource) {
+        if (data.gift.type === 'animated_video' && data.gift.videoSource) {
           setCurrentGiftVideoSource(data.gift.videoSource);
           setShowGiftVideo(true);
         } else {
-          // Handle other gift types (like animated icons)
+          // Handle other gift types (PNG images, icons, etc.)
           setActiveGiftAnimation({
             ...data.gift,
             sender: data.from,
@@ -192,6 +192,7 @@ export default function PrivateChatScreen() {
             }),
           ]).start();
 
+          // Show longer for animated gifts, shorter for static
           const duration = data.gift.type === 'animated' ? 5000 : 3000;
           setTimeout(() => {
             Animated.parallel([
@@ -1234,14 +1235,35 @@ export default function PrivateChatScreen() {
             ]}
           >
             <View style={styles.smallGiftContainer}>
-              <Text style={styles.smallGiftEmoji}>{activeGiftAnimation.icon}</Text>
+              {activeGiftAnimation.image ? (
+                <Image
+                  source={typeof activeGiftAnimation.image === 'string' ? 
+                    { uri: `${API_BASE_URL}${activeGiftAnimation.image}` } : 
+                    activeGiftAnimation.image
+                  }
+                  style={styles.smallGiftImage}
+                  resizeMode="contain"
+                />
+              ) : activeGiftAnimation.animation && 
+                   !activeGiftAnimation.animation.includes('.mp4') ? (
+                <Image
+                  source={typeof activeGiftAnimation.animation === 'string' ? 
+                    { uri: `${API_BASE_URL}${activeGiftAnimation.animation}` } : 
+                    activeGiftAnimation.animation
+                  }
+                  style={styles.smallGiftImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Text style={styles.smallGiftEmoji}>{activeGiftAnimation.icon}</Text>
+              )}
             </View>
           </Animated.View>
 
           <Animated.View style={[styles.giftInfoOverlay, { opacity: giftOpacityAnim }]}>
             <Text style={styles.giftSenderName}>{activeGiftAnimation.sender}</Text>
             <Text style={styles.giftDescription}>
-              sent {activeGiftAnimation.name} {activeGiftAnimation.icon}
+              sent {activeGiftAnimation.name} {activeGiftAnimation.icon || '🎁'}
             </Text>
           </Animated.View>
         </View>
@@ -1686,6 +1708,10 @@ const styles = StyleSheet.create({
   smallGiftEmoji: {
     fontSize: 24,
     textAlign: 'center',
+  },
+  smallGiftImage: {
+    width: 60,
+    height: 60,
   },
   giftInfoOverlay: {
     position: 'absolute',
