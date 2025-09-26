@@ -1,3 +1,4 @@
+replit_final_file>
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -137,8 +138,8 @@ export default function PrivateChatScreen() {
           }
 
           setMessages(prevMessages => {
-            const existingIndex = prevMessages.findIndex(msg => 
-              msg.id === newMessage.id || 
+            const existingIndex = prevMessages.findIndex(msg =>
+              msg.id === newMessage.id ||
               (msg.sender === newMessage.sender && msg.content === newMessage.content && msg.id.startsWith('temp_'))
             );
 
@@ -165,8 +166,24 @@ export default function PrivateChatScreen() {
         if (data.gift.type === 'animated_video' && data.gift.videoSource) {
           setCurrentGiftVideoSource(data.gift.videoSource);
           setShowGiftVideo(true);
+        } else if (data.gift.image || (data.gift.animation && data.gift.animation.includes('.png'))) {
+          // Handle PNG gifts with GiftVideo component for better animation
+          setCurrentGiftVideoSource(
+            data.gift.image ?
+            (typeof data.gift.image === 'string' ? { uri: `${API_BASE_URL}${data.gift.image}` } : data.gift.image) :
+            (typeof data.gift.animation === 'string' ? { uri: `${API_BASE_URL}${data.gift.animation}` } : data.gift.animation)
+          );
+          setActiveGiftAnimation({
+            ...data.gift,
+            sender: data.from,
+            recipient: user?.username,
+            timestamp: data.timestamp,
+            isPrivate: true,
+            type: 'png'
+          });
+          setShowGiftVideo(true);
         } else {
-          // Handle other gift types (PNG images, icons, etc.)
+          // Handle other gift types (icons, etc.)
           setActiveGiftAnimation({
             ...data.gift,
             sender: data.from,
@@ -780,6 +797,22 @@ export default function PrivateChatScreen() {
               type: 'animated_video' // Custom type for video gifts
             };
           }
+          // Add PNG gift processing here
+          if (gift.animation && gift.animation.includes('.png')) {
+            return {
+              ...gift,
+              type: 'png', // Mark as PNG type
+              animation: gift.animation // Keep animation path
+            };
+          }
+          // Also consider gifts that might have an 'image' property for PNGs
+          if (gift.image && gift.image.includes('.png')) {
+            return {
+              ...gift,
+              type: 'png',
+              image: gift.image
+            };
+          }
           return gift;
         });
         setGiftList(processedGifts);
@@ -792,6 +825,8 @@ export default function PrivateChatScreen() {
           { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
           { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
           { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('../../assets/gift/animated/Love.mp4') }, // Example MP4 gift
+          { id: '1007', name: 'PNG Gift Heart', icon: '❤️', price: 800, type: 'png', animation: '../../assets/gift/animated/Heart.png' }, // Example PNG gift
+          { id: '1008', name: 'PNG Gift Star', icon: '⭐', price: 1200, type: 'png', image: '../../assets/gift/animated/Star.png' } // Example PNG gift with image property
         ];
         setGiftList(defaultGifts);
       }
@@ -804,6 +839,8 @@ export default function PrivateChatScreen() {
         { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
         { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
         { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('../../assets/gift/animated/Love.mp4') }, // Example MP4 gift
+        { id: '1007', name: 'PNG Gift Heart', icon: '❤️', price: 800, type: 'png', animation: '../../assets/gift/animated/Heart.png' }, // Example PNG gift
+        { id: '1008', name: 'PNG Gift Star', icon: '⭐', price: 1200, type: 'png', image: '../../assets/gift/animated/Star.png' } // Example PNG gift with image property
       ];
       setGiftList(defaultGifts);
     }
@@ -861,7 +898,7 @@ export default function PrivateChatScreen() {
         if (socket && user) {
           socket.emit('send-private-gift', {
             giftId: gift.id,
-            gift: gift, // Pass the whole gift object to include videoSource if applicable
+            gift: gift, // Pass the whole gift object to include videoSource, image, animation, etc.
             to: targetUser?.username,
             from: user.username,
             roomId: roomId,
@@ -1234,50 +1271,30 @@ export default function PrivateChatScreen() {
               }
             ]}
           >
-            <View style={styles.smallGiftContainer}>
-              {activeGiftAnimation.image ? (
-                <Image
-                  source={typeof activeGiftAnimation.image === 'string' ? 
-                    { uri: `${API_BASE_URL}${activeGiftAnimation.image}` } : 
-                    activeGiftAnimation.image
-                  }
-                  style={styles.smallGiftImage}
-                  resizeMode="contain"
-                />
-              ) : activeGiftAnimation.animation && 
-                   !activeGiftAnimation.animation.includes('.mp4') ? (
-                <Image
-                  source={typeof activeGiftAnimation.animation === 'string' ? 
-                    { uri: `${API_BASE_URL}${activeGiftAnimation.animation}` } : 
-                    activeGiftAnimation.animation
-                  }
-                  style={styles.smallGiftImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <Text style={styles.smallGiftEmoji}>{activeGiftAnimation.icon}</Text>
-              )}
-            </View>
+            <GiftVideo
+              visible={activeGiftAnimation.type === 'png' || activeGiftAnimation.type === 'animated_video'}
+              source={currentGiftVideoSource}
+              onEnd={() => {
+                setShowGiftVideo(false);
+                setCurrentGiftVideoSource(null);
+                setActiveGiftAnimation(null); // Clear animation after video ends
+              }}
+            />
           </Animated.View>
 
-          <Animated.View style={[styles.giftInfoOverlay, { opacity: giftOpacityAnim }]}>
-            <Text style={styles.giftSenderName}>{activeGiftAnimation.sender}</Text>
-            <Text style={styles.giftDescription}>
-              sent {activeGiftAnimation.name} {activeGiftAnimation.icon || '🎁'}
-            </Text>
-          </Animated.View>
+          {activeGiftAnimation.type !== 'png' && activeGiftAnimation.type !== 'animated_video' && (
+            <Animated.View style={[styles.giftInfoOverlay, { opacity: giftOpacityAnim }]}>
+              <Text style={styles.giftSenderName}>{activeGiftAnimation.sender}</Text>
+              <Text style={styles.giftDescription}>
+                sent {activeGiftAnimation.name} {activeGiftAnimation.icon || '🎁'}
+              </Text>
+            </Animated.View>
+          )}
         </View>
       )}
 
       {/* Gift Video Component for MP4 Animations */}
-      <GiftVideo
-        visible={showGiftVideo}
-        source={currentGiftVideoSource}
-        onEnd={() => {
-          setShowGiftVideo(false);
-          setCurrentGiftVideoSource(null);
-        }}
-      />
+      {/* This is now handled within the activeGiftAnimation block for PNGs and MP4s */}
     </SafeAreaView>
   );
 }
@@ -1693,6 +1710,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'transparent',
     zIndex: 1001,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   smallGiftContainer: {
     position: 'absolute',
@@ -1887,3 +1906,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+</replit_final_file>
