@@ -952,6 +952,12 @@ export default function PrivateChatScreen() {
             <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
               <Ionicons name="call-outline" size={24} color="#fff" />
             </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.headerIcon} 
+              onPress={() => setShowMessageMenu(true)}
+            >
+              <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1076,10 +1082,74 @@ export default function PrivateChatScreen() {
           onPress={() => setShowMessageMenu(false)}
         >
           <View style={styles.messageContextMenu}>
-            <TouchableOpacity style={styles.messageMenuItem} onPress={handleCopyMessage}>
-              <Ionicons name="copy-outline" size={20} color="#333" />
-              <Text style={styles.messageMenuText}>Copy Message</Text>
-            </TouchableOpacity>
+            {selectedMessage ? (
+              // Message-specific menu when a message is selected
+              <TouchableOpacity style={styles.messageMenuItem} onPress={handleCopyMessage}>
+                <Ionicons name="copy-outline" size={20} color="#333" />
+                <Text style={styles.messageMenuText}>Copy Message</Text>
+              </TouchableOpacity>
+            ) : (
+              // General private chat menu when ellipsis is pressed
+              <>
+                <TouchableOpacity 
+                  style={styles.messageMenuItem} 
+                  onPress={() => {
+                    setShowMessageMenu(false);
+                    navigation.navigate('Profile', { userId: targetUser?.username });
+                  }}
+                >
+                  <Ionicons name="person-outline" size={20} color="#333" />
+                  <Text style={styles.messageMenuText}>View Profile</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.messageMenuItem}
+                  onPress={() => {
+                    setShowMessageMenu(false);
+                    Alert.alert('Search Messages', 'Search functionality will be added soon');
+                  }}
+                >
+                  <Ionicons name="search-outline" size={20} color="#333" />
+                  <Text style={styles.messageMenuText}>Search Messages</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.messageMenuItem}
+                  onPress={() => {
+                    setShowMessageMenu(false);
+                    Alert.alert(
+                      'Clear Chat History', 
+                      'Are you sure you want to clear this chat history? This action cannot be undone.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Clear', 
+                          style: 'destructive',
+                          onPress: () => {
+                            setMessages([]);
+                            Alert.alert('Success', 'Chat history cleared');
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF6B35" />
+                  <Text style={[styles.messageMenuText, { color: '#FF6B35' }]}>Clear Chat</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.messageMenuItem, styles.lastMenuItem]}
+                  onPress={() => {
+                    setShowMessageMenu(false);
+                    navigation.goBack();
+                  }}
+                >
+                  <Ionicons name="exit-outline" size={20} color="#F44336" />
+                  <Text style={[styles.messageMenuText, { color: '#F44336' }]}>Close Chat</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1570,6 +1640,12 @@ const styles = StyleSheet.create({
     color: '#333',
     marginLeft: 12,
     fontWeight: '500',
+  },
+  lastMenuItem: {
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    marginTop: 8,
+    paddingTop: 15,
   },
   // Gift Picker styles
   giftPickerContainer: {
