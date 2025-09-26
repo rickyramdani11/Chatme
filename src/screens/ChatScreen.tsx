@@ -4667,7 +4667,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header with Gradient */}
       <LinearGradient
-        colors={chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
+        colors={chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#FF6B35', '#FF4500']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
