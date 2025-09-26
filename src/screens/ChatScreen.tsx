@@ -29,10 +29,8 @@ import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
-import { ParticipantsList } from '../components';
+import { ParticipantsList, RoomManagement } from '../components';
 import * as Clipboard from 'expo-clipboard';
-// Import the new RoomManagement component
-import { RoomManagement } from '../components/RoomManagement';
 
 
 const { width } = Dimensions.get('window');
