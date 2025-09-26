@@ -775,7 +775,7 @@ export default function PrivateChatScreen() {
             return {
               ...gift,
               // Use a require statement for local videos or a URL for remote videos
-              videoSource: require('./assets/gift.mp4'),
+              videoSource: require('../../assets/gift/animated/Love.mp4'),
               type: 'animated_video' // Custom type for video gifts
             };
           }
