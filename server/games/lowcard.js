@@ -101,7 +101,7 @@ function startJoinPhase(io, room) {
   }
 
   console.log(`[LowCard] Sending join phase message for room ${room}, bet: ${data.bet}, started by: ${data.startedBy}`);
-  sendBotMessage(io, room, `LowCard started by ${data.startedBy}. Enter !j to join the game. Cost: ${data.bet} COIN (30s)`);
+  sendBotMessage(io, room, `LowCard started by ${data.startedBy} (auto-joined). Enter !j to join the game. Cost: ${data.bet} COIN (30s)`);
 
   data.timeout = setTimeout(async () => {
     if (data.players.length < 2) {
@@ -484,6 +484,12 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
         return;
       }
 
+      // Check if starter has enough coins and deduct immediately
+      if (!(await potongCoin(userId, bet))) {
+        sendBotMessage(io, room, `${username} doesn't have enough COIN to start the game.`);
+        return;
+      }
+
       console.log(`[LowCard] Creating new game in room ${room} with bet ${bet}`);
       rooms[room] = {
         players: [],
@@ -494,6 +500,19 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
         currentRound: 0,
         totalRounds: 0
       };
+
+      // Auto-join the starter
+      const starterPlayer = {
+        id: userId,
+        username,
+        socketId: '', // This will be populated by socket.id from the socket event listener
+        coin: 1000, // This should come from database
+        bet: bet,
+        isActive: true
+      };
+
+      rooms[room].players.push(starterPlayer);
+      sendBotMessage(io, room, `${username} started the game and joined automatically.`);
 
       console.log(`[LowCard] Starting join phase for room ${room}`);
       startJoinPhase(io, room);

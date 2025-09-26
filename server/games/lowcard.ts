@@ -267,10 +267,10 @@ function sendBotMessage(io: Server, room: string, content: string, media: string
   };
 
   console.log(`LowCardBot sending message to room ${room}:`, content);
-  
+
   // Send to all clients in the room
   io.to(room).emit('new-message', botMessage);
-  
+
   // Also broadcast using sendMessage event for better compatibility
   io.to(room).emit('sendMessage', {
     roomId: room,
@@ -414,44 +414,63 @@ function handleLowCardCommand(io: Server, room: string, command: string, args: s
 
     switch (command) {
     case '!start': {
-      console.log(`[LowCard] START command received - Room: ${room}, User: ${username}, Args: [${args.join(', ')}]`);
-      
-      if (rooms[room]) {
-        console.log(`[LowCard] Game already in progress in room ${room}`);
-        sendBotMessage(io, room, `🎮 Game already in progress!`);
-        return;
+        console.log(`[LowCard] START command received - Room: ${room}, User: ${username}, Args: [${args.join(', ')}]`);
+
+        if (rooms[room]) {
+          console.log(`[LowCard] Game already in progress in room ${room}`);
+          sendBotMessage(io, room, `🎮 Game already in progress!`);
+          return;
+        }
+
+        const bet = parseInt(args[0]) || 50;
+        console.log(`[LowCard] Parsed bet amount: ${bet}`);
+
+        if (bet <= 0) {
+          console.log(`[LowCard] Invalid bet amount: ${bet}`);
+          sendBotMessage(io, room, `❌ Invalid bet amount! Must be greater than 0.`);
+          return;
+        }
+
+        if (bet > 10000) {
+          console.log(`[LowCard] Bet too high: ${bet}`);
+          sendBotMessage(io, room, `❌ Bet too high! Maximum bet is 10,000 COIN.`);
+          return;
+        }
+
+        // Check if starter has enough coins and deduct immediately
+        if (!potongCoin(userId, bet)) {
+          sendBotMessage(io, room, `❌ ${username} doesn't have enough COIN to start the game.`);
+          return;
+        }
+
+        console.log(`[LowCard] Creating new game in room ${room} with bet ${bet}`);
+        rooms[room] = {
+          players: [],
+          activePlayers: [],
+          bet,
+          startedBy: username,
+          isRunning: false,
+          currentRound: 0,
+          totalRounds: 0
+        };
+
+        // Auto-join the starter
+        const starterPlayer: Player = {
+          id: userId,
+          username,
+          socketId: '', // This will be populated by socket.id from the socket event listener
+          coin: 1000, // This should come from database
+          bet: bet,
+          isActive: true
+        };
+
+        rooms[room].players.push(starterPlayer);
+        sendBotMessage(io, room, `✅ ${username} started the game and joined automatically.`);
+
+        console.log(`[LowCard] Starting join phase for room ${room}`);
+        startJoinPhase(io, room);
+        break;
       }
-
-      const bet = parseInt(args[0]) || 50;
-      console.log(`[LowCard] Parsed bet amount: ${bet}`);
-      
-      if (bet <= 0) {
-        console.log(`[LowCard] Invalid bet amount: ${bet}`);
-        sendBotMessage(io, room, `❌ Invalid bet amount! Must be greater than 0.`);
-        return;
-      }
-
-      if (bet > 10000) {
-        console.log(`[LowCard] Bet too high: ${bet}`);
-        sendBotMessage(io, room, `❌ Bet too high! Maximum bet is 10,000 COIN.`);
-        return;
-      }
-
-      console.log(`[LowCard] Creating new game in room ${room} with bet ${bet}`);
-      rooms[room] = {
-        players: [],
-        activePlayers: [],
-        bet,
-        startedBy: username,
-        isRunning: false,
-        currentRound: 0,
-        totalRounds: 0
-      };
-
-      console.log(`[LowCard] Starting join phase for room ${room}`);
-      startJoinPhase(io, room);
-      break;
-    }
 
       case '!j': {
         const data = rooms[room];
