@@ -159,41 +159,56 @@ export default function PrivateChatScreen() {
       });
 
       socketInstance.on('receive-private-gift', (data: any) => {
-        console.log('Received private gift:', data);
+        console.log('🎁 Received private gift:', data);
+        console.log('🎁 Gift data:', JSON.stringify(data.gift, null, 2));
+        console.log('🎁 From:', data.from, 'Timestamp:', data.timestamp);
+
+        // Always set active gift animation first
+        const giftAnimationData = {
+          ...data.gift,
+          sender: data.from,
+          recipient: user?.username,
+          timestamp: data.timestamp,
+          isPrivate: true
+        };
 
         // Handle MP4 video gifts
         if (data.gift.type === 'animated_video' && data.gift.videoSource) {
+          console.log('🎬 Processing MP4 video gift:', data.gift.name);
+          
           setCurrentGiftVideoSource(data.gift.videoSource);
-          setShowGiftVideo(true);
-        } else if (data.gift.image || (data.gift.animation && data.gift.animation.includes('.png'))) {
-          // Handle PNG gifts with GiftVideo component for better animation
-          setCurrentGiftVideoSource(
-            data.gift.image ?
-            (typeof data.gift.image === 'string' ? { uri: `${API_BASE_URL}${data.gift.image}` } : data.gift.image) :
-            (typeof data.gift.animation === 'string' ? { uri: `${API_BASE_URL}${data.gift.animation}` } : data.gift.animation)
-          );
           setActiveGiftAnimation({
-            ...data.gift,
-            sender: data.from,
-            recipient: user?.username,
-            timestamp: data.timestamp,
-            isPrivate: true,
+            ...giftAnimationData,
+            type: 'animated_video'
+          });
+          setShowGiftVideo(true);
+          
+        } else if (data.gift.image || (data.gift.animation && data.gift.animation.includes('.png'))) {
+          console.log('🖼️ Processing PNG gift:', data.gift.name);
+          
+          // Handle PNG gifts with GiftVideo component for better animation
+          const imageSource = data.gift.image 
+            ? (typeof data.gift.image === 'string' ? { uri: `${API_BASE_URL}${data.gift.image}` } : data.gift.image)
+            : (typeof data.gift.animation === 'string' ? { uri: `${API_BASE_URL}${data.gift.animation}` } : data.gift.animation);
+          
+          setCurrentGiftVideoSource(imageSource);
+          setActiveGiftAnimation({
+            ...giftAnimationData,
             type: 'png'
           });
           setShowGiftVideo(true);
+          
         } else {
+          console.log('🎭 Processing icon/static gift:', data.gift.name);
+          
           // Handle other gift types (icons, etc.)
-          setActiveGiftAnimation({
-            ...data.gift,
-            sender: data.from,
-            recipient: user?.username,
-            timestamp: data.timestamp,
-            isPrivate: true
-          });
+          setActiveGiftAnimation(giftAnimationData);
 
+          // Reset animations
           giftScaleAnim.setValue(0.3);
           giftOpacityAnim.setValue(0);
 
+          // Start animation
           Animated.parallel([
             Animated.spring(giftScaleAnim, {
               toValue: 1,
@@ -208,7 +223,7 @@ export default function PrivateChatScreen() {
             }),
           ]).start();
 
-          // Show longer for animated gifts, shorter for static
+          // Auto-close timing based on gift type
           const duration = data.gift.type === 'animated' ? 5000 : 3000;
           setTimeout(() => {
             Animated.parallel([
@@ -223,6 +238,7 @@ export default function PrivateChatScreen() {
                 useNativeDriver: true,
               }),
             ]).start(() => {
+              console.log('🎁 Static gift animation ended');
               setActiveGiftAnimation(null);
             });
           }, duration);
@@ -895,6 +911,13 @@ export default function PrivateChatScreen() {
 
         // Send gift message via socket for private chat
         if (socket && user) {
+          console.log('🎁 Sending private gift via socket:', {
+            gift: gift,
+            to: targetUser?.username,
+            from: user.username,
+            roomId: roomId
+          });
+          
           socket.emit('send-private-gift', {
             giftId: gift.id,
             gift: gift, // Pass the whole gift object to include videoSource, image, animation, etc.
@@ -903,6 +926,10 @@ export default function PrivateChatScreen() {
             roomId: roomId,
             timestamp: new Date().toISOString()
           });
+          
+          console.log('🎁 Private gift socket event sent');
+        } else {
+          console.error('❌ Socket or user not available for sending private gift');
         }
 
         // Show success message
@@ -1012,6 +1039,63 @@ export default function PrivateChatScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
               <Ionicons name="call-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+            {/* Debug test gift button - Remove in production */}
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={() => {
+                console.log('🧪 Testing gift animation manually');
+                const testGift = {
+                  id: 'test_gift',
+                  name: 'Test Heart',
+                  icon: '❤️',
+                  type: 'static',
+                  price: 100
+                };
+                setActiveGiftAnimation({
+                  ...testGift,
+                  sender: 'TestUser',
+                  recipient: user?.username,
+                  timestamp: new Date().toISOString(),
+                  isPrivate: true
+                });
+                
+                giftScaleAnim.setValue(0.3);
+                giftOpacityAnim.setValue(0);
+                
+                Animated.parallel([
+                  Animated.spring(giftScaleAnim, {
+                    toValue: 1,
+                    tension: 80,
+                    friction: 6,
+                    useNativeDriver: true,
+                  }),
+                  Animated.timing(giftOpacityAnim, {
+                    toValue: 1,
+                    duration: 600,
+                    useNativeDriver: true,
+                  }),
+                ]).start();
+                
+                setTimeout(() => {
+                  Animated.parallel([
+                    Animated.timing(giftScaleAnim, {
+                      toValue: 1.1,
+                      duration: 400,
+                      useNativeDriver: true,
+                    }),
+                    Animated.timing(giftOpacityAnim, {
+                      toValue: 0,
+                      duration: 400,
+                      useNativeDriver: true,
+                    }),
+                  ]).start(() => {
+                    setActiveGiftAnimation(null);
+                  });
+                }, 3000);
+              }}
+            >
+              <Ionicons name="heart" size={24} color="#FF69B4" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerIcon}
@@ -1261,39 +1345,49 @@ export default function PrivateChatScreen() {
       {/* Gift Animation Overlay */}
       {activeGiftAnimation && (
         <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
-          <Animated.View
-            style={[
-              styles.fullScreenAnimationContainer,
-              {
-                opacity: giftOpacityAnim,
-                transform: [{ scale: giftScaleAnim }]
-              }
-            ]}
-          >
+          {/* Video/PNG Gift Component */}
+          {(activeGiftAnimation.type === 'png' || activeGiftAnimation.type === 'animated_video') && showGiftVideo && currentGiftVideoSource && (
             <GiftVideo
-              visible={activeGiftAnimation.type === 'png' || activeGiftAnimation.type === 'animated_video'}
+              visible={true}
               source={currentGiftVideoSource}
+              type={activeGiftAnimation.type === 'animated_video' ? 'video' : 'png'}
+              giftData={activeGiftAnimation}
               onEnd={() => {
+                console.log('🎁 Video/PNG gift animation ended');
                 setShowGiftVideo(false);
                 setCurrentGiftVideoSource(null);
-                setActiveGiftAnimation(null); // Clear animation after video ends
+                setActiveGiftAnimation(null);
               }}
             />
-          </Animated.View>
+          )}
 
+          {/* Static/Icon Gift Animation */}
           {activeGiftAnimation.type !== 'png' && activeGiftAnimation.type !== 'animated_video' && (
-            <Animated.View style={[styles.giftInfoOverlay, { opacity: giftOpacityAnim }]}>
-              <Text style={styles.giftSenderName}>{activeGiftAnimation.sender}</Text>
-              <Text style={styles.giftDescription}>
-                sent {activeGiftAnimation.name} {activeGiftAnimation.icon || '🎁'}
-              </Text>
+            <Animated.View
+              style={[
+                styles.fullScreenAnimationContainer,
+                {
+                  opacity: giftOpacityAnim,
+                  transform: [{ scale: giftScaleAnim }]
+                }
+              ]}
+            >
+              <View style={styles.smallGiftContainer}>
+                <Text style={styles.smallGiftEmoji}>
+                  {activeGiftAnimation.icon || '🎁'}
+                </Text>
+              </View>
+              
+              <Animated.View style={[styles.giftInfoOverlay, { opacity: giftOpacityAnim }]}>
+                <Text style={styles.giftSenderName}>{activeGiftAnimation.sender}</Text>
+                <Text style={styles.giftDescription}>
+                  sent {activeGiftAnimation.name} {activeGiftAnimation.icon || '🎁'}
+                </Text>
+              </Animated.View>
             </Animated.View>
           )}
         </View>
       )}
-
-      {/* Gift Video Component for MP4 Animations */}
-      {/* This is now handled within the activeGiftAnimation block for PNGs and MP4s */}
     </SafeAreaView>
   );
 }

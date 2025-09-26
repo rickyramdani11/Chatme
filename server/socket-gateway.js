@@ -1157,35 +1157,51 @@ io.on('connection', (socket) => {
   // Send private gift event
   socket.on('send-private-gift', (giftData) => {
     try {
-      const { from, to, gift, timestamp } = giftData;
+      const { from, to, gift, timestamp, roomId } = giftData;
 
       if (!from || !to || !gift) {
-        console.log('Invalid private gift data:', giftData);
+        console.log('❌ Invalid private gift data:', giftData);
         return;
       }
 
-      console.log(`Gateway relaying private gift from ${from} to ${to}: ${gift.name}`);
+      console.log(`🎁 Gateway relaying private gift from ${from} to ${to}: ${gift.name}`);
+      console.log(`🎁 Gift details:`, JSON.stringify(gift, null, 2));
 
-      // Find target user's socket
-      const targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
-        userInfo.username === to
-      );
-
-      if (targetSocket) {
-        const [targetSocketId] = targetSocket;
-        io.to(targetSocketId).emit('receive-private-gift', {
+      // Broadcast to entire room (private chat room) to ensure delivery
+      if (roomId) {
+        console.log(`🎁 Broadcasting private gift to room: ${roomId}`);
+        io.to(roomId).emit('receive-private-gift', {
           from,
+          to,
           gift,
           timestamp: timestamp || new Date().toISOString(),
-          type: 'private'
+          type: 'private',
+          roomId: roomId
         });
-        console.log(`Private gift delivered to ${to}`);
+        console.log(`🎁 Private gift broadcasted to room ${roomId}`);
       } else {
-        console.log(`Target user ${to} not found or offline`);
+        // Fallback: Find target user's socket directly
+        const targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
+          userInfo.username === to
+        );
+
+        if (targetSocket) {
+          const [targetSocketId] = targetSocket;
+          io.to(targetSocketId).emit('receive-private-gift', {
+            from,
+            to,
+            gift,
+            timestamp: timestamp || new Date().toISOString(),
+            type: 'private'
+          });
+          console.log(`🎁 Private gift delivered directly to ${to}`);
+        } else {
+          console.log(`❌ Target user ${to} not found or offline`);
+        }
       }
 
     } catch (error) {
-      console.error('Error handling send-private-gift:', error);
+      console.error('❌ Error handling send-private-gift:', error);
     }
   });
 
