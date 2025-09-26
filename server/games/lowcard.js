@@ -469,12 +469,12 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
         return;
       }
 
-      const bet = parseInt(args[0]) || 50;
+      const bet = parseInt(args[0]) || 500;
       console.log(`[LowCard] Parsed bet amount: ${bet}`);
 
-      if (bet <= 0) {
-        console.log(`[LowCard] Invalid bet amount: ${bet}`);
-        sendBotMessage(io, room, `Invalid bet amount! Must be greater than 0.`);
+      if (bet < 500) {
+        console.log(`[LowCard] Bet too low: ${bet}`);
+        sendBotMessage(io, room, `Minimum bet is 500 COIN!`);
         return;
       }
 
@@ -663,7 +663,7 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
 
     case '!help': {
       const helpText = `LowCard Commands:
-!start <bet> - Start a new elimination game
+!start <bet> - Start a new elimination game (min 500 COIN)
 !j - Join current game
 !d - Draw your card in current round
 !leave - Leave game (before it starts)
@@ -671,6 +671,7 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
 !help - Show this help
 
 Game Rules:
+- Minimum bet: 500 COIN
 - Each round, lowest card gets eliminated
 - Game continues until 1 player remains
 - Winner takes the pot (minus 10% house cut)`;
