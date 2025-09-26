@@ -92,7 +92,7 @@ export default function FeedScreen() {
   const [uploading, setUploading] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
-  const [streamingUrl, setStreamingUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   
   const videoRef = useRef<Video>(null);
 
@@ -400,7 +400,7 @@ export default function FeedScreen() {
             level: 1,
             avatar: user?.username?.charAt(0).toUpperCase() || 'A',
             mediaFiles: uploadedFiles,
-            streamingUrl: user?.role === 'admin' ? streamingUrl.trim() : ''
+            streamingUrl: user?.role === 'admin' ? videoUrl.trim() : ''
           }),
         });
 
@@ -413,7 +413,7 @@ export default function FeedScreen() {
           setFeedPosts(prev => [newPost, ...prev]);
           setPostText('');
           setSelectedMedia([]);
-          setStreamingUrl('');
+          setVideoUrl('');
           Alert.alert('Success', 'Post created successfully!');
         } else {
           let errorMessage = 'Failed to create post';
@@ -657,32 +657,71 @@ export default function FeedScreen() {
           </TouchableOpacity>
           <Text style={styles.postContent}>{post.content}</Text>
           
-          {/* Streaming URL Display */}
+          {/* Video URL Display */}
           {post.streamingUrl && post.streamingUrl.trim() && (
-            <TouchableOpacity 
-              style={styles.streamingLinkContainer}
-              onPress={() => {
-                Alert.alert(
-                  'Open Streaming Link',
-                  `Do you want to open this streaming URL?\n\n${post.streamingUrl}`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Open', 
-                      onPress: () => {
-                        // Here you could use Linking.openURL(post.streamingUrl) 
-                        // For now, just show the URL
-                        console.log('Opening streaming URL:', post.streamingUrl);
-                      }
-                    }
-                  ]
-                );
-              }}
-            >
-              <Ionicons name="tv" size={16} color="#FF6B35" />
-              <Text style={styles.streamingLinkText}>🔴 LIVE STREAMING</Text>
-              <Ionicons name="external-link-outline" size={14} color="#FF6B35" />
-            </TouchableOpacity>
+            <View style={styles.videoUrlContainer}>
+              {(Video || VideoView) ? (
+                <TouchableOpacity 
+                  style={styles.inlineVideoContainer}
+                  onPress={() => {
+                    console.log('Opening video URL:', post.streamingUrl);
+                    setSelectedVideoUrl(post.streamingUrl);
+                    setShowVideoModal(true);
+                  }}
+                >
+                  {Video ? (
+                    <Video
+                      style={styles.inlineVideo}
+                      source={{ uri: post.streamingUrl }}
+                      useNativeControls={false}
+                      resizeMode="cover"
+                      shouldPlay={false}
+                      isLooping={false}
+                      volume={0}
+                      onError={(error) => {
+                        console.log('Inline video preview error:', error);
+                      }}
+                    />
+                  ) : (
+                    <VideoView
+                      style={styles.inlineVideo}
+                      source={{ uri: post.streamingUrl }}
+                      useNativeControls={false}
+                      resizeMode="cover"
+                      shouldPlay={false}
+                      volume={0}
+                    />
+                  )}
+                  <View style={styles.videoOverlay}>
+                    <Ionicons name="play-circle" size={50} color="rgba(255,255,255,0.9)" />
+                    <Text style={styles.videoPlayText}>Tap to play video</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.videoLinkContainer}
+                  onPress={() => {
+                    Alert.alert(
+                      'Open Video URL',
+                      `Do you want to open this video URL?\n\n${post.streamingUrl}`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Open', 
+                          onPress: () => {
+                            console.log('Opening video URL:', post.streamingUrl);
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="videocam" size={16} color="#FF6B35" />
+                  <Text style={styles.videoLinkText}>📹 VIDEO URL</Text>
+                  <Ionicons name="play-outline" size={14} color="#FF6B35" />
+                </TouchableOpacity>
+              )}
+            </View>
           )}
           
           <Text style={styles.timestamp}>{formatTimestamp(post.timestamp)}</Text>
@@ -863,15 +902,15 @@ export default function FeedScreen() {
             </View>
           )}
 
-          {/* Admin Streaming URL Input */}
+          {/* Admin Video URL Input */}
           {user?.role === 'admin' && (
             <View style={styles.streamingUrlContainer}>
-              <Ionicons name="tv-outline" size={20} color="#FF6B35" />
+              <Ionicons name="videocam-outline" size={20} color="#FF6B35" />
               <TextInput
                 style={styles.streamingUrlInput}
-                placeholder="Add streaming URL (Admin only)..."
-                value={streamingUrl}
-                onChangeText={setStreamingUrl}
+                placeholder="Add video URL (Admin only)..."
+                value={videoUrl}
+                onChangeText={setVideoUrl}
                 placeholderTextColor="#999"
                 autoCapitalize="none"
                 keyboardType="url"
@@ -1416,7 +1455,38 @@ const styles = StyleSheet.create({
     color: '#333',
     paddingVertical: 4,
   },
-  streamingLinkContainer: {
+  videoUrlContainer: {
+    marginVertical: 8,
+  },
+  inlineVideoContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  inlineVideo: {
+    width: '100%',
+    height: '100%',
+  },
+  videoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  videoPlayText: {
+    color: 'white',
+    fontSize: 14,
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  videoLinkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF5F5',
@@ -1428,7 +1498,7 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B35',
     gap: 6,
   },
-  streamingLinkText: {
+  videoLinkText: {
     color: '#FF6B35',
     fontSize: 12,
     fontWeight: 'bold',
