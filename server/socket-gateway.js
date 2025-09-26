@@ -105,6 +105,15 @@ const initRoomSecurityTables = async () => {
       )
     `);
 
+    // Add indexes for better performance
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_room_moderators_room_id ON room_moderators(room_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_room_banned_users_room_id ON room_banned_users(room_id);
+    `);
+
     console.log('✅ Room security tables initialized successfully');
   } catch (error) {
     console.error('❌ Error initializing room security tables:', error);

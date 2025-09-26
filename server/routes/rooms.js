@@ -333,6 +333,239 @@ router.get('/:roomId/messages/history', async (req, res) => {
   }
 });
 
+// Get room moderators
+router.get('/:roomId/moderators', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    
+    const result = await pool.query(`
+      SELECT rm.*, u.username, u.role as user_role
+      FROM room_moderators rm
+      LEFT JOIN users u ON rm.user_id = u.id
+      WHERE rm.room_id = $1 AND rm.is_active = true
+      ORDER BY rm.assigned_at DESC
+    `, [roomId]);
+
+    const moderators = result.rows.map(row => ({
+      id: row.id.toString(),
+      username: row.username,
+      role: row.role,
+      assigned_by_username: row.assigned_by_username,
+      assigned_at: row.assigned_at,
+      can_ban: row.can_ban,
+      can_kick: row.can_kick,
+      can_mute: row.can_mute
+    }));
+
+    res.json(moderators);
+  } catch (error) {
+    console.error('Error fetching room moderators:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add room moderator
+router.post('/:roomId/moderators', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const { username, can_ban = true, can_kick = true, can_mute = true } = req.body;
+    const currentUserId = req.user.userId;
+
+    // Check if current user can add moderators
+    const hasPermission = await checkRoomPermission(currentUserId, roomId, 'manage_moderators');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to add moderators' });
+    }
+
+    // Get target user
+    const userResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [username]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // Check if user is already a moderator
+    const existingMod = await pool.query(`
+      SELECT id FROM room_moderators 
+      WHERE room_id = $1 AND user_id = $2 AND is_active = true
+    `, [roomId, targetUser.id]);
+
+    if (existingMod.rows.length > 0) {
+      return res.status(400).json({ error: 'User is already a moderator' });
+    }
+
+    // Get current user info
+    const currentUserResult = await pool.query('SELECT username FROM users WHERE id = $1', [currentUserId]);
+    const currentUsername = currentUserResult.rows[0]?.username || 'admin';
+
+    // Add moderator
+    const result = await pool.query(`
+      INSERT INTO room_moderators (
+        room_id, user_id, username, assigned_by_id, assigned_by_username,
+        can_ban, can_kick, can_mute
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [roomId, targetUser.id, targetUser.username, currentUserId, currentUsername, can_ban, can_kick, can_mute]);
+
+    res.status(201).json({
+      id: result.rows[0].id.toString(),
+      username: targetUser.username,
+      assigned_by_username: currentUsername,
+      assigned_at: result.rows[0].assigned_at,
+      can_ban,
+      can_kick,
+      can_mute
+    });
+
+  } catch (error) {
+    console.error('Error adding room moderator:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Remove room moderator
+router.delete('/:roomId/moderators/:moderatorId', authenticateToken, async (req, res) => {
+  try {
+    const { roomId, moderatorId } = req.params;
+    const currentUserId = req.user.userId;
+
+    // Check if current user can remove moderators
+    const hasPermission = await checkRoomPermission(currentUserId, roomId, 'manage_moderators');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to remove moderators' });
+    }
+
+    // Remove moderator
+    const result = await pool.query(`
+      UPDATE room_moderators 
+      SET is_active = false 
+      WHERE id = $1 AND room_id = $2
+      RETURNING username
+    `, [moderatorId, roomId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Moderator not found' });
+    }
+
+    res.json({ message: 'Moderator removed successfully' });
+
+  } catch (error) {
+    console.error('Error removing room moderator:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get banned users
+router.get('/:roomId/banned', authenticateToken, async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    
+    const result = await pool.query(`
+      SELECT * FROM room_banned_users 
+      WHERE room_id = $1 AND is_active = true
+      ORDER BY banned_at DESC
+    `, [roomId]);
+
+    const bannedUsers = result.rows.map(row => ({
+      id: row.id.toString(),
+      banned_username: row.banned_username,
+      banned_by_username: row.banned_by_username,
+      ban_reason: row.ban_reason,
+      banned_at: row.banned_at,
+      expires_at: row.expires_at
+    }));
+
+    res.json(bannedUsers);
+  } catch (error) {
+    console.error('Error fetching banned users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Unban user
+router.delete('/:roomId/banned/:bannedId', authenticateToken, async (req, res) => {
+  try {
+    const { roomId, bannedId } = req.params;
+    const currentUserId = req.user.userId;
+
+    // Check if current user can unban users
+    const hasPermission = await checkRoomPermission(currentUserId, roomId, 'ban');
+    if (!hasPermission) {
+      return res.status(403).json({ error: 'You do not have permission to unban users' });
+    }
+
+    // Unban user
+    const result = await pool.query(`
+      UPDATE room_banned_users 
+      SET is_active = false 
+      WHERE id = $1 AND room_id = $2
+      RETURNING banned_username
+    `, [bannedId, roomId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Banned user not found' });
+    }
+
+    res.json({ message: 'User unbanned successfully' });
+
+  } catch (error) {
+    console.error('Error unbanning user:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Helper function to check room permissions
+const checkRoomPermission = async (userId, roomId, action) => {
+  try {
+    // Get user role
+    const userResult = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) return false;
+
+    const userRole = userResult.rows[0].role;
+
+    // Global admins can do anything
+    if (userRole === 'admin') return true;
+
+    // Check if user is room owner
+    const roomResult = await pool.query('SELECT created_by FROM rooms WHERE id = $1', [roomId]);
+    if (roomResult.rows.length > 0) {
+      const roomOwner = roomResult.rows[0].created_by;
+      const userNameResult = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+      if (userNameResult.rows.length > 0 && userNameResult.rows[0].username === roomOwner) {
+        return true; // Room owner has all permissions
+      }
+    }
+
+    // Check if user is moderator with specific permissions
+    const modResult = await pool.query(`
+      SELECT * FROM room_moderators 
+      WHERE room_id = $1 AND user_id = $2 AND is_active = true
+    `, [roomId, userId]);
+
+    if (modResult.rows.length > 0) {
+      const moderator = modResult.rows[0];
+      switch (action) {
+        case 'ban':
+          return moderator.can_ban;
+        case 'kick':
+          return moderator.can_kick;
+        case 'mute':
+          return moderator.can_mute;
+        case 'manage_moderators':
+          return false; // Only room owners and admins can manage moderators
+        default:
+          return false;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error checking room permission:', error);
+    return false;
+  }
+};
+
 // Initialize rooms on module load
 loadRoomsFromDatabase();
 

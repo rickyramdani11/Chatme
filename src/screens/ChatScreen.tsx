@@ -31,6 +31,9 @@ import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/bac
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import { ParticipantsList } from '../components';
 import * as Clipboard from 'expo-clipboard';
+// Import the new RoomManagement component
+import { RoomManagement } from '../components/RoomManagement';
+
 
 const { width } = Dimensions.get('window');
 
@@ -123,6 +126,9 @@ export default function ChatScreen() {
   // New state for private chat notifications
   const [showPrivateChatMenu, setShowPrivateChatMenu] = useState(false);
   const [privateChatNotifications, setPrivateChatNotifications] = useState<Record<string, number>>({}); // Store unread counts for private chats
+
+  // State for Room Management Modal
+  const [showRoomManagement, setShowRoomManagement] = useState(false);
 
   // Helper to get total private chat notifications
   const getTotalPrivateChatNotifications = () => {
@@ -4016,7 +4022,7 @@ export default function ChatScreen() {
     // Render support messages differently
     if (item.type === 'support') {
       const senderIsAdmin = item.role === 'admin'; // Assuming admin role is passed for support messages
-      const senderColor = senderIsAdmin ? '#FF6B35' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
+      const senderColor = senderIsAdmin ? '#FF6633' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id); // Changed to a brighter orange
 
       return (
         <TouchableOpacity
@@ -5733,6 +5739,17 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Room Management Modal */}
+      <RoomManagement
+        visible={showRoomManagement}
+        onClose={() => setShowRoomManagement(false)}
+        currentRoom={chatTabs[activeTab]}
+        currentUser={user}
+        token={token}
+        socket={socket}
+        participants={participants}
+      />
     </SafeAreaView>
   );
 }
@@ -6953,143 +6970,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     opacity: 0.5, // Semi transparent for GIF
   },
-  coinBalanceDisplay: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0', // Lighter border color
-  },
-  coinBalanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coinBalanceText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    marginLeft: 8,
-  },
-  // User Tag Menu Styles
-  userTagModalOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    justifyContent: 'flex-end',
-    paddingBottom: 120,
-  },
-  userTagMenu: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    marginHorizontal: 16,
-    maxHeight: 200,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  userTagHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  userTagTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  userTagList: {
-    maxHeight: 150,
-  },
-  userTagItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  userTagInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  userTagName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  userTagRole: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  // Connection Status Styles
-  connectionStatusContainer: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    zIndex: 1000,
-  },
-  connectionStatusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#4CAF50',
-  },
-  disconnectedDot: {
-    backgroundColor: '#F44336',
-  },
-  reconnectingDot: {
-    backgroundColor: '#FF9800',
-  },
-  // Message Context Menu Styles
-  messageContextMenu: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    paddingVertical: 8,
-    marginHorizontal: 20,
-    minWidth: 180,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-  },
-  messageMenuHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  messageMenuTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-  },
-  messageMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  lastMessageMenuItem: {
-    borderBottomWidth: 0,
-  },
-  messageMenuText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 12,
-    fontWeight: '500',
-  },
-  // Mention Text Style
-  mentionText: {
-    color: '#9C27B0', // Purple color for mentions
-    fontWeight: 'bold',
-  },
   // Call Modal Styles
   callModalContainer: {
     flex: 1,
@@ -7277,5 +7157,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2E7D32',
     fontWeight: '500',
+  },
+  // Call Modal Styles (for incoming calls)
+  callModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  callModal: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    minWidth: 300,
+  },
+  callModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  callModalText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  callModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 10,
+  },
+  callButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 5,
+  },
+  declineCallButton: {
+    backgroundColor: '#F44336',
+  },
+  acceptCallButton: {
+    backgroundColor: '#4CAF50',
   },
 });
