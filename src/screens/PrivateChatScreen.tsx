@@ -909,9 +909,90 @@ export default function PrivateChatScreen() {
         const result = await response.json();
         console.log('Private gift sent successfully:', result);
 
-        // Send gift message via socket for private chat
+        // Process gift locally first to show immediate animation
+        console.log('🎁 Processing gift locally for immediate display:', gift);
+        
+        // Prepare gift data for animation
+        const giftAnimationData = {
+          ...gift,
+          sender: user?.username,
+          recipient: targetUser?.username,
+          timestamp: new Date().toISOString(),
+          isPrivate: true
+        };
+
+        // Handle different gift types for immediate display
+        if (gift.type === 'animated_video' && gift.videoSource) {
+          console.log('🎬 Processing MP4 video gift locally:', gift.name);
+          setCurrentGiftVideoSource(gift.videoSource);
+          setActiveGiftAnimation({
+            ...giftAnimationData,
+            type: 'animated_video'
+          });
+          setShowGiftVideo(true);
+          
+        } else if (gift.image || (gift.animation && gift.animation.includes('.png'))) {
+          console.log('🖼️ Processing PNG gift locally:', gift.name);
+          
+          const imageSource = gift.image 
+            ? (typeof gift.image === 'string' ? { uri: gift.image } : gift.image)
+            : (typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation);
+          
+          setCurrentGiftVideoSource(imageSource);
+          setActiveGiftAnimation({
+            ...giftAnimationData,
+            type: 'png'
+          });
+          setShowGiftVideo(true);
+          
+        } else {
+          console.log('🎭 Processing icon/static gift locally:', gift.name);
+          
+          setActiveGiftAnimation(giftAnimationData);
+
+          // Reset animations
+          giftScaleAnim.setValue(0.3);
+          giftOpacityAnim.setValue(0);
+
+          // Start animation
+          Animated.parallel([
+            Animated.spring(giftScaleAnim, {
+              toValue: 1,
+              tension: 80,
+              friction: 6,
+              useNativeDriver: true,
+            }),
+            Animated.timing(giftOpacityAnim, {
+              toValue: 1,
+              duration: 600,
+              useNativeDriver: true,
+            }),
+          ]).start();
+
+          // Auto-close timing based on gift type
+          const duration = gift.type === 'animated' ? 5000 : 3000;
+          setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(giftScaleAnim, {
+                toValue: 1.1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+              Animated.timing(giftOpacityAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              console.log('🎁 Local gift animation ended');
+              setActiveGiftAnimation(null);
+            });
+          }, duration);
+        }
+
+        // Send gift message via socket for other users
         if (socket && user) {
-          console.log('🎁 Sending private gift via socket:', {
+          console.log('🎁 Sending private gift via socket to other users:', {
             gift: gift,
             to: targetUser?.username,
             from: user.username,
@@ -920,7 +1001,7 @@ export default function PrivateChatScreen() {
           
           socket.emit('send-private-gift', {
             giftId: gift.id,
-            gift: gift, // Pass the whole gift object to include videoSource, image, animation, etc.
+            gift: gift,
             to: targetUser?.username,
             from: user.username,
             roomId: roomId,
@@ -1346,7 +1427,7 @@ export default function PrivateChatScreen() {
       {activeGiftAnimation && (
         <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
           {/* Video/PNG Gift Component */}
-          {(activeGiftAnimation.type === 'png' || activeGiftAnimation.type === 'animated_video') && showGiftVideo && currentGiftVideoSource && (
+          {((activeGiftAnimation.type === 'png' || activeGiftAnimation.type === 'animated_video') && showGiftVideo && currentGiftVideoSource) ? (
             <GiftVideo
               visible={true}
               source={currentGiftVideoSource}
@@ -1359,10 +1440,8 @@ export default function PrivateChatScreen() {
                 setActiveGiftAnimation(null);
               }}
             />
-          )}
-
-          {/* Static/Icon Gift Animation */}
-          {activeGiftAnimation.type !== 'png' && activeGiftAnimation.type !== 'animated_video' && (
+          ) : (
+            /* Static/Icon Gift Animation */
             <Animated.View
               style={[
                 styles.fullScreenAnimationContainer,
