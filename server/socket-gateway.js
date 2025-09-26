@@ -606,16 +606,13 @@ io.on('connection', (socket) => {
         connectedUsers.set(socket.id, userInfo);
       }
 
-      // Check if this user has already joined this room in this session
+      // Check if this user has already joined this room in this session or globally
       const hasJoinedThisSession = userInfo.announcedRooms?.has(roomId);
+      const hasJoinedGlobally = joinedRoomsRef.current.has(roomId);
 
       // Log the join attempt with more detail
-      if (silent) {
+      if (silent || hasJoinedThisSession || hasJoinedGlobally) {
         console.log(`🔄 ${username} reconnecting to room ${roomId} via gateway (silent)`);
-      } else if (hasJoinedThisSession) {
-        console.log(`🚫 ${username} already joined room ${roomId} in this session - ignoring duplicate`);
-        socket.emit('join-room-success', { roomId, username });
-        return;
       } else {
         console.log(`🚪 ${username} joining room ${roomId} via gateway (new join)`);
       }
@@ -671,8 +668,9 @@ io.on('connection', (socket) => {
       // 1. Not silent (not a reconnection)
       // 2. User was not already online 
       // 3. Join hasn't been announced for this socket session
-      // 4. Not a private chat
-      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasJoinedThisSession && !isPrivateChat;
+      // 4. Join hasn't been announced globally
+      // 5. Not a private chat
+      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasJoinedThisSession && !hasJoinedGlobally && !isPrivateChat;
 
       if (shouldBroadcastJoin) {
         const joinMessage = {
@@ -688,8 +686,9 @@ io.on('connection', (socket) => {
         console.log(`📢 Broadcasting join message for ${username} in room ${roomId}`);
         socket.to(roomId).emit('user-joined', joinMessage);
 
-        // Mark room as announced for this socket session
+        // Mark room as announced for this socket session and globally
         userInfo.announcedRooms.add(roomId);
+        joinedRoomsRef.current.add(roomId);
       } else {
         if (silent) {
           console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
@@ -697,6 +696,8 @@ io.on('connection', (socket) => {
           console.log(`💬 Private chat join - no broadcast for ${username} in room ${roomId}`);
         } else if (hasJoinedThisSession) {
           console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced this session)`);
+        } else if (hasJoinedGlobally) {
+          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced globally)`);
         } else if (wasAlreadyOnline) {
           console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
         }
@@ -733,11 +734,16 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
     }
 
-    // Update connected user info
+    // Update connected user info and clear join tracking
     const userInfo = connectedUsers.get(socket.id);
     if (userInfo) {
       userInfo.roomId = null;
+      // Remove from announced rooms when leaving
+      userInfo.announcedRooms?.delete(roomId);
     }
+    
+    // Also remove from global join tracking
+    joinedRoomsRef.current.delete(roomId);
 
     // Only broadcast leave message for non-private chats
     if (!isPrivateChat) {
