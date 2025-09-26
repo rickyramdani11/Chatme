@@ -593,20 +593,8 @@ export default function ChatScreen() {
           roomInfoMessages.push({
             id: `room_info_desc_${roomId}`,
             sender: roomName,
-            content: roomDescription || `Welcome to ${roomName} official chatroom`,
+            content: `${roomName}: ${roomDescription || `Welcome to ${roomName} official chatroom`}`,
             timestamp: new Date(currentTime.getTime() - 3000), // 3 seconds earlier
-            roomId: roomId,
-            role: 'system',
-            level: 1,
-            type: 'room_info'
-          });
-
-          // Managed by message
-          roomInfoMessages.push({
-            id: `room_info_managed_${roomId}`,
-            sender: roomName,
-            content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
-            timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
             role: 'system',
             level: 1,
@@ -617,7 +605,19 @@ export default function ChatScreen() {
           roomInfoMessages.push({
             id: `room_info_current_${roomId}`,
             sender: roomName,
-            content: `Currently in the room: Loading participants...`,
+            content: `${roomName}: Currently in the room: Loading participants...`,
+            timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
+            roomId: roomId,
+            role: 'system',
+            level: 1,
+            type: 'room_info'
+          });
+
+          // Managed by message
+          roomInfoMessages.push({
+            id: `room_info_managed_${roomId}`,
+            sender: roomName,
+            content: `${roomName}: This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
             timestamp: new Date(currentTime.getTime() - 1000), // 1 second earlier
             roomId: roomId,
             role: 'system',
@@ -864,8 +864,9 @@ export default function ChatScreen() {
         const currentActiveTab = activeTabRef.current;
         if (currentTabs[currentActiveTab] && currentTabs[currentActiveTab].type !== 'private' && updatedParticipants.length > 0) {
           const currentRoomId = currentTabs[currentActiveTab].id;
+          const currentRoomName = currentTabs[currentActiveTab].title;
           const participantNames = updatedParticipants.map(p => p.username).join(', ');
-          const updatedContent = `Currently in the room: ${participantNames}`;
+          const updatedContent = `${currentRoomName}: Currently in the room: ${participantNames}`;
 
           setChatTabs(prevTabs =>
             prevTabs.map(tab => {
@@ -1649,8 +1650,9 @@ export default function ChatScreen() {
       const currentActiveTab = activeTabRef.current;
       if (currentTabs[currentActiveTab] && currentTabs[currentActiveTab].type !== 'private' && updatedParticipants.length > 0) {
         const currentRoomId = currentTabs[currentActiveTab].id;
+        const currentRoomName = currentTabs[currentActiveTab].title;
         const participantNames = updatedParticipants.map(p => p.username).join(', ');
-        const updatedContent = `Currently in the room: ${participantNames}`;
+        const updatedContent = `${currentRoomName}: Currently in the room: ${participantNames}`;
 
         setChatTabs(prevTabs =>
           prevTabs.map(tab => {
@@ -3246,7 +3248,8 @@ export default function ChatScreen() {
             // Update the "Currently in the room" message with actual participants
             if (chatTabs[activeTab].type !== 'private' && !isSupportChat && participantData.length > 0) {
               const participantNames = participantData.map(p => p.username).join(', ');
-              const updatedContent = `Currently in the room: ${participantNames}`;
+              const currentRoomName = chatTabs[activeTab].title;
+              const updatedContent = `${currentRoomName}: Currently in the room: ${participantNames}`;
 
               setChatTabs(prevTabs =>
                 prevTabs.map(tab => {
