@@ -1,4 +1,3 @@
-replit_final_file>
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
