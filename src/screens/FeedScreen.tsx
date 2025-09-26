@@ -132,6 +132,23 @@ export default function FeedScreen() {
     }
   };
 
+  // Helper function to check if URL is a YouTube URL
+  const isYouTubeUrl = (url: string) => {
+    return url.includes('youtube.com') || url.includes('youtu.be');
+  };
+
+  // Helper function to extract YouTube video ID
+  const getYouTubeVideoId = (url: string) => {
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
+  // Helper function to get YouTube thumbnail
+  const getYouTubeThumbnail = (videoId: string) => {
+    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  };
+
   // Fetch posts from server
   const fetchPosts = async () => {
     try {
@@ -660,7 +677,46 @@ export default function FeedScreen() {
           {/* Video URL Display */}
           {post.streamingUrl && post.streamingUrl.trim() && (
             <View style={styles.videoUrlContainer}>
-              {(Video || VideoView) ? (
+              {isYouTubeUrl(post.streamingUrl) ? (
+                // YouTube URL handling
+                <TouchableOpacity 
+                  style={styles.youtubeVideoContainer}
+                  onPress={() => {
+                    const videoId = getYouTubeVideoId(post.streamingUrl);
+                    if (videoId) {
+                      Alert.alert(
+                        'Open YouTube Video',
+                        'This will open the video in your default browser or YouTube app.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { 
+                            text: 'Open YouTube', 
+                            onPress: () => {
+                              console.log('Opening YouTube URL:', post.streamingUrl);
+                              // In a real app, you would use Linking.openURL(post.streamingUrl)
+                            }
+                          }
+                        ]
+                      );
+                    }
+                  }}
+                >
+                  {getYouTubeVideoId(post.streamingUrl) && (
+                    <Image
+                      source={{ uri: getYouTubeThumbnail(getYouTubeVideoId(post.streamingUrl)) }}
+                      style={styles.youtubeThumbnail}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <View style={styles.youtubeOverlay}>
+                    <View style={styles.youtubePlayButton}>
+                      <Ionicons name="logo-youtube" size={40} color="#FF0000" />
+                    </View>
+                    <Text style={styles.youtubeText}>YouTube Video</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (Video || VideoView) ? (
+                // Regular video URL handling
                 <TouchableOpacity 
                   style={styles.inlineVideoContainer}
                   onPress={() => {
@@ -698,6 +754,7 @@ export default function FeedScreen() {
                   </View>
                 </TouchableOpacity>
               ) : (
+                // Fallback for no video player
                 <TouchableOpacity 
                   style={styles.videoLinkContainer}
                   onPress={() => {
@@ -1530,5 +1587,41 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     backgroundColor: '#000',
+  },
+  youtubeVideoContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  youtubeThumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  youtubeOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  youtubePlayButton: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 50,
+    padding: 10,
+    marginBottom: 8,
+  },
+  youtubeText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.75)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
 });
