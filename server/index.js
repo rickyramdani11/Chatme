@@ -455,9 +455,9 @@ app.options('*', cors());
 // Import and mount route modules
 const adminRouter = require('./routes/admin');
 const supportRouter = require('./routes/support'); // Import support routes
-
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/user', usersRouter); // Alias for user status endpoint
 app.use('/api/chat', chatRouter);
 app.use('/api/credits', creditsRouter);
 app.use('/api/admin', adminRouter);
@@ -470,10 +470,6 @@ app.use('/api/support', supportRouter); // Mount support routes
 
 // In-memory database for non-critical data (posts will be moved to DB later)
 let posts = [];
-
-// Initialize rooms array and room participants
-let rooms = [];
-let roomParticipants = {};
 
 // Function to generate room description
 const generateRoomDescription = (roomName, creatorUsername) => {
@@ -2073,12 +2069,12 @@ app.get('/uploads/gifts/:filename', (req, res) => {
 
       const contentType = contentTypes[ext] || 'application/octet-stream';
       res.setHeader('Content-Type', contentType);
-      
+
       // For video files, enable partial content support
       if (contentType.startsWith('video/')) {
         res.setHeader('Accept-Ranges', 'bytes');
       }
-      
+
       res.sendFile(filepath);
     } else {
       res.status(404).json({ error: 'Gift file not found' });
@@ -2166,7 +2162,7 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
         const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
         // Extract file extension from imageType (e.g., 'image/jpeg' -> 'jpeg', 'video/mp4' -> 'mp4')
         const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
-        
+
         // Validate file type
         const allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'mov'];
         if (!allowedExtensions.includes(fileExtension)) {
@@ -2180,11 +2176,11 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
 
         // Write base64 data to file
         const fileBuffer = Buffer.from(giftImage, 'base64');
-        
+
         // Check file size limits
         const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension);
         const maxSize = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024; // 15MB for videos, 5MB for images
-        
+
         if (fileBuffer.length > maxSize) {
           return res.status(400).json({ 
             error: `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.` 
@@ -2194,7 +2190,7 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
         fs.writeFileSync(filepath, fileBuffer);
 
         const filePath = `/uploads/gifts/${filename}`;
-        
+
         // For video files or animated GIFs, store as animation
         if (isVideo || fileExtension === 'gif' || isAnimated) {
           animationPath = filePath;
@@ -2228,7 +2224,7 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
     `, [name, icon, imagePath, animationPath, parseInt(price), finalType, category, req.user.id]);
 
     const gift = result.rows[0];
-    
+
     // Return full URLs for images and animations
     const responseGift = {
       ...gift,
@@ -2239,7 +2235,7 @@ app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
 
     console.log('Gift created successfully:', responseGift.name);
     res.json(responseGift);
-    
+
   } catch (error) {
     console.error('Error adding gift:', error);
     res.status(500).json({ error: 'Failed to add gift: ' + error.message });
@@ -5910,8 +5906,6 @@ app.post('/api/admin/cleanup-missing-avatars', authenticateToken, async (req, re
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 
 // Cleanup missing media files from posts (admin only)
 app.post('/api/admin/cleanup-missing-media', authenticateToken, async (req, res) => {

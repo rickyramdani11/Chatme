@@ -160,18 +160,6 @@ export default function FriendsScreen() {
       if (response.ok) {
         const data = await response.json();
         
-        // Mask sensitive data for logging
-        const maskedData = data.map((friend: any) => ({
-          id: friend.id,
-          name: friend.name,
-          username: friend.username,
-          status: friend.status,
-          lastSeen: friend.lastSeen,
-          avatar: friend.avatar ? '***avatar***' : null
-        }));
-        
-        console.log('Friends data:', maskedData);
-        
         // Transform the data to match our Friend interface
         const transformedFriends = data.map((friend: any) => ({
           id: friend.id?.toString() || friend.user_id?.toString(),
@@ -185,6 +173,8 @@ export default function FriendsScreen() {
         }));
         
         setFriends(transformedFriends);
+        // Fetch real-time status for each friend
+        await fetchFriendsStatus(transformedFriends);
       } else {
         console.error('Failed to fetch friends:', response.status);
       }
@@ -193,6 +183,38 @@ export default function FriendsScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const fetchFriendsStatus = async (friendsList = friends) => {
+    try {
+      const updatedFriends = await Promise.all(
+        friendsList.map(async (friend) => {
+          try {
+            const statusResponse = await fetch(`${API_BASE_URL}/api/user/${friend.id}/status`, {
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+
+            if (statusResponse.ok) {
+              const statusData = await statusResponse.json();
+              console.log(`Status for ${friend.name}: ${statusData.status}`);
+              return { ...friend, status: statusData.status };
+            } else {
+              console.log(`Failed to get status for ${friend.name}`);
+              return { ...friend, status: 'offline' };
+            }
+          } catch (error) {
+            console.error(`Error fetching status for friend ${friend.name}:`, error);
+            return { ...friend, status: 'offline' };
+          }
+        })
+      );
+
+      setFriends(updatedFriends);
+    } catch (error) {
+      console.error('Error fetching friends status:', error);
     }
   };
 
@@ -376,6 +398,15 @@ export default function FriendsScreen() {
 
   useEffect(() => {
     fetchFriends();
+    
+    // Set up periodic status updates every 30 seconds
+    const statusInterval = setInterval(() => {
+      if (friends.length > 0 && searchText.length < 2) {
+        fetchFriendsStatus();
+      }
+    }, 30000);
+
+    return () => clearInterval(statusInterval);
   }, [user, authToken]);
 
   useEffect(() => {

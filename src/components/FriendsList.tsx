@@ -164,8 +164,8 @@ export default function FriendsList({
         }));
 
         setFriends(transformedFriends);
-        // Fetch status for each friend
-        fetchFriendsStatus(transformedFriends);
+        // Fetch real-time status for each friend
+        await fetchFriendsStatus(transformedFriends);
       } else {
         console.error('Failed to fetch friends:', response.status);
       }

@@ -279,6 +279,41 @@ router.get('/:userId/follow-status', authenticateToken, async (req, res) => {
   }
 });
 
+// Get user status
+router.get('/:userId/status', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await pool.query(
+      'SELECT status, is_busy, busy_until FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+    let status = user.status || 'offline';
+
+    // Check if user is busy and busy time hasn't expired
+    if (user.is_busy && user.busy_until && new Date(user.busy_until) > new Date()) {
+      status = 'busy';
+    } else if (user.is_busy && !user.busy_until) {
+      status = 'busy';
+    }
+
+    res.json({ 
+      status: status,
+      isBusy: user.is_busy || false,
+      busyUntil: user.busy_until 
+    });
+  } catch (error) {
+    console.error('Error getting user status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get user's family badge info
 router.get('/:userId/family-badge', async (req, res) => {
   try {
@@ -307,6 +342,37 @@ router.get('/:userId/family-badge', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user family badge:', error);
     res.status(500).json({ error: 'Failed to fetch family badge' });
+  }
+});
+
+// Update user status
+router.put('/status', authenticateToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const userId = req.user.id;
+
+    if (!['online', 'offline', 'away', 'busy'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING status',
+      [status, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log(`User ${userId} status updated to: ${status}`);
+    res.json({ 
+      success: true, 
+      status: result.rows[0].status,
+      message: `Status updated to ${status}` 
+    });
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
