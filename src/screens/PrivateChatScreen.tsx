@@ -279,7 +279,6 @@ export default function PrivateChatScreen() {
       socketInstance.on('call-ended', (endData) => {
         console.log('Call ended:', endData);
         setCallRinging(false);
-        setShowCallModal(false);
         setShowIncomingCallModal(false);
         endCall();
         Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
@@ -791,7 +790,7 @@ export default function PrivateChatScreen() {
           { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
           { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
           { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
-          { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('./assets/gift.mp4') }, // Example MP4 gift
+          { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('../../assets/gift/animated/Love.mp4') }, // Example MP4 gift
         ];
         setGiftList(defaultGifts);
       }
@@ -803,7 +802,7 @@ export default function PrivateChatScreen() {
         { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
         { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
         { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
-        { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('./assets/gift.mp4') }, // Example MP4 gift
+        { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('../../assets/gift/animated/Love.mp4') }, // Example MP4 gift
       ];
       setGiftList(defaultGifts);
     }
