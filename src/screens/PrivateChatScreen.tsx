@@ -28,7 +28,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
-import GiftVideo from './GiftVideo'; // Import the GiftVideo component
+import { GiftVideo } from '../components'; // Import the GiftVideo component
 
 const { width } = Dimensions.get('window');
 
