@@ -285,6 +285,16 @@ pool.connect(async (err, client, release) => {
       console.error('Error creating tokens table:', tableError);
     }
 
+    // Add streaming_url column to posts table if it doesn't exist
+    try {
+      await client.query(`
+        ALTER TABLE posts ADD COLUMN IF NOT EXISTS streaming_url TEXT
+      `);
+      console.log('✅ streaming_url column added to posts table');
+    } catch (alterError) {
+      console.log('streaming_url column might already exist or other issue:', alterError.message);
+    }
+
     // Create withdrawal system tables if they don't exist
     try {
       await client.query(`

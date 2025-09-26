@@ -147,7 +147,8 @@ router.get('/posts', async (req, res) => {
         avatar: avatarUrl,
         role: row.role,
         verified: row.verified,
-        mediaFiles: row.media_files || []
+        mediaFiles: row.media_files || [],
+        streamingUrl: row.streaming_url || ''
       };
     });
 
@@ -170,7 +171,7 @@ router.post('/posts', async (req, res) => {
     console.log('Headers:', req.headers);
     console.log('Body:', req.body);
 
-    const { content, user, username, level = 1, avatar = 'U' } = req.body;
+    const { content, user, username, level = 1, avatar = 'U', streamingUrl = '' } = req.body;
 
     // Find user by username
     const userResult = await pool.query('SELECT id, level FROM users WHERE username = $1', [username || user]);
@@ -188,10 +189,10 @@ router.post('/posts', async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO posts (user_id, username, content, likes, shares)
-      VALUES ($1, $2, $3, 0, 0)
+      INSERT INTO posts (user_id, username, content, streaming_url, likes, shares)
+      VALUES ($1, $2, $3, $4, 0, 0)
       RETURNING *
-    `, [userId, username || user, content ? content.trim() : '']);
+    `, [userId, username || user, content ? content.trim() : '', streamingUrl || '']);
 
     const newPost = result.rows[0];
 
@@ -218,7 +219,8 @@ router.post('/posts', async (req, res) => {
       avatar: userInfo.avatar || newPost.username?.charAt(0).toUpperCase(),
       role: userInfo.role,
       verified: userInfo.verified,
-      mediaFiles: []
+      mediaFiles: [],
+      streamingUrl: newPost.streaming_url || ''
     };
 
     console.log('New post created successfully:', newPost.id);
@@ -478,7 +480,7 @@ router.post('/upload', (req, res) => {
 // Create post with media
 router.post('/posts/with-media', async (req, res) => {
   try {
-    const { content, user, username, level = 1, avatar = 'U', mediaFiles = [] } = req.body;
+    const { content, user, username, level = 1, avatar = 'U', mediaFiles = [], streamingUrl = '' } = req.body;
 
     console.log('=== CREATE POST WITH MEDIA REQUEST ===');
     console.log('Content:', content);
@@ -504,10 +506,10 @@ router.post('/posts/with-media', async (req, res) => {
     }));
 
     const result = await pool.query(`
-      INSERT INTO posts (user_id, username, content, media_files, likes, shares)
-      VALUES ($1, $2, $3, $4, 0, 0)
+      INSERT INTO posts (user_id, username, content, media_files, streaming_url, likes, shares)
+      VALUES ($1, $2, $3, $4, $5, 0, 0)
       RETURNING *
-    `, [userId, username || user, content ? content.trim() : '', JSON.stringify(processedMediaFiles)]);
+    `, [userId, username || user, content ? content.trim() : '', JSON.stringify(processedMediaFiles), streamingUrl || '']);
 
     const newPost = result.rows[0];
 
@@ -528,7 +530,8 @@ router.post('/posts/with-media', async (req, res) => {
       avatar: userInfo.avatar || newPost.username?.charAt(0).toUpperCase(),
       role: userInfo.role || 'user',
       verified: userInfo.verified || false,
-      mediaFiles: processedMediaFiles
+      mediaFiles: processedMediaFiles,
+      streamingUrl: newPost.streaming_url || ''
     };
 
     console.log('New post with media created successfully:', newPost.id);

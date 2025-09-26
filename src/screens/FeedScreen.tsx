@@ -65,6 +65,7 @@ interface FeedPost {
   mediaFiles?: MediaFile[];
   role?: string;
   verified?: boolean;
+  streamingUrl?: string;
 }
 
 interface MediaItem {
@@ -91,6 +92,7 @@ export default function FeedScreen() {
   const [uploading, setUploading] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
+  const [streamingUrl, setStreamingUrl] = useState('');
   
   const videoRef = useRef<Video>(null);
 
@@ -397,7 +399,8 @@ export default function FeedScreen() {
             username: user?.username || 'Anonymous',
             level: 1,
             avatar: user?.username?.charAt(0).toUpperCase() || 'A',
-            mediaFiles: uploadedFiles
+            mediaFiles: uploadedFiles,
+            streamingUrl: user?.role === 'admin' ? streamingUrl.trim() : ''
           }),
         });
 
@@ -410,6 +413,7 @@ export default function FeedScreen() {
           setFeedPosts(prev => [newPost, ...prev]);
           setPostText('');
           setSelectedMedia([]);
+          setStreamingUrl('');
           Alert.alert('Success', 'Post created successfully!');
         } else {
           let errorMessage = 'Failed to create post';
@@ -652,6 +656,35 @@ export default function FeedScreen() {
             </View>
           </TouchableOpacity>
           <Text style={styles.postContent}>{post.content}</Text>
+          
+          {/* Streaming URL Display */}
+          {post.streamingUrl && post.streamingUrl.trim() && (
+            <TouchableOpacity 
+              style={styles.streamingLinkContainer}
+              onPress={() => {
+                Alert.alert(
+                  'Open Streaming Link',
+                  `Do you want to open this streaming URL?\n\n${post.streamingUrl}`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Open', 
+                      onPress: () => {
+                        // Here you could use Linking.openURL(post.streamingUrl) 
+                        // For now, just show the URL
+                        console.log('Opening streaming URL:', post.streamingUrl);
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="tv" size={16} color="#FF6B35" />
+              <Text style={styles.streamingLinkText}>🔴 LIVE STREAMING</Text>
+              <Ionicons name="external-link-outline" size={14} color="#FF6B35" />
+            </TouchableOpacity>
+          )}
+          
           <Text style={styles.timestamp}>{formatTimestamp(post.timestamp)}</Text>
         </View>
       </View>
@@ -827,6 +860,22 @@ export default function FeedScreen() {
                   </View>
                 ))}
               </ScrollView>
+            </View>
+          )}
+
+          {/* Admin Streaming URL Input */}
+          {user?.role === 'admin' && (
+            <View style={styles.streamingUrlContainer}>
+              <Ionicons name="tv-outline" size={20} color="#FF6B35" />
+              <TextInput
+                style={styles.streamingUrlInput}
+                placeholder="Add streaming URL (Admin only)..."
+                value={streamingUrl}
+                onChangeText={setStreamingUrl}
+                placeholderTextColor="#999"
+                autoCapitalize="none"
+                keyboardType="url"
+              />
             </View>
           )}
 
@@ -1348,6 +1397,42 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#ccc',
+  },
+  streamingUrlContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE0E0',
+  },
+  streamingUrlInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#333',
+    paddingVertical: 4,
+  },
+  streamingLinkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5F5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+    gap: 6,
+  },
+  streamingLinkText: {
+    color: '#FF6B35',
+    fontSize: 12,
+    fontWeight: 'bold',
+    flex: 1,
   },
   videoModalContainer: {
     flex: 1,
