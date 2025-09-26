@@ -568,7 +568,7 @@ export default function AdminScreen({ navigation }: any) {
         base64: true,
         allowsMultipleSelection: false,
         videoMaxDuration: 30, // Allow up to 30 seconds for video gifts
-        videoQuality: ImagePicker.VideoQuality.Medium, // Use medium quality to avoid processing issues
+        // Remove videoQuality to avoid undefined error
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
