@@ -83,7 +83,7 @@ router.get('/user/linked-accounts', authenticateToken, async (req, res) => {
     const userId = req.user.id;
 
     const result = await pool.query(`
-      SELECT id, account_type, account_name, account_number, account_holder_name, created_at
+      SELECT id, account_type, account_name, account_number, holder_name, created_at
       FROM user_linked_accounts 
       WHERE user_id = $1 AND is_active = true
       ORDER BY created_at DESC
@@ -94,7 +94,7 @@ router.get('/user/linked-accounts', authenticateToken, async (req, res) => {
       type: row.account_type,
       name: row.account_name,
       accountNumber: row.account_number,
-      accountName: row.account_holder_name,
+      accountName: row.holder_name,
       createdAt: row.created_at
     }));
 
