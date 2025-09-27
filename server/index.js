@@ -471,6 +471,9 @@ app.use('/api/support', supportRouter); // Mount support routes
 // In-memory database for non-critical data (posts will be moved to DB later)
 let posts = [];
 
+// Room participants tracking
+let roomParticipants = {};
+
 // Function to generate room description
 const generateRoomDescription = (roomName, creatorUsername) => {
   return `${roomName} - Welcome to merchant official chatroom. This room is managed by ${creatorUsername}`;
