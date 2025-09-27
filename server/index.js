@@ -2446,8 +2446,8 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
         [giftPrice, userId]
       );
 
-      // Calculate earnings for recipient (70% of gift price)
-      const earnings = Math.floor(giftPrice * 0.7);
+      // Calculate earnings for recipient (30% of gift price)
+      const earnings = Math.floor(giftPrice * 0.3);
 
       // Add earnings to recipient's gift earnings balance
       await pool.query(`
