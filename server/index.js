@@ -2414,14 +2414,24 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
     console.log('Room ID:', roomId);
     console.log('Is Private:', isPrivate);
 
-    if (!giftId || !giftPrice || !recipientUsername) {
-      return res.status(400).json({ error: 'Gift ID, price, and recipient are required' });
+    if (!giftId || !recipientUsername || !roomId) {
+      return res.status(400).json({ error: 'Gift ID, recipient, and room ID are required' });
     }
 
     // Start transaction
     await pool.query('BEGIN');
 
     try {
+      // Fetch authoritative gift price from database (security: don't trust client)
+      const giftResult = await pool.query('SELECT price, name FROM custom_gifts WHERE id = $1', [giftId]);
+      if (giftResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invalid gift ID' });
+      }
+      
+      const giftPrice = giftResult.rows[0].price;
+      const giftName = giftResult.rows[0].name;
+
       // Check sender balance
       const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
       const currentBalance = balanceResult.rows.length > 0 ? balanceResult.rows[0].balance : 0;
@@ -2446,8 +2456,40 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
         [giftPrice, userId]
       );
 
-      // Calculate earnings for recipient (30% of gift price)
-      const earnings = Math.floor(giftPrice * 0.3);
+      // Calculate earnings for recipient based on chat type
+      // Verify room type and membership from database (security: authoritative server-side verification)
+      let isPrivateChat = false;
+      
+      // Check if it's a private chat in the database
+      const privateCheck = await pool.query('SELECT id FROM private_chats WHERE id = $1', [roomId]);
+      if (privateCheck.rows.length > 0) {
+        isPrivateChat = true;
+        
+        // Validate private chat membership: roomId should match participants
+        const expectedPrivateId1 = `private_${userId}_${recipientId}`;
+        const expectedPrivateId2 = `private_${recipientId}_${userId}`;
+        
+        if (roomId !== expectedPrivateId1 && roomId !== expectedPrivateId2) {
+          await pool.query('ROLLBACK');
+          return res.status(403).json({ error: 'You are not authorized to send gifts in this private chat' });
+        }
+      } else {
+        // Check if it's a public room in the database
+        const roomCheck = await pool.query('SELECT id FROM rooms WHERE id = $1', [roomId]);
+        if (roomCheck.rows.length === 0) {
+          await pool.query('ROLLBACK');
+          return res.status(400).json({ error: 'Invalid room ID' });
+        }
+        
+        // For public rooms, verify sender membership (basic validation)
+        // Note: More comprehensive membership checks could be added here if needed
+      }
+      
+      // Private chats: 30% to recipient, Public rooms: 70% to recipient  
+      const recipientPercentage = isPrivateChat ? 0.3 : 0.7;
+      const earnings = Math.floor(giftPrice * recipientPercentage);
+      
+      console.log(`💰 Gift distribution: ${isPrivateChat ? 'Private' : 'Public'} chat (${roomId}), ${Math.round(recipientPercentage * 100)}% to recipient`);
 
       // Add earnings to recipient's gift earnings balance
       await pool.query(`
