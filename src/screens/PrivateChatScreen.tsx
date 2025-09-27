@@ -163,9 +163,13 @@ export default function PrivateChatScreen() {
         console.log('🎁 Gift data:', JSON.stringify(data.gift, null, 2));
         console.log('🎁 From:', data.from, 'Timestamp:', data.timestamp);
 
+        // Enrich gift with local assets based on ID (ensure string conversion)
+        const localAssets = getGiftAssets(String(data.gift.id));
+        const enrichedGift = { ...data.gift, ...localAssets };
+
         // Always set active gift animation first
         const giftAnimationData = {
-          ...data.gift,
+          ...enrichedGift,
           sender: data.from,
           recipient: user?.username,
           timestamp: data.timestamp,
@@ -173,28 +177,35 @@ export default function PrivateChatScreen() {
         };
 
         // Handle MP4 video gifts
-        if (data.gift.type === 'animated_video' && data.gift.videoSource) {
-          console.log('🎬 Processing MP4 video gift:', data.gift.name);
+        if (enrichedGift.type === 'animated_video' && enrichedGift.videoSource) {
+          console.log('🎬 Processing MP4 video gift:', enrichedGift.name);
           
-          setCurrentGiftVideoSource(data.gift.videoSource);
+          setCurrentGiftVideoSource(enrichedGift.videoSource);
           setActiveGiftAnimation({
             ...giftAnimationData,
             type: 'animated_video'
           });
           setShowGiftVideo(true);
           
-        } else if (data.gift.image || (data.gift.animation && data.gift.animation.includes('.png'))) {
-          console.log('🖼️ Processing PNG gift:', data.gift.name);
+        } else if (enrichedGift.type === 'animated_gif' || enrichedGift.type === 'static') {
+          console.log('🖼️ Processing image/GIF gift:', enrichedGift.name, 'Type:', enrichedGift.type);
           
-          // Handle PNG gifts with GiftVideo component for better animation
-          const imageSource = data.gift.image 
-            ? (typeof data.gift.image === 'string' ? { uri: `${API_BASE_URL}${data.gift.image}` } : data.gift.image)
-            : (typeof data.gift.animation === 'string' ? { uri: `${API_BASE_URL}${data.gift.animation}` } : data.gift.animation);
-          
-          setCurrentGiftVideoSource(imageSource);
+          // Handle static images and animated GIFs with local assets
+          setCurrentGiftVideoSource(enrichedGift.image);
           setActiveGiftAnimation({
             ...giftAnimationData,
-            type: 'png'
+            type: enrichedGift.type
+          });
+          setShowGiftVideo(true);
+          
+        } else if (enrichedGift.image) {
+          console.log('🖼️ Processing fallback image gift:', enrichedGift.name);
+          
+          // Handle any remaining image gifts with local assets
+          setCurrentGiftVideoSource(enrichedGift.image);
+          setActiveGiftAnimation({
+            ...giftAnimationData,
+            type: enrichedGift.type || 'static'
           });
           setShowGiftVideo(true);
           
@@ -791,74 +802,119 @@ export default function PrivateChatScreen() {
     }
   };
 
-  const loadGifts = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/gifts`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'ChatMe-Mobile-App',
-        },
-      });
+  // Gift registry to map server gift IDs to local assets
+  const getGiftAssets = (giftId: string) => {
+    const giftAssetMap: { [key: string]: any } = {
+      '1': { type: 'animated_video', videoSource: require('../../assets/gift/animated/Love.mp4') },
+      '2': { type: 'animated_video', videoSource: require('../../assets/gift/animated/Ufonew.mp4') },
+      '3': { type: 'animated_gif', image: require('../../assets/gift/animated/Lion.gif') },
+      '4': { type: 'static', image: require('../../assets/gift/image/duyung.png') },
+      '5': { type: 'static', image: require('../../assets/gift/image/duyung_moph.png') },
+      '6': { type: 'static', image: require('../../assets/gift/image/girl.png') },
+      '7': { type: 'animated_gif', image: require('../../assets/gift/image/lion_img.gif') },
+      '8': { type: 'static', image: require('../../assets/gift/image/lumba.png') },
+      '9': { type: 'static', image: require('../../assets/gift/image/putri_duyung.png') },
+      '10': { type: 'emoji' },
+      '11': { type: 'emoji' },
+      '12': { type: 'emoji' }
+    };
+    return giftAssetMap[giftId] || {};
+  };
 
-      if (response.ok) {
-        const gifts = await response.json();
-        // Ensure videoSource is included for MP4 gifts if available
-        const processedGifts = gifts.map((gift: any) => {
-          if (gift.name === 'Animated Gift MP4') { // Example: Identify MP4 gift by name
-            return {
-              ...gift,
-              // Use a require statement for local videos or a URL for remote videos
-              videoSource: require('../../assets/gift/animated/Love.mp4'),
-              type: 'animated_video' // Custom type for video gifts
-            };
-          }
-          // Add PNG gift processing here
-          if (gift.animation && gift.animation.includes('.png')) {
-            return {
-              ...gift,
-              type: 'png', // Mark as PNG type
-              animation: gift.animation // Keep animation path
-            };
-          }
-          // Also consider gifts that might have an 'image' property for PNGs
-          if (gift.image && gift.image.includes('.png')) {
-            return {
-              ...gift,
-              type: 'png',
-              image: gift.image
-            };
-          }
-          return gift;
-        });
-        setGiftList(processedGifts);
-      } else {
-        // Fallback to default gifts - using consistent integer IDs
-        const defaultGifts = [
-          { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
-          { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
-          { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
-          { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
-          { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
-          { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('../../assets/gift/animated/Love.mp4') }, // Example MP4 gift
-          { id: '1007', name: 'PNG Gift Heart', icon: '❤️', price: 800, type: 'png', animation: '../../assets/gift/animated/Heart.png' }, // Example PNG gift
-          { id: '1008', name: 'PNG Gift Star', icon: '⭐', price: 1200, type: 'png', image: '../../assets/gift/animated/Star.png' } // Example PNG gift with image property
-        ];
-        setGiftList(defaultGifts);
-      }
-    } catch (error) {
-      console.error('Error loading gifts:', error);
-      const defaultGifts = [
-        { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
-        { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
-        { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
-        { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
-        { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
-        { id: '1006', name: 'Animated Gift MP4', icon: '🎬', price: 5000, type: 'animated_video', category: 'special', videoSource: require('../../assets/gift/animated/Love.mp4') }, // Example MP4 gift
-        { id: '1007', name: 'PNG Gift Heart', icon: '❤️', price: 800, type: 'png', animation: '../../assets/gift/animated/Heart.png' }, // Example PNG gift
-        { id: '1008', name: 'PNG Gift Star', icon: '⭐', price: 1200, type: 'png', image: '../../assets/gift/animated/Star.png' } // Example PNG gift with image property
-      ];
-      setGiftList(defaultGifts);
-    }
+  const loadGifts = async () => {
+    // Use local assets directly for reliable gift display
+    const localGifts = [
+      // Use server-compatible gift IDs and correct asset paths
+      { 
+        id: '1', 
+        name: 'Love Animation', 
+        icon: '💖', 
+        price: 1000, 
+        type: 'animated_video', 
+        category: 'romantic',
+        videoSource: require('../../assets/gift/animated/Love.mp4')
+      },
+      { 
+        id: '2', 
+        name: 'UFO Adventure', 
+        icon: '🛸', 
+        price: 2500, 
+        type: 'animated_video', 
+        category: 'special',
+        videoSource: require('../../assets/gift/animated/Ufonew.mp4')
+      },
+      { 
+        id: '3', 
+        name: 'Lion Power', 
+        icon: '🦁', 
+        price: 1500, 
+        type: 'animated_gif', 
+        category: 'animals',
+        image: require('../../assets/gift/animated/Lion.gif')
+      },
+      // Static image gifts
+      { 
+        id: '4', 
+        name: 'Duyung Princess', 
+        icon: '🧜‍♀️', 
+        price: 800, 
+        type: 'static', 
+        category: 'fantasy',
+        image: require('../../assets/gift/image/duyung.png')
+      },
+      { 
+        id: '5', 
+        name: 'Mystical Duyung', 
+        icon: '🌊', 
+        price: 900, 
+        type: 'static', 
+        category: 'fantasy',
+        image: require('../../assets/gift/image/duyung_moph.png')
+      },
+      { 
+        id: '6', 
+        name: 'Cute Girl', 
+        icon: '👧', 
+        price: 600, 
+        type: 'static', 
+        category: 'cute',
+        image: require('../../assets/gift/image/girl.png')
+      },
+      { 
+        id: '7', 
+        name: 'Lion Spirit', 
+        icon: '👑', 
+        price: 1200, 
+        type: 'animated_gif', 
+        category: 'animals',
+        image: require('../../assets/gift/image/lion_img.gif')
+      },
+      { 
+        id: '8', 
+        name: 'Dolphin Friend', 
+        icon: '🐬', 
+        price: 700, 
+        type: 'static', 
+        category: 'animals',
+        image: require('../../assets/gift/image/lumba.png')
+      },
+      { 
+        id: '9', 
+        name: 'Sea Princess', 
+        icon: '👸', 
+        price: 1100, 
+        type: 'static', 
+        category: 'fantasy',
+        image: require('../../assets/gift/image/putri_duyung.png')
+      },
+      // Basic emoji gifts for variety
+      { id: '10', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'emoji', category: 'popular' },
+      { id: '11', name: 'Bell Ring', icon: '🔔', price: 300, type: 'emoji', category: 'popular' },
+      { id: '12', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'emoji', category: 'lucky' }
+    ];
+
+    setGiftList(localGifts);
+    console.log('✅ Local gifts loaded:', localGifts.length);
   };
 
   const handleEmojiSelect = (emoji: any) => {
