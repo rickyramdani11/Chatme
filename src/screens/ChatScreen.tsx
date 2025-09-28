@@ -5933,7 +5933,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   messageContainer: {
-    marginBottom: 6,
+    marginBottom: 3,
     paddingHorizontal: 8,
   },
   supportMessageContainer: {
