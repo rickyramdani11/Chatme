@@ -6563,11 +6563,11 @@ const styles = StyleSheet.create({
   // Gift Picker Styles
   giftModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: '#1a1a1a',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: '70%',
@@ -6580,7 +6580,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: '#333',
   },
   giftPickerTitle: {
     fontSize: 18,
@@ -6591,7 +6591,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: '#333',
   },
   tabRow: {
     flexDirection: 'row',
@@ -6601,7 +6601,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: '#333',
   },
   sendToAllToggle: {
     flexDirection: 'row',
@@ -6651,12 +6651,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   newGiftItem: {
-    backgroundColor: '#3C3C3E',
-    borderRadius: 16,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
     padding: 16,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#444',
     position: 'relative',
     minHeight: 140,
   },
@@ -6761,7 +6761,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textAlign: 'center',
     minHeight: 28,
-    lineHeight: 14,
+    lineHeight: 16,
   },
   newGiftPrice: {
     fontSize: 10,
@@ -6830,15 +6830,16 @@ const styles = StyleSheet.create({
   },
   sendToUserButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 105, 180, 0.8)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    backgroundColor: '#E91E63',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 8,
   },
   giftActionText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 10,
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '600',
   },
   giftIconContainer: {
@@ -6996,7 +6997,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: '#333',
   },
   coinBalanceRow: {
     flexDirection: 'row',
