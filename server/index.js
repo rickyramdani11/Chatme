@@ -2276,6 +2276,92 @@ app.post('/api/admin/upload-gift', uploadGift.single('gift'), async (req, res) =
   }
 });
 
+// Get all gifts for admin management
+app.get('/api/admin/gifts', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const result = await pool.query('SELECT * FROM custom_gifts ORDER BY created_at DESC');
+    
+    const gifts = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      icon: row.icon,
+      price: row.price,
+      type: row.type || 'static',
+      category: row.category || 'popular',
+      image: row.image,
+      animation: row.animation,
+      created_at: row.created_at
+    }));
+
+    res.json(gifts);
+  } catch (error) {
+    console.error('Error fetching gifts for admin:', error);
+    res.status(500).json({ error: 'Failed to fetch gifts' });
+  }
+});
+
+// Add new gift (admin only)
+app.post('/api/admin/gifts', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { name, icon, price, type, category, image, animation } = req.body;
+
+    if (!name || !icon || !price) {
+      return res.status(400).json({ error: 'Name, icon, and price are required' });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO custom_gifts (name, icon, price, type, category, image, animation, created_by, created_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      RETURNING *
+    `, [name, icon, price, type || 'static', category || 'popular', image, animation, req.user.id]);
+
+    res.json({ message: 'Gift added successfully', gift: result.rows[0] });
+  } catch (error) {
+    console.error('Error adding gift:', error);
+    res.status(500).json({ error: 'Failed to add gift' });
+  }
+});
+
+// Update gift (admin only)
+app.put('/api/admin/gifts/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const { name, icon, price, type, category, image, animation } = req.body;
+
+    if (!name || !icon || price === undefined) {
+      return res.status(400).json({ error: 'Name, icon, and price are required' });
+    }
+
+    const result = await pool.query(`
+      UPDATE custom_gifts 
+      SET name = $1, icon = $2, price = $3, type = $4, category = $5, image = $6, animation = $7
+      WHERE id = $8
+      RETURNING *
+    `, [name, icon, price, type || 'static', category || 'popular', image, animation, id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Gift not found' });
+    }
+
+    res.json({ message: 'Gift updated successfully', gift: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating gift:', error);
+    res.status(500).json({ error: 'Failed to update gift' });
+  }
+});
+
 app.delete('/api/admin/gifts/:id', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
