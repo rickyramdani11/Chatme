@@ -96,29 +96,29 @@ router.get('/private/list', authenticateToken, async (req, res) => {
         pc.id,
         pc.created_at,
         CASE 
-          WHEN pc.participant_1 = $1 THEN u2.username
+          WHEN pc.participant1_id = $1 THEN u2.username
           ELSE u1.username
         END as target_username,
         CASE 
-          WHEN pc.participant_1 = $1 THEN u2.id
+          WHEN pc.participant1_id = $1 THEN u2.id
           ELSE u1.id
         END as target_user_id,
         CASE 
-          WHEN pc.participant_1 = $1 THEN u2.role
+          WHEN pc.participant1_id = $1 THEN u2.role
           ELSE u1.role
         END as target_role,
         CASE 
-          WHEN pc.participant_1 = $1 THEN u2.level
+          WHEN pc.participant1_id = $1 THEN u2.level
           ELSE u1.level
         END as target_level,
         pm.message as last_message,
         pm.created_at as last_message_time,
         COUNT(CASE WHEN pm.sender_id != $1 AND pm.is_read = false THEN 1 END) as unread_count
       FROM private_chats pc
-      LEFT JOIN users u1 ON pc.participant_1 = u1.id
-      LEFT JOIN users u2 ON pc.participant_2 = u2.id
+      LEFT JOIN users u1 ON pc.participant1_id = u1.id
+      LEFT JOIN users u2 ON pc.participant2_id = u2.id
       LEFT JOIN private_messages pm ON pc.id = pm.chat_id
-      WHERE pc.participant_1 = $1 OR pc.participant_2 = $1
+      WHERE pc.participant1_id = $1 OR pc.participant2_id = $1
       GROUP BY pc.id, u1.username, u1.id, u1.role, u1.level, u2.username, u2.id, u2.role, u2.level, pm.message, pm.created_at
       ORDER BY COALESCE(pm.created_at, pc.created_at) DESC
     `;
@@ -158,7 +158,7 @@ router.get('/private/:chatId/messages', authenticateToken, async (req, res) => {
     // Verify user is participant in this chat
     const chatQuery = `
       SELECT * FROM private_chats 
-      WHERE id = $1 AND (participant_1 = $2 OR participant_2 = $2)
+      WHERE id = $1 AND (participant1_id = $2 OR participant2_id = $2)
     `;
     const chatResult = await pool.query(chatQuery, [chatId, userId]);
 
@@ -221,20 +221,16 @@ router.post('/private/:chatId/messages', authenticateToken, async (req, res) => 
     }
 
     const result = await pool.query(`
-      INSERT INTO chat_messages (
-        room_id, user_id, username, content, message_type, 
-        user_role, user_level, is_private
+      INSERT INTO private_messages (
+        chat_id, sender_id, message, message_type, is_read
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+      VALUES ($1, $2, $3, $4, false)
       RETURNING *
     `, [
       chatId, 
       userId, 
-      username, 
       content, 
-      type,
-      req.user.role || 'user',
-      req.user.level || 1
+      type
     ]);
 
     const savedMessage = {
@@ -271,8 +267,8 @@ router.delete('/private/:chatId/messages', authenticateToken, async (req, res) =
     }
 
     const result = await pool.query(`
-      DELETE FROM chat_messages 
-      WHERE room_id = $1 AND is_private = true
+      DELETE FROM private_messages 
+      WHERE chat_id = $1
     `, [chatId]);
 
     res.json({ 

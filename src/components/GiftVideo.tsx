@@ -9,11 +9,12 @@ interface GiftVideoProps {
   visible: boolean;
   source: any;
   onEnd?: () => void;
-  type?: 'video' | 'image' | 'png';
+  type?: 'video' | 'image' | 'png' | 'gif';
   giftData?: any;
+  fullScreen?: boolean;
 }
 
-export default function GiftVideo({ visible, source, onEnd, type = 'video', giftData }: GiftVideoProps) {
+export default function GiftVideo({ visible, source, onEnd, type = 'video', giftData, fullScreen = false }: GiftVideoProps) {
   const [show, setShow] = useState(visible);
   const scaleAnim = useState(new Animated.Value(0.5))[0];
   const opacityAnim = useState(new Animated.Value(0))[0];
@@ -21,8 +22,8 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
   useEffect(() => {
     if (visible) {
       setShow(true);
-      // Start PNG gift animation
-      if (type === 'png' || type === 'image') {
+      // Start PNG/GIF gift animation
+      if (type === 'png' || type === 'image' || type === 'gif') {
         Animated.parallel([
           Animated.spring(scaleAnim, {
             toValue: 1,
@@ -37,7 +38,8 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
           }),
         ]).start();
 
-        // Auto close PNG after 3 seconds
+        // Auto close PNG/GIF after 3-5 seconds (longer for GIF)
+        const duration = type === 'gif' ? 5000 : 3000;
         const timer = setTimeout(() => {
           Animated.parallel([
             Animated.timing(scaleAnim, {
@@ -54,7 +56,7 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
             setShow(false);
             onEnd && onEnd();
           });
-        }, 3000);
+        }, duration);
 
         return () => clearTimeout(timer);
       }
@@ -63,10 +65,10 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
 
   if (!show) return null;
 
-  // Render PNG gift
-  if (type === 'png' || type === 'image') {
+  // Render PNG/GIF gift
+  if (type === 'png' || type === 'image' || type === 'gif') {
     return (
-      <View style={styles.container} pointerEvents="none">
+      <View style={[fullScreen ? styles.fullScreenContainer : styles.container]} pointerEvents="none">
         <Animated.View
           style={[
             styles.pngContainer,
@@ -80,7 +82,8 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
             source={source}
             style={[
               styles.pngGift,
-              // Dynamic sizing based on gift price/type
+              // Dynamic sizing based on gift price/type and full screen mode
+              fullScreen ? styles.fullScreenGift :
               giftData?.price >= 5000 ? styles.largePngGift :
               giftData?.price >= 1000 ? styles.mediumPngGift :
               styles.standardPngGift
@@ -95,10 +98,10 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
 
   // Render MP4 video gift
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={[fullScreen ? styles.fullScreenContainer : styles.container]} pointerEvents="none">
       <Video
         source={source}
-        style={styles.video}
+        style={[fullScreen ? styles.fullScreenVideo : styles.video]}
         resizeMode="contain"
         shouldPlay
         isLooping={false}
@@ -126,9 +129,26 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     zIndex: 9999,
   },
+  fullScreenContainer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "100%", // full screen
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.3)", // subtle overlay
+    zIndex: 9999,
+  },
   video: {
     width: width * 0.8,
     height: height * 0.5, // tinggi maksimal setengah layar
+  },
+  fullScreenVideo: {
+    width: width,
+    height: height, // full screen video
   },
   pngContainer: {
     justifyContent: "center",
@@ -149,6 +169,13 @@ const styles = StyleSheet.create({
   largePngGift: {
     width: 250,
     height: 250,
+  },
+  // Full screen gift for high-value gifts
+  fullScreenGift: {
+    width: width * 0.8,
+    height: height * 0.6,
+    maxWidth: 400,
+    maxHeight: 400,
   },
   pngGift: {
     shadowColor: '#000',
