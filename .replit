@@ -168,12 +168,12 @@ localPort = 8082
 externalPort = 3000
 
 [[ports]]
-localPort = 38053
-externalPort = 4200
-
-[[ports]]
 localPort = 43543
 externalPort = 3003
+
+[[ports]]
+localPort = 43881
+externalPort = 4200
 
 [deployment]
 run = ["sh", "-c", "cd server && npm start"]

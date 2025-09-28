@@ -1580,6 +1580,37 @@ export default function AdminScreen({ navigation }: any) {
     </View>
   );
 
+  const renderGiftGridItem = ({ item }: { item: Gift }) => (
+    <TouchableOpacity 
+      style={styles.giftGridCard}
+      onLongPress={() => handleEditGift(item)}
+      activeOpacity={0.8}
+    >
+      <View style={styles.giftGridImageContainer}>
+        {item.image ? (
+          <Image 
+            source={{ uri: `${API_BASE_URL}${item.image}` }} 
+            style={styles.giftGridImage} 
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.giftGridEmojiContainer}>
+            <Text style={styles.giftGridEmoji}>{item.icon}</Text>
+          </View>
+        )}
+        <View style={styles.giftGridOverlay}>
+          <Text style={styles.giftGridPrice}>{item.price}💎</Text>
+        </View>
+      </View>
+      <View style={styles.giftGridInfo}>
+        <Text style={styles.giftGridName} numberOfLines={1}>{item.name}</Text>
+        {item.category && item.category !== 'lucky' && (
+          <Text style={styles.giftGridCategory} numberOfLines={1}>{item.category}</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
   const renderUserItem = ({ item }: { item: User }) => (
     <View style={styles.userCard}>
       <View style={styles.userInfo}>
@@ -1754,43 +1785,20 @@ export default function AdminScreen({ navigation }: any) {
             </View>
 
             <View style={styles.giftListContainer}>
-              <Text style={styles.giftListTitle}>Gift yang Sudah Ditambahkan</Text>
+              <Text style={styles.giftListTitle}>Gift yang Sudah Ditambahkan ({gifts.length})</Text>
+              <Text style={styles.giftHelpText}>Tekan lama gift untuk mengedit</Text>
               {gifts.length > 0 ? (
-                <View style={styles.giftGridContainer}>
-                  {gifts.map((gift, index) => (
-                    <View key={gift.id} style={[styles.itemCard, { width: '48%', marginHorizontal: '1%' }]}>
-                      <View style={styles.itemHeader}>
-                        <View style={styles.giftDisplayContainer}>
-                          {gift.image ? (
-                            <Image source={{ uri: `${API_BASE_URL}${gift.image}` }} style={styles.giftItemImage} />
-                          ) : (
-                            <Text style={styles.itemEmoji}>{gift.icon}</Text>
-                          )}
-                        </View>
-                        <View style={styles.giftActionButtons}>
-                          <TouchableOpacity
-                            style={styles.editButton}
-                            onPress={() => handleEditGift(gift)}
-                          >
-                            <Ionicons name="pencil-outline" size={16} color="#2196F3" />
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteItem(gift.id, 'gift')}
-                          >
-                            <Ionicons name="trash-outline" size={16} color="#F44336" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                      <Text style={styles.itemName}>{gift.name}</Text>
-                      <Text style={styles.itemPrice}>{gift.price} credits</Text>
-                      <Text style={styles.itemType}>{gift.type}</Text>
-                      {gift.category && gift.category !== 'lucky' && (
-                        <Text style={styles.itemCategory}>{gift.category}</Text>
-                      )}
-                    </View>
-                  ))}
-                </View>
+                <FlatList
+                  data={gifts}
+                  renderItem={renderGiftGridItem}
+                  keyExtractor={(item) => item.id}
+                  numColumns={3}
+                  contentContainerStyle={styles.giftGridListContainer}
+                  showsVerticalScrollIndicator={false}
+                  ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+                  columnWrapperStyle={styles.giftGridRow}
+                  nestedScrollEnabled={true}
+                />
               ) : (
                 <View style={styles.emptyGiftList}>
                   <Ionicons name="gift-outline" size={40} color="#ccc" />
@@ -2916,6 +2924,17 @@ export default function AdminScreen({ navigation }: any) {
                   onPress={() => setShowEditModal(false)}
                 >
                   <Text style={styles.editModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.editModalDeleteButton}
+                  onPress={() => {
+                    setShowEditModal(false);
+                    if (editingGift) {
+                      handleDeleteItem(editingGift.id, 'gift');
+                    }
+                  }}
+                >
+                  <Text style={styles.editModalDeleteText}>Delete</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.editModalSaveButton}
@@ -4454,6 +4473,105 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B35',
   },
   editModalSaveText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Gift Grid Styles
+  giftGridListContainer: {
+    paddingHorizontal: 5,
+    paddingVertical: 10,
+  },
+  giftGridRow: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+  },
+  giftGridCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginHorizontal: 4,
+    maxWidth: '30%',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+    overflow: 'hidden',
+  },
+  giftGridImageContainer: {
+    aspectRatio: 1,
+    position: 'relative',
+    backgroundColor: '#f8f9fa',
+  },
+  giftGridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  giftGridEmojiContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  giftGridEmoji: {
+    fontSize: 32,
+    textAlign: 'center',
+  },
+  giftGridOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(255, 107, 53, 0.9)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderTopLeftRadius: 8,
+  },
+  giftGridPrice: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  giftGridInfo: {
+    padding: 8,
+  },
+  giftGridName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+  },
+  giftGridCategory: {
+    fontSize: 10,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  emptyGiftList: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyGiftText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+  },
+  giftHelpText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  editModalDeleteButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#F44336',
+  },
+  editModalDeleteText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
