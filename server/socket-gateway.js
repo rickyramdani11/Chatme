@@ -31,7 +31,10 @@ const io = new SocketIOServer(server, {
 
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
 // Generate a secure random secret if JWT_SECRET is not provided
-const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_for_development_only';
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
+  console.warn('⚠️  WARNING: Using default JWT secret. Set JWT_SECRET environment variable for production!');
+  return 'your_super_secret_key_for_development_only';
+})();
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://0.0.0.0:5000';
 
 // Database configuration

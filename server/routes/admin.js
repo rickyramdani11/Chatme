@@ -192,7 +192,7 @@ router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
 
     if (giftImage && imageType && imageName) {
       try {
-        const uploadsDir = path.join(__dirname, '../assets/gift/image');
+        const uploadsDir = path.resolve(__dirname, '../../assets/gift/image');
         if (!fs.existsSync(uploadsDir)) {
           fs.mkdirSync(uploadsDir, { recursive: true });
         }
