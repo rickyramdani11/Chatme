@@ -1582,14 +1582,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   privateChatName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#fff',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   privateChatStatus: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: '400',
   },
   headerIcons: {
     flexDirection: 'row',
