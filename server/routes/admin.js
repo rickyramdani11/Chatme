@@ -14,10 +14,10 @@ const pool = new Pool({
 
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:5000`);
 
-// Multer storage configuration for emojis
+// Multer storage configuration for emojis - redirected to assets
 const storageEmoji = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/emojis/');
+    cb(null, 'assets/emoticon/');
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -25,10 +25,10 @@ const storageEmoji = multer.diskStorage({
 });
 const uploadEmoji = multer({ storage: storageEmoji });
 
-// Multer storage configuration for gifts
+// Multer storage configuration for gifts - redirected to assets
 const storageGift = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/gifts/');
+    cb(null, 'assets/gift/image/');
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -81,7 +81,7 @@ router.post('/emojis', authenticateToken, adminOnly, async (req, res) => {
           return res.status(400).json({ error: 'Invalid emoji file data' });
         }
 
-        const uploadDir = 'uploads/emojis';
+        const uploadDir = 'assets/emoticon';
         if (!fs.existsSync(uploadDir)) {
           fs.mkdirSync(uploadDir, { recursive: true });
         }
@@ -97,7 +97,7 @@ router.post('/emojis', authenticateToken, adminOnly, async (req, res) => {
         }
 
         fs.writeFileSync(filePath, buffer);
-        emojiValue = `/uploads/emojis/${uniqueFileName}`;
+        emojiValue = `/assets/emoticon/${uniqueFileName}`;
 
       } catch (fileError) {
         console.error('Error saving emoji file:', fileError);
@@ -124,7 +124,7 @@ router.delete('/emojis/:id', authenticateToken, adminOnly, async (req, res) => {
     const { id } = req.params;
 
     const emojiResult = await pool.query('SELECT emoji FROM custom_emojis WHERE id = $1', [id]);
-    if (emojiResult.rows.length > 0 && emojiResult.rows[0].emoji.startsWith('/uploads/emojis/')) {
+    if (emojiResult.rows.length > 0 && emojiResult.rows[0].emoji.startsWith('/assets/emoticon/')) {
       const filePath = emojiResult.rows[0].emoji.substring(1);
       if (fs.existsSync(filePath)) {
         fs.unlink(filePath, (err) => {
@@ -192,7 +192,7 @@ router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
 
     if (giftImage && imageType && imageName) {
       try {
-        const uploadsDir = path.join(__dirname, '../uploads', 'gifts');
+        const uploadsDir = path.join(__dirname, '../assets/gift/image');
         if (!fs.existsSync(uploadsDir)) {
           fs.mkdirSync(uploadsDir, { recursive: true });
         }
@@ -223,7 +223,7 @@ router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
 
         fs.writeFileSync(filepath, fileBuffer);
 
-        const filePath = `/uploads/gifts/${filename}`;
+        const filePath = `/assets/gift/image/${filename}`;
         
         // For video files or GIFs, store as animation
         if (['mp4', 'webm', 'mov', 'gif'].includes(fileExtension)) {

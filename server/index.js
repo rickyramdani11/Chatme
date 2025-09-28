@@ -40,10 +40,10 @@ const PORT = process.env.PORT || 5000;
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:${PORT}`); // For constructing image URLs
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_for_development_only'; // JWT secret key
 
-// Multer storage configuration for emojis
+// Multer storage configuration for emojis - redirected to assets
 const storageEmoji = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/emojis/');
+    cb(null, 'assets/emoticon/');
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -51,10 +51,10 @@ const storageEmoji = multer.diskStorage({
 });
 const uploadEmoji = multer({ storage: storageEmoji });
 
-// Multer storage configuration for gifts
+// Multer storage configuration for gifts - redirected to assets
 const storageGift = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/gifts/');
+    cb(null, 'assets/gift/image/');
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -62,10 +62,10 @@ const storageGift = multer.diskStorage({
 });
 const uploadGift = multer({ storage: storageGift });
 
-// Multer storage configuration for generic uploads (e.g., media for posts)
+// Multer storage configuration for generic uploads (e.g., media for posts) - redirected to assets
 const storageUpload = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'uploads/media/');
+    cb(null, 'assets/media/');
   },
   filename: function (req, file, cb) {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -4830,12 +4830,16 @@ app.use('/api/feed/media', express.static(path.join(__dirname, 'uploads/media'))
 // Serve card assets for LowCard game
 app.use('/cards', express.static(path.join(__dirname, '../assets/card')));
 
+// Serve assets folder statically
+app.use('/assets', express.static(path.join(__dirname, '../assets')));
 
-// Serve uploaded emoji files
+
+// Serve uploaded emoji files (legacy support)
 app.get('/uploads/emojis/:filename', (req, res) => {
   try {
     const { filename } = req.params;
-    const filePath = path.join(__dirname, '../uploads/emojis', filename);
+    // Redirect to assets path for legacy support
+    const filePath = path.join(__dirname, '../assets/emoticon', filename);
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {

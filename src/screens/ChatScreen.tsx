@@ -4196,7 +4196,7 @@ export default function ChatScreen() {
   // Function to load gifts from the admin API
   const loadGifts = async () => {
     try {
-      // Local gift assets
+      // Local gift assets with local asset files
       const localGifts = [
         {
           id: '1001',
@@ -4224,43 +4224,65 @@ export default function ChatScreen() {
         },
         {
           id: '1004',
-          name: 'Kertas Perkamen',
-          icon: '📜',
-          price: 4500,
+          name: 'Little Mermaid',
+          icon: '🧜‍♀️',
+          price: 800,
           type: 'static',
-          category: 'bangsa'
+          category: 'fantasy',
+          image: require('../../assets/gift/image/putri_duyung.png')
         },
         {
           id: '1005',
-          name: 'Kincir Angin',
-          icon: '🌪️',
-          price: 100000,
-          type: 'animated',
-          category: 'set kostum'
+          name: 'Pretty Girl',
+          icon: '👧',
+          price: 600,
+          type: 'static',
+          category: 'cute',
+          image: require('../../assets/gift/image/girl.png')
         },
         {
           id: '1006',
-          name: 'Blind Box',
-          icon: '📦',
-          price: 1880000,
-          type: 'animated',
-          category: 'tas saya'
+          name: 'Lion Spirit',
+          icon: '👑',
+          price: 1200,
+          type: 'animated_gif',
+          category: 'animals',
+          image: require('../../assets/gift/image/lion_img.gif')
         },
         {
           id: '1007',
-          name: 'Hiasan Berlapis',
-          icon: '✨',
-          price: 1000000,
-          type: 'animated',
-          category: 'bangsa'
+          name: 'Dolphin Friend',
+          icon: '🐬',
+          price: 700,
+          type: 'static',
+          category: 'animals',
+          image: require('../../assets/gift/image/lumba.png')
         },
         {
           id: '1008',
+          name: 'Love Video',
+          icon: '💖',
+          price: 2000,
+          type: 'animated_video',
+          category: 'special',
+          videoSource: require('../../assets/gift/animated/Love.mp4')
+        },
+        {
+          id: '1009',
+          name: 'UFO Adventure',
+          icon: '🛸',
+          price: 2500,
+          type: 'animated_video',
+          category: 'special',
+          videoSource: require('../../assets/gift/animated/Ufonew.mp4')
+        },
+        {
+          id: '1010',
           name: 'Doa Bintang',
           icon: '⭐',
           price: 10000000,
           type: 'animated',
-          category: 'tas saya'
+          category: 'premium'
         },
       ];
 
@@ -4405,7 +4427,8 @@ export default function ChatScreen() {
                         giftId: gift.id,
                         giftPrice: gift.price,
                         recipientUsername: recipientUsername,
-                        roomId: chatTabs[activeTab]?.id
+                        roomId: chatTabs[activeTab]?.id,
+                        isPrivate: chatTabs[activeTab]?.type === 'private' || false
                       }),
                     });
 
