@@ -996,6 +996,29 @@ io.on('connection', (socket) => {
         }
       }
 
+      // For non-private chats, validate user is in room participant list
+      if (!isPrivateChat) {
+        const userInRoom = roomParticipants[roomId]?.find(p => p.username === sender);
+        if (!userInRoom) {
+          console.log(`⚠️ User ${sender} attempted to send message but is not in room ${roomId} participant list`);
+          
+          // Send error message back to sender only
+          const errorMessage = {
+            id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'System',
+            content: 'You are not in the room. Please join the room first to send messages.',
+            timestamp: new Date().toISOString(),
+            roomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+          
+          socket.emit('new-message', errorMessage);
+          return; // Don't process the message
+        }
+      }
+
       // Check if this is a special command that needs server-side handling
       const trimmedContent = content.trim();
 
