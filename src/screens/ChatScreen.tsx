@@ -4193,235 +4193,10 @@ export default function ChatScreen() {
     }
   };
 
-  // Function to load gifts from the admin API
+  // Function to load gifts from the server API
   const loadGifts = async () => {
     try {
-      // Local gift assets with local asset files
-      const localGifts = [
-        {
-          id: '1001',
-          name: 'Lucky Rose',
-          icon: '🌹',
-          price: 150,
-          type: 'static',
-          category: 'popular'
-        },
-        {
-          id: '1002',
-          name: 'Ionceng',
-          icon: '🔔',
-          price: 300,
-          type: 'static',
-          category: 'popular'
-        },
-        {
-          id: '1003',
-          name: 'Lucky Pearls',
-          icon: '🦪',
-          price: 500,
-          type: 'static',
-          category: 'lucky'
-        },
-        {
-          id: '1004',
-          name: 'Little Mermaid',
-          icon: '🧜‍♀️',
-          price: 800,
-          type: 'static',
-          category: 'fantasy',
-          image: require('../../assets/gift/image/putri_duyung.png')
-        },
-        {
-          id: '1005',
-          name: 'Pretty Girl',
-          icon: '👧',
-          price: 600,
-          type: 'static',
-          category: 'cute',
-          image: require('../../assets/gift/image/girl.png')
-        },
-        {
-          id: '1006',
-          name: 'Lion Spirit',
-          icon: '👑',
-          price: 1200,
-          type: 'animated_gif',
-          category: 'animals',
-          image: require('../../assets/gift/image/lion_img.gif')
-        },
-        {
-          id: '1007',
-          name: 'Dolphin Friend',
-          icon: '🐬',
-          price: 700,
-          type: 'static',
-          category: 'animals',
-          image: require('../../assets/gift/image/lumba.png')
-        },
-        {
-          id: '1008',
-          name: 'Love Video',
-          icon: '💖',
-          price: 2000,
-          type: 'animated_video',
-          category: 'special',
-          videoSource: require('../../assets/gift/animated/Love.mp4')
-        },
-        {
-          id: '1009',
-          name: 'UFO Adventure',
-          icon: '🛸',
-          price: 2500,
-          type: 'animated_video',
-          category: 'special',
-          videoSource: require('../../assets/gift/animated/Ufonew.mp4')
-        },
-        {
-          id: '1010',
-          name: 'Doa Bintang',
-          icon: '⭐',
-          price: 10000000,
-          type: 'animated',
-          category: 'premium'
-        },
-        {
-          id: '1011',
-          name: 'Baby Lion',
-          icon: '🦁',
-          price: 1800,
-          type: 'animated_video',
-          category: 'animals',
-          videoSource: require('../../assets/gift/animated/BabyLion.mp4')
-        },
-        {
-          id: '1012',
-          name: 'Magic Book',
-          icon: '📚',
-          price: 3000,
-          type: 'animated_video',
-          category: 'magic',
-          videoSource: require('../../assets/gift/animated/bookmagical.mp4')
-        },
-        {
-          id: '1013',
-          name: 'Girl Car',
-          icon: '🚗',
-          price: 4500,
-          type: 'animated_video',
-          category: 'luxury',
-          videoSource: require('../../assets/gift/animated/Grildcar.mp4')
-        },
-        {
-          id: '1014',
-          name: 'Luxury Car',
-          icon: '🏎️',
-          price: 8000,
-          type: 'animated_video',
-          category: 'luxury',
-          videoSource: require('../../assets/gift/animated/luxurycar.mp4')
-        },
-        {
-          id: '1015',
-          name: 'Baby Lion PNG',
-          icon: '🦁',
-          price: 1200,
-          type: 'static',
-          category: 'animals',
-          image: require('../../assets/gift/image/Baby Lion.png')
-        },
-        {
-          id: '1016',
-          name: 'Birds Love',
-          icon: '🐦',
-          price: 900,
-          type: 'static',
-          category: 'love',
-          image: require('../../assets/gift/image/Birds Love.png')
-        },
-        {
-          id: '1017',
-          name: 'Couple',
-          icon: '💑',
-          price: 1500,
-          type: 'static',
-          category: 'love',
-          image: require('../../assets/gift/image/Couple.png')
-        },
-        {
-          id: '1018',
-          name: 'Flower Girls',
-          icon: '🌸',
-          price: 800,
-          type: 'static',
-          category: 'cute',
-          image: require('../../assets/gift/image/Flower Girls.png')
-        },
-        {
-          id: '1019',
-          name: 'Happy Jump',
-          icon: '🤸',
-          price: 1300,
-          type: 'animated_gif',
-          category: 'fun',
-          image: require('../../assets/gift/image/Happy Jump.gif')
-        },
-        {
-          id: '1020',
-          name: 'Hug',
-          icon: '🤗',
-          price: 1100,
-          type: 'static',
-          category: 'love',
-          image: require('../../assets/gift/image/Hug.png')
-        },
-        {
-          id: '1021',
-          name: 'I Love You',
-          icon: '💕',
-          price: 1600,
-          type: 'static',
-          category: 'love',
-          image: require('../../assets/gift/image/I Loveyou .png')
-        },
-        {
-          id: '1022',
-          name: 'Kids Hug',
-          icon: '👶',
-          price: 750,
-          type: 'static',
-          category: 'cute',
-          image: require('../../assets/gift/image/Kids Hug.png')
-        },
-        {
-          id: '1023',
-          name: 'Kiss',
-          icon: '💋',
-          price: 1400,
-          type: 'static',
-          category: 'love',
-          image: require('../../assets/gift/image/Kiss.png')
-        },
-        {
-          id: '1024',
-          name: 'Love Panda',
-          icon: '🐼',
-          price: 1000,
-          type: 'static',
-          category: 'animals',
-          image: require('../../assets/gift/image/Love Panda.png')
-        },
-        {
-          id: '1025',
-          name: 'Panda',
-          icon: '🐼',
-          price: 850,
-          type: 'static',
-          category: 'animals',
-          image: require('../../assets/gift/image/Panda.png')
-        },
-      ];
-
-      console.log('Loading gifts from API...');
+      console.log('Loading gifts from server API...');
       const response = await fetch(`${API_BASE_URL}/api/gifts`, {
         headers: {
           'Content-Type': 'application/json',
@@ -4430,38 +4205,93 @@ export default function ChatScreen() {
       });
 
       if (response.ok) {
-        const gifts = await response.json();
-        console.log('Gifts loaded from API:', gifts.length);
+        const serverGifts = await response.json();
+        console.log('Gifts loaded from server:', serverGifts.length);
+        
+        // Map server gifts and add local asset references
+        const gifts = serverGifts.map((gift: any) => {
+          const mappedGift: any = {
+            id: gift.id.toString(),
+            name: gift.name,
+            icon: gift.icon,
+            price: gift.price,
+            type: gift.type || 'static',
+            category: gift.category || 'popular'
+          };
+
+          // Add local asset references for better performance
+          if (gift.image) {
+            try {
+              // Map known image paths to require statements
+              const imageMap: { [key: string]: any } = {
+                '/assets/gift/image/putri_duyung.png': require('../../assets/gift/image/putri_duyung.png'),
+                '/assets/gift/image/girl.png': require('../../assets/gift/image/girl.png'),
+                '/assets/gift/image/lion_img.gif': require('../../assets/gift/image/lion_img.gif'),
+                '/assets/gift/image/lumba.png': require('../../assets/gift/image/lumba.png'),
+                '/assets/gift/image/Baby Lion.png': require('../../assets/gift/image/Baby Lion.png'),
+                '/assets/gift/image/Birds Love.png': require('../../assets/gift/image/Birds Love.png'),
+                '/assets/gift/image/Couple.png': require('../../assets/gift/image/Couple.png'),
+                '/assets/gift/image/Flower Girls.png': require('../../assets/gift/image/Flower Girls.png'),
+                '/assets/gift/image/Happy Jump.gif': require('../../assets/gift/image/Happy Jump.gif'),
+                '/assets/gift/image/Hug.png': require('../../assets/gift/image/Hug.png'),
+                '/assets/gift/image/I Loveyou .png': require('../../assets/gift/image/I Loveyou .png'),
+                '/assets/gift/image/Kids Hug.png': require('../../assets/gift/image/Kids Hug.png'),
+                '/assets/gift/image/Kiss.png': require('../../assets/gift/image/Kiss.png'),
+                '/assets/gift/image/Love Panda.png': require('../../assets/gift/image/Love Panda.png'),
+                '/assets/gift/image/Panda.png': require('../../assets/gift/image/Panda.png')
+              };
+              
+              if (imageMap[gift.image]) {
+                mappedGift.image = imageMap[gift.image];
+              }
+            } catch (error) {
+              console.log('Image asset not found for:', gift.image);
+            }
+          }
+
+          if (gift.animation) {
+            try {
+              // Map known video paths to require statements
+              const videoMap: { [key: string]: any } = {
+                '/assets/gift/animated/Love.mp4': require('../../assets/gift/animated/Love.mp4'),
+                '/assets/gift/animated/Ufonew.mp4': require('../../assets/gift/animated/Ufonew.mp4'),
+                '/assets/gift/animated/BabyLion.mp4': require('../../assets/gift/animated/BabyLion.mp4'),
+                '/assets/gift/animated/bookmagical.mp4': require('../../assets/gift/animated/bookmagical.mp4'),
+                '/assets/gift/animated/Grildcar.mp4': require('../../assets/gift/animated/Grildcar.mp4'),
+                '/assets/gift/animated/luxurycar.mp4': require('../../assets/gift/animated/luxurycar.mp4')
+              };
+              
+              if (videoMap[gift.animation]) {
+                mappedGift.videoSource = videoMap[gift.animation];
+              }
+            } catch (error) {
+              console.log('Video asset not found for:', gift.animation);
+            }
+          }
+
+          return mappedGift;
+        });
+
         setGiftList(gifts);
       } else {
-        console.error('Failed to load gifts from API');
-        // Fallback to default gifts if API fails - using consistent integer IDs
-        const defaultGifts = [
-          { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
-          { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
-          { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
-          { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
-          { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
-          { id: '1006', name: 'Blind Box', icon: '📦', price: 1880000, type: 'animated', category: 'tas saya' },
-          { id: '1007', name: 'Hiasan Berlapis', icon: '✨', price: 1000000, type: 'animated', category: 'bangsa' },
-          { id: '1008', name: 'Doa Bintang', icon: '⭐', price: 10000000, type: 'animated', category: 'tas saya' },
+        console.error('Failed to load gifts from API, using fallback');
+        // Simple fallback gifts if API fails
+        const fallbackGifts = [
+          { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+          { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+          { id: '3', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
         ];
-        setGiftList(defaultGifts);
+        setGiftList(fallbackGifts);
       }
     } catch (error) {
       console.error('Error loading gifts:', error);
-      // Fallback to default gifts - using consistent integer IDs
-      const defaultGifts = [
-        { id: '1001', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
-        { id: '1002', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
-        { id: '1003', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
-        { id: '1004', name: 'Kertas Perkamen', icon: '📜', price: 4500, type: 'static', category: 'bangsa' },
-        { id: '1005', name: 'Kincir Angin', icon: '🌪️', price: 100000, type: 'animated', category: 'set kostum' },
-        { id: '1006', name: 'Blind Box', icon: '📦', price: 1880000, type: 'animated', category: 'tas saya' },
-        { id: '1007', name: 'Hiasan Berlapis', icon: '✨', price: 1000000, type: 'animated', category: 'bangsa' },
-        { id: '1008', name: 'Doa Bintang', icon: '⭐', price: 10000000, type: 'animated', category: 'tas saya' },
+      // Simple fallback gifts on error
+      const fallbackGifts = [
+        { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+        { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+        { id: '3', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
       ];
-      setGiftList(defaultGifts);
+      setGiftList(fallbackGifts);
     }
   };
 
