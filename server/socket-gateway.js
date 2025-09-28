@@ -546,6 +546,16 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // SECURITY: Validate that client-provided username matches authenticated identity
+    if (username !== socket.username) {
+      console.log(`⚠️ Security: User ${socket.username} attempted to join as ${username} in room ${roomId}`);
+      socket.emit('join-room-error', { 
+        error: 'Authentication mismatch', 
+        reason: 'identity_mismatch' 
+      });
+      return;
+    }
+
     try {
       // 1. Check if user is banned from this room
       const isBanned = await isUserBanned(roomId, socket.userId, socket.username);
@@ -598,7 +608,7 @@ io.on('connection', (socket) => {
 
       // 3. Check if already in room and prevent multiple joins from same user
       const isAlreadyInRoom = socket.rooms.has(roomId);
-      const existingParticipant = roomParticipants[roomId]?.find(p => p.username === username);
+      const existingParticipant = roomParticipants[roomId]?.find(p => p.userId === socket.userId);
 
       // Get user's session tracking info
       let userInfo = connectedUsers.get(socket.id);
@@ -614,31 +624,31 @@ io.on('connection', (socket) => {
       const hasJoinedThisSession = userInfo.announcedRooms?.has(roomId);
       const hasJoinedGlobally = joinedRoomsRef.current.has(roomId);
 
-      // Log the join attempt with more detail
+      // Log the join attempt with more detail (use authenticated username)
       if (silent || hasJoinedThisSession || hasJoinedGlobally) {
-        console.log(`🔄 ${username} reconnecting to room ${roomId} via gateway (silent)`);
+        console.log(`🔄 ${socket.username} reconnecting to room ${roomId} via gateway (silent)`);
       } else {
-        console.log(`🚪 ${username} joining room ${roomId} via gateway (new join)`);
+        console.log(`🚪 ${socket.username} joining room ${roomId} via gateway (new join)`);
       }
 
       // Always join the socket room (this is safe to call multiple times)
       socket.join(roomId);
 
-      // Update connected user info
+      // Update connected user info (use authenticated identity, not client payload)
       userInfo.roomId = roomId;
-      userInfo.username = username;
-      userInfo.role = role;
+      userInfo.username = socket.username; // Use authenticated username
+      userInfo.role = socket.userRole;     // Use authenticated role
 
-      // Store socket info for bot commands
-      socket.userId = socket.userId;
-      socket.username = username;
+      // Socket info is already set from authentication - don't overwrite
+      // socket.userId and socket.username are set during authentication
 
       // Add participant to room
       if (!roomParticipants[roomId]) {
         roomParticipants[roomId] = [];
       }
 
-      let participant = roomParticipants[roomId].find(p => p.username === username);
+      // Use authenticated identity for participant management
+      let participant = roomParticipants[roomId].find(p => p.userId === socket.userId);
       const wasAlreadyParticipant = !!participant;
 
       // Check if participant was already online BEFORE updating the status
@@ -649,20 +659,21 @@ io.on('connection', (socket) => {
         participant.isOnline = true;
         participant.socketId = socket.id;
         participant.lastSeen = new Date().toISOString();
-        console.log(`✅ Updated existing participant: ${username} in room ${roomId}`);
+        console.log(`✅ Updated existing participant: ${socket.username} in room ${roomId}`);
       } else {
-        // Add new participant
+        // Add new participant using authenticated identity
         participant = {
           id: Date.now().toString(),
-          username,
-          role: role || 'user',
+          userId: socket.userId,        // Use authenticated userId
+          username: socket.username,    // Use authenticated username
+          role: socket.userRole,        // Use authenticated role
           isOnline: true,
           socketId: socket.id,
           joinedAt: new Date().toISOString(),
           lastSeen: new Date().toISOString()
         };
         roomParticipants[roomId].push(participant);
-        console.log(`➕ Added new participant: ${username} to room ${roomId}`);
+        console.log(`➕ Added new participant: ${socket.username} to room ${roomId}`);
       }
 
       // Check if this is a private chat room
@@ -996,13 +1007,12 @@ io.on('connection', (socket) => {
         }
       }
 
-      // For non-private chats, validate user is in room participant list
+      // For non-private chats, validate user is properly in room
       if (!isPrivateChat) {
-        const userInRoom = roomParticipants[roomId]?.find(p => p.username === sender);
-        if (!userInRoom) {
-          console.log(`⚠️ User ${sender} attempted to send message but is not in room ${roomId} participant list`);
+        // Check 1: User must be in Socket.IO room
+        if (!socket.rooms.has(roomId)) {
+          console.log(`⚠️ User ${socket.username} attempted to send message but is not in Socket.IO room ${roomId}`);
           
-          // Send error message back to sender only
           const errorMessage = {
             id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             sender: 'System',
@@ -1015,7 +1025,46 @@ io.on('connection', (socket) => {
           };
           
           socket.emit('new-message', errorMessage);
-          return; // Don't process the message
+          return;
+        }
+
+        // Check 2: User must be in participant list (using userId for security)
+        const userInRoom = roomParticipants[roomId]?.find(p => p.userId === socket.userId && p.isOnline);
+        if (!userInRoom) {
+          console.log(`⚠️ User ${socket.username} (ID: ${socket.userId}) attempted to send message but is not in room ${roomId} participant list`);
+          
+          const errorMessage = {
+            id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'System',
+            content: 'You are not in the room. Please join the room first to send messages.',
+            timestamp: new Date().toISOString(),
+            roomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+          
+          socket.emit('new-message', errorMessage);
+          return;
+        }
+
+        // Check 3: Ensure sender matches authenticated identity
+        if (sender !== socket.username) {
+          console.log(`⚠️ Security: User ${socket.username} attempted to send message as ${sender} in room ${roomId}`);
+          
+          const errorMessage = {
+            id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'System',
+            content: 'Authentication error. Please refresh and try again.',
+            timestamp: new Date().toISOString(),
+            roomId,
+            role: 'system',
+            level: 1,
+            type: 'error'
+          };
+          
+          socket.emit('new-message', errorMessage);
+          return;
         }
       }
 
@@ -1826,7 +1875,7 @@ io.on('connection', (socket) => {
 
       // Remove from room participants only if no other connections exist
       if (roomParticipants[userInfo.roomId] && !hasOtherActiveConnections) {
-        const participantBefore = roomParticipants[userInfo.roomId].find(p => p.username === userInfo.username);
+        const participantBefore = roomParticipants[userInfo.roomId].find(p => p.userId === userInfo.userId);
 
         if (participantBefore) {
           // Mark as offline instead of removing completely
