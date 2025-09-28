@@ -816,7 +816,11 @@ export default function PrivateChatScreen() {
       '9': { type: 'static', image: require('../../assets/gift/image/putri_duyung.png') },
       '10': { type: 'emoji' },
       '11': { type: 'emoji' },
-      '12': { type: 'emoji' }
+      '12': { type: 'emoji' },
+      '13': { type: 'animated_video', videoSource: require('../../assets/gift/animated/BabyLion.mp4') },
+      '14': { type: 'animated_video', videoSource: require('../../assets/gift/animated/bookmagical.mp4') },
+      '15': { type: 'animated_video', videoSource: require('../../assets/gift/animated/Grildcar.mp4') },
+      '16': { type: 'animated_video', videoSource: require('../../assets/gift/animated/luxurycar.mp4') }
     };
     return giftAssetMap[giftId] || {};
   };
@@ -906,6 +910,43 @@ export default function PrivateChatScreen() {
         type: 'static', 
         category: 'fantasy',
         image: require('../../assets/gift/image/putri_duyung.png')
+      },
+      // New animated video gifts
+      { 
+        id: '13', 
+        name: 'Baby Lion', 
+        icon: '🦁', 
+        price: 1800, 
+        type: 'animated_video', 
+        category: 'animals',
+        videoSource: require('../../assets/gift/animated/BabyLion.mp4')
+      },
+      { 
+        id: '14', 
+        name: 'Magic Book', 
+        icon: '📚', 
+        price: 3000, 
+        type: 'animated_video', 
+        category: 'magic',
+        videoSource: require('../../assets/gift/animated/bookmagical.mp4')
+      },
+      { 
+        id: '15', 
+        name: 'Girl Car', 
+        icon: '🚗', 
+        price: 4500, 
+        type: 'animated_video', 
+        category: 'luxury',
+        videoSource: require('../../assets/gift/animated/Grildcar.mp4')
+      },
+      { 
+        id: '16', 
+        name: 'Luxury Car', 
+        icon: '🏎️', 
+        price: 8000, 
+        type: 'animated_video', 
+        category: 'luxury',
+        videoSource: require('../../assets/gift/animated/luxurycar.mp4')
       },
       // Basic emoji gifts for variety
       { id: '10', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'emoji', category: 'popular' },

@@ -4284,6 +4284,42 @@ export default function ChatScreen() {
           type: 'animated',
           category: 'premium'
         },
+        {
+          id: '1011',
+          name: 'Baby Lion',
+          icon: '🦁',
+          price: 1800,
+          type: 'animated_video',
+          category: 'animals',
+          videoSource: require('../../assets/gift/animated/BabyLion.mp4')
+        },
+        {
+          id: '1012',
+          name: 'Magic Book',
+          icon: '📚',
+          price: 3000,
+          type: 'animated_video',
+          category: 'magic',
+          videoSource: require('../../assets/gift/animated/bookmagical.mp4')
+        },
+        {
+          id: '1013',
+          name: 'Girl Car',
+          icon: '🚗',
+          price: 4500,
+          type: 'animated_video',
+          category: 'luxury',
+          videoSource: require('../../assets/gift/animated/Grildcar.mp4')
+        },
+        {
+          id: '1014',
+          name: 'Luxury Car',
+          icon: '🏎️',
+          price: 8000,
+          type: 'animated_video',
+          category: 'luxury',
+          videoSource: require('../../assets/gift/animated/luxurycar.mp4')
+        },
       ];
 
       console.log('Loading gifts from API...');
