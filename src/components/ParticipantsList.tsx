@@ -140,28 +140,22 @@ export default function ParticipantsList({
                       </Text>
                     </View>
                     <View style={styles.participantInfo}>
-                      <Text style={[
-                        styles.participantName,
-                        { color: getRoleColor(participant.role, participant.username, currentRoom?.id) }
-                      ]}>
-                        {participant.username || 'Unknown User'}
-                      </Text>
-                      <View style={styles.participantRoleContainer}>
+                      <View style={styles.participantNameRow}>
                         <Text style={[
-                          styles.participantRole,
+                          styles.participantName,
                           { color: getRoleColor(participant.role, participant.username, currentRoom?.id) }
                         ]}>
-                          {getRoleDisplayText(participant)}
+                          {participant.username || 'Unknown User'}
                         </Text>
+                        <View style={[
+                          styles.participantRoleBadge,
+                          { backgroundColor: getRoleColor(participant.role, participant.username, currentRoom?.id) }
+                        ]}>
+                          <Text style={styles.participantRoleBadgeText}>
+                            {getRoleDisplayText(participant)}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                    <View style={[
-                      styles.participantStatus,
-                      { backgroundColor: participant.isOnline ? '#4CAF50' : '#9E9E9E' }
-                    ]}>
-                      <Text style={styles.participantStatusText}>
-                        {participant.isOnline ? 'Online' : 'Offline'}
-                      </Text>
                     </View>
                   </TouchableOpacity>
                 ))
@@ -225,8 +219,8 @@ const styles = StyleSheet.create({
   participantItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E0E0E0',
     marginHorizontal: 8,
@@ -239,13 +233,13 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   participantAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#229c93',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
     borderWidth: 2,
     borderColor: '#fff',
     elevation: 2,
@@ -255,7 +249,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   participantAvatarText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: 'white',
   },
@@ -263,29 +257,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   participantName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 2,
-  },
-  participantRole: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: 15,
     fontWeight: '600',
+    color: '#333',
+    flex: 1,
   },
-  participantRoleContainer: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+  participantNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  participantStatus: {
+  participantRoleBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginLeft: 8,
   },
-  participantStatusText: {
-    fontSize: 12,
+  participantRoleBadgeText: {
+    fontSize: 10,
     color: 'white',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   noParticipants: {
     padding: 40,
