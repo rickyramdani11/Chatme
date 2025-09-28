@@ -442,7 +442,7 @@ app.get('/health', (req, res) => {
 // In-memory storage for active rooms and participants
 const roomParticipants = {}; // { roomId: [ { id, username, role, socketId }, ... ] }
 const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
-const joinedRoomsRef = { current: new Set() }; // Track globally joined rooms to prevent duplicate broadcasts
+// Removed global joinedRoomsRef - caused join suppression bugs across users
 
 // Socket authentication middleware
 const authenticateSocket = async (socket, next) => {
@@ -620,12 +620,11 @@ io.on('connection', (socket) => {
         connectedUsers.set(socket.id, userInfo);
       }
 
-      // Check if this user has already joined this room in this session or globally
+      // Check if this user has already joined this room in this session
       const hasJoinedThisSession = userInfo.announcedRooms?.has(roomId);
-      const hasJoinedGlobally = joinedRoomsRef.current.has(roomId);
 
       // Log the join attempt with more detail (use authenticated username)
-      if (silent || hasJoinedThisSession || hasJoinedGlobally) {
+      if (silent || hasJoinedThisSession) {
         console.log(`🔄 ${socket.username} reconnecting to room ${roomId} via gateway (silent)`);
       } else {
         console.log(`🚪 ${socket.username} joining room ${roomId} via gateway (new join)`);
@@ -683,9 +682,8 @@ io.on('connection', (socket) => {
       // 1. Not silent (not a reconnection)
       // 2. User was not already online 
       // 3. Join hasn't been announced for this socket session
-      // 4. Join hasn't been announced globally
-      // 5. Not a private chat
-      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasJoinedThisSession && !hasJoinedGlobally && !isPrivateChat;
+      // 4. Not a private chat
+      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasJoinedThisSession && !isPrivateChat;
 
       if (shouldBroadcastJoin) {
         const joinMessage = {
@@ -701,9 +699,8 @@ io.on('connection', (socket) => {
         console.log(`📢 Broadcasting join message for ${username} in room ${roomId}`);
         socket.to(roomId).emit('user-joined', joinMessage);
 
-        // Mark room as announced for this socket session and globally
+        // Mark room as announced for this socket session
         userInfo.announcedRooms.add(roomId);
-        joinedRoomsRef.current.add(roomId);
       } else {
         if (silent) {
           console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
@@ -737,15 +734,35 @@ io.on('connection', (socket) => {
   socket.on('leave-room', (data) => {
     const { roomId, username, role } = data;
 
+    // SECURITY: Validate that client-provided username matches authenticated identity
+    if (username !== socket.username) {
+      console.log(`⚠️ Security: User ${socket.username} attempted to leave room as ${username} in room ${roomId}`);
+      socket.emit('leave-room-error', { 
+        error: 'Authentication mismatch', 
+        reason: 'identity_mismatch' 
+      });
+      return;
+    }
+
+    // Validate user is actually in the Socket.IO room
+    if (!socket.rooms.has(roomId)) {
+      console.log(`⚠️ User ${socket.username} attempted to leave room ${roomId} but is not in Socket.IO room`);
+      socket.emit('leave-room-error', { 
+        error: 'You are not in this room', 
+        reason: 'not_in_room' 
+      });
+      return;
+    }
+
     socket.leave(roomId);
-    console.log(`${username} left room ${roomId} via gateway`);
+    console.log(`${socket.username} left room ${roomId} via gateway`);
 
     // Check if this is a private chat room
     const isPrivateChat = roomId.startsWith('private_');
 
-    // Remove participant from room
+    // Remove participant from room (use authenticated userId for security)
     if (roomParticipants[roomId]) {
-      roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== username);
+      roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.userId !== socket.userId);
       io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
     }
 
@@ -756,25 +773,23 @@ io.on('connection', (socket) => {
       // Remove from announced rooms when leaving
       userInfo.announcedRooms?.delete(roomId);
     }
-    
-    // Also remove from global join tracking
-    joinedRoomsRef.current.delete(roomId);
 
     // Only broadcast leave message for non-private chats
     if (!isPrivateChat) {
       const leaveMessage = {
         id: Date.now().toString(),
-        sender: username,
-        content: `${username} left the room`,
+        sender: socket.username,     // Use authenticated username
+        content: `${socket.username} left the room`,
         timestamp: new Date().toISOString(),
         roomId: roomId,
         type: 'leave',
-        userRole: role
+        userRole: socket.userRole    // Use authenticated role
       };
 
       socket.to(roomId).emit('user-left', leaveMessage);
+      console.log(`📢 Broadcasting leave message for ${socket.username} in room ${roomId}`);
     } else {
-      console.log(`💬 Private chat leave - no broadcast for ${username} in room ${roomId}`);
+      console.log(`💬 Private chat leave - no broadcast for ${socket.username} in room ${roomId}`);
     }
   });
 
