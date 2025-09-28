@@ -708,8 +708,6 @@ io.on('connection', (socket) => {
           console.log(`💬 Private chat join - no broadcast for ${username} in room ${roomId}`);
         } else if (hasJoinedThisSession) {
           console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced this session)`);
-        } else if (hasJoinedGlobally) {
-          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced globally)`);
         } else if (wasAlreadyOnline) {
           console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
         }
