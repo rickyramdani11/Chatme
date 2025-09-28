@@ -129,7 +129,7 @@ router.post('/user/link-account', authenticateToken, async (req, res) => {
         account_id VARCHAR(50) NOT NULL,
         account_name VARCHAR(100) NOT NULL,
         account_number VARCHAR(50) NOT NULL,
-        account_holder_name VARCHAR(100) NOT NULL,
+        holder_name VARCHAR(100) NOT NULL,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -149,7 +149,7 @@ router.post('/user/link-account', authenticateToken, async (req, res) => {
     // Insert new account
     const result = await pool.query(`
       INSERT INTO user_linked_accounts 
-      (user_id, account_type, account_id, account_name, account_number, account_holder_name)
+      (user_id, account_type, account_id, account_name, account_number, holder_name)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `, [userId, type, accountId, accountName, accountNumber, holderName]);
@@ -164,7 +164,7 @@ router.post('/user/link-account', authenticateToken, async (req, res) => {
         type: newAccount.account_type,
         name: newAccount.account_name,
         accountNumber: newAccount.account_number,
-        accountName: newAccount.account_holder_name
+        accountName: newAccount.holder_name
       }
     });
 
@@ -265,7 +265,7 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
         JSON.stringify({
           accountName: linkedAccount.account_name,
           accountNumber: linkedAccount.account_number,
-          holderName: linkedAccount.account_holder_name
+          holderName: linkedAccount.holder_name
         }),
         netAmountIdr
       ]);
