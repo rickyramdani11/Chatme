@@ -81,6 +81,12 @@ export default function AdminScreen({ navigation }: any) {
   const [transferPin, setTransferPin] = useState('000000');
   const [transferLoading, setTransferLoading] = useState(false);
 
+  // Gift edit states
+  const [editingGift, setEditingGift] = useState<Gift | null>(null);
+  const [editGiftPrice, setEditGiftPrice] = useState('');
+  const [editGiftName, setEditGiftName] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+
   // Admin credit states
   const [adminCreditUsername, setAdminCreditUsername] = useState('');
   const [adminCreditAmount, setAdminCreditAmount] = useState('');
@@ -1475,6 +1481,63 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
+  const handleEditGift = (gift: Gift) => {
+    setEditingGift(gift);
+    setEditGiftName(gift.name);
+    setEditGiftPrice(gift.price.toString());
+    setShowEditModal(true);
+  };
+
+  const handleUpdateGift = async () => {
+    if (!editingGift || !editGiftName.trim() || !editGiftPrice.trim()) {
+      Alert.alert('Error', 'Nama dan harga gift harus diisi');
+      return;
+    }
+
+    const price = parseInt(editGiftPrice);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Error', 'Harga harus berupa angka positif');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/gifts/${editingGift.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editGiftName.trim(),
+          icon: editingGift.icon,
+          price: price,
+          type: editingGift.type,
+          category: editingGift.category,
+          image: editingGift.image,
+          animation: editingGift.animation
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Berhasil', 'Gift berhasil diupdate!');
+        setShowEditModal(false);
+        setEditingGift(null);
+        setEditGiftName('');
+        setEditGiftPrice('');
+        loadGifts();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal mengupdate gift');
+      }
+    } catch (error) {
+      console.error('Error updating gift:', error);
+      Alert.alert('Error', error.message || 'Gagal mengupdate gift');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderEmojiItem = ({ item }: { item: Emoji }) => (
     <View style={styles.itemCard}>
       <View style={styles.itemHeader}>
@@ -1704,12 +1767,20 @@ export default function AdminScreen({ navigation }: any) {
                             <Text style={styles.itemEmoji}>{gift.icon}</Text>
                           )}
                         </View>
-                        <TouchableOpacity
-                          style={styles.deleteButton}
-                          onPress={() => handleDeleteItem(gift.id, 'gift')}
-                        >
-                          <Ionicons name="trash-outline" size={16} color="#F44336" />
-                        </TouchableOpacity>
+                        <View style={styles.giftActionButtons}>
+                          <TouchableOpacity
+                            style={styles.editButton}
+                            onPress={() => handleEditGift(gift)}
+                          >
+                            <Ionicons name="pencil-outline" size={16} color="#2196F3" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteItem(gift.id, 'gift')}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#F44336" />
+                          </TouchableOpacity>
+                        </View>
                       </View>
                       <Text style={styles.itemName}>{gift.name}</Text>
                       <Text style={styles.itemPrice}>{gift.price} credits</Text>
@@ -2791,6 +2862,73 @@ export default function AdminScreen({ navigation }: any) {
                   {loading ? 'Adding...' : 'Add'}
                 </Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Gift Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModal}>
+            <View style={styles.editModalHeader}>
+              <Text style={styles.editModalTitle}>Edit Gift</Text>
+              <TouchableOpacity
+                style={styles.editModalCloseButton}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.editModalContent}>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Nama Gift</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={editGiftName}
+                  onChangeText={setEditGiftName}
+                  placeholder="Masukkan nama gift..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Harga Gift (Credits)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={editGiftPrice}
+                  onChangeText={setEditGiftPrice}
+                  placeholder="Masukkan harga..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.editModalActions}>
+                <TouchableOpacity
+                  style={styles.editModalCancelButton}
+                  onPress={() => setShowEditModal(false)}
+                >
+                  <Text style={styles.editModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.editModalSaveButton}
+                  onPress={handleUpdateGift}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.editModalSaveText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -4250,5 +4388,74 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+  },
+
+  // Gift Edit Styles
+  giftActionButtons: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  editButton: {
+    backgroundColor: '#e3f2fd',
+    padding: 6,
+    borderRadius: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editModal: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  editModalCloseButton: {
+    padding: 4,
+  },
+  editModalContent: {
+    gap: 15,
+  },
+  editModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 20,
+  },
+  editModalCancelButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#f5f5f5',
+  },
+  editModalCancelText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  editModalSaveButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#FF6B35',
+  },
+  editModalSaveText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
