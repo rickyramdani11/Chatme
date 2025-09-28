@@ -820,7 +820,18 @@ export default function PrivateChatScreen() {
       '13': { type: 'animated_video', videoSource: require('../../assets/gift/animated/BabyLion.mp4') },
       '14': { type: 'animated_video', videoSource: require('../../assets/gift/animated/bookmagical.mp4') },
       '15': { type: 'animated_video', videoSource: require('../../assets/gift/animated/Grildcar.mp4') },
-      '16': { type: 'animated_video', videoSource: require('../../assets/gift/animated/luxurycar.mp4') }
+      '16': { type: 'animated_video', videoSource: require('../../assets/gift/animated/luxurycar.mp4') },
+      '17': { type: 'static', image: require('../../assets/gift/image/Baby Lion.png') },
+      '18': { type: 'static', image: require('../../assets/gift/image/Birds Love.png') },
+      '19': { type: 'static', image: require('../../assets/gift/image/Couple.png') },
+      '20': { type: 'static', image: require('../../assets/gift/image/Flower Girls.png') },
+      '21': { type: 'animated_gif', image: require('../../assets/gift/image/Happy Jump.gif') },
+      '22': { type: 'static', image: require('../../assets/gift/image/Hug.png') },
+      '23': { type: 'static', image: require('../../assets/gift/image/I Loveyou .png') },
+      '24': { type: 'static', image: require('../../assets/gift/image/Kids Hug.png') },
+      '25': { type: 'static', image: require('../../assets/gift/image/Kiss.png') },
+      '26': { type: 'static', image: require('../../assets/gift/image/Love Panda.png') },
+      '27': { type: 'static', image: require('../../assets/gift/image/Panda.png') }
     };
     return giftAssetMap[giftId] || {};
   };
@@ -947,6 +958,106 @@ export default function PrivateChatScreen() {
         type: 'animated_video', 
         category: 'luxury',
         videoSource: require('../../assets/gift/animated/luxurycar.mp4')
+      },
+      // New PNG and GIF gifts
+      { 
+        id: '17', 
+        name: 'Baby Lion PNG', 
+        icon: '🦁', 
+        price: 1200, 
+        type: 'static', 
+        category: 'animals',
+        image: require('../../assets/gift/image/Baby Lion.png')
+      },
+      { 
+        id: '18', 
+        name: 'Birds Love', 
+        icon: '🐦', 
+        price: 900, 
+        type: 'static', 
+        category: 'love',
+        image: require('../../assets/gift/image/Birds Love.png')
+      },
+      { 
+        id: '19', 
+        name: 'Couple', 
+        icon: '💑', 
+        price: 1500, 
+        type: 'static', 
+        category: 'love',
+        image: require('../../assets/gift/image/Couple.png')
+      },
+      { 
+        id: '20', 
+        name: 'Flower Girls', 
+        icon: '🌸', 
+        price: 800, 
+        type: 'static', 
+        category: 'cute',
+        image: require('../../assets/gift/image/Flower Girls.png')
+      },
+      { 
+        id: '21', 
+        name: 'Happy Jump', 
+        icon: '🤸', 
+        price: 1300, 
+        type: 'animated_gif', 
+        category: 'fun',
+        image: require('../../assets/gift/image/Happy Jump.gif')
+      },
+      { 
+        id: '22', 
+        name: 'Hug', 
+        icon: '🤗', 
+        price: 1100, 
+        type: 'static', 
+        category: 'love',
+        image: require('../../assets/gift/image/Hug.png')
+      },
+      { 
+        id: '23', 
+        name: 'I Love You', 
+        icon: '💕', 
+        price: 1600, 
+        type: 'static', 
+        category: 'love',
+        image: require('../../assets/gift/image/I Loveyou .png')
+      },
+      { 
+        id: '24', 
+        name: 'Kids Hug', 
+        icon: '👶', 
+        price: 750, 
+        type: 'static', 
+        category: 'cute',
+        image: require('../../assets/gift/image/Kids Hug.png')
+      },
+      { 
+        id: '25', 
+        name: 'Kiss', 
+        icon: '💋', 
+        price: 1400, 
+        type: 'static', 
+        category: 'love',
+        image: require('../../assets/gift/image/Kiss.png')
+      },
+      { 
+        id: '26', 
+        name: 'Love Panda', 
+        icon: '🐼', 
+        price: 1000, 
+        type: 'static', 
+        category: 'animals',
+        image: require('../../assets/gift/image/Love Panda.png')
+      },
+      { 
+        id: '27', 
+        name: 'Panda', 
+        icon: '🐼', 
+        price: 850, 
+        type: 'static', 
+        category: 'animals',
+        image: require('../../assets/gift/image/Panda.png')
       },
       // Basic emoji gifts for variety
       { id: '10', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'emoji', category: 'popular' },

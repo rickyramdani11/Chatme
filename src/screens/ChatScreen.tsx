@@ -4320,6 +4320,105 @@ export default function ChatScreen() {
           category: 'luxury',
           videoSource: require('../../assets/gift/animated/luxurycar.mp4')
         },
+        {
+          id: '1015',
+          name: 'Baby Lion PNG',
+          icon: '🦁',
+          price: 1200,
+          type: 'static',
+          category: 'animals',
+          image: require('../../assets/gift/image/Baby Lion.png')
+        },
+        {
+          id: '1016',
+          name: 'Birds Love',
+          icon: '🐦',
+          price: 900,
+          type: 'static',
+          category: 'love',
+          image: require('../../assets/gift/image/Birds Love.png')
+        },
+        {
+          id: '1017',
+          name: 'Couple',
+          icon: '💑',
+          price: 1500,
+          type: 'static',
+          category: 'love',
+          image: require('../../assets/gift/image/Couple.png')
+        },
+        {
+          id: '1018',
+          name: 'Flower Girls',
+          icon: '🌸',
+          price: 800,
+          type: 'static',
+          category: 'cute',
+          image: require('../../assets/gift/image/Flower Girls.png')
+        },
+        {
+          id: '1019',
+          name: 'Happy Jump',
+          icon: '🤸',
+          price: 1300,
+          type: 'animated_gif',
+          category: 'fun',
+          image: require('../../assets/gift/image/Happy Jump.gif')
+        },
+        {
+          id: '1020',
+          name: 'Hug',
+          icon: '🤗',
+          price: 1100,
+          type: 'static',
+          category: 'love',
+          image: require('../../assets/gift/image/Hug.png')
+        },
+        {
+          id: '1021',
+          name: 'I Love You',
+          icon: '💕',
+          price: 1600,
+          type: 'static',
+          category: 'love',
+          image: require('../../assets/gift/image/I Loveyou .png')
+        },
+        {
+          id: '1022',
+          name: 'Kids Hug',
+          icon: '👶',
+          price: 750,
+          type: 'static',
+          category: 'cute',
+          image: require('../../assets/gift/image/Kids Hug.png')
+        },
+        {
+          id: '1023',
+          name: 'Kiss',
+          icon: '💋',
+          price: 1400,
+          type: 'static',
+          category: 'love',
+          image: require('../../assets/gift/image/Kiss.png')
+        },
+        {
+          id: '1024',
+          name: 'Love Panda',
+          icon: '🐼',
+          price: 1000,
+          type: 'static',
+          category: 'animals',
+          image: require('../../assets/gift/image/Love Panda.png')
+        },
+        {
+          id: '1025',
+          name: 'Panda',
+          icon: '🐼',
+          price: 850,
+          type: 'static',
+          category: 'animals',
+          image: require('../../assets/gift/image/Panda.png')
+        },
       ];
 
       console.log('Loading gifts from API...');
