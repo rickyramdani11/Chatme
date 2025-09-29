@@ -58,7 +58,7 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
 
   const fetchFamilyDetails = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/families/${familyId}`, {
+      const response = await fetch(`${API_BASE_URL}/families/${familyId}`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
 
   const fetchFamilyMembers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/families/${familyId}/members`, {
+      const response = await fetch(`${API_BASE_URL}/families/${familyId}/members`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
@@ -106,7 +106,7 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
 
   const handleChangeRole = async (memberId: string, newRole: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/families/${familyId}/members/${memberId}/role`, {
+      const response = await fetch(`${API_BASE_URL}/families/${familyId}/members/${memberId}/role`, {
         method: 'PUT',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',

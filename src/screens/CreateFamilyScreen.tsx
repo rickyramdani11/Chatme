@@ -59,7 +59,7 @@ export default function CreateFamilyScreen({ navigation }: any) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/families`, {
+      const response = await fetch(`${API_BASE_URL}/families`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

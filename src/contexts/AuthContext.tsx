@@ -61,7 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           // Refresh user data from server to get latest role information
           try {
-            const response = await fetch(`${API_BASE_URL}/api/users/${userData.id}/profile`, {
+            const response = await fetch(`${API_BASE_URL}/users/${userData.id}/profile`, {
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${storedToken}`,
@@ -115,11 +115,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string) => {
     try {
       console.log('Attempting to login user:', username);
-      console.log('API URL:', `${API_BASE_URL}/api/auth/login`);
+      console.log('API URL:', `${API_BASE_URL}/auth/login`);
 
       // Test API connectivity first
       try {
-        const testResponse = await fetch(`${API_BASE_URL}/api/health`, {
+        const testResponse = await fetch(`${API_BASE_URL}/health`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -135,7 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (username: string, password: string, email: string, phone: string, country: string, gender: string) => {
     try {
       console.log('Attempting to register user:', { username, email, phone, country, gender });
-      console.log('API URL:', `${API_BASE_URL}/api/auth/register`);
+      console.log('API URL:', `${API_BASE_URL}/auth/register`);
 
       const requestBody = { username, password, email, phone, country, gender };
       console.log('Request body:', requestBody);
@@ -210,9 +210,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('Sending fetch request...');
 
-      console.log('Making request to:', `${API_BASE_URL}/api/auth/register`);
+      console.log('Making request to:', `${API_BASE_URL}/auth/register`);
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,7 +282,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Otherwise, make API call for partial update
-      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile`, {
+      const response = await fetch(`${API_BASE_URL}/users/${user.id}/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -323,7 +323,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       console.log('Manually refreshing user data for role sync...');
-      const response = await fetch(`${API_BASE_URL}/api/users/${user.id}/profile`, {
+      const response = await fetch(`${API_BASE_URL}/users/${user.id}/profile`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -359,7 +359,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Call server logout endpoint if token exists
       if (token) {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+          const response = await fetch(`${API_BASE_URL}/auth/logout`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

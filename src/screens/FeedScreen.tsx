@@ -164,7 +164,7 @@ export default function FeedScreen() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/feed/posts`);
+      const response = await fetch(`${API_BASE_URL}/feed/posts`);
 
       if (response.ok) {
         const postsData = await response.json();
@@ -357,7 +357,7 @@ export default function FeedScreen() {
           dataPreview: uploadData.data?.substring(0, 50) || 'N/A'
         });
 
-        const response = await fetch(`${API_BASE_URL}/api/feed/upload`, {
+        const response = await fetch(`${API_BASE_URL}/feed/upload`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -402,8 +402,8 @@ export default function FeedScreen() {
         }
 
         const endpoint = uploadedFiles.length > 0 ? 
-          `${API_BASE_URL}/api/feed/posts/with-media` : 
-          `${API_BASE_URL}/api/feed/posts`;
+          `${API_BASE_URL}/feed/posts/with-media` : 
+          `${API_BASE_URL}/feed/posts`;
 
         console.log('Creating post with endpoint:', endpoint);
         console.log('Post data:', {
@@ -468,7 +468,7 @@ export default function FeedScreen() {
       const isLiked = likedPosts.has(postId);
       const action = isLiked ? 'unlike' : 'like';
 
-      const response = await fetch(`${API_BASE_URL}/api/feed/posts/${postId}/like`, {
+      const response = await fetch(`${API_BASE_URL}/feed/posts/${postId}/like`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -506,7 +506,7 @@ export default function FeedScreen() {
   // Handle share
   const handleShare = async (postId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/feed/posts/${postId}/share`, {
+      const response = await fetch(`${API_BASE_URL}/feed/posts/${postId}/share`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -549,7 +549,7 @@ export default function FeedScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await fetch(`${API_BASE_URL}/api/feed/posts/${postId}`, {
+              const response = await fetch(`${API_BASE_URL}/feed/posts/${postId}`, {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
@@ -589,7 +589,7 @@ export default function FeedScreen() {
   const handleAddComment = async () => {
     if (commentText.trim() && selectedPost) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/feed/posts/${selectedPost.id}/comment`, {
+        const response = await fetch(`${API_BASE_URL}/feed/posts/${selectedPost.id}/comment`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -639,7 +639,7 @@ export default function FeedScreen() {
   const handleUserClick = async (post: FeedPost) => {
     try {
       // First, try to get the user ID from the database
-      const response = await fetch(`${API_BASE_URL}/api/users/search?query=${post.username}`);
+      const response = await fetch(`${API_BASE_URL}/users/search?query=${post.username}`);
       if (response.ok) {
         const users = await response.json();
         const foundUser = users.find((u: any) => u.username === post.username);

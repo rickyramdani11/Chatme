@@ -54,7 +54,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
   const fetchAlbumPhotos = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/album`, {
+      const response = await fetch(`${API_BASE_URL}/users/${user?.id}/album`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : '',
@@ -117,7 +117,7 @@ export default function EditProfileScreen({ navigation }: any) {
     try {
       if (currentUploadType === 'avatar') {
         console.log('Uploading avatar for user:', user?.id);
-        const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/avatar`, {
+        const response = await fetch(`${API_BASE_URL}/users/${user?.id}/avatar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export default function EditProfileScreen({ navigation }: any) {
           
           // Update user context by calling the profile update endpoint directly
           try {
-            const profileResponse = await fetch(`${API_BASE_URL}/api/users/${user?.id}/profile`, {
+            const profileResponse = await fetch(`${API_BASE_URL}/users/${user?.id}/profile`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -164,7 +164,7 @@ export default function EditProfileScreen({ navigation }: any) {
         }
       } else {
         console.log('Uploading album photo for user:', user?.id);
-        const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/album`, {
+        const response = await fetch(`${API_BASE_URL}/users/${user?.id}/album`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -204,7 +204,7 @@ export default function EditProfileScreen({ navigation }: any) {
         signature: profileData.signature
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/profile`, {
+      const response = await fetch(`${API_BASE_URL}/users/${user?.id}/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

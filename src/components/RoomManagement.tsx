@@ -47,7 +47,7 @@ export default function RoomManagement({
 
   const loadModerators = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/moderators`, {
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/moderators`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -65,7 +65,7 @@ export default function RoomManagement({
 
   const loadBannedUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/banned`, {
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/banned`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ export default function RoomManagement({
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/moderators`, {
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/moderators`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -126,7 +126,7 @@ export default function RoomManagement({
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/moderators/${username}`, {
+              const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/moderators/${username}`, {
                 method: 'DELETE',
                 headers: {
                   'Authorization': `Bearer ${token}`,

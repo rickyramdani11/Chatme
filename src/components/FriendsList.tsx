@@ -141,7 +141,7 @@ export default function FriendsList({
     if (!user?.username || !token) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/friends`, {
+      const response = await fetch(`${API_BASE_URL}/friends`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -182,7 +182,7 @@ export default function FriendsList({
       const updatedFriends = await Promise.all(
         friendsList.map(async (friend) => {
           try {
-            const statusResponse = await fetch(`${API_BASE_URL}/api/user/${friend.id}/status`, {
+            const statusResponse = await fetch(`${API_BASE_URL}/user/${friend.id}/status`, {
               headers: {
                 'Content-Type': 'application/json',
               },
@@ -216,7 +216,7 @@ export default function FriendsList({
 
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/users/search?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_BASE_URL}/users/search?query=${encodeURIComponent(query)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +248,7 @@ export default function FriendsList({
 
   const addFriend = async (friendId: string, friendName: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${friendId}/follow`, {
+      const response = await fetch(`${API_BASE_URL}/users/${friendId}/follow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -317,7 +317,7 @@ export default function FriendsList({
     if (!selectedFriend) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/block`, {
+      const response = await fetch(`${API_BASE_URL}/users/${selectedFriend.id}/block`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -365,7 +365,7 @@ export default function FriendsList({
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/report`, {
+              const response = await fetch(`${API_BASE_URL}/users/${selectedFriend.id}/report`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -427,7 +427,7 @@ export default function FriendsList({
       avatarUri.startsWith('http') || 
       avatarUri.startsWith('https') || 
       avatarUri.startsWith('/api/users/avatar/') ||
-      avatarUri.startsWith(`${API_BASE_URL}/api/users/avatar/`)
+      avatarUri.startsWith(`${API_BASE_URL}/users/avatar/`)
     );
 
     if (isValidAvatar) {

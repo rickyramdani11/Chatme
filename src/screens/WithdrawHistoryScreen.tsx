@@ -22,7 +22,7 @@ export default function WithdrawHistoryScreen({ navigation }: any) {
     try {
       setLoading(true);
       // Add your API call here to fetch withdrawal history
-      // const response = await fetch(`${API_BASE_URL}/api/withdrawals/history`, {
+      // const response = await fetch(`${API_BASE_URL}/withdrawals/history`, {
       //   headers: {
       //     'Authorization': `Bearer ${token}`,
       //     'Content-Type': 'application/json',

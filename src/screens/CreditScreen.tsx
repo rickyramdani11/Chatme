@@ -43,7 +43,7 @@ export default function CreditScreen({ navigation }: any) {
 
   const fetchBalance = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
+      const response = await fetch(`${API_BASE_URL}/credits/balance`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -62,7 +62,7 @@ export default function CreditScreen({ navigation }: any) {
 
   const fetchTransactionHistory = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/history`, {
+      const response = await fetch(`${API_BASE_URL}/credits/history`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -103,7 +103,7 @@ export default function CreditScreen({ navigation }: any) {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/transfer`, {
+      const response = await fetch(`${API_BASE_URL}/credits/transfer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

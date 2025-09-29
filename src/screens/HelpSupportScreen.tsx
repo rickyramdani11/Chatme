@@ -64,7 +64,7 @@ export default function HelpSupportScreen({ navigation }: any) {
 
   const fetchFAQCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/support/faq/categories`);
+      const response = await fetch(`${API_BASE_URL}/support/faq/categories`);
       if (response.ok) {
         const categories = await response.json();
         setFaqCategories(categories);
@@ -76,7 +76,7 @@ export default function HelpSupportScreen({ navigation }: any) {
 
   const fetchFAQItems = async (category: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/support/faq/${category}`);
+      const response = await fetch(`${API_BASE_URL}/support/faq/${category}`);
       if (response.ok) {
         const items = await response.json();
         setFaqItems(items);
@@ -89,7 +89,7 @@ export default function HelpSupportScreen({ navigation }: any) {
 
   const fetchSupportTickets = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/support/tickets`, {
+      const response = await fetch(`${API_BASE_URL}/support/tickets`, {
         headers: {
           'Authorization': `Bearer ${user?.token}`,
         },
@@ -105,7 +105,7 @@ export default function HelpSupportScreen({ navigation }: any) {
 
   const checkLiveChatStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/support/live-chat/status`);
+      const response = await fetch(`${API_BASE_URL}/support/live-chat/status`);
       if (response.ok) {
         const status = await response.json();
         setLiveChatStatus(status);
@@ -122,7 +122,7 @@ export default function HelpSupportScreen({ navigation }: any) {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/support/tickets`, {
+      const response = await fetch(`${API_BASE_URL}/support/tickets`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -148,7 +148,7 @@ export default function HelpSupportScreen({ navigation }: any) {
 
   const startLiveChatSession = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/support/live-chat/start`, {
+      const response = await fetch(`${API_BASE_URL}/support/live-chat/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

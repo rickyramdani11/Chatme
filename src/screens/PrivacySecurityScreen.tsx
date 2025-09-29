@@ -42,7 +42,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
 
   const fetchPrivacySettings = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/privacy-settings`, {
+      const response = await fetch(`${API_BASE_URL}/users/${user?.id}/privacy-settings`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
       setLoading(true);
       console.log(`Updating privacy setting: ${key} = ${value}`);
       
-      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/privacy-settings`, {
+      const response = await fetch(`${API_BASE_URL}/users/${user?.id}/privacy-settings`, {
         method: 'PUT',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -134,7 +134,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
           text: 'Lanjutkan', 
           onPress: async () => {
             try {
-              const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/download-data`, {
+              const response = await fetch(`${API_BASE_URL}/users/${user?.id}/download-data`, {
                 method: 'POST',
                 headers: {
                   'Authorization': token ? `Bearer ${token}` : '',

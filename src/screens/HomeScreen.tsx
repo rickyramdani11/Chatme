@@ -88,9 +88,9 @@ const HomeScreen = ({ navigation }: any) => {
   const fetchFriends = async () => {
     try {
       setLoading(true);
-      console.log('Fetching friends from:', `${API_BASE_URL}/api/friends`);
+      console.log('Fetching friends from:', `${API_BASE_URL}/friends`);
 
-      const response = await fetch(`${API_BASE_URL}/api/friends`, {
+      const response = await fetch(`${API_BASE_URL}/friends`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -130,9 +130,9 @@ const HomeScreen = ({ navigation }: any) => {
   // Fetch rooms from server (assuming this function exists and is needed)
   const fetchRooms = async () => {
     try {
-      console.log('Fetching rooms from:', `${API_BASE_URL}/api/rooms`);
+      console.log('Fetching rooms from:', `${API_BASE_URL}/rooms`);
 
-      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
+      const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ const HomeScreen = ({ navigation }: any) => {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/users/search?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_BASE_URL}/users/search?query=${encodeURIComponent(query)}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -209,7 +209,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Search friends
   const searchFriends = async (query: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/friends/search?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_BASE_URL}/friends/search?query=${encodeURIComponent(query)}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -232,7 +232,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Update user status
   const updateUserStatus = async (newStatus: StatusType) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/status`, {
+      const response = await fetch(`${API_BASE_URL}/user/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -334,7 +334,7 @@ const HomeScreen = ({ navigation }: any) => {
 
   const fetchNotifications = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/notifications`, {
+      const response = await fetch(`${API_BASE_URL}/notifications`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -378,7 +378,7 @@ const HomeScreen = ({ navigation }: any) => {
 
   const fetchUserBalance = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
+      const response = await fetch(`${API_BASE_URL}/credits/balance`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -402,7 +402,7 @@ const HomeScreen = ({ navigation }: any) => {
 
   const fetchBanners = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/banners`, {
+      const response = await fetch(`${API_BASE_URL}/banners`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -455,7 +455,7 @@ const HomeScreen = ({ navigation }: any) => {
   const handleBannerClick = async (banner: any) => {
     try {
       // Track banner click
-      await fetch(`${API_BASE_URL}/api/banners/${banner.id}/click`, {
+      await fetch(`${API_BASE_URL}/banners/${banner.id}/click`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -611,7 +611,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Fetch chat history function
   const fetchChatHistory = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/history`, {
+      const response = await fetch(`${API_BASE_URL}/chat/history`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -635,7 +635,7 @@ const HomeScreen = ({ navigation }: any) => {
   // Add friend function
   const addFriend = async (userId: string, username: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/friends/add`, {
+      const response = await fetch(`${API_BASE_URL}/friends/add`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -663,7 +663,7 @@ const HomeScreen = ({ navigation }: any) => {
     try {
       console.log('Creating private chat with user:', username, 'ID:', userId);
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -749,7 +749,7 @@ const HomeScreen = ({ navigation }: any) => {
     if (!selectedFriend) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/block`, {
+      const response = await fetch(`${API_BASE_URL}/users/${selectedFriend.id}/block`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -789,7 +789,7 @@ const HomeScreen = ({ navigation }: any) => {
             try {
               console.log('Reporting user:', selectedFriend.id, selectedFriend.name);
 
-              const response = await fetch(`${API_BASE_URL}/api/users/${selectedFriend.id}/report`, {
+              const response = await fetch(`${API_BASE_URL}/users/${selectedFriend.id}/report`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -856,7 +856,7 @@ const HomeScreen = ({ navigation }: any) => {
       avatarUri.startsWith('http') ||
       avatarUri.startsWith('https') ||
       avatarUri.startsWith('/api/users/avatar/') ||
-      avatarUri.startsWith(`${API_BASE_URL}/api/users/avatar/`)
+      avatarUri.startsWith(`${API_BASE_URL}/users/avatar/`)
     );
 
     if (isValidAvatar) {

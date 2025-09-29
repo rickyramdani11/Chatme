@@ -386,7 +386,7 @@ export default function PrivateChatScreen() {
       if (!roomId) return;
 
       try {
-        const response = await fetch(`${API_BASE_URL}/api/chat/private/${roomId}/messages`, {
+        const response = await fetch(`${API_BASE_URL}/chat/private/${roomId}/messages`, {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -564,7 +564,7 @@ export default function PrivateChatScreen() {
 
   const checkUserBalance = async (requiredAmount: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/balance`, {
+      const response = await fetch(`${API_BASE_URL}/user/balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -584,7 +584,7 @@ export default function PrivateChatScreen() {
 
   const deductCoins = async (amount: number, type: string, description: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
+      const response = await fetch(`${API_BASE_URL}/user/deduct-coins`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -768,7 +768,7 @@ export default function PrivateChatScreen() {
 
   const loadEmojis = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/emojis`, {
+      const response = await fetch(`${API_BASE_URL}/emojis`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
@@ -839,7 +839,7 @@ export default function PrivateChatScreen() {
   const loadGifts = async () => {
     try {
       console.log('Loading gifts from server API...');
-      const response = await fetch(`${API_BASE_URL}/api/gifts`, {
+      const response = await fetch(`${API_BASE_URL}/gifts`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
@@ -946,7 +946,7 @@ export default function PrivateChatScreen() {
   const handleGiftSelect = async (gift: any) => {
     try {
       // Check balance first
-      const balanceResponse = await fetch(`${API_BASE_URL}/api/gifts/check-balance`, {
+      const balanceResponse = await fetch(`${API_BASE_URL}/gifts/check-balance`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -967,7 +967,7 @@ export default function PrivateChatScreen() {
       }
 
       // Proceed with gift purchase for private chat
-      const response = await fetch(`${API_BASE_URL}/api/gift/purchase`, {
+      const response = await fetch(`${API_BASE_URL}/gift/purchase`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

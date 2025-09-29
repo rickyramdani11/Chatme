@@ -189,7 +189,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/profile`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/profile`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
@@ -212,7 +212,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         // Check if current user is following this profile (only if not own profile and user is authenticated)
         if (!isOwnProfile && token && user?.id) {
           try {
-            const followCheckResponse = await fetch(`${API_BASE_URL}/api/users/${userId}/follow-status`, {
+            const followCheckResponse = await fetch(`${API_BASE_URL}/users/${userId}/follow-status`, {
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`,
@@ -231,7 +231,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
         // Fetch gifts from API
         try {
-          const giftsResponse = await fetch(`${API_BASE_URL}/api/users/${userId}/gifts`, {
+          const giftsResponse = await fetch(`${API_BASE_URL}/users/${userId}/gifts`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -249,7 +249,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
         // Fetch achievements from API
         try {
-          const achievementsResponse = await fetch(`${API_BASE_URL}/api/users/${userId}/achievements`, {
+          const achievementsResponse = await fetch(`${API_BASE_URL}/users/${userId}/achievements`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -268,7 +268,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         // Load current busy status if it's the user's own profile
         if (isOwnProfile && user?.username) {
           try {
-            const busyResponse = await fetch(`${API_BASE_URL}/api/user/busy-status`, {
+            const busyResponse = await fetch(`${API_BASE_URL}/user/busy-status`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
@@ -300,7 +300,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   const fetchAlbumPhotos = async () => {
     try {
       console.log('Fetching album photos for user:', userId);
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/album`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/album`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
@@ -324,7 +324,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   const fetchFamilyBadge = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/family-badge`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/family-badge`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
@@ -353,7 +353,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         token: token ? 'Present' : 'Missing'
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/follow`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/follow`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -396,7 +396,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         console.log('Creating private chat between:', user.username, 'and', profile.username);
 
         // Create private chat via API
-        const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
+        const response = await fetch(`${API_BASE_URL}/chat/private`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -457,7 +457,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   const handleBusyToggle = async () => {
     if (!token || !user?.username) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/busy-status`, {
+      const response = await fetch(`${API_BASE_URL}/user/busy-status`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -488,7 +488,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   const handleBusyMessageUpdate = async () => {
     if (!token || !user?.username) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/busy-status`, {
+      const response = await fetch(`${API_BASE_URL}/user/busy-status`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

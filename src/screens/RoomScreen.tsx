@@ -51,7 +51,7 @@ export default function RoomScreen() {
   // Fetch rooms from server
   const fetchRooms = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
+      const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ export default function RoomScreen() {
         requestBody.password = password;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/join`, {
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +170,7 @@ export default function RoomScreen() {
     setCreatingRoom(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
+      const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

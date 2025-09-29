@@ -51,7 +51,7 @@ export default function StoreScreen({ navigation }: any) {
 
   const fetchBalance = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
+      const response = await fetch(`${API_BASE_URL}/credits/balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -69,8 +69,8 @@ export default function StoreScreen({ navigation }: any) {
 
   const fetchHeadwearItems = async () => {
     try {
-      console.log('Fetching headwear items from:', `${API_BASE_URL}/api/store/headwear`);
-      const response = await fetch(`${API_BASE_URL}/api/store/headwear`, {
+      console.log('Fetching headwear items from:', `${API_BASE_URL}/store/headwear`);
+      const response = await fetch(`${API_BASE_URL}/store/headwear`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -97,7 +97,7 @@ export default function StoreScreen({ navigation }: any) {
 
   const fetchUserHeadwear = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/store/user-headwear`, {
+      const response = await fetch(`${API_BASE_URL}/store/user-headwear`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ export default function StoreScreen({ navigation }: any) {
 
     setPurchasing(selectedItem.id);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/headwear/purchase`, {
+      const response = await fetch(`${API_BASE_URL}/headwear/purchase`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

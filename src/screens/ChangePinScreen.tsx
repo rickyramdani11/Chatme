@@ -28,7 +28,7 @@ export default function ChangePinScreen({ navigation }: any) {
 
   const checkExistingPin = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/check-pin`, {
+      const response = await fetch(`${API_BASE_URL}/auth/check-pin`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -71,7 +71,7 @@ export default function ChangePinScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/change-pin`, {
+      const response = await fetch(`${API_BASE_URL}/auth/change-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

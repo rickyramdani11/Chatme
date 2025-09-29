@@ -54,7 +54,7 @@ export default function FamilyScreen({ navigation }: any) {
   const fetchFamilies = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/families`, {
+      const response = await fetch(`${API_BASE_URL}/families`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ export default function FamilyScreen({ navigation }: any) {
 
   const fetchUserFamily = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${user?.id}/family`, {
+      const response = await fetch(`${API_BASE_URL}/users/${user?.id}/family`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ export default function FamilyScreen({ navigation }: any) {
 
   const handleJoinFamily = async (familyId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/families/${familyId}/join`, {
+      const response = await fetch(`${API_BASE_URL}/families/${familyId}/join`, {
         method: 'POST',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',

@@ -44,7 +44,7 @@ export default function ChatHistoryScreen() {
   const fetchChatHistory = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/chat/history`, {
+      const response = await fetch(`${API_BASE_URL}/chat/history`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -168,7 +168,7 @@ export default function ChatHistoryScreen() {
       avatarUri.startsWith('http') ||
       avatarUri.startsWith('https') ||
       avatarUri.startsWith('/api/users/avatar/') ||
-      avatarUri.startsWith(`${API_BASE_URL}/api/users/avatar/`)
+      avatarUri.startsWith(`${API_BASE_URL}/users/avatar/`)
     );
 
     let avatarDisplay;

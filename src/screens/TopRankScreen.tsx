@@ -45,7 +45,7 @@ const TopRankScreen = ({ navigation }: any) => {
       setLoading(true);
       console.log(`Fetching ${type} rankings...`);
 
-      const response = await fetch(`${API_BASE_URL}/api/rankings/${type}`, {
+      const response = await fetch(`${API_BASE_URL}/rankings/${type}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

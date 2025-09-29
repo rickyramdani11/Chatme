@@ -203,7 +203,7 @@ export default function ChatScreen() {
   // Call handling functions
   const checkUserBalance = async (requiredAmount: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/balance`, {
+      const response = await fetch(`${API_BASE_URL}/user/balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -223,7 +223,7 @@ export default function ChatScreen() {
 
   const deductCoins = async (amount: number, type: string, description: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
+      const response = await fetch(`${API_BASE_URL}/user/deduct-coins`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -471,7 +471,7 @@ export default function ChatScreen() {
       if (!isSupport) { // Exclude support chats from room message loading
         // Load messages for the specific room
         try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${roomId}`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/messages/${roomId}`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -486,7 +486,7 @@ export default function ChatScreen() {
       } else if (isSupport) {
         // Load messages for support chat
         try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/support/${roomId}/messages`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/support/${roomId}/messages`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -503,7 +503,7 @@ export default function ChatScreen() {
         let roomData = null;
         if (type !== 'private' && !isSupport) {
           try {
-            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms`, {
+            const roomResponse = await fetch(`${API_BASE_URL}/rooms`, {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
@@ -1971,8 +1971,8 @@ export default function ChatScreen() {
 
   const loadRooms = async () => {
     try {
-      console.log('Loading rooms from:', `${API_BASE_URL}/api/rooms`);
-      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
+      console.log('Loading rooms from:', `${API_BASE_URL}/rooms`);
+      const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1998,7 +1998,7 @@ export default function ChatScreen() {
 
         if (targetRoom) {
           try {
-            const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${targetRoom.id}`, {
+            const messagesResponse = await fetch(`${API_BASE_URL}/messages/${targetRoom.id}`, {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
@@ -3154,9 +3154,9 @@ export default function ChatScreen() {
       if (chatTabs[activeTab]) {
         const currentRoomId = chatTabs[activeTab].id;
         const isSupportChat = chatTabs[activeTab].isSupport;
-        let endpoint = `${API_BASE_URL}/api/rooms/${currentRoomId}/participants`;
+        let endpoint = `${API_BASE_URL}/rooms/${currentRoomId}/participants`;
         if (isSupportChat) {
-          endpoint = `${API_BASE_URL}/api/support/${currentRoomId}/participants`;
+          endpoint = `${API_BASE_URL}/support/${currentRoomId}/participants`;
         }
 
         const response = await fetch(endpoint, {
@@ -3211,7 +3211,7 @@ export default function ChatScreen() {
 
   const addParticipantToRoom = async (roomId: string, username: string, role: string = 'user') => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/participants`, {
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/participants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3291,7 +3291,7 @@ export default function ChatScreen() {
       }
 
       // Create private chat via API
-      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -4204,8 +4204,8 @@ export default function ChatScreen() {
         { url: require('../../assets/emoticon/yuck.png'), type: 'image', name: 'Yuck' },
         { url: require('../../assets/emoticon/yum.png'), type: 'image', name: 'Yum' },
       ];
-      console.log('Loading emojis from:', `${API_BASE_URL}/api/emojis`);
-      const response = await fetch(`${API_BASE_URL}/api/emojis`, {
+      console.log('Loading emojis from:', `${API_BASE_URL}/emojis`);
+      const response = await fetch(`${API_BASE_URL}/emojis`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -4249,7 +4249,7 @@ export default function ChatScreen() {
   const loadGifts = async () => {
     try {
       console.log('Loading gifts from server API...');
-      const response = await fetch(`${API_BASE_URL}/api/gifts`, {
+      const response = await fetch(`${API_BASE_URL}/gifts`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
@@ -4396,7 +4396,7 @@ export default function ChatScreen() {
 
       // Check balance first
       try {
-        const response = await fetch(`${API_BASE_URL}/api/gifts/check-balance`, {
+        const response = await fetch(`${API_BASE_URL}/gifts/check-balance`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -4442,7 +4442,7 @@ export default function ChatScreen() {
                 onPress: async () => {
                   try {
                     // Process gift purchase through new endpoint
-                    const purchaseResponse = await fetch(`${API_BASE_URL}/api/gift/purchase`, {
+                    const purchaseResponse = await fetch(`${API_BASE_URL}/gift/purchase`, {
                       method: 'POST',
                       headers: {
                         'Authorization': `Bearer ${token}`,

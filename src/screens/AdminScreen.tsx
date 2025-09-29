@@ -255,7 +255,7 @@ export default function AdminScreen({ navigation }: any) {
   const loadEmojis = async () => {
     try {
       console.log('Loading emojis with token:', token ? 'Present' : 'Missing');
-      const response = await fetch(`${API_BASE_URL}/api/admin/emojis`, {
+      const response = await fetch(`${API_BASE_URL}/admin/emojis`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -283,7 +283,7 @@ export default function AdminScreen({ navigation }: any) {
   const loadGifts = async () => {
     try {
       console.log('Loading gifts with token:', token ? 'Present' : 'Missing');
-      const response = await fetch(`${API_BASE_URL}/api/admin/gifts`, {
+      const response = await fetch(`${API_BASE_URL}/admin/gifts`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -386,7 +386,7 @@ export default function AdminScreen({ navigation }: any) {
       setBannersLoading(true);
       console.log('Loading banners with token:', token ? 'Present' : 'Missing');
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/banners`, {
+      const response = await fetch(`${API_BASE_URL}/admin/banners`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -492,7 +492,7 @@ export default function AdminScreen({ navigation }: any) {
         imageType: uploadedBannerImage.type
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/banners`, {
+      const response = await fetch(`${API_BASE_URL}/admin/banners`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -533,7 +533,7 @@ export default function AdminScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const response = await fetch(`${API_BASE_URL}/api/admin/banners/${bannerId}`, {
+              const response = await fetch(`${API_BASE_URL}/admin/banners/${bannerId}`, {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
@@ -722,7 +722,7 @@ export default function AdminScreen({ navigation }: any) {
         isVideo: isVideo
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/gifts`, {
+      const response = await fetch(`${API_BASE_URL}/admin/gifts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -793,7 +793,7 @@ export default function AdminScreen({ navigation }: any) {
           hasEmoji: !!requestBody.emoji
         });
 
-        const response = await fetch(`${API_BASE_URL}/api/admin/emojis`, {
+        const response = await fetch(`${API_BASE_URL}/admin/emojis`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -845,7 +845,7 @@ export default function AdminScreen({ navigation }: any) {
           hasAnimation: requestBody.hasAnimation
         });
 
-        const response = await fetch(`${API_BASE_URL}/api/admin/gifts`, {
+        const response = await fetch(`${API_BASE_URL}/admin/gifts`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -888,7 +888,7 @@ export default function AdminScreen({ navigation }: any) {
 
     setSearchLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/users/search?username=${encodeURIComponent(searchUsername.trim())}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/search?username=${encodeURIComponent(searchUsername.trim())}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -923,7 +923,7 @@ export default function AdminScreen({ navigation }: any) {
           onPress: async () => {
             try {
               setLoading(true);
-              const response = await fetch(`${API_BASE_URL}/api/admin/users/promote`, {
+              const response = await fetch(`${API_BASE_URL}/admin/users/promote`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -970,7 +970,7 @@ export default function AdminScreen({ navigation }: any) {
     setAdminCreditLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/credits/add`, {
+      const response = await fetch(`${API_BASE_URL}/admin/credits/add`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -988,7 +988,7 @@ export default function AdminScreen({ navigation }: any) {
       if (response.ok) {
         // Send notification to recipient
         try {
-          await fetch(`${API_BASE_URL}/api/notifications/send`, {
+          await fetch(`${API_BASE_URL}/notifications/send`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -1051,7 +1051,7 @@ export default function AdminScreen({ navigation }: any) {
         console.log('Location permission denied or unavailable');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/users/status`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/status`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -1083,7 +1083,7 @@ export default function AdminScreen({ navigation }: any) {
 
   const loadUserCreditHistory = async (userId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/credits/history/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/credits/history/${userId}`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -1106,7 +1106,7 @@ export default function AdminScreen({ navigation }: any) {
   const loadBannedDevices = async () => {
     setBanLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/banned-devices`, {
+      const response = await fetch(`${API_BASE_URL}/admin/banned-devices`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -1133,7 +1133,7 @@ export default function AdminScreen({ navigation }: any) {
   const loadRooms = async () => {
     setRoomsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/rooms`, {
+      const response = await fetch(`${API_BASE_URL}/admin/rooms`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -1168,7 +1168,7 @@ export default function AdminScreen({ navigation }: any) {
           onPress: async () => {
             try {
               setRoomsLoading(true);
-              const response = await fetch(`${API_BASE_URL}/api/admin/rooms/${roomId}`, {
+              const response = await fetch(`${API_BASE_URL}/admin/rooms/${roomId}`, {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
@@ -1221,7 +1221,7 @@ export default function AdminScreen({ navigation }: any) {
     setEditingRoom(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/rooms/${selectedRoom.id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/rooms/${selectedRoom.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -1311,7 +1311,7 @@ export default function AdminScreen({ navigation }: any) {
     try {
       console.log('Executing ban:', { banType, userId, username, target, reason });
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/ban-${banType}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/ban-${banType}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1358,7 +1358,7 @@ export default function AdminScreen({ navigation }: any) {
           onPress: async () => {
             setBanLoading(true);
             try {
-              const response = await fetch(`${API_BASE_URL}/api/admin/unban`, {
+              const response = await fetch(`${API_BASE_URL}/admin/unban`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -1409,7 +1409,7 @@ export default function AdminScreen({ navigation }: any) {
     setTransferLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/transfer`, {
+      const response = await fetch(`${API_BASE_URL}/credits/transfer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1452,7 +1452,7 @@ export default function AdminScreen({ navigation }: any) {
           onPress: async () => {
             try {
               const endpoint = type === 'emoji' ? 'emojis' : 'gifts';
-              const response = await fetch(`${API_BASE_URL}/api/admin/${endpoint}/${id}`, {
+              const response = await fetch(`${API_BASE_URL}/admin/${endpoint}/${id}`, {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
@@ -1502,7 +1502,7 @@ export default function AdminScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/gifts/${editingGift.id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/gifts/${editingGift.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

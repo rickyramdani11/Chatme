@@ -36,7 +36,7 @@ export default function TransactionHistoryScreen({ navigation }: any) {
 
   const fetchTransactionHistory = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/history`, {
+      const response = await fetch(`${API_BASE_URL}/credits/history`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
