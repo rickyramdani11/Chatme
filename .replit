@@ -87,7 +87,7 @@ args = "API Server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Frontend"
+args = "Web App"
 
 [[workflows.workflow]]
 name = "Gateway"
@@ -140,15 +140,16 @@ task = "shell.exec"
 args = "npx expo start --tunnel --no-web"
 
 [[workflows.workflow]]
-name = "Frontend"
+name = "Web App"
 author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx expo start --tunnel"
+args = "npx expo start --web --port 5000 --host lan"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 3000
@@ -165,10 +166,6 @@ externalPort = 5000
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3001
 
 [[ports]]
 localPort = 8000
@@ -189,6 +186,10 @@ externalPort = 3000
 [[ports]]
 localPort = 43543
 externalPort = 3003
+
+[[ports]]
+localPort = 43747
+externalPort = 3001
 
 [deployment]
 run = ["sh", "-c", "cd server && npm start"]
