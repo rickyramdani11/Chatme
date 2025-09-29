@@ -664,6 +664,16 @@ export default function ChatScreen() {
           roomId: newMessage.roomId
         });
 
+        // Special handling for error messages - show alert if not displayed in UI
+        if (newMessage.type === 'error' && newMessage.sender === 'System') {
+          console.log('🚨 ERROR MESSAGE RECEIVED:', newMessage.content);
+          
+          // Show error in alert for immediate visibility
+          setTimeout(() => {
+            Alert.alert('System Error', newMessage.content);
+          }, 500);
+        }
+
         // Ensure timestamp is a proper Date object
         if (typeof newMessage.timestamp === 'string') {
           newMessage.timestamp = new Date(newMessage.timestamp);
@@ -1459,7 +1469,28 @@ export default function ChatScreen() {
     if (!socket) return;
 
     const handleNewMessage = (newMessage: Message) => {
-      console.log('Received new message:', { sender: newMessage.sender, content: newMessage.content, roomId: newMessage.roomId });
+      console.log('Received new message:', { sender: newMessage.sender, content: newMessage.content, type: newMessage.type, roomId: newMessage.roomId });
+
+      // Special handling for error messages - show alert for immediate visibility
+      if (newMessage.type === 'error' && newMessage.sender === 'System') {
+        console.log('🚨 ERROR MESSAGE RECEIVED:', newMessage.content);
+        
+        // Show error in alert with rejoin option
+        setTimeout(() => {
+          if (newMessage.content.includes('not in the room')) {
+            Alert.alert(
+              'Room Connection Error',
+              newMessage.content + '\n\nWould you like to rejoin the room?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Rejoin Room', onPress: forceRejoinRoom }
+              ]
+            );
+          } else {
+            Alert.alert('System Error', newMessage.content);
+          }
+        }, 500);
+      }
 
       // Ensure timestamp is a proper Date object
       if (typeof newMessage.timestamp === 'string') {
@@ -1482,10 +1513,10 @@ export default function ChatScreen() {
               updatedMessages[existingIndex] = { ...newMessage };
               console.log('Replaced optimistic message with real message');
             } else {
-              // Always add system messages without duplicate check (they're from server and should be shown)
-              if (newMessage.sender === 'System') {
+              // Always add system messages and error messages without duplicate check (they're from server and should be shown)
+              if (newMessage.sender === 'System' || newMessage.type === 'error') {
                 updatedMessages = [...tab.messages, newMessage];
-                console.log('System message added to tab:', tab.id);
+                console.log('System/Error message added to tab:', tab.id, 'Type:', newMessage.type);
               } else {
                 // For user messages, be more lenient with duplicate checking to prevent message loss
                 const isDuplicate = tab.messages.some(msg =>
@@ -4491,6 +4522,34 @@ export default function ChatScreen() {
       console.error('Error sending gift to user:', error);
       Alert.alert('Error', 'Failed to send gift to user');
     }
+  };
+
+  // Function to force rejoin current room
+  const forceRejoinRoom = () => {
+    if (!socket || !user || chatTabs.length === 0) return;
+
+    const currentTab = chatTabs[activeTab];
+    if (!currentTab) return;
+
+    console.log('🔄 Force rejoining room:', currentTab.id);
+
+    if (currentTab.isSupport) {
+      socket.emit('join-support-room', {
+        supportRoomId: currentTab.id,
+        isAdmin: user.role === 'admin',
+        silent: false
+      });
+    } else {
+      socket.emit('join-room', {
+        roomId: currentTab.id,
+        username: user.username,
+        role: user.role || 'user',
+        silent: false
+      });
+    }
+
+    // Show feedback to user
+    Alert.alert('Room Rejoined', 'You have been reconnected to the room. Try sending your message again.');
   };
 
   // Effect to load initial messages and participants when component mounts or roomId changes
