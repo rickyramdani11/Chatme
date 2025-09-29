@@ -52,6 +52,7 @@
     "expo-video": "~2.2.2",
     "expo-web-browser": "~14.2.0",
     "express": "^5.1.0",
+    "http-proxy-middleware": "^3.0.5",
     "install": "^0.13.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",

@@ -19,6 +19,7 @@ const feedRouter = require('./routes/feed');
 const roomsRouter = require('./routes/rooms');
 const withdrawRouter = require('./routes/withdraw');
 const fetch = require('node-fetch'); // Import node-fetch
+const { createProxyMiddleware } = require('http-proxy-middleware'); // For Socket.IO proxy
 
 // Import LowCard bot using CommonJS require
 let lowCardBot = null;
@@ -420,6 +421,21 @@ pool.connect(async (err, client, release) => {
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for potential file data
 app.use(express.urlencoded({ extended: true, limit: '50mb' })); // For form data
+
+// Socket.IO Proxy to Gateway (port 8000)
+// This allows external clients to connect to Socket Gateway through the main API server
+app.use('/socket.io', createProxyMiddleware({
+  target: 'http://localhost:8000',
+  ws: true, // enable websocket proxy
+  changeOrigin: true,
+  logLevel: 'info',
+  onProxyReq: (proxyReq, req, res) => {
+    console.log('🔌 Proxying Socket.IO request:', req.method, req.url);
+  },
+  onError: (err, req, res) => {
+    console.error('❌ Socket.IO Proxy error:', err.message);
+  }
+}));
 
 // Error handling middleware for JSON parsing
 app.use((err, req, res, next) => {
