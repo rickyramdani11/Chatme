@@ -1609,11 +1609,24 @@ export default function ChatScreen() {
 
       if (!isPrivateChat && !isSupportChat) {
         setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === joinMessage.roomId
-              ? { ...tab, messages: [...tab.messages, joinMessage] }
-              : tab
-          )
+          prevTabs.map(tab => {
+            if (tab.id === joinMessage.roomId) {
+              // Check for duplicate join messages in the last 5 seconds
+              const isDuplicate = tab.messages.some(msg =>
+                msg.type === 'join' &&
+                msg.sender === joinMessage.sender &&
+                Math.abs(new Date(msg.timestamp).getTime() - new Date(joinMessage.timestamp).getTime()) < 5000
+              );
+
+              if (isDuplicate) {
+                console.log(`🚫 Skipping duplicate join message for ${joinMessage.sender}`);
+                return tab; // Don't add duplicate
+              }
+
+              return { ...tab, messages: [...tab.messages, joinMessage] };
+            }
+            return tab;
+          })
         );
       } else {
         console.log('Skipping join message for private/support chat.');
@@ -3874,7 +3887,8 @@ export default function ChatScreen() {
       };
 
       const actionText = item.type === 'join' ? 'has entered' : 'has left';
-      const roomColor = getRoleColor(userRole, username, chatTabs[activeTab]?.id);
+      // Use fixed dark orange color for room name instead of user role color
+      const roomColor = '#d2691e'; // Dark orange color for room name
 
       return (
         <TouchableOpacity
