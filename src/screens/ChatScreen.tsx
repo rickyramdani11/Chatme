@@ -1183,6 +1183,7 @@ export default function ChatScreen() {
 
       // Initialize socket connection to gateway with better stability options
       const newSocket = io(SOCKET_URL, { // Use SOCKET_URL
+        path: '/socket.io/', // Default Socket.IO path (proxied to Gateway)
         transports: ['polling', 'websocket'], // Start with polling first for better Replit compatibility
         autoConnect: true,
         reconnection: true,

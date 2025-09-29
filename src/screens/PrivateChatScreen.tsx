@@ -336,6 +336,7 @@ export default function PrivateChatScreen() {
       }
 
       const newSocket = io(SOCKET_URL, {
+        path: '/socket.io/',
         transports: ['polling', 'websocket'],
         autoConnect: true,
         reconnection: true,

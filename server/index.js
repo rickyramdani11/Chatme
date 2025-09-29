@@ -35,6 +35,26 @@ try {
 const app = express();
 const server = http.createServer(app);
 
+// Socket.IO Proxy to Gateway (port 8000) - MUST BE FIRST BEFORE OTHER MIDDLEWARE
+// This allows external clients to connect to Socket Gateway through the main API server
+app.use('/socket.io', createProxyMiddleware({
+  target: 'http://localhost:8000',
+  ws: true, // enable websocket proxy
+  changeOrigin: false, // Don't change origin for local proxy
+  logLevel: 'debug',
+  pathRewrite: (path, req) => {
+    // Express strips /socket.io from the path, we need to add it back
+    const fullPath = '/socket.io' + path;
+    console.log('🔌 Proxying Socket.IO:', req.method, fullPath);
+    return fullPath;
+  },
+  onError: (err, req, res) => {
+    console.error('❌ Socket.IO Proxy error:', err.message);
+    res.writeHead(500, { 'Content-Type': 'text/plain' });
+    res.end('Socket.IO Proxy Error');
+  }
+}));
+
 // Socket.IO removed - now handled by dedicated gateway server
 
 const PORT = process.env.PORT || 5000;
@@ -421,21 +441,6 @@ pool.connect(async (err, client, release) => {
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for potential file data
 app.use(express.urlencoded({ extended: true, limit: '50mb' })); // For form data
-
-// Socket.IO Proxy to Gateway (port 8000)
-// This allows external clients to connect to Socket Gateway through the main API server
-app.use('/socket.io', createProxyMiddleware({
-  target: 'http://localhost:8000',
-  ws: true, // enable websocket proxy
-  changeOrigin: true,
-  logLevel: 'info',
-  onProxyReq: (proxyReq, req, res) => {
-    console.log('🔌 Proxying Socket.IO request:', req.method, req.url);
-  },
-  onError: (err, req, res) => {
-    console.error('❌ Socket.IO Proxy error:', err.message);
-  }
-}));
 
 // Error handling middleware for JSON parsing
 app.use((err, req, res, next) => {

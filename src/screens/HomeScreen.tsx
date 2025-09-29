@@ -19,7 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 
@@ -259,9 +259,10 @@ const HomeScreen = ({ navigation }: any) => {
   useEffect(() => {
     if (token && user) {
       const io = require('socket.io-client');
-      const socketInstance = io('http://0.0.0.0:8000', {
+      const socketInstance = io(SOCKET_URL, {
+        path: '/socket.io/',
         auth: { token },
-        transports: ['websocket', 'polling']
+        transports: ['polling', 'websocket']
       });
 
       socketInstance.on('connect', () => {

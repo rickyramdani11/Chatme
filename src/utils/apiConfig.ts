@@ -1,4 +1,4 @@
-// Central API configuration for the app
+// Central API configuration for the  app
 const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV === 'development';
 
 // Replit domain base
