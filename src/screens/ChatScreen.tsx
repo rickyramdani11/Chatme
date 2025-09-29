@@ -4366,15 +4366,23 @@ export default function ChatScreen() {
             return;
           }
 
+          // Calculate recipient and system shares
+          const isPrivateChat = chatTabs[activeTab]?.type === 'private';
+          const recipientPercentage = isPrivateChat ? 0.3 : 0.7;
+          const recipientShare = Math.floor(gift.price * recipientPercentage);
+          const systemShare = gift.price - recipientShare;
+          const remainingBalance = balanceData.currentBalance - gift.price;
+
           // Show cost breakdown confirmation
           const recipientText = recipientUsername ? `ke ${recipientUsername}` : 'ke room';
+          const shareText = isPrivateChat ? '30%' : '70%';
           Alert.alert(
             'Konfirmasi Gift',
             `Kirim ${gift.name} ${recipientText}?\n\n` +
             `Total: ${gift.price} coins\n` +
-            `${recipientUsername ? `${recipientUsername} mendapat: ${balanceData.recipientShare} coins (30%)\n` : ''}` +
-            `System cut: ${balanceData.systemShare} coins (70%)\n` +
-            `Sisa saldo: ${balanceData.remainingBalance} coins`,
+            `${recipientUsername ? `${recipientUsername} mendapat: ${recipientShare} coins (${shareText})\n` : ''}` +
+            `System cut: ${systemShare} coins\n` +
+            `Sisa saldo: ${remainingBalance} coins`,
             [
               { text: 'Batal', style: 'cancel' },
               {
