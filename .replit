@@ -87,6 +87,10 @@ args = "API Server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
+args = "Mobile Tunnel"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
 args = "Web App"
 
 [[workflows.workflow]]
@@ -139,6 +143,17 @@ args = "node server/index.js"
 outputType = "console"
 
 [[workflows.workflow]]
+name = "Mobile Tunnel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel --port 8081"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
 name = "Web App"
 author = "agent"
 
@@ -165,10 +180,6 @@ externalPort = 5000
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 8000
-externalPort = 8000
 
 [[ports]]
 localPort = 8080
