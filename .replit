@@ -102,18 +102,6 @@ args = "node server/socket-gateway.js"
 waitForPort = 8000
 
 [[workflows.workflow]]
-name = "API Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node server/index.js"
-waitForPort = 3000
-
-[[workflows.workflow]]
 name = "Admin Panel"
 author = 47646032
 mode = "sequential"
@@ -138,6 +126,17 @@ args = "JWT_SECRET=your_super_secret_key_for_development_only node server/socket
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npx expo start --tunnel --no-web"
+
+[[workflows.workflow]]
+name = "API Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow]]
 name = "Web App"
@@ -166,10 +165,6 @@ externalPort = 5000
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 8000
-externalPort = 8000
 
 [[ports]]
 localPort = 8080
