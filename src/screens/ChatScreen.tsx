@@ -534,12 +534,12 @@ export default function ChatScreen() {
           roomInfoMessages.push({
             id: `room_info_desc_${roomId}`,
             sender: roomName,
-            content: roomDescription || `Welcome to ${roomName} official chatroom`,
+            content: roomDescription || `Welcome to ${roomName} official chatroom. Here you can chat and interact with other users.`,
             timestamp: new Date(currentTime.getTime() - 3000), // 3 seconds earlier
             roomId: roomId,
-            role: 'system',
+            role: 'system' as const,
             level: 1,
-            type: 'room_info'
+            type: 'room_info' as const
           });
 
           // Managed by message
@@ -549,9 +549,9 @@ export default function ChatScreen() {
             content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
             timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
-            role: 'system',
+            role: 'system' as const,
             level: 1,
-            type: 'room_info'
+            type: 'room_info' as const
           });
 
           // Currently in the room message (will be updated with actual participants)
@@ -561,9 +561,9 @@ export default function ChatScreen() {
             content: `Currently in the room: Loading participants...`,
             timestamp: new Date(currentTime.getTime() - 1000), // 1 second earlier
             roomId: roomId,
-            role: 'system',
+            role: 'system' as const,
             level: 1,
-            type: 'room_info'
+            type: 'room_info' as const
           });
         }
 
@@ -641,7 +641,7 @@ export default function ChatScreen() {
 
   // Initialize socket with persistent connection and auto-reconnect
   useEffect(() => {
-    const setupSocketListeners = (socketInstance) => {
+    const setupSocketListeners = (socketInstance: any) => {
       // Clear existing listeners to prevent duplicates
       socketInstance.removeAllListeners('new-message');
       socketInstance.removeAllListeners('user-joined');
@@ -655,7 +655,7 @@ export default function ChatScreen() {
       socketInstance.removeAllListeners('admin-joined'); // Listener for admin joined support chat
       socketInstance.removeAllListeners('support-message'); // Listener for support messages
 
-      socketInstance.on('new-message', (newMessage: Message) => {
+      socketInstance.on('new-message', (newMessage: any) => {
         console.log('Received new message:', {
           sender: newMessage.sender,
           content: newMessage.content,
@@ -1468,7 +1468,7 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewMessage = (newMessage: Message) => {
+    const handleNewMessage = (newMessage: any) => {
       console.log('Received new message:', { sender: newMessage.sender, content: newMessage.content, type: newMessage.type, roomId: newMessage.roomId });
 
       // Special handling for error messages - show alert for immediate visibility
@@ -3797,17 +3797,24 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle room info messages
-    if (item.type === 'room_info') { // Assuming a new type 'room_info' for these messages
+    // Handle room info messages - style like regular messages with room name prefix
+    if (item.type === 'room_info') {
       return (
         <TouchableOpacity
-          style={styles.roomInfoMessageContainer}
+          style={styles.messageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
-          <View style={styles.roomInfoMessageRow}>
-            <Text style={styles.roomInfoMessageText}>
-              <Text style={styles.roomInfoContent}>{item.content}</Text>
-            </Text>
+          <View style={styles.messageRow}>
+            <View style={styles.messageContentRow}>
+              <Text style={styles.messageText}>
+                <Text style={[styles.senderName, { color: '#d2691e' }]}>
+                  {item.sender}:
+                </Text>
+                <Text style={[styles.messageContent, { color: '#333' }]}>
+                  {' '}{item.content}
+                </Text>
+              </Text>
+            </View>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
@@ -3896,9 +3903,9 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <Text style={styles.joinLeaveMessageText}>
-            <Text style={[styles.roomNameText, { color: roomColor }]}>{roomName} </Text>
-            <Text style={[styles.usernameText, { color: getRoleColor(userRole, username, chatTabs[activeTab]?.id) }]}>{username} </Text>
-            <Text style={styles.roleBadgeText}>{getRoleBadgeText(userRole)} </Text>
+            <Text style={[styles.roomNameText, { color: roomColor }]}>{roomName}: </Text>
+            <Text style={[styles.usernameText, { color: getRoleColor(userRole, username, chatTabs[activeTab]?.id) }]}>{username}</Text>
+            <Text style={styles.roleBadgeText}>[{getRoleBadgeText(userRole)}] </Text>
             <Text style={styles.actionText}>{actionText} </Text>
             <Text style={styles.joinLeaveTime}>({formatTime(item.timestamp)})</Text>
           </Text>
