@@ -83,11 +83,11 @@ args = "Gateway"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "API Server"
+args = "Mobile Tunnel"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Mobile Tunnel"
+args = "API Server"
 
 [[workflows.workflow]]
 name = "Gateway"
@@ -128,17 +128,6 @@ task = "shell.exec"
 args = "npx expo start --tunnel --no-web"
 
 [[workflows.workflow]]
-name = "API Server"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node server/index.js"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
 name = "Mobile Tunnel"
 author = "agent"
 
@@ -148,6 +137,18 @@ args = "npx expo start --tunnel"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "API Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 3000
@@ -164,6 +165,10 @@ externalPort = 5000
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
 
 [[ports]]
 localPort = 8080

@@ -1,19 +1,20 @@
 // Central API configuration for the app
 const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV === 'development';
 
-// API Configuration - Use different URLs for mobile vs web
-const REPLIT_DOMAIN = process.env.REPLIT_DEV_DOMAIN || 'abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
+// Replit domain base
+const BASE_REPLIT_URL = 'https://abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
 
-// For mobile app in development, use ngrok tunnel URLs
-export const API_BASE_URL = `https://le6iuyc-anonymous-3000.exp.direct`;
-export const SOCKET_URL = `https://le6iuyc-anonymous-8000.exp.direct`;
+// API Configuration  
+export const API_BASE_URL = `${BASE_REPLIT_URL}/api`; // API Server now on port 5000 (default Replit port)
 
-// Socket.IO configuration - Using dedicated GATEWAY server  
+// Socket.IO configuration - Misal socket jalan di /socket atau port 8000
+export const SOCKET_URL = `${BASE_REPLIT_URL}/socket`;
+
+// Socket.IO config
 export const SOCKET_CONFIG = {
-  // Connect to GATEWAY server on port 8000 (use https for Socket.IO)
-  url: `https://le6iuyc-anonymous-8000.exp.direct`,
+  url: SOCKET_URL,
   options: {
-    transports: ['websocket'], // Only websocket
+    transports: ['websocket'],
     timeout: 20000,
     forceNew: true,
     reconnection: true,
@@ -24,6 +25,6 @@ export const SOCKET_CONFIG = {
     upgrade: false,
     rememberUpgrade: false,
     path: '/socket.io/',
-    withCredentials: false
+    withCredentials: false,
   }
 };
