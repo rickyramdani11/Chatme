@@ -4,8 +4,8 @@ const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV === 'development';
 // API Configuration - Use different URLs for mobile vs web
 const REPLIT_DOMAIN = process.env.REPLIT_DEV_DOMAIN || 'abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
 
-// For Expo Dev Client, use tunnel URL which can access internal services
-export const API_BASE_URL = `https://le6iuyc-anonymous-3000.exp.direct/api`;
+// For mobile app in development, use localhost
+export const API_BASE_URL = `http://localhost:3000/api`;
 export const SOCKET_URL = `https://${REPLIT_DOMAIN}:8000`;
 
 // Socket.IO configuration - Using dedicated GATEWAY server  
