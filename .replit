@@ -144,12 +144,11 @@ name = "Frontend"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "webview"
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx expo start --web --port 5000 --tunnel"
-waitForPort = 5000
+args = "npx expo start --tunnel"
 
 [[ports]]
 localPort = 3000
