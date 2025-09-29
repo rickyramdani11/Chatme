@@ -39,10 +39,10 @@ interface Message {
   content: string;
   timestamp: Date;
   roomId: string;
-  role?: 'user' | 'merchant' | 'mentor' | 'admin' | 'system';
+  role?: any;
   level?: number;
-  type?: 'join' | 'leave' | 'message' | 'command' | 'me' | 'room_info' | 'report' | 'ban' | 'kick' | 'lock' | 'support' | 'gift' | 'error' | 'system';
-  commandType?: 'system' | 'bot';
+  type?: any;
+  commandType?: any;
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
   image?: string;
   isSupport?: boolean;
@@ -6017,12 +6017,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     paddingVertical: 8,
   },
   messageContainer: {
     marginBottom: 3,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   supportMessageContainer: {
     backgroundColor: '#E3F2FD', // Light blue background for support messages
@@ -6060,12 +6060,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     textAlignVertical: 'top',
-    marginLeft: 6,
+    marginLeft: 2,
   },
   levelBadgeContainer: {
     backgroundColor: '#229c93',
     borderRadius: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
     paddingVertical: 2,
     minWidth: 20,
     height: 20,
@@ -6073,6 +6073,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     marginTop: 1,
+    marginRight: 4,
   },
   levelBadgeText: {
     fontSize: 8,
@@ -6557,7 +6558,7 @@ const styles = StyleSheet.create({
   // Join/Leave message styles
   joinLeaveMessageContainer: {
     marginVertical: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 4,
     paddingVertical: 8,
     alignSelf: 'flex-start',
   },

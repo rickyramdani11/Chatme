@@ -36,7 +36,7 @@ const server = http.createServer(app);
 
 // Socket.IO removed - now handled by dedicated gateway server
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:${PORT}`); // For constructing image URLs
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
   console.warn('⚠️  WARNING: Using default JWT secret. Set JWT_SECRET environment variable for production!');
