@@ -10,9 +10,11 @@ import {
   Alert,
   RefreshControl,
   SafeAreaView,
-  FlatList
+  FlatList,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { API_BASE_URL } from '../utils/apiConfig';
 
@@ -38,6 +40,12 @@ interface FamilyDetail {
   createdAt: string;
 }
 
+interface AlbumPhoto {
+  id: number;
+  image_url: string;
+  uploaded_at: string;
+}
+
 export default function FamilyDetailScreen({ navigation, route }: any) {
   const { user, token } = useAuth();
   const [family, setFamily] = useState<FamilyDetail | null>(null);
@@ -46,6 +54,11 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [userFamilyRole, setUserFamilyRole] = useState<string>('');
   const [canManageRoles, setCanManageRoles] = useState(false);
+  
+  // Background editing states
+  const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
+  const [albumPhotos, setAlbumPhotos] = useState<AlbumPhoto[]>([]);
+  const [loadingAlbum, setLoadingAlbum] = useState(false);
 
   const familyId = route.params?.familyId;
 
@@ -130,20 +143,91 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
     }
   };
 
-  const renderMember = ({ item }: { item: FamilyMember }) => (
-    <View style={styles.memberItem}>
-      <View style={styles.memberInfo}>
-        <View style={styles.memberAvatar}>
-          {item.avatar ? (
-            <Image source={{ uri: item.avatar }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.defaultAvatar}>
-              <Text style={styles.avatarText}>
-                {item.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          )}
-        </View>
+  const fetchAlbumPhotos = async () => {
+    if (!user?.id) return;
+    
+    setLoadingAlbum(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${user.id}/album`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAlbumPhotos(data.photos || []);
+      }
+    } catch (error) {
+      console.error('Error fetching album:', error);
+      Alert.alert('Error', 'Failed to load album photos');
+    } finally {
+      setLoadingAlbum(false);
+    }
+  };
+
+  const handleEditBackground = () => {
+    if (!['admin', 'moderator'].includes(userFamilyRole)) {
+      Alert.alert('Permission Denied', 'Only admins and moderators can edit family background');
+      return;
+    }
+    fetchAlbumPhotos();
+    setShowBackgroundMenu(true);
+  };
+
+  const handleSaveBackground = async (photo: AlbumPhoto) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/families/${familyId}/cover`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({ imagePath: photo.image_url }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Family background updated successfully');
+        setShowBackgroundMenu(false);
+        await fetchFamilyDetails(); // Refresh family details
+      } else {
+        const error = await response.json();
+        Alert.alert('Error', error.error || 'Failed to update background');
+      }
+    } catch (error) {
+      console.error('Error updating family background:', error);
+      Alert.alert('Error', 'Failed to update family background');
+    }
+  };
+
+  const renderMember = ({ item }: { item: FamilyMember }) => {
+    // Normalize avatar URL to full URL for React Native Image component
+    let avatarUri = item.avatar;
+    if (avatarUri) {
+      if (avatarUri.startsWith('/')) {
+        avatarUri = `${API_BASE_URL}${avatarUri}`;
+      } else if (!avatarUri.startsWith('http')) {
+        avatarUri = `${API_BASE_URL}/${avatarUri}`;
+      }
+    }
+
+    return (
+      <View style={styles.memberItem}>
+        <View style={styles.memberInfo}>
+          <View style={styles.memberAvatar}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.defaultAvatar}>
+                <Text style={styles.avatarText}>
+                  {item.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
         
         <View style={styles.memberDetails}>
           <View style={styles.memberNameRow}>
@@ -169,7 +253,7 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
         </View>
       </View>
 
-      {canManageRoles && item.userId !== user?.id && item.familyRole !== 'admin' && (
+      {canManageRoles && String(item.userId) !== String(user?.id) && item.familyRole !== 'admin' && (
         <View style={styles.roleActions}>
           <TouchableOpacity
             style={[styles.roleButton, styles.moderatorButton]}
@@ -216,12 +300,35 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
         {/* Family Header */}
         {family && (
           <View style={styles.familyHeader}>
-            {family.coverImage && (
-              <Image 
-                source={{ uri: `${API_BASE_URL}${family.coverImage}` }}
-                style={styles.coverImage}
-              />
-            )}
+            <View style={styles.coverImageContainer}>
+              {family.coverImage ? (
+                <Image 
+                  source={{ 
+                    uri: family.coverImage.startsWith('http') 
+                      ? family.coverImage 
+                      : `${API_BASE_URL}${family.coverImage}` 
+                  }}
+                  style={styles.coverImage}
+                />
+              ) : (
+                <View style={styles.emptyCover} />
+              )}
+              
+              {/* Edit Background Button - Only for admins and moderators */}
+              {['admin', 'moderator'].includes(userFamilyRole) && (
+                <TouchableOpacity
+                  style={styles.editBackgroundButton}
+                  onPress={handleEditBackground}
+                >
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.4)']}
+                    style={styles.editBackgroundGradient}
+                  >
+                    <Ionicons name="pencil" size={20} color="#fff" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </View>
             
             <View style={styles.familyInfo}>
               <Text style={styles.familyName}>{family.name}</Text>
@@ -270,6 +377,56 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
           />
         </View>
       </ScrollView>
+
+      {/* Background Selection Modal */}
+      <Modal
+        visible={showBackgroundMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowBackgroundMenu(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.backgroundMenuContainer}>
+            <View style={styles.backgroundMenuHeader}>
+              <Text style={styles.backgroundMenuTitle}>Select Background</Text>
+              <TouchableOpacity onPress={() => setShowBackgroundMenu(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.backgroundMenuContent}>
+              {loadingAlbum ? (
+                <View style={styles.loadingAlbumContainer}>
+                  <Text style={styles.loadingAlbumText}>Loading photos...</Text>
+                </View>
+              ) : albumPhotos.length > 0 ? (
+                <View style={styles.albumGrid}>
+                  {albumPhotos.map((photo) => (
+                    <TouchableOpacity
+                      key={photo.id}
+                      style={styles.albumPhotoItem}
+                      onPress={() => handleSaveBackground(photo)}
+                    >
+                      <Image
+                        source={{ uri: `${API_BASE_URL}${photo.image_url}` }}
+                        style={styles.albumPhotoImage}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyAlbumContainer}>
+                  <Ionicons name="images-outline" size={64} color="#ccc" />
+                  <Text style={styles.emptyAlbumText}>No photos in album</Text>
+                  <Text style={styles.emptyAlbumSubtext}>
+                    Add photos to your album first to use as family background
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -473,5 +630,107 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '500',
+  },
+  // Background editing styles
+  coverImageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 200,
+  },
+  emptyCover: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f0f0f0',
+  },
+  editBackgroundButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  editBackgroundGradient: {
+    padding: 10,
+    borderRadius: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backgroundMenuContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '90%',
+    maxHeight: '80%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  backgroundMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  backgroundMenuTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  backgroundMenuContent: {
+    padding: 20,
+  },
+  loadingAlbumContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingAlbumText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  albumGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  albumPhotoItem: {
+    width: '31%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  albumPhotoImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  emptyAlbumContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyAlbumText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyAlbumSubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
   },
 });

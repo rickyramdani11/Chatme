@@ -1600,6 +1600,60 @@ app.put('/api/families/:familyId/members/:userId/role', authenticateToken, async
   }
 });
 
+// Update family cover image (admins and moderators only)
+app.put('/api/families/:familyId/cover', authenticateToken, async (req, res) => {
+  try {
+    const { familyId } = req.params;
+    const { imagePath } = req.body;
+    const userId = req.user.id;
+
+    if (!imagePath) {
+      return res.status(400).json({ error: 'Image path is required' });
+    }
+
+    // Check if user is admin or moderator in this family
+    const roleCheck = await pool.query(`
+      SELECT family_role FROM family_members 
+      WHERE family_id = $1 AND user_id = $2 AND is_active = true
+    `, [familyId, userId]);
+
+    if (roleCheck.rows.length === 0) {
+      return res.status(403).json({ error: 'You are not a member of this family' });
+    }
+
+    const userRole = roleCheck.rows[0].family_role;
+    if (!['admin', 'moderator'].includes(userRole)) {
+      return res.status(403).json({ error: 'Only admins and moderators can update family cover' });
+    }
+
+    // Update family cover image
+    const result = await pool.query(`
+      UPDATE families 
+      SET cover_image = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+    `, [imagePath, familyId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Family not found' });
+    }
+
+    const family = result.rows[0];
+
+    console.log(`Family cover updated: Family ${familyId} cover set to ${imagePath} by user ${userId}`);
+
+    res.json({
+      success: true,
+      message: 'Family cover updated successfully',
+      coverImage: family.cover_image
+    });
+
+  } catch (error) {
+    console.error('Error updating family cover:', error);
+    res.status(500).json({ error: 'Failed to update family cover' });
+  }
+});
+
 // Create family_assets table
 pool.query(`
   CREATE TABLE IF NOT EXISTS family_assets (
