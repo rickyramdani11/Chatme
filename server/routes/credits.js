@@ -78,9 +78,12 @@ router.get('/history', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const result = await pool.query(`
+    // Get credit transfers (send/receive between users)
+    const transfersResult = await pool.query(`
       SELECT 
-        ct.*,
+        ct.id,
+        ct.amount,
+        ct.created_at,
         CASE 
           WHEN ct.from_user_id = $1 THEN 'send'
           WHEN ct.to_user_id = $1 THEN 'receive'
@@ -88,20 +91,98 @@ router.get('/history', authenticateToken, async (req, res) => {
         CASE 
           WHEN ct.from_user_id = $1 THEN (SELECT username FROM users WHERE id = ct.to_user_id)
           WHEN ct.to_user_id = $1 THEN (SELECT username FROM users WHERE id = ct.from_user_id)
-        END as other_user
+        END as other_user,
+        'transfer' as category
       FROM credit_transactions ct
-      WHERE ct.from_user_id = $1 OR ct.to_user_id = $1
-      ORDER BY ct.created_at DESC
-      LIMIT 50
+      WHERE (ct.from_user_id = $1 OR ct.to_user_id = $1) AND ct.type = 'transfer'
     `, [userId]);
 
-    const transactions = result.rows.map(row => ({
-      id: row.id,
-      amount: row.amount,
-      type: row.type,
-      otherUser: row.other_user,
-      createdAt: row.created_at
-    }));
+    // Get game transactions (bet/win from lowcard game)
+    const gameResult = await pool.query(`
+      SELECT 
+        ct.id,
+        ct.amount,
+        ct.created_at,
+        ct.type,
+        'game' as category,
+        ct.description
+      FROM credit_transactions ct
+      WHERE (ct.from_user_id = $1 OR ct.to_user_id = $1) 
+        AND ct.type IN ('game_bet', 'game_win', 'game_refund')
+    `, [userId]);
+
+    // Get gift sent transactions
+    const giftSentResult = await pool.query(`
+      SELECT 
+        gt.id,
+        gt.coin_cost as amount,
+        gt.created_at,
+        'send' as type,
+        'gift' as category,
+        gt.gift_name,
+        (SELECT username FROM users WHERE id = gt.recipient_id) as other_user
+      FROM gift_transactions gt
+      WHERE gt.sender_id = $1
+    `, [userId]);
+
+    // Get gift received transactions
+    const giftReceivedResult = await pool.query(`
+      SELECT 
+        ge.id,
+        ge.user_share as amount,
+        ge.created_at,
+        'receive' as type,
+        'gift' as category,
+        ge.gift_name,
+        ge.sender_username as other_user
+      FROM gift_earnings ge
+      WHERE ge.user_id = $1
+    `, [userId]);
+
+    // Combine all transactions
+    const allTransactions = [
+      ...transfersResult.rows.map(row => ({
+        id: `transfer_${row.id}`,
+        amount: row.amount,
+        type: row.type,
+        category: row.category,
+        otherUser: row.other_user,
+        description: row.type === 'send' ? 'Transfer Terkirim' : 'Transfer Diterima',
+        createdAt: row.created_at
+      })),
+      ...gameResult.rows.map(row => ({
+        id: `game_${row.id}`,
+        amount: row.amount,
+        type: row.type === 'game_bet' ? 'send' : 'receive',
+        category: row.category,
+        otherUser: 'LowCard Game',
+        description: row.type === 'game_bet' ? 'Game Bet' : row.type === 'game_win' ? 'Game Menang' : 'Game Refund',
+        createdAt: row.created_at
+      })),
+      ...giftSentResult.rows.map(row => ({
+        id: `gift_sent_${row.id}`,
+        amount: row.amount,
+        type: row.type,
+        category: row.category,
+        otherUser: row.other_user,
+        description: `Gift: ${row.gift_name}`,
+        createdAt: row.created_at
+      })),
+      ...giftReceivedResult.rows.map(row => ({
+        id: `gift_received_${row.id}`,
+        amount: row.amount,
+        type: row.type,
+        category: row.category,
+        otherUser: row.other_user,
+        description: `Gift: ${row.gift_name}`,
+        createdAt: row.created_at
+      }))
+    ];
+
+    // Sort by date descending and limit to 100 transactions
+    const transactions = allTransactions
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 100);
 
     res.json({ transactions });
   } catch (error) {

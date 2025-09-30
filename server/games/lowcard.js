@@ -20,7 +20,7 @@ function getCardValue(card) {
 }
 
 // Database coin functions
-async function potongCoin(userId, amount) {
+async function potongCoin(userId, amount, isRefund = false) {
   // Check if user has enough coins and deduct from balance
   const { Pool } = require('pg');
   const pool = new Pool({
@@ -54,6 +54,14 @@ async function potongCoin(userId, amount) {
       [amount, userId]
     );
     
+    // Record transaction in credit_transactions (if not a refund)
+    if (!isRefund) {
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+        VALUES ($1, $1, $2, 'game_bet', 'LowCard Game Bet')
+      `, [userId, amount]);
+    }
+    
     console.log(`[LowCard] Deducted ${amount} coins from user ${userId}, new balance: ${currentBalance - amount}`);
     return true;
   } catch (error) {
@@ -62,7 +70,7 @@ async function potongCoin(userId, amount) {
   }
 }
 
-async function tambahCoin(userId, amount) {
+async function tambahCoin(userId, amount, isRefund = false) {
   // Add coins to user's database balance
   const { Pool } = require('pg');
   const pool = new Pool({
@@ -77,7 +85,16 @@ async function tambahCoin(userId, amount) {
       [amount, userId]
     );
     
-    console.log(`[LowCard] Added ${amount} coins to user ${userId}`);
+    // Record transaction in credit_transactions
+    const transactionType = isRefund ? 'game_refund' : 'game_win';
+    const description = isRefund ? 'LowCard Game Refund' : 'LowCard Game Win';
+    
+    await pool.query(`
+      INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+      VALUES ($1, $1, $2, $3, $4)
+    `, [userId, amount, transactionType, description]);
+    
+    console.log(`[LowCard] Added ${amount} coins to user ${userId} (${transactionType})`);
   } catch (error) {
     console.error('Error adding coins:', error);
   }
@@ -110,7 +127,7 @@ function startJoinPhase(io, room) {
       
       // Refund all players who joined
       for (const player of data.players) {
-        await tambahCoin(player.id, player.bet);
+        await tambahCoin(player.id, player.bet, true);
         console.log(`[LowCard] Refunded ${player.bet} coins to ${player.username} (game canceled)`);
       }
       
@@ -405,7 +422,7 @@ async function processLowCardCommand(io, room, msg, userId, username) {
       
       // Refund all players if game exists
       for (const player of data.players) {
-        await tambahCoin(player.id, player.bet);
+        await tambahCoin(player.id, player.bet, true);
         refundCount++;
         totalRefunded += player.bet;
         console.log(`[LowCard] Refunded ${player.bet} coins to ${player.username} (bot shutdown)`);
@@ -634,7 +651,7 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
       const player = data.players[playerIndex];
       
       // Refund the bet
-      await tambahCoin(userId, data.bet);
+      await tambahCoin(userId, data.bet, true);
       data.players.splice(playerIndex, 1);
       sendBotMessage(io, room, `${username} left the game. ${data.bet} COIN refunded.`);
       console.log(`[LowCard] Refunded ${data.bet} coins to ${username} (manual leave)`);
@@ -645,7 +662,7 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
         
         // Refund remaining players
         for (const remainingPlayer of data.players) {
-          await tambahCoin(remainingPlayer.id, remainingPlayer.bet);
+          await tambahCoin(remainingPlayer.id, remainingPlayer.bet, true);
           console.log(`[LowCard] Refunded ${remainingPlayer.bet} coins to ${remainingPlayer.username} (game canceled due to insufficient players)`);
         }
         
@@ -724,7 +741,7 @@ function handleLowCardBot(io, socket) {
 
         if (!data.isRunning) {
           // Refund bet if game hasn't started
-          await tambahCoin(player.id, player.bet);
+          await tambahCoin(player.id, player.bet, true);
           data.players.splice(playerIndex, 1);
           sendBotMessage(io, room, `${player.username} disconnected and left the game. ${player.bet} COIN refunded.`);
           console.log(`[LowCard] Refunded ${player.bet} coins to ${player.username} (disconnect during join phase)`);

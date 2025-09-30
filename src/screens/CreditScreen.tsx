@@ -243,14 +243,35 @@ export default function CreditScreen({ navigation }: any) {
           {transactions.length > 0 && (
             <View style={styles.recentSection}>
               <Text style={styles.sectionTitle}>Transaksi Terbaru</Text>
-              {transactions.slice(0, 3).map((transaction: any, index: number) => (
+              {transactions.slice(0, 5).map((transaction: any, index: number) => (
                 <View key={index} style={styles.transactionItem}>
+                  <View style={styles.transactionIconContainer}>
+                    <Ionicons 
+                      name={
+                        transaction.category === 'gift' ? 'gift' :
+                        transaction.category === 'game' ? 'game-controller' :
+                        transaction.type === 'send' ? 'arrow-up' : 'arrow-down'
+                      }
+                      size={20}
+                      color={transaction.type === 'send' ? '#F44336' : '#4CAF50'}
+                    />
+                  </View>
                   <View style={styles.transactionInfo}>
                     <Text style={styles.transactionType}>
-                      {transaction.type === 'send' ? 'Kirim ke' : 'Terima dari'} {transaction.otherUser}
+                      {transaction.description || 
+                       (transaction.type === 'send' ? 'Kirim ke' : 'Terima dari') + ' ' + transaction.otherUser}
+                    </Text>
+                    <Text style={styles.transactionOtherUser}>
+                      {transaction.otherUser && transaction.category !== 'game' ? transaction.otherUser : ''}
                     </Text>
                     <Text style={styles.transactionDate}>
-                      {new Date(transaction.createdAt).toLocaleDateString('id-ID')}
+                      {new Date(transaction.createdAt).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </Text>
                   </View>
                   <Text style={[
@@ -397,21 +418,36 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  transactionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   transactionInfo: {
     flex: 1,
   },
   transactionType: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#333',
   },
-  transactionDate: {
-    fontSize: 12,
+  transactionOtherUser: {
+    fontSize: 13,
     color: '#666',
     marginTop: 2,
+  },
+  transactionDate: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 4,
   },
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginLeft: 8,
   },
 });
