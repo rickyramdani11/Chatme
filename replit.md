@@ -35,6 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **User Presence System**: Real-time online/offline status tracking with multi-device support via Socket.IO
 - **Device Tracking**: Login device info (brand, model, OS) collected via expo-device with IP tracking
 - **Location Tracking**: City/country level location via expo-location with GPS and reverse geocoding
+- **Avatar Customization System**: Frame rental system with 14-day auto-expiry and headwear items with auto-equip functionality
 
 ## Data Management
 - **Authentication Flow**: JWT tokens stored in AsyncStorage with automatic refresh
@@ -160,3 +161,25 @@ Preferred communication style: Simple, everyday language.
 - **Badge Counter**: Real-time unread notification count on HomeScreen bell icon
 - **Alert Actions**: Credit notifications include balance refresh, follow notifications show acknowledgment
 - **Persistent Storage**: All notifications saved to database and retrievable via /notifications endpoint
+
+## Avatar Frames Rental System (September 2025)
+
+### Architecture Overview
+- **Database Tables**: frame_items (catalog) and user_frames (ownership) with 14-day rental mechanics
+- **API Endpoints**: GET /api/store/frames, GET /api/store/user-frames, POST /api/frames/purchase, POST /api/frames/equip
+- **Auto-Expiry Job**: Hourly scheduled job removes expired frames and clears avatar_frame from user profiles
+- **Frontend Integration**: StoreScreen displays frames in dedicated tab with purchase flow and expiry tracking
+
+### Implementation Details
+- **Frame Items Table**: Stores frame catalog with id, name, description, image path, price, duration_days (default 14), is_active status
+- **User Frames Table**: Tracks ownership with user_id (FK to users), frame_id (FK to frame_items), purchased_at, expires_at, is_active
+- **Database Integrity**: Foreign key constraints with ON DELETE CASCADE, unique constraint on (user_id, frame_id) to prevent duplicates
+- **Seeded Items**: 4 default frames from assets/frame_ava (frame_av.jpeg, frame_av1.jpeg, frame_av3.png, frame_av4.png) with prices 50k-100k credits
+- **Auto-Equip**: Purchase endpoint automatically sets user.avatar_frame to frame image path upon successful purchase
+- **Cleanup Job**: Runs hourly to deactivate expired rentals and clear avatar_frame from user profiles, scheduled after table initialization
+
+### User Experience
+- **Store Interface**: Tabbed layout with separate Frames and Headwear sections in StoreScreen
+- **Purchase Flow**: Users pay credits, frame auto-equips, and appears on profile immediately
+- **Expiry Display**: Shows remaining days on owned frames, auto-removes after 14 days
+- **Renewal**: Users can repurchase expired frames to extend rental period
