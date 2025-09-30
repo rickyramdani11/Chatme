@@ -3997,13 +3997,13 @@ export default function ChatScreen() {
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
-                  { color: item.sender === 'LowCardBot' ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
                   {item.sender}:
                 </Text>
                 <Text style={[
                   styles.messageContent,
-                  { color: item.sender === 'LowCardBot' ? '#0f23bd' : '#333' }
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333' }
                 ]}>
                   {renderMessageContent(item.content)}
                 </Text>

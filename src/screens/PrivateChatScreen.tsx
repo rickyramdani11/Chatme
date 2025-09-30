@@ -1230,11 +1230,14 @@ export default function PrivateChatScreen() {
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
-                  { color: getRoleColor(item.role) }
+                  { color: item.sender === 'chatme_bot' ? '#167027' : getRoleColor(item.role) }
                 ]}>
                   {item.sender}:
                 </Text>
-                <Text style={styles.messageContent}>
+                <Text style={[
+                  styles.messageContent,
+                  { color: item.sender === 'chatme_bot' ? '#0f23bd' : '#333' }
+                ]}>
                   {renderMessageContent(item.content)}
                 </Text>
               </Text>

@@ -1,4 +1,4 @@
-const OpenAI = require('openai');
+import OpenAI from 'openai';
 
 /**
  * ChatMe Bot - OpenAI Integration
@@ -11,26 +11,49 @@ const OpenAI = require('openai');
  * - Bot messages: Blue color
  */
 
+// Pre-check for API key
+if (!process.env.OPENAI_API_KEY) {
+  console.error('⚠️ OPENAI_API_KEY not found! Bot will return error messages.');
+}
+
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY 
 });
 
-const BOT_USERNAME = 'chatme_bot';
-const BOT_USER_ID = 43; // Database ID for chatme_bot
+export const BOT_USERNAME = 'chatme_bot';
+export const BOT_USER_ID = 43; // Database ID for chatme_bot
+
+// Rate limiting: Track last response time per room
+const lastResponseTime = new Map(); // roomId -> timestamp
+const COOLDOWN_MS = 5000; // 5 seconds cooldown between responses
 
 /**
  * Check if a message is directed to the bot
  * @param {string} message - The message content
  * @param {string} roomId - The room ID
+ * @param {string} sender - The sender username
  * @returns {boolean} - True if message is for the bot
  */
-function shouldBotRespond(message, roomId) {
+function shouldBotRespond(message, roomId, sender) {
+  // Never respond to own messages (prevent loop)
+  if (sender === BOT_USERNAME) {
+    return false;
+  }
+  
   // Bot responds to mentions (@chatme_bot) or direct messages
   const mentionsBot = message.toLowerCase().includes('@chatme_bot');
   const isPrivateMessage = roomId.startsWith('private_');
   
-  return mentionsBot || isPrivateMessage;
+  // In private chat, check if bot is part of the room ID
+  if (isPrivateMessage) {
+    // Only respond if chatme_bot is actually in the private chat
+    // Room format: private_userId1_userId2
+    // Bot user ID is 43
+    return roomId.includes('_43_') || roomId.endsWith('_43');
+  }
+  
+  return mentionsBot;
 }
 
 /**
@@ -78,13 +101,24 @@ Respond naturally and helpfully to user messages.`
     });
 
     // Call OpenAI API - the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: messages,
-      max_completion_tokens: 500, // Keep responses concise
-    });
-
-    return response.choices[0].message.content;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-5",
+        messages: messages,
+        max_tokens: 500, // Keep responses concise (corrected from max_completion_tokens)
+      }, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      return response.choices[0].message.content;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
   } catch (error) {
     console.error('❌ ChatMe Bot - OpenAI API Error:', error.message);
     
@@ -110,14 +144,32 @@ Respond naturally and helpfully to user messages.`
  */
 async function processBotMessage({ message, roomId, username, conversationHistory }) {
   // Check if bot should respond
-  if (!shouldBotRespond(message, roomId)) {
+  if (!shouldBotRespond(message, roomId, username)) {
     return null;
+  }
+
+  // Rate limiting: Check cooldown
+  const now = Date.now();
+  const lastResponse = lastResponseTime.get(roomId) || 0;
+  const timeSinceLastResponse = now - lastResponse;
+  
+  if (timeSinceLastResponse < COOLDOWN_MS) {
+    console.log(`🤖 ChatMe Bot: Rate limited in ${roomId} (${timeSinceLastResponse}ms since last response)`);
+    return null; // Silent cooldown - don't spam
   }
 
   console.log(`🤖 ChatMe Bot: Processing message from ${username} in ${roomId}`);
   
   // Remove @chatme_bot mention from message for cleaner context
   const cleanMessage = message.replace(/@chatme_bot/gi, '').trim();
+  
+  // Ignore empty messages after stripping mention
+  if (!cleanMessage) {
+    return null;
+  }
+  
+  // Update last response time
+  lastResponseTime.set(roomId, now);
   
   // Generate AI response
   const botResponse = await generateBotResponse(cleanMessage, username, conversationHistory);
@@ -137,7 +189,7 @@ async function processBotMessage({ message, roomId, username, conversationHistor
  * Get bot user info
  * @returns {Object} - Bot user information
  */
-function getBotInfo() {
+export function getBotInfo() {
   return {
     id: BOT_USER_ID,
     username: BOT_USERNAME,
@@ -147,11 +199,5 @@ function getBotInfo() {
   };
 }
 
-module.exports = {
-  BOT_USERNAME,
-  BOT_USER_ID,
-  shouldBotRespond,
-  generateBotResponse,
-  processBotMessage,
-  getBotInfo
-};
+// Named exports for ESM compatibility
+export { shouldBotRespond, generateBotResponse, processBotMessage };
