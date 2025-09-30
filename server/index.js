@@ -5027,28 +5027,26 @@ app.post('/api/users/:userId/album', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Store album photo
-    const photoId = `album_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    const photoUrl = `/api/users/album/${photoId}`;
+    const uploadedAt = new Date().toISOString();
 
-    if (!global.albumPhotos) {
-      global.albumPhotos = {};
-    }
-    global.albumPhotos[photoId] = {
-      id: photoId,
-      filename,
-      data: photo, // base64 data
-      uploadedBy: userId,
-      uploadedAt: new Date().toISOString()
-    };
+    // Save to database for persistence (auto-generate ID)
+    const insertResult = await pool.query(`
+      INSERT INTO user_album (user_id, filename, file_data, uploaded_at)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id
+    `, [userId, filename, photo, uploadedAt]);
 
-    console.log(`Album photo uploaded successfully for user ${userId}:`, filename);
+    const dbId = insertResult.rows[0].id;
+    const photoUrl = `/api/users/album/${dbId}`;
 
+    console.log(`Album photo uploaded successfully for user ${userId}:`, filename, 'DB ID:', dbId);
+
+    // Return response in format expected by frontend
     res.json({
-      id: photoId,
+      id: dbId.toString(),
       url: photoUrl,
       filename,
-      uploadedAt: new Date().toISOString(),
+      uploadedAt,
       message: 'Photo uploaded successfully'
     });
   } catch (error) {
@@ -5058,25 +5056,49 @@ app.post('/api/users/:userId/album', async (req, res) => {
 });
 
 // Serve album photos
-app.get('/api/users/album/:photoId', (req, res) => {
+app.get('/api/users/album/:photoId', async (req, res) => {
   try {
     const { photoId } = req.params;
 
-    if (!global.albumPhotos || !global.albumPhotos[photoId]) {
-      return res.status(404).json({ error: 'Photo not found' });
+    // Try to fetch from database first
+    const result = await pool.query('SELECT * FROM user_album WHERE id = $1', [photoId]);
+    
+    if (result.rows.length === 0) {
+      // Fallback to memory if not in database
+      if (!global.albumPhotos || !global.albumPhotos[photoId]) {
+        return res.status(404).json({ error: 'Photo not found' });
+      }
+      
+      const photo = global.albumPhotos[photoId];
+      const buffer = Buffer.from(photo.data, 'base64');
+
+      let contentType = 'image/jpeg';
+      if (photo.filename.toLowerCase().includes('png')) {
+        contentType = 'image/png';
+      } else if (photo.filename.toLowerCase().includes('gif')) {
+        contentType = 'image/gif';
+      }
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${photo.filename}"`);
+      return res.send(buffer);
     }
 
-    const photo = global.albumPhotos[photoId];
-    const buffer = Buffer.from(photo.data, 'base64');
+    // Serve from database
+    const photo = result.rows[0];
+    const buffer = Buffer.from(photo.file_data, 'base64');
 
     let contentType = 'image/jpeg';
     if (photo.filename.toLowerCase().includes('png')) {
       contentType = 'image/png';
     } else if (photo.filename.toLowerCase().includes('gif')) {
       contentType = 'image/gif';
+    } else if (photo.filename.toLowerCase().includes('webp')) {
+      contentType = 'image/webp';
     }
 
     res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
     res.setHeader('Content-Disposition', `inline; filename="${photo.filename}"`);
     res.send(buffer);
   } catch (error) {
