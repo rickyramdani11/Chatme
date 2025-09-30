@@ -182,7 +182,16 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const userPin = userResult.rows[0].pin || '000000';
+    // SECURITY: Require PIN to be set - no fallback allowed
+    if (!userResult.rows[0].pin) {
+      return res.status(400).json({ 
+        error: 'PIN not set. Please set your PIN in profile settings before transferring credits.' 
+      });
+    }
+
+    const userPin = userResult.rows[0].pin;
+    
+    // Verify PIN (TODO: Migrate to bcrypt hashing for production security)
     if (pin !== userPin) {
       return res.status(400).json({ error: 'Invalid PIN' });
     }

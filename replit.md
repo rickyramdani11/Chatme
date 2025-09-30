@@ -65,3 +65,55 @@ Preferred communication style: Simple, everyday language.
 - **Payment**: Placeholder for payment gateway integration (credit system ready)
 - **Push Notifications**: Expo notifications system (implementation ready)
 - **Analytics**: Ready for integration with analytics providers
+
+# Security Hardening
+
+## Recent Security Improvements (September 2025)
+
+### Admin Access Control
+- **Frontend Protection**: AdminScreen.tsx includes role verification with Alert + navigation.goBack() for unauthorized access
+- **Backend Protection**: All admin endpoints require admin role verification via authenticateAdmin middleware
+- **JWT Security**: Enforced JWT_SECRET requirement with fail-fast on missing secret to prevent token forgery
+
+### Audit Logging System
+- **Comprehensive Tracking**: admin_audit_logs table captures all admin actions
+- **Data Captured**: admin_id, username, action, resource_type, resource_id, IP address, user agent, status, error messages
+- **Sensitive Field Redaction**: Automatic redaction of password, pin, token, secret, creditCardNumber fields
+- **Base64 Redaction**: All base64 image fields (emojiFile, giftImage, bannerImage, imageData) are redacted from logs
+- **Coverage**: Applied to admin routes (emoji, gift, room operations), credit transfers, and banner management
+
+### File Upload Security
+- **Base64 Validation**: Magic number verification for PNG, JPG, JPEG, GIF, WEBP formats
+- **Size Limits**: 10MB maximum for base64 uploads, enforced for all admin operations
+- **MIME Type Filtering**: Allowlist-based validation (image/jpeg, image/jpg, image/png, image/webp, image/gif)
+- **Filename Sanitization**: Path.basename + regex sanitization + cryptographic random suffix
+- **Path Traversal Protection**: Hardcoded safe directories, strict field name validation
+- **Coverage**: Emoji uploads, gift image uploads, admin banner uploads
+
+### Rate Limiting
+- **Credit Transfer**: 5 requests/minute (critical financial operation)
+- **Emoji Operations**: Create 20/min, Delete 10/min
+- **Gift Operations**: Create 20/min, Delete 10/min
+- **Room Operations**: Delete 5/min
+- **Banner Operations**: Create 10/min
+- **Implementation**: In-memory store with periodic cleanup (suitable for single instance)
+
+### PIN Security
+- **Fallback Removed**: Eliminated '000000' default fallback
+- **Required PIN**: Users must set PIN before credit transfers
+- **Clear Error Messages**: "PIN not set. Please set your PIN in profile settings"
+- **Known Limitation**: PINs currently stored in plaintext (requires bcrypt migration for full production security)
+
+## Security Best Practices Implemented
+1. ✅ No client-controlled file paths
+2. ✅ MIME type validation with size limits
+3. ✅ Sensitive data redaction in audit logs
+4. ✅ Rate limiting on all sensitive operations
+5. ✅ JWT secret enforcement
+6. ✅ Admin role verification at multiple layers
+7. ✅ Magic number validation for image uploads
+
+## Known Limitations & Future Work
+- **PIN Storage**: Currently plaintext with TODO for bcrypt migration
+- **Rate Limiting**: In-memory implementation (consider Redis for distributed deployment)
+- **Banner Upload**: MIME-based validation (magic byte check recommended for enhanced security)

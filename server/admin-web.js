@@ -44,11 +44,18 @@ const fileFilter = (req, file, cb) => {
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadPath = `uploads/${file.fieldname}s/`;
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
+    // Hardcoded safe directory - NEVER use client-controlled fieldname in path!
+    const SAFE_UPLOAD_DIR = 'uploads/banners';
+    
+    // Validate expected field name strictly
+    if (file.fieldname !== 'banner') {
+      return cb(new Error('Invalid field name. Expected: banner'), false);
     }
-    cb(null, uploadPath);
+    
+    if (!fs.existsSync(SAFE_UPLOAD_DIR)) {
+      fs.mkdirSync(SAFE_UPLOAD_DIR, { recursive: true });
+    }
+    cb(null, SAFE_UPLOAD_DIR);
   },
   filename: function (req, file, cb) {
     const crypto = require('crypto');
