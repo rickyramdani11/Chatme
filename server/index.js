@@ -232,6 +232,64 @@ pool.connect(async (err, client, release) => {
         console.error('Error creating headwear tables:', tableError);
       }
 
+      // Create frame tables if they don't exist
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS frame_items (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            image VARCHAR(500),
+            price INTEGER NOT NULL DEFAULT 0,
+            duration_days INTEGER NOT NULL DEFAULT 14,
+            is_active BOOLEAN DEFAULT true,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS user_frames (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            frame_id INTEGER REFERENCES frame_items(id),
+            purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            is_active BOOLEAN DEFAULT true,
+            UNIQUE(user_id, frame_id)
+          )
+        `);
+
+        // Create indexes for better performance
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_user_frames_user_id 
+          ON user_frames(user_id, is_active)
+        `);
+
+        await client.query(`
+          CREATE INDEX IF NOT EXISTS idx_user_frames_expires_at 
+          ON user_frames(expires_at)
+        `);
+
+        // Insert default frame items if none exist
+        const existingFrames = await client.query('SELECT COUNT(*) FROM frame_items');
+        console.log('Current frame items count:', existingFrames.rows[0].count);
+
+        if (parseInt(existingFrames.rows[0].count) === 0) {
+          await client.query(`
+            INSERT INTO frame_items (name, description, image, price, duration_days, is_active) VALUES
+            ('Frame Classic', 'Bingkai avatar klasik dengan desain elegan', '/assets/frame_ava/frame_av.png', 50000, 14, true),
+            ('Frame Premium', 'Bingkai avatar premium dengan efek khusus', '/assets/frame_ava/frame_av1.jpeg', 75000, 14, true),
+            ('Frame Elite', 'Bingkai avatar elite dengan ornamen mewah', '/assets/frame_ava/frame_av3.png', 100000, 14, true),
+            ('Frame Royal', 'Bingkai avatar royal dengan detail istimewa', '/assets/frame_ava/frame_av4.png', 150000, 14, true)
+          `);
+          console.log('✅ Default frame items created (14-day rental)');
+        }
+
+        console.log('✅ Frame tables initialized successfully');
+      } catch (tableError) {
+        console.error('Error creating frame tables:', tableError);
+      }
+
     // Create families tables if they don't exist
     try {
       await client.query(`
@@ -786,6 +844,259 @@ app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error purchasing headwear:', error);
     res.status(500).json({ error: 'Failed to purchase headwear' });
+  }
+});
+
+// Frame Store API endpoints
+
+// Get frame items for store
+app.get('/api/store/frames', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== FETCHING FRAME ITEMS ===');
+
+    const result = await pool.query(`
+      SELECT id, name, description, image, price, duration_days, is_active
+      FROM frame_items
+      WHERE is_active = true
+      ORDER BY price ASC
+    `);
+
+    console.log('Raw frame data from database:', result.rows);
+
+    const items = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      price: row.price,
+      duration: row.duration_days
+    }));
+
+    console.log('Processed frame items:', items);
+    console.log('Total frame items returned:', items.length);
+
+    res.json({ items });
+  } catch (error) {
+    console.error('Error fetching frame items:', error);
+    res.status(500).json({ error: 'Failed to fetch frame items' });
+  }
+});
+
+// Get user's owned frames
+app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT uf.id, uf.frame_id, uf.expires_at, uf.is_active,
+             fi.name, fi.image
+      FROM user_frames uf
+      JOIN frame_items fi ON uf.frame_id = fi.id
+      WHERE uf.user_id = $1 AND uf.is_active = true
+      ORDER BY uf.purchased_at DESC
+    `, [userId]);
+
+    const frames = result.rows.map(row => ({
+      id: row.id.toString(),
+      frameId: row.frame_id.toString(),
+      name: row.name,
+      image: row.image,
+      expiresAt: row.expires_at,
+      isActive: row.is_active && new Date(row.expires_at) > new Date()
+    }));
+
+    res.json({ frames });
+  } catch (error) {
+    console.error('Error fetching user frames:', error);
+    res.status(500).json({ error: 'Failed to fetch user frames' });
+  }
+});
+
+// Purchase frame endpoint
+app.post('/api/frames/purchase', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { frameId } = req.body;
+
+    console.log('=== FRAME PURCHASE REQUEST ===');
+    console.log('User ID:', userId);
+    console.log('Frame ID:', frameId);
+
+    if (!frameId) {
+      return res.status(400).json({ error: 'Frame ID is required' });
+    }
+
+    // Start transaction
+    await pool.query('BEGIN');
+
+    try {
+      // Check if frame item exists
+      const frameResult = await pool.query(
+        'SELECT * FROM frame_items WHERE id = $1 AND is_active = true',
+        [frameId]
+      );
+
+      if (frameResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'Frame item not found' });
+      }
+
+      const frameItem = frameResult.rows[0];
+
+      // Check user's balance
+      const balanceResult = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1',
+        [userId]
+      );
+
+      if (balanceResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'User credits not found' });
+      }
+
+      const currentBalance = balanceResult.rows[0].balance;
+
+      if (currentBalance < frameItem.price) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient balance' });
+      }
+
+      // Check if user already owns this frame and it's still active
+      const existingResult = await pool.query(`
+        SELECT * FROM user_frames 
+        WHERE user_id = $1 AND frame_id = $2 AND is_active = true AND expires_at > NOW()
+      `, [userId, frameId]);
+
+      if (existingResult.rows.length > 0) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'You already own this frame' });
+      }
+
+      // Deduct credits
+      const newBalance = currentBalance - frameItem.price;
+      await pool.query(
+        'UPDATE user_credits SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+        [newBalance, userId]
+      );
+
+      // Calculate expiry date (14 days rental)
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + frameItem.duration_days);
+
+      // Deactivate all other frames for this user
+      await pool.query(`
+        UPDATE user_frames 
+        SET is_active = false
+        WHERE user_id = $1 AND is_active = true
+      `, [userId]);
+
+      // Add frame to user's collection (active and equipped)
+      await pool.query(`
+        INSERT INTO user_frames (user_id, frame_id, expires_at, is_active)
+        VALUES ($1, $2, $3, true)
+        ON CONFLICT (user_id, frame_id) 
+        DO UPDATE SET expires_at = $3, is_active = true, purchased_at = CURRENT_TIMESTAMP
+      `, [userId, frameId, expiresAt]);
+
+      // Automatically equip the purchased frame as avatar frame
+      await pool.query(`
+        UPDATE users 
+        SET avatar_frame = $1
+        WHERE id = $2
+      `, [frameItem.image, userId]);
+
+      // Record the transaction
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
+        VALUES ($1, NULL, $2, 'frame_purchase')
+      `, [userId, frameItem.price]);
+
+      await pool.query('COMMIT');
+
+      console.log(`Frame ${frameItem.name} purchased by user ${userId} for ${frameItem.price} credits`);
+
+      res.json({
+        success: true,
+        message: 'Frame purchased and equipped successfully',
+        newBalance: newBalance,
+        expiresAt: expiresAt.toISOString()
+      });
+
+    } catch (transactionError) {
+      await pool.query('ROLLBACK');
+      throw transactionError;
+    }
+
+  } catch (error) {
+    console.error('Error purchasing frame:', error);
+    res.status(500).json({ error: 'Failed to purchase frame' });
+  }
+});
+
+// Equip frame endpoint
+app.post('/api/frames/equip', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { frameId } = req.body;
+
+    if (!frameId) {
+      return res.status(400).json({ error: 'Frame ID is required' });
+    }
+
+    // Check if user owns this frame and it's not expired
+    const frameResult = await pool.query(`
+      SELECT uf.*, fi.image, fi.name
+      FROM user_frames uf
+      JOIN frame_items fi ON uf.frame_id = fi.id
+      WHERE uf.user_id = $1 AND uf.frame_id = $2 AND uf.expires_at > NOW()
+    `, [userId, frameId]);
+
+    if (frameResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Frame not found or expired' });
+    }
+
+    const frame = frameResult.rows[0];
+
+    // Start transaction
+    await pool.query('BEGIN');
+
+    try {
+      // Deactivate all other frames
+      await pool.query(`
+        UPDATE user_frames 
+        SET is_active = false
+        WHERE user_id = $1
+      `, [userId]);
+
+      // Activate selected frame
+      await pool.query(`
+        UPDATE user_frames 
+        SET is_active = true
+        WHERE user_id = $1 AND frame_id = $2
+      `, [userId, frameId]);
+
+      // Update user's avatar_frame
+      await pool.query(`
+        UPDATE users 
+        SET avatar_frame = $1
+        WHERE id = $2
+      `, [frame.image, userId]);
+
+      await pool.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: `Frame "${frame.name}" equipped successfully`
+      });
+
+    } catch (transactionError) {
+      await pool.query('ROLLBACK');
+      throw transactionError;
+    }
+
+  } catch (error) {
+    console.error('Error equipping frame:', error);
+    res.status(500).json({ error: 'Failed to equip frame' });
   }
 });
 
@@ -7076,12 +7387,79 @@ const cleanupExpiredHeadwear = async () => {
   }
 };
 
+// Cleanup expired frame items
+const cleanupExpiredFrames = async () => {
+  try {
+    // Find expired frame items
+    const expiredResult = await pool.query(`
+      SELECT uf.id, uf.user_id, u.username, u.avatar_frame, fi.name, fi.image 
+      FROM user_frames uf
+      JOIN users u ON uf.user_id = u.id
+      JOIN frame_items fi ON uf.frame_id = fi.id
+      WHERE uf.expires_at < NOW() AND uf.is_active = true
+    `);
+
+    if (expiredResult.rows.length > 0) {
+      console.log(`Found ${expiredResult.rows.length} expired frame items to cleanup`);
+
+      // Start transaction
+      await pool.query('BEGIN');
+
+      try {
+        // Mark expired frames as inactive
+        await pool.query(`
+          UPDATE user_frames 
+          SET is_active = false 
+          WHERE expires_at < NOW() AND is_active = true
+        `);
+
+        // Remove avatar frame from users with expired frames
+        for (const row of expiredResult.rows) {
+          // Check if the user's current avatar_frame matches the expired frame
+          if (row.avatar_frame === row.image) {
+            // Check if user has any other active frames
+            const activeFrames = await pool.query(`
+              SELECT COUNT(*) FROM user_frames 
+              WHERE user_id = $1 AND is_active = true AND expires_at > NOW()
+            `, [row.user_id]);
+
+            // If no active frames, remove avatar_frame
+            if (parseInt(activeFrames.rows[0].count) === 0) {
+              await pool.query(`
+                UPDATE users 
+                SET avatar_frame = NULL 
+                WHERE id = $1
+              `, [row.user_id]);
+              console.log(`Removed avatar_frame from user ${row.username} (expired frame: ${row.name})`);
+            }
+          }
+        }
+
+        await pool.query('COMMIT');
+
+        const expiredItems = expiredResult.rows.map(row => 
+          `${row.name} (User: ${row.username})`
+        ).join(', ');
+        console.log(`Deactivated expired frames: ${expiredItems}`);
+
+      } catch (error) {
+        await pool.query('ROLLBACK');
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up expired frames:', error);
+  }
+};
+
 // Run cleanup every hour
 setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 // Run mentor cleanup every 6 hours
 setInterval(cleanupExpiredMentors, 6 * 60 * 60 * 1000);
 // Run headwear cleanup every hour
 setInterval(cleanupExpiredHeadwear, 60 * 60 * 1000);
+// Run frame cleanup every hour
+setInterval(cleanupExpiredFrames, 60 * 60 * 1000);
 
 // Add root endpoint for web preview
 app.get('/', (req, res) => {
@@ -7296,9 +7674,12 @@ app.post('/api/gifts/purchase', (req, res) => {
   res.status(405).json({ message: 'This endpoint is for documentation purposes. Use POST /api/gifts/purchase for actual purchases.' });
 });
 
-// Run initial cleanup on server start
-cleanupExpiredMentors();
-cleanupExpiredHeadwear();
+// Run initial cleanup on server start (after all tables are initialized)
+setTimeout(() => {
+  cleanupExpiredMentors();
+  cleanupExpiredHeadwear();
+  cleanupExpiredFrames();
+}, 2000); // Wait 2 seconds for tables to be fully initialized
 
 
 server.listen(PORT, '0.0.0.0', () => {
