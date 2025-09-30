@@ -1018,7 +1018,7 @@ const HomeScreen = ({ navigation }: any) => {
             activeOpacity={0.8}
           >
             <Image
-              source={{ uri: `${API_BASE_URL}${banners[currentBannerIndex].imageUrl}` }}
+              source={{ uri: `${BASE_URL}${banners[currentBannerIndex].imageUrl}` }}
               style={styles.bannerImage}
               resizeMode="cover"
             />
