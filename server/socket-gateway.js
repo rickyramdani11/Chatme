@@ -463,6 +463,8 @@ app.post('/emit-notification', express.json(), (req, res) => {
 // In-memory storage for active rooms and participants
 const roomParticipants = {}; // { roomId: [ { id, username, role, socketId }, ... ] }
 const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
+// Track recent leave broadcasts to prevent duplicates (key: "userId_roomId", value: timestamp)
+const recentLeaveBroadcasts = new Map();
 // Removed global joinedRoomsRef - caused join suppression bugs across users
 
 // Socket authentication middleware
@@ -1952,18 +1954,36 @@ io.on('connection', (socket) => {
           // Only broadcast leave message for public rooms (not private chats or support chats)
           // and only if this was the last connection for this user
           if (!isPrivateChat && !isSupportChat) {
-            const leaveMessage = {
-              id: `leave_${Date.now()}_${userInfo.username}_${userInfo.roomId}`,
-              sender: userInfo.username,
-              content: `${userInfo.username} left the room`,
-              timestamp: new Date().toISOString(),
-              roomId: userInfo.roomId,
-              type: 'leave',
-              userRole: userInfo.role || 'user'
-            };
+            // Check if we've already broadcast a leave message for this user in this room recently (within 5 seconds)
+            const leaveKey = `${userInfo.userId}_${userInfo.roomId}`;
+            const lastBroadcastTime = recentLeaveBroadcasts.get(leaveKey);
+            const now = Date.now();
+            const LEAVE_BROADCAST_COOLDOWN = 5000; // 5 seconds
+            
+            if (!lastBroadcastTime || (now - lastBroadcastTime) > LEAVE_BROADCAST_COOLDOWN) {
+              const leaveMessage = {
+                id: `leave_${Date.now()}_${userInfo.username}_${userInfo.roomId}`,
+                sender: userInfo.username,
+                content: `${userInfo.username} left the room`,
+                timestamp: new Date().toISOString(),
+                roomId: userInfo.roomId,
+                type: 'leave',
+                userRole: userInfo.role || 'user'
+              };
 
-            socket.to(userInfo.roomId).emit('user-left', leaveMessage);
-            console.log(`📢 Broadcasting leave message for ${userInfo.username} in room ${userInfo.roomId}`);
+              socket.to(userInfo.roomId).emit('user-left', leaveMessage);
+              recentLeaveBroadcasts.set(leaveKey, now);
+              console.log(`📢 Broadcasting leave message for ${userInfo.username} in room ${userInfo.roomId}`);
+              
+              // Clean up old entries from recentLeaveBroadcasts (older than 10 seconds)
+              for (const [key, timestamp] of recentLeaveBroadcasts.entries()) {
+                if (now - timestamp > 10000) {
+                  recentLeaveBroadcasts.delete(key);
+                }
+              }
+            } else {
+              console.log(`🔇 Skipping duplicate leave broadcast for ${userInfo.username} in room ${userInfo.roomId} (already broadcast ${Math.round((now - lastBroadcastTime) / 1000)}s ago)`);
+            }
           } else {
             if (isPrivateChat) {
               console.log(`💬 Private chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
