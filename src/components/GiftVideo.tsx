@@ -155,20 +155,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "transparent",
   },
-  // Standard PNG gift (30x30 base, scaled to 120-150dp)
+  // Standard PNG gift (30x30 base, scaled to 200dp - INCREASED)
   standardPngGift: {
-    width: 120,
-    height: 120,
+    width: 200,
+    height: 200,
   },
-  // Medium PNG gift (512x512 source, scaled to 180dp)
+  // Medium PNG gift (512x512 source, scaled to 280dp - INCREASED)
   mediumPngGift: {
-    width: 180,
-    height: 180,
+    width: 280,
+    height: 280,
   },
-  // Large PNG gift (720x720+ source, scaled to 250dp)
+  // Large PNG gift (720x720+ source, scaled to 350dp - INCREASED)
   largePngGift: {
-    width: 250,
-    height: 250,
+    width: 350,
+    height: 350,
   },
   // Full screen gift for high-value gifts
   fullScreenGift: {

@@ -215,44 +215,46 @@ export default function PrivateChatScreen() {
           // Handle other gift types (icons, etc.)
           setActiveGiftAnimation(giftAnimationData);
 
-          // Reset animations
-          giftScaleAnim.setValue(0.3);
-          giftOpacityAnim.setValue(0);
+          // Reset animations with requestAnimationFrame to avoid UseInsertionEffect warning
+          requestAnimationFrame(() => {
+            giftScaleAnim.setValue(0.3);
+            giftOpacityAnim.setValue(0);
 
-          // Start animation
-          Animated.parallel([
-            Animated.spring(giftScaleAnim, {
-              toValue: 1,
-              tension: 80,
-              friction: 6,
-              useNativeDriver: true,
-            }),
-            Animated.timing(giftOpacityAnim, {
-              toValue: 1,
-              duration: 600,
-              useNativeDriver: true,
-            }),
-          ]).start();
-
-          // Auto-close timing based on gift type
-          const duration = data.gift.type === 'animated' ? 5000 : 3000;
-          setTimeout(() => {
+            // Start animation
             Animated.parallel([
-              Animated.timing(giftScaleAnim, {
-                toValue: 1.1,
-                duration: 400,
+              Animated.spring(giftScaleAnim, {
+                toValue: 1,
+                tension: 80,
+                friction: 6,
                 useNativeDriver: true,
               }),
               Animated.timing(giftOpacityAnim, {
-                toValue: 0,
-                duration: 400,
+                toValue: 1,
+                duration: 600,
                 useNativeDriver: true,
               }),
-            ]).start(() => {
-              console.log('🎁 Static gift animation ended');
-              setActiveGiftAnimation(null);
-            });
-          }, duration);
+            ]).start();
+
+            // Auto-close timing based on gift type
+            const duration = data.gift.type === 'animated' ? 5000 : 3000;
+            setTimeout(() => {
+              Animated.parallel([
+                Animated.timing(giftScaleAnim, {
+                  toValue: 1.1,
+                  duration: 400,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(giftOpacityAnim, {
+                  toValue: 0,
+                  duration: 400,
+                  useNativeDriver: true,
+                }),
+              ]).start(() => {
+                console.log('🎁 Static gift animation ended');
+                setActiveGiftAnimation(null);
+              });
+            }, duration);
+          });
         }
       });
 
