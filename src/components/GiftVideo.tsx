@@ -96,12 +96,15 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
     );
   }
 
-  // Render MP4 video gift
+  // Render MP4 video gift - FULL SCREEN with SEMI-TRANSPARENT
   return (
     <View style={[fullScreen ? styles.fullScreenContainer : styles.container]} pointerEvents="none">
       <Video
         source={source}
-        style={[fullScreen ? styles.fullScreenVideo : styles.video]}
+        style={[
+          fullScreen ? styles.fullScreenVideo : styles.video,
+          { opacity: 0.5 } // Semi-transparent (50%)
+        ]}
         resizeMode="contain"
         shouldPlay
         isLooping={false}

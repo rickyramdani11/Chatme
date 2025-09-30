@@ -1535,6 +1535,7 @@ export default function PrivateChatScreen() {
               source={currentGiftVideoSource}
               type={activeGiftAnimation.type === 'animated_video' ? 'video' : 'png'}
               giftData={activeGiftAnimation}
+              fullScreen={activeGiftAnimation.type === 'animated_video'}
               onEnd={() => {
                 console.log('🎁 Video/PNG gift animation ended');
                 setShowGiftVideo(false);
