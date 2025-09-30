@@ -161,6 +161,16 @@ pool.connect(async (err, client, release) => {
         console.log('Status column might already exist or other issue:', alterError.message);
       }
 
+      // Add profile_background column to users table if it doesn't exist
+      try {
+        await client.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_background VARCHAR(500)
+        `);
+        console.log('✅ Profile background column added to users table');
+      } catch (alterError) {
+        console.log('Profile background column might already exist or other issue:', alterError.message);
+      }
+
       // Create headwear tables if they don't exist
       try {
         await client.query(`
@@ -3009,7 +3019,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
     console.log(`User ID: ${userId}`);
 
     const result = await pool.query(
-      `SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, avatar_frame, level, role, verified, status, is_busy, busy_until FROM users 
+      `SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, avatar_frame, profile_background, level, role, verified, status, is_busy, busy_until FROM users 
        WHERE id = $1`,
       [userId]
     );
@@ -3033,6 +3043,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
       signature: user.signature || '',
       avatar: user.avatar,
       avatarFrame: user.avatar_frame,
+      profileBackground: user.profile_background,
       level: user.level || 1,
       role: user.role || 'user', // Always ensure role is included
       verified: user.verified || false,
@@ -3163,6 +3174,48 @@ app.put('/api/users/:userId/profile', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update profile background
+app.put('/api/users/:userId/profile-background', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { backgroundUrl } = req.body;
+
+    console.log(`=== UPDATE PROFILE BACKGROUND REQUEST ===`);
+    console.log(`User ID: ${userId}`);
+    console.log(`Background URL: ${backgroundUrl}`);
+
+    // Verify user can only update their own profile
+    if (parseInt(userId) !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to update this profile' });
+    }
+
+    const query = `
+      UPDATE users 
+      SET profile_background = $1, updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, username, profile_background
+    `;
+
+    const result = await pool.query(query, [backgroundUrl, userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const updatedUser = result.rows[0];
+    console.log(`Profile background updated successfully for user:`, updatedUser.username);
+    
+    res.json({
+      success: true,
+      profileBackground: updatedUser.profile_background
+    });
+
+  } catch (error) {
+    console.error('Error updating profile background:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
