@@ -14,16 +14,41 @@ const pool = new Pool({
 
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:5000`);
 
+// Allowed MIME types for uploads
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+// File filter for security
+const fileFilter = (req, file, cb) => {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
+    return cb(new Error(`Invalid file type. Allowed types: ${ALLOWED_IMAGE_TYPES.join(', ')}`), false);
+  }
+  
+  const sanitizedName = path.basename(file.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
+  if (sanitizedName.length > 100) {
+    return cb(new Error('Filename too long'), false);
+  }
+  
+  cb(null, true);
+};
+
 // Multer storage configuration for emojis - redirected to assets
 const storageEmoji = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'assets/emoticon/');
   },
   filename: function (req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    const sanitizedName = path.basename(file.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${sanitizedName}`;
+    cb(null, uniqueName);
   }
 });
-const uploadEmoji = multer({ storage: storageEmoji });
+
+const uploadEmoji = multer({ 
+  storage: storageEmoji,
+  fileFilter: fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE }
+});
 
 // Multer storage configuration for gifts - redirected to assets
 const storageGift = multer.diskStorage({
@@ -31,10 +56,17 @@ const storageGift = multer.diskStorage({
     cb(null, 'assets/gift/image/');
   },
   filename: function (req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    const sanitizedName = path.basename(file.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).substring(7)}-${sanitizedName}`;
+    cb(null, uniqueName);
   }
 });
-const uploadGift = multer({ storage: storageGift });
+
+const uploadGift = multer({ 
+  storage: storageGift,
+  fileFilter: fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE }
+});
 
 // Admin middleware
 const adminOnly = (req, res, next) => {
