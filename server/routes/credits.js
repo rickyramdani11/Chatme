@@ -2,12 +2,19 @@
 const express = require('express');
 const { Pool } = require('pg');
 const { authenticateToken } = require('./auth');
+const notificationRouter = require('./notifications');
 
 const router = express.Router();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
+
+// Socket.IO instance will be set by index.js
+let io = null;
+router.setSocketIO = (socketIO) => {
+  io = socketIO;
+};
 
 // Rate limiting for credit operations
 const rateLimitStore = new Map();
@@ -249,6 +256,30 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
       `, [fromUserId, toUserId, amount]);
 
       await pool.query('COMMIT');
+
+      // Create notification for credit transfer
+      const senderUsername = req.user.username;
+      const notification = await notificationRouter.sendNotification(
+        toUserId,
+        'credit_received',
+        'Credit Received',
+        `You received ${amount} credits from ${senderUsername}`,
+        { senderId: fromUserId, senderUsername, amount }
+      );
+
+      // Emit real-time notification via socket if available
+      if (io && notification) {
+        io.to(`user_${toUserId}`).emit('new_notification', {
+          id: notification.id,
+          type: 'credit_received',
+          title: 'Credit Received',
+          message: `You received ${amount} credits from ${senderUsername}`,
+          data: { senderId: fromUserId, senderUsername, amount },
+          isRead: false,
+          createdAt: notification.created_at
+        });
+        console.log(`💰 Credit notification sent to user ${toUserId}`);
+      }
 
       res.json({ 
         success: true, 

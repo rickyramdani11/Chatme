@@ -2,12 +2,19 @@
 const express = require('express');
 const { Pool } = require('pg');
 const { authenticateToken } = require('./auth');
+const notificationRouter = require('./notifications');
 
 const router = express.Router();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
+
+// Socket.IO instance will be set by index.js
+let io = null;
+router.setSocketIO = (socketIO) => {
+  io = socketIO;
+};
 
 // Search users
 router.get('/search', async (req, res) => {
@@ -241,6 +248,32 @@ router.post('/:userId/follow', authenticateToken, async (req, res) => {
       );
 
       await pool.query('COMMIT');
+
+      // Create notification for follow action
+      if (action === 'follow') {
+        const followerUsername = req.user.username;
+        const notification = await notificationRouter.sendNotification(
+          userId,
+          'follow',
+          'New Follower',
+          `${followerUsername} started following you`,
+          { followerId: currentUserId, followerUsername }
+        );
+
+        // Emit real-time notification via socket if available
+        if (io && notification) {
+          io.to(`user_${userId}`).emit('new_notification', {
+            id: notification.id,
+            type: 'follow',
+            title: 'New Follower',
+            message: `${followerUsername} started following you`,
+            data: { followerId: currentUserId, followerUsername },
+            isRead: false,
+            createdAt: notification.created_at
+          });
+          console.log(`📢 Follow notification sent to user ${userId}`);
+        }
+      }
 
       res.json({
         success: true,
