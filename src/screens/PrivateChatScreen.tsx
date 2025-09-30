@@ -769,37 +769,53 @@ export default function PrivateChatScreen() {
 
   const loadEmojis = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/emojis`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'ChatMe-Mobile-App',
-        },
-      });
-
-      if (response.ok) {
-        const emojis = await response.json();
-        setEmojiList(emojis);
-      } else {
-        // Fallback to basic emojis
-        const basicEmojis = [
-          { emoji: '😀', type: 'text', name: 'Happy' },
-          { emoji: '😂', type: 'text', name: 'Laugh' },
-          { emoji: '🥰', type: 'text', name: 'Love' },
-          { emoji: '😊', type: 'text', name: 'Smile' },
-          { emoji: '😍', type: 'text', name: 'Heart Eyes' },
-        ];
-        setEmojiList(basicEmojis);
-      }
+      // Load emojis from local assets/emoticon folder
+      const localEmojis = [
+        { name: 'angryold', image: require('../../assets/emoticon/angryold.png') },
+        { name: 'annoyedold', image: require('../../assets/emoticon/annoyedold.png') },
+        { name: 'bum', image: require('../../assets/emoticon/bum.png') },
+        { name: 'callme', image: require('../../assets/emoticon/callme.png') },
+        { name: 'cheekyold', image: require('../../assets/emoticon/cheekyold.png') },
+        { name: 'confused', image: require('../../assets/emoticon/confused.png') },
+        { name: 'coolold', image: require('../../assets/emoticon/coolold.png') },
+        { name: 'cry', image: require('../../assets/emoticon/cry.png') },
+        { name: 'curiousold', image: require('../../assets/emoticon/curiousold.png') },
+        { name: 'dies', image: require('../../assets/emoticon/dies.png') },
+        { name: 'disgustold', image: require('../../assets/emoticon/disgustold.png') },
+        { name: 'dizzy', image: require('../../assets/emoticon/dizzy.png') },
+        { name: 'drooling', image: require('../../assets/emoticon/drooling.png') },
+        { name: 'err', image: require('../../assets/emoticon/err.png') },
+        { name: 'flirt', image: require('../../assets/emoticon/flirt.png') },
+        { name: 'happy', image: require('../../assets/emoticon/happy.png') },
+        { name: 'hugme', image: require('../../assets/emoticon/hugme.png') },
+        { name: 'hugme2', image: require('../../assets/emoticon/hugme2.png') },
+        { name: 'hypnotized', image: require('../../assets/emoticon/hypnotized.png') },
+        { name: 'insane', image: require('../../assets/emoticon/insane.png') },
+        { name: 'kissback', image: require('../../assets/emoticon/kissback.png') },
+        { name: 'kisslips', image: require('../../assets/emoticon/kisslips.png') },
+        { name: 'kissme', image: require('../../assets/emoticon/kissme.png') },
+        { name: 'kissold', image: require('../../assets/emoticon/kissold.png') },
+        { name: 'love', image: require('../../assets/emoticon/love.png') },
+        { name: 'nerd', image: require('../../assets/emoticon/nerd.png') },
+        { name: 'sad', image: require('../../assets/emoticon/sad.png') },
+        { name: 'shocked', image: require('../../assets/emoticon/shocked.png') },
+        { name: 'shy', image: require('../../assets/emoticon/shy.png') },
+        { name: 'shyold', image: require('../../assets/emoticon/shyold.png') },
+        { name: 'silent', image: require('../../assets/emoticon/silent.png') },
+        { name: 'sleeping', image: require('../../assets/emoticon/sleeping.png') },
+        { name: 'sleepy', image: require('../../assets/emoticon/sleepy.png') },
+        { name: 'speechless', image: require('../../assets/emoticon/speechless.png') },
+        { name: 'sssh', image: require('../../assets/emoticon/sssh.png') },
+        { name: 'unimpressed', image: require('../../assets/emoticon/unimpressed.png') },
+        { name: 'veryhappy', image: require('../../assets/emoticon/veryhappy.png') },
+        { name: 'wink', image: require('../../assets/emoticon/wink.png') },
+        { name: 'yuck', image: require('../../assets/emoticon/yuck.png') },
+        { name: 'yum', image: require('../../assets/emoticon/yum.png') },
+      ];
+      setEmojiList(localEmojis);
     } catch (error) {
       console.error('Error loading emojis:', error);
-      const basicEmojis = [
-        { emoji: '😀', type: 'text', name: 'Happy' },
-        { emoji: '😂', type: 'text', name: 'Laugh' },
-        { emoji: '🥰', type: 'text', name: 'Love' },
-        { emoji: '😊', type: 'text', name: 'Smile' },
-        { emoji: '😍', type: 'text', name: 'Heart Eyes' },
-      ];
-      setEmojiList(basicEmojis);
+      setEmojiList([]);
     }
   };
 
@@ -940,7 +956,9 @@ export default function PrivateChatScreen() {
   };
 
   const handleEmojiSelect = (emoji: any) => {
-    setMessage(prev => prev + emoji.emoji);
+    // Use emoji name wrapped in colons for image emojis, or the emoji text for text emojis
+    const emojiText = emoji.name ? `:${emoji.name}:` : emoji.emoji;
+    setMessage(prev => prev + emojiText + ' ');
     setShowEmojiPicker(false);
   };
 
@@ -1363,7 +1381,11 @@ export default function PrivateChatScreen() {
                       style={styles.emojiItem}
                       onPress={() => handleEmojiSelect(emoji)}
                     >
-                      <Text style={styles.emojiText}>{emoji.emoji}</Text>
+                      {emoji.image ? (
+                        <Image source={emoji.image} style={styles.emojiImage} />
+                      ) : (
+                        <Text style={styles.emojiText}>{emoji.emoji}</Text>
+                      )}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -1604,7 +1626,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   privateChatName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 1,
@@ -1840,6 +1862,11 @@ const styles = StyleSheet.create({
   },
   emojiText: {
     fontSize: 18,
+  },
+  emojiImage: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
   },
   messageContextMenu: {
     backgroundColor: 'white',
