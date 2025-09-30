@@ -155,9 +155,38 @@ const initPrivateMessagesTable = async () => {
   }
 };
 
+// Create bot_room_members table if it doesn't exist
+const initBotRoomMembersTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bot_room_members (
+        id SERIAL PRIMARY KEY,
+        room_id VARCHAR(50) NOT NULL,
+        bot_user_id INTEGER NOT NULL,
+        bot_username VARCHAR(50) NOT NULL,
+        added_by_id INTEGER NOT NULL,
+        added_by_username VARCHAR(50) NOT NULL,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active BOOLEAN DEFAULT true,
+        UNIQUE(room_id, bot_user_id)
+      )
+    `);
+
+    // Add index for better performance
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_bot_room_members_room_id ON bot_room_members(room_id);
+    `);
+
+    console.log('✅ Bot room members table initialized successfully');
+  } catch (error) {
+    console.error('❌ Error initializing bot room members table:', error);
+  }
+};
+
 // Initialize tables on startup
 initRoomSecurityTables();
 initPrivateMessagesTable();
+initBotRoomMembersTable();
 
 // Server-side permission verification functions
 const hasPermission = async (userId, username, roomId, action) => {
@@ -194,6 +223,9 @@ const hasPermission = async (userId, username, roomId, action) => {
           return moderator.can_mute;
         case 'lock_room':
           return moderator.can_lock_room;
+        case 'add_bot':
+        case 'remove_bot':
+          return true; // Moderators can manage bots
         default:
           return false;
       }
@@ -1117,6 +1149,133 @@ io.on('connection', (socket) => {
       // Check if this is a special command that needs server-side handling
       const trimmedContent = content.trim();
 
+      // Handle /addbot command - Add ChatMe Bot to room
+      if (trimmedContent === '/addbot' || trimmedContent === '/addbot chatme_bot') {
+        console.log(`🤖 Processing /addbot command in room ${roomId} by ${sender}`);
+        
+        try {
+          // Get user info
+          const userInfo = connectedUsers.get(socket.id);
+          if (!userInfo || !userInfo.userId) {
+            socket.emit('system-message', {
+              content: '❌ Unable to identify user. Please reconnect.',
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+
+          // Check permissions - only room owner/moderators/admins can add bot
+          const hasAddPermission = await hasPermission(userInfo.userId, sender, roomId, 'add_bot');
+          if (!hasAddPermission) {
+            socket.emit('system-message', {
+              content: '❌ Only room owners, moderators, and admins can add the bot.',
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+
+          // Check if bot is already in room
+          const existingMember = await pool.query(`
+            SELECT 1 FROM bot_room_members 
+            WHERE room_id = $1 AND bot_user_id = $2 AND is_active = true
+          `, [roomId, 43]);
+
+          if (existingMember.rows.length > 0) {
+            socket.emit('system-message', {
+              content: '⚠️ ChatMe Bot is already in this room!',
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+
+          // Add bot to room
+          await pool.query(`
+            INSERT INTO bot_room_members (room_id, bot_user_id, bot_username, added_by_id, added_by_username)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (room_id, bot_user_id) 
+            DO UPDATE SET is_active = true, added_by_id = $4, added_by_username = $5, added_at = CURRENT_TIMESTAMP
+          `, [roomId, 43, 'chatme_bot', userInfo.userId, sender]);
+
+          // Broadcast success message to room
+          io.to(roomId).emit('system-message', {
+            content: `🤖 ChatMe Bot has joined the room! (Added by ${sender})`,
+            timestamp: new Date().toISOString()
+          });
+
+          console.log(`✅ ChatMe Bot added to room ${roomId} by ${sender}`);
+        } catch (error) {
+          console.error('Error adding bot to room:', error);
+          socket.emit('system-message', {
+            content: '❌ Failed to add ChatMe Bot to room.',
+            timestamp: new Date().toISOString()
+          });
+        }
+        return; // Don't process as regular message
+      }
+
+      // Handle /removebot command - Remove ChatMe Bot from room
+      if (trimmedContent === '/removebot' || trimmedContent === '/removebot chatme_bot') {
+        console.log(`🤖 Processing /removebot command in room ${roomId} by ${sender}`);
+        
+        try {
+          // Get user info
+          const userInfo = connectedUsers.get(socket.id);
+          if (!userInfo || !userInfo.userId) {
+            socket.emit('system-message', {
+              content: '❌ Unable to identify user. Please reconnect.',
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+
+          // Check permissions - only room owner/moderators/admins can remove bot
+          const hasRemovePermission = await hasPermission(userInfo.userId, sender, roomId, 'remove_bot');
+          if (!hasRemovePermission) {
+            socket.emit('system-message', {
+              content: '❌ Only room owners, moderators, and admins can remove the bot.',
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+
+          // Check if bot is in room
+          const existingMember = await pool.query(`
+            SELECT 1 FROM bot_room_members 
+            WHERE room_id = $1 AND bot_user_id = $2 AND is_active = true
+          `, [roomId, 43]);
+
+          if (existingMember.rows.length === 0) {
+            socket.emit('system-message', {
+              content: '⚠️ ChatMe Bot is not in this room.',
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+
+          // Remove bot from room
+          await pool.query(`
+            UPDATE bot_room_members 
+            SET is_active = false 
+            WHERE room_id = $1 AND bot_user_id = $2
+          `, [roomId, 43]);
+
+          // Broadcast success message to room
+          io.to(roomId).emit('system-message', {
+            content: `👋 ChatMe Bot has left the room. (Removed by ${sender})`,
+            timestamp: new Date().toISOString()
+          });
+
+          console.log(`✅ ChatMe Bot removed from room ${roomId} by ${sender}`);
+        } catch (error) {
+          console.error('Error removing bot from room:', error);
+          socket.emit('system-message', {
+            content: '❌ Failed to remove ChatMe Bot from room.',
+            timestamp: new Date().toISOString()
+          });
+        }
+        return; // Don't process as regular message
+      }
+
       // Handle /roll command
       if (trimmedContent.startsWith('/roll')) {
         console.log(`🎲 Processing /roll command: ${trimmedContent}`);
@@ -1235,7 +1394,8 @@ io.on('connection', (socket) => {
             message: content,
             roomId,
             username: sender,
-            conversationHistory: [] // Could fetch recent messages from DB for context
+            conversationHistory: [], // Could fetch recent messages from DB for context
+            pool // Pass database pool for membership check
           });
 
           if (botResponse) {

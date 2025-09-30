@@ -29,20 +29,39 @@ const lastResponseTime = new Map(); // roomId -> timestamp
 const COOLDOWN_MS = 5000; // 5 seconds cooldown between responses
 
 /**
+ * Check if bot is member of a room
+ * @param {string} roomId - The room ID
+ * @param {Object} pool - Database connection pool
+ * @returns {Promise<boolean>} - True if bot is member
+ */
+async function isBotInRoom(roomId, pool) {
+  try {
+    const result = await pool.query(`
+      SELECT 1 FROM bot_room_members 
+      WHERE room_id = $1 AND bot_user_id = $2 AND is_active = true
+    `, [roomId, BOT_USER_ID]);
+    
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('Error checking bot membership:', error);
+    return false;
+  }
+}
+
+/**
  * Check if a message is directed to the bot
  * @param {string} message - The message content
  * @param {string} roomId - The room ID
  * @param {string} sender - The sender username
- * @returns {boolean} - True if message is for the bot
+ * @param {Object} pool - Database connection pool (optional, for room membership check)
+ * @returns {Promise<boolean>} - True if message is for the bot
  */
-function shouldBotRespond(message, roomId, sender) {
+async function shouldBotRespond(message, roomId, sender, pool = null) {
   // Never respond to own messages (prevent loop)
   if (sender === BOT_USERNAME) {
     return false;
   }
   
-  // Bot responds to mentions (@chatme_bot) or direct messages
-  const mentionsBot = message.toLowerCase().includes('@chatme_bot');
   const isPrivateMessage = roomId.startsWith('private_');
   
   // In private chat, check if bot is part of the room ID
@@ -53,7 +72,13 @@ function shouldBotRespond(message, roomId, sender) {
     return roomId.includes('_43_') || roomId.endsWith('_43');
   }
   
-  return mentionsBot;
+  // In public rooms, bot responds only if it's been added to the room
+  if (pool) {
+    const isMember = await isBotInRoom(roomId, pool);
+    return isMember; // Bot responds to ALL messages if it's in the room
+  }
+  
+  return false; // Default: don't respond if no pool provided
 }
 
 /**
@@ -140,11 +165,13 @@ Respond naturally and helpfully to user messages.`
  * @param {string} params.roomId - The room ID
  * @param {string} params.username - Username who sent the message
  * @param {Array} params.conversationHistory - Previous messages (optional)
+ * @param {Object} params.pool - Database connection pool (optional)
  * @returns {Promise<Object|null>} - Bot response object or null
  */
-async function processBotMessage({ message, roomId, username, conversationHistory }) {
+async function processBotMessage({ message, roomId, username, conversationHistory, pool }) {
   // Check if bot should respond
-  if (!shouldBotRespond(message, roomId, username)) {
+  const shouldRespond = await shouldBotRespond(message, roomId, username, pool);
+  if (!shouldRespond) {
     return null;
   }
 
@@ -200,4 +227,4 @@ export function getBotInfo() {
 }
 
 // Named exports for ESM compatibility
-export { shouldBotRespond, generateBotResponse, processBotMessage };
+export { shouldBotRespond, generateBotResponse, processBotMessage, isBotInRoom };
