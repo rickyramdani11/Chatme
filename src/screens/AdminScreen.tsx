@@ -78,7 +78,7 @@ export default function AdminScreen({ navigation }: any) {
   // Credit transfer states
   const [transferUsername, setTransferUsername] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
-  const [transferPin, setTransferPin] = useState('000000');
+  const [transferPin, setTransferPin] = useState('');
   const [transferLoading, setTransferLoading] = useState(false);
 
   // Gift edit states
@@ -198,7 +198,24 @@ export default function AdminScreen({ navigation }: any) {
   ];
 
   useEffect(() => {
-    if (token) {
+    if (!user || user.role !== 'admin') {
+      Alert.alert(
+        'Access Denied',
+        'You do not have admin privileges to access this screen.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack()
+          }
+        ],
+        { cancelable: false }
+      );
+      return;
+    }
+  }, [user, navigation]);
+
+  useEffect(() => {
+    if (token && user?.role === 'admin') {
       loadEmojis();
       loadGifts();
       loadDeviceInfo();
@@ -216,7 +233,7 @@ export default function AdminScreen({ navigation }: any) {
         loadBanners();
       }
     }
-  }, [token, activeTab]);
+  }, [token, activeTab, user]);
 
   const loadDeviceInfo = async () => {
     try {
