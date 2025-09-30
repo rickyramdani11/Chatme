@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 // Import Video with error handling
 let Video: any = null;
@@ -1162,26 +1163,31 @@ export default function FeedScreen() {
                 <Video
                   ref={videoRef}
                   style={styles.videoPlayer}
-                  source={{ uri: selectedVideoUrl }}
+                  source={{ 
+                    uri: selectedVideoUrl.startsWith('http') ? selectedVideoUrl : `${API_BASE_URL}${selectedVideoUrl}`
+                  }}
                   useNativeControls
                   resizeMode="contain"
                   isLooping={true}
                   shouldPlay={true}
-                  playWhenInactive={true}
+                  isMuted={false}
                   onError={(error) => {
                     console.error('Video playback error:', error);
                     console.error('Video URL that failed:', selectedVideoUrl);
+                    console.error('Full error object:', JSON.stringify(error));
                     
-                    let errorMessage = 'Failed to play video.';
+                    let errorMessage = 'Failed to play video. Please try again.';
                     
                     if (error && error.error) {
                       const errorStr = error.error.toString();
                       if (errorStr.includes('FileNotFoundException') || errorStr.includes('ENOENT')) {
-                        errorMessage = 'Video file not found on server. The file may have been moved or deleted.';
-                      } else if (errorStr.includes('Network')) {
-                        errorMessage = 'Network error while loading video. Please check your internet connection.';
+                        errorMessage = 'Video file not found. The file may have been moved or deleted.';
+                      } else if (errorStr.includes('Network') || errorStr.includes('connection')) {
+                        errorMessage = 'Network error. Please check your internet connection.';
+                      } else if (errorStr.includes('codec') || errorStr.includes('format')) {
+                        errorMessage = 'Unsupported video format. Please try a different video.';
                       } else {
-                        errorMessage = `Video playback error: ${errorStr}`;
+                        errorMessage = `Error: ${errorStr.substring(0, 100)}`;
                       }
                     }
                     
@@ -1195,21 +1201,28 @@ export default function FeedScreen() {
                       }
                     ]);
                   }}
-                  onLoad={() => {
-                    console.log('Video loaded successfully from:', selectedVideoUrl);
+                  onLoad={(status) => {
+                    console.log('Video loaded successfully!');
+                    console.log('Video status:', status);
+                    console.log('Video URL:', selectedVideoUrl);
                   }}
                   onLoadStart={() => {
-                    console.log('Video loading started for:', selectedVideoUrl);
+                    console.log('Video loading started...');
+                    console.log('Loading from:', selectedVideoUrl);
+                  }}
+                  onReadyForDisplay={(event) => {
+                    console.log('Video ready for display:', event);
                   }}
                 />
               ) : (
                 <VideoView
                   ref={videoRef}
                   style={styles.videoPlayer}
-                  source={{ uri: selectedVideoUrl }}
+                  source={{ 
+                    uri: selectedVideoUrl.startsWith('http') ? selectedVideoUrl : `${API_BASE_URL}${selectedVideoUrl}`
+                  }}
                   useNativeControls
                   resizeMode="contain"
-                  isLooping={false}
                   shouldPlay={true}
                 />
               )
