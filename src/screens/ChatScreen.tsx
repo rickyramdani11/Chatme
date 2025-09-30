@@ -1371,7 +1371,7 @@ export default function ChatScreen() {
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      console.log('Cleaning up socket connection');
+      console.log('Cleaning up socket connection - maintaining room membership');
 
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -1384,9 +1384,16 @@ export default function ChatScreen() {
 
       appStateSubscription?.remove();
 
+      // Don't disconnect socket when component unmounts (app switching)
+      // Socket will persist and maintain room membership
+      // Users only disconnect when:
+      // 1. Manually clicking Leave button (calls leave-room event)
+      // 2. After 8 hours of inactivity (handled by server cleanup job)
+      // 3. Logging out (logout function disconnects)
       if (socket) {
         socket.removeAllListeners();
-        socket.disconnect();
+        // Keep socket connected - DO NOT call socket.disconnect() here
+        // This allows users to stay in rooms when switching apps
       }
     };
   }, []);

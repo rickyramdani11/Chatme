@@ -684,6 +684,7 @@ io.on('connection', (socket) => {
         participant.isOnline = true;
         participant.socketId = socket.id;
         participant.lastSeen = new Date().toISOString();
+        participant.lastActivityTime = Date.now(); // Track activity for 8-hour timeout
         console.log(`✅ Updated existing participant: ${socket.username} in room ${roomId}`);
       } else {
         // Add new participant using authenticated identity
@@ -695,7 +696,8 @@ io.on('connection', (socket) => {
           isOnline: true,
           socketId: socket.id,
           joinedAt: new Date().toISOString(),
-          lastSeen: new Date().toISOString()
+          lastSeen: new Date().toISOString(),
+          lastActivityTime: Date.now()  // Track activity for 8-hour timeout
         };
         roomParticipants[roomId].push(participant);
         console.log(`➕ Added new participant: ${socket.username} to room ${roomId}`);
@@ -1048,27 +1050,9 @@ io.on('connection', (socket) => {
 
       // For non-private chats, validate user is properly in room
       if (!isPrivateChat) {
-        // Check 1: User must be in Socket.IO room
-        if (!socket.rooms.has(roomId)) {
-          console.log(`⚠️ User ${socket.username} attempted to send message but is not in Socket.IO room ${roomId}`);
-          
-          const errorMessage = {
-            id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            sender: 'System',
-            content: 'You are not in the room. Please join the room first to send messages.',
-            timestamp: new Date().toISOString(),
-            roomId,
-            role: 'system',
-            level: 1,
-            type: 'error'
-          };
-          
-          socket.emit('new-message', errorMessage);
-          return;
-        }
-
-        // Check 2: User must be in participant list (using userId for security)
+        // Check if user is in participant list (using userId for security)
         const userInRoom = roomParticipants[roomId]?.find(p => p.userId === socket.userId && p.isOnline);
+        
         if (!userInRoom) {
           console.log(`⚠️ User ${socket.username} (ID: ${socket.userId}) attempted to send message but is not in room ${roomId} participant list`);
           
@@ -1085,6 +1069,16 @@ io.on('connection', (socket) => {
           
           socket.emit('new-message', errorMessage);
           return;
+        }
+        
+        // Check if socket is in Socket.IO room, if not, re-join automatically
+        // This handles the case when user switches apps and comes back
+        if (!socket.rooms.has(roomId)) {
+          console.log(`🔄 Auto-rejoining ${socket.username} to Socket.IO room ${roomId} (was in participant list but not in socket room)`);
+          socket.join(roomId);
+          // Update participant's socket ID
+          userInRoom.socketId = socket.id;
+          userInRoom.lastSeen = new Date().toISOString();
         }
 
         // Check 3: Ensure sender matches authenticated identity
@@ -1104,6 +1098,14 @@ io.on('connection', (socket) => {
           
           socket.emit('new-message', errorMessage);
           return;
+        }
+      }
+
+      // Update user's last activity time for 8-hour inactivity timeout
+      if (roomParticipants[roomId]) {
+        const participant = roomParticipants[roomId].find(p => p.userId === socket.userId);
+        if (participant) {
+          participant.lastActivityTime = Date.now();
         }
       }
 
@@ -1981,6 +1983,79 @@ io.on('connection', (socket) => {
     connectedUsers.delete(socket.id);
   });
 });
+
+// Periodic cleanup job for inactive users (8-hour timeout)
+const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // Run every 1 hour
+
+setInterval(() => {
+  console.log('🧹 Running inactivity cleanup job...');
+  const now = Date.now();
+  let removedCount = 0;
+
+  // Check all rooms for inactive participants
+  for (const [roomId, participants] of Object.entries(roomParticipants)) {
+    const inactiveUsers = [];
+
+    for (const participant of participants) {
+      // Check if user has been inactive for 8 hours
+      if (participant.lastActivityTime && (now - participant.lastActivityTime) >= EIGHT_HOURS_MS) {
+        inactiveUsers.push(participant);
+      }
+    }
+
+    // Remove inactive users from room
+    for (const inactiveUser of inactiveUsers) {
+      console.log(`⏰ Removing inactive user ${inactiveUser.username} from room ${roomId} (inactive for 8+ hours)`);
+
+      // Remove from participants list
+      roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.userId !== inactiveUser.userId);
+      removedCount++;
+
+      // Broadcast leave message if it's a public room
+      const isPrivateChat = roomId.startsWith('private_');
+      const isSupportChat = roomId.startsWith('support_');
+
+      if (!isPrivateChat && !isSupportChat) {
+        const leaveMessage = {
+          id: `leave_${Date.now()}_${inactiveUser.username}_${roomId}`,
+          sender: inactiveUser.username,
+          content: `${inactiveUser.username} was removed due to inactivity`,
+          timestamp: new Date().toISOString(),
+          roomId: roomId,
+          type: 'leave',
+          userRole: inactiveUser.role
+        };
+
+        io.to(roomId).emit('user-left', leaveMessage);
+      }
+
+      // Update participants list
+      io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
+
+      // If user has an active socket, force them to leave the room
+      if (inactiveUser.socketId) {
+        const userSocket = io.sockets.sockets.get(inactiveUser.socketId);
+        if (userSocket) {
+          userSocket.leave(roomId);
+          userSocket.emit('force-leave-room', {
+            roomId,
+            reason: 'inactivity',
+            message: 'You were removed from the room due to 8 hours of inactivity'
+          });
+        }
+      }
+    }
+  }
+
+  if (removedCount > 0) {
+    console.log(`✅ Inactivity cleanup complete: removed ${removedCount} inactive user(s)`);
+  } else {
+    console.log('✅ Inactivity cleanup complete: no inactive users found');
+  }
+}, CLEANUP_INTERVAL_MS);
+
+console.log(`⏰ Inactivity cleanup job scheduled (runs every hour, 8-hour timeout)`);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
