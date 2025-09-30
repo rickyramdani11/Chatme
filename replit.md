@@ -139,3 +139,24 @@ Preferred communication style: Simple, everyday language.
 - **User Status Endpoint**: GET /admin/users/status returns comprehensive user data (id, username, email, phone, role, status, credits, device, ip, location, lastLogin)
 - **Real-Time Data**: Admin panel displays live online status, device info, and location from database
 - **Error Resolution**: Fixed "Failed to load Credit history" error in AdminScreen with proper endpoint implementation
+
+## Real-Time Notification System (September 2025)
+
+### Architecture Overview
+- **Gateway Integration**: Socket gateway automatically joins users to personal notification rooms (`user_${userId}`) on connection
+- **Notification Delivery**: HTTP endpoint `/emit-notification` on gateway (port 8000) for broadcasting notifications via WebSocket
+- **Database**: user_notifications and user_notification_settings tables for persistent notification storage
+- **Frontend**: HomeScreen listens to 'new_notification' socket events and updates badge count in real-time
+
+### Implementation Details
+- **Gateway Setup**: Users joined to personal rooms on socket authentication for targeted notification delivery
+- **Backend Routes**: Follow and credit transfer endpoints create notifications and emit via gateway HTTP endpoint
+- **Notification Types**: Support for follow notifications, credit_received notifications, and extensible for future types
+- **Real-Time Updates**: Notifications appear instantly with alert dialogs and badge count updates
+- **Data Flow**: API Server → Gateway HTTP endpoint → Socket.IO broadcast to user room → Client receives notification
+
+### User Experience
+- **Instant Alerts**: Pop-up alerts with emoji icons (🪙 for credits, 👤 for follows)
+- **Badge Counter**: Real-time unread notification count on HomeScreen bell icon
+- **Alert Actions**: Credit notifications include balance refresh, follow notifications show acknowledgment
+- **Persistent Storage**: All notifications saved to database and retrievable via /notifications endpoint
