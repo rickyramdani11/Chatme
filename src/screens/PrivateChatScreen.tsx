@@ -1543,7 +1543,7 @@ export default function PrivateChatScreen() {
               }}
             />
           ) : (
-            /* Static/Icon Gift Animation */
+            /* Static/Icon Gift Animation - ONLY SHOW GIFT IMAGE */
             <Animated.View
               style={[
                 styles.fullScreenAnimationContainer,
@@ -1558,13 +1558,6 @@ export default function PrivateChatScreen() {
                   {activeGiftAnimation.icon || '🎁'}
                 </Text>
               </View>
-              
-              <Animated.View style={[styles.giftInfoOverlay, { opacity: giftOpacityAnim }]}>
-                <Text style={styles.giftSenderName}>{activeGiftAnimation.sender}</Text>
-                <Text style={styles.giftDescription}>
-                  sent {activeGiftAnimation.name} {activeGiftAnimation.icon || '🎁'}
-                </Text>
-              </Animated.View>
             </Animated.View>
           )}
         </View>
@@ -2011,31 +2004,6 @@ const styles = StyleSheet.create({
   smallGiftImage: {
     width: 60,
     height: 60,
-  },
-  giftInfoOverlay: {
-    position: 'absolute',
-    bottom: 120,
-    left: '25%',
-    right: '25%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: 'center',
-    zIndex: 1002,
-  },
-  giftSenderName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
-    textAlign: 'center',
-  },
-  giftDescription: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    opacity: 0.9,
   },
   // Call Modal Styles
   callModalContainer: {
