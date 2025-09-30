@@ -16,9 +16,10 @@ if (!process.env.OPENAI_API_KEY) {
   console.error('⚠️ OPENAI_API_KEY not found! Bot will return error messages.');
 }
 
-// Using gpt-3.5-turbo model for better quota management
+// Using gpt-3.5-turbo model with OpenRouter API
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY 
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: "https://openrouter.ai/api/v1"
 });
 
 export const BOT_USERNAME = 'chatme_bot';
