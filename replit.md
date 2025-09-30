@@ -27,6 +27,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing.
 - **Gaming Integration**: LowCard bot game.
+- **AI Bot Integration**: ChatMe Bot powered by OpenAI GPT-5 (chatme_bot, ID: 43). Responds to @mentions in public rooms and all messages in private chats. Features: 5-second rate limiting, conversation history context, self-reply prevention, 15-second timeout. Bot styling: green username (#167027), blue messages (#0f23bd).
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking, activity feeds.
 - **Administrative Tools**: Admin panel for moderation, user management, and configuration.
@@ -63,6 +64,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL (pg driver).
 - **Security**: bcrypt, jsonwebtoken.
 - **File Handling**: Multer.
+- **AI Integration**: OpenAI GPT-5 SDK for ChatMe Bot.
 
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).
