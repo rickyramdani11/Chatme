@@ -613,4 +613,84 @@ router.delete('/rooms/:roomId', authenticateToken, adminOnly, rateLimit(5, 60000
   }
 });
 
+// Get user credit history (admin only)
+router.get('/credits/history/:userId', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const result = await pool.query(`
+      SELECT 
+        ct.id,
+        ct.from_user_id,
+        ct.to_user_id,
+        ct.amount,
+        ct.type,
+        ct.created_at,
+        u1.username as from_username,
+        u2.username as to_username
+      FROM credit_transactions ct
+      LEFT JOIN users u1 ON ct.from_user_id = u1.id
+      LEFT JOIN users u2 ON ct.to_user_id = u2.id
+      WHERE ct.from_user_id = $1 OR ct.to_user_id = $1
+      ORDER BY ct.created_at DESC
+      LIMIT 50
+    `, [userId]);
+
+    const history = result.rows.map(row => ({
+      id: row.id,
+      type: row.type,
+      amount: row.amount,
+      otherParty: row.from_user_id === parseInt(userId) ? row.to_username : row.from_username,
+      createdAt: row.created_at
+    }));
+
+    res.json(history);
+  } catch (error) {
+    console.error('Error fetching credit history:', error);
+    res.status(500).json({ error: 'Failed to load credit history' });
+  }
+});
+
+// Get user status with online info, device, and location (admin only)
+router.get('/users/status', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.email,
+        u.role,
+        u.phone,
+        u.status,
+        u.device_info,
+        u.last_ip,
+        u.location,
+        u.last_login,
+        COALESCE(uc.balance, 0) as credits
+      FROM users u
+      LEFT JOIN user_credits uc ON u.id = uc.user_id
+      ORDER BY u.last_login DESC NULLS LAST
+    `);
+
+    const users = result.rows.map(row => ({
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      phone: row.phone,
+      role: row.role,
+      status: row.status || 'offline',
+      credits: row.credits,
+      device: row.device_info || 'Unknown',
+      ip: row.last_ip || 'Unknown',
+      location: row.location || 'Unknown',
+      lastLogin: row.last_login
+    }));
+
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching user status:', error);
+    res.status(500).json({ error: 'Failed to fetch user status' });
+  }
+});
+
 module.exports = router;

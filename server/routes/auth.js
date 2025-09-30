@@ -100,7 +100,7 @@ router.post('/register', async (req, res) => {
 // Login endpoint
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, deviceInfo, location } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
@@ -123,9 +123,13 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
 
+    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'Unknown';
+    const device = deviceInfo || 'Unknown Device';
+    const userLocation = location || 'Unknown';
+
     await pool.query(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP, status = $1 WHERE id = $2',
-      ['online', user.id]
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP, status = $1, device_info = $2, last_ip = $3, location = $4 WHERE id = $5',
+      ['online', device, ipAddress, userLocation, user.id]
     );
 
     const updatedUserResult = await pool.query(
@@ -158,7 +162,9 @@ router.post('/login', async (req, res) => {
 // Logout endpoint
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
-    await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['offline', req.user.id]);
+    // Note: We don't update status here because the socket gateway handles online/offline status
+    // based on active socket connections. This ensures multi-device support works correctly.
+    // The gateway will set status to 'offline' when the last socket connection disconnects.
     res.json({ message: 'Logged out successfully', success: true });
   } catch (error) {
     console.error('Logout error:', error);

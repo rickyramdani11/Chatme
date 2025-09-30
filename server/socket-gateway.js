@@ -1864,7 +1864,7 @@ io.on('connection', (socket) => {
   });
 
   // Disconnect event
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`🔴 ===========================================`);
     console.log(`🔴 GATEWAY DISCONNECT!`);
     console.log(`❌ User disconnected from gateway: ${socket.id}`);
@@ -1877,6 +1877,12 @@ io.on('connection', (socket) => {
       const isPrivateChat = userInfo.roomId.startsWith('private_');
       const isSupportChat = userInfo.roomId.startsWith('support_');
 
+      // Check if user has other active connections (any room, any socket)
+      const userAllConnections = [...connectedUsers.entries()].filter(([socketId, info]) => 
+        socketId !== socket.id && 
+        info.userId === userInfo.userId
+      );
+
       // Check if user has other active connections in the same room
       const userOtherConnections = [...connectedUsers.entries()].filter(([socketId, info]) => 
         socketId !== socket.id && 
@@ -1885,6 +1891,22 @@ io.on('connection', (socket) => {
       );
 
       const hasOtherActiveConnections = userOtherConnections.length > 0;
+      const hasAnyActiveConnections = userAllConnections.length > 0;
+
+      // Update database status to offline ONLY if user has NO other active connections
+      if (!hasAnyActiveConnections && userInfo.userId) {
+        try {
+          await pool.query(
+            'UPDATE users SET status = $1 WHERE id = $2',
+            ['offline', userInfo.userId]
+          );
+          console.log(`📴 Set status to OFFLINE for user ${userInfo.username} (ID: ${userInfo.userId}) in database`);
+        } catch (dbError) {
+          console.error('Error updating user status on disconnect:', dbError);
+        }
+      } else if (hasAnyActiveConnections) {
+        console.log(`🔌 User ${userInfo.username} still has ${userAllConnections.length} active connection(s) - keeping status ONLINE`);
+      }
 
       // Remove from room participants only if no other connections exist
       if (roomParticipants[userInfo.roomId] && !hasOtherActiveConnections) {

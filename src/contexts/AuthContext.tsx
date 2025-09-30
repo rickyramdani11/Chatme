@@ -1,6 +1,8 @@
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as Device from 'expo-device';
+import * as Location from 'expo-location';
 
 import { API_BASE_URL } from '../utils/apiConfig';
 
@@ -117,6 +119,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Attempting to login user:', username);
       console.log('API URL:', `${API_BASE_URL}/auth/login`);
 
+      // Collect device info
+      let deviceInfo = 'Unknown Device';
+      try {
+        const brand = Device.brand || 'Unknown';
+        const modelName = Device.modelName || 'Unknown';
+        const osName = Device.osName || Platform.OS;
+        const osVersion = Device.osVersion || 'Unknown';
+        deviceInfo = `${brand} ${modelName} (${osName} ${osVersion})`;
+      } catch (deviceError) {
+        console.log('Failed to get device info:', deviceError);
+      }
+
+      // Collect location
+      let location = 'Unknown';
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const locationData = await Location.getCurrentPositionAsync({ 
+            accuracy: Location.Accuracy.Balanced 
+          });
+          const { latitude, longitude } = locationData.coords;
+          
+          const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+          if (geocode.length > 0) {
+            const loc = geocode[0];
+            location = `${loc.city || loc.subregion || ''}, ${loc.country || ''}`;
+          } else {
+            location = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+          }
+        }
+      } catch (locationError) {
+        console.log('Failed to get location:', locationError);
+      }
+
       // Test API connectivity first
       try {
         const testResponse = await fetch(`${API_BASE_URL}/health`, {
@@ -142,7 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           'Accept': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, deviceInfo, location }),
         signal: controller.signal,
       });
 
