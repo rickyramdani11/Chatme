@@ -16,7 +16,7 @@ if (!process.env.OPENAI_API_KEY) {
   console.error('⚠️ OPENAI_API_KEY not found! Bot will return error messages.');
 }
 
-// Using Meta LLaMA 3 8B Instruct model via OpenRouter API
+// Using Google Gemini 2.5 Flash Lite Preview model via OpenRouter API
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: "https://openrouter.ai/api/v1"
@@ -83,7 +83,7 @@ async function shouldBotRespond(message, roomId, sender, pool = null) {
 }
 
 /**
- * Generate AI response using Meta LLaMA 3 8B Instruct
+ * Generate AI response using Google Gemini 2.5 Flash Lite Preview
  * @param {string} userMessage - The user's message
  * @param {string} username - The username who sent the message
  * @param {Array} conversationHistory - Previous messages for context (optional)
@@ -126,13 +126,13 @@ Respond naturally and helpfully to user messages.`
       content: userMessage
     });
 
-    // Call OpenRouter API with Meta LLaMA 3 8B Instruct model
+    // Call OpenRouter API with Google Gemini 2.5 Flash Lite Preview model
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     try {
       const response = await openai.chat.completions.create({
-        model: "meta-llama/llama-3-8b-instruct",
+        model: "google/gemini-2.5-flash-lite-preview-09-2025",
         messages: messages,
         max_tokens: 500, // Keep responses concise (corrected from max_completion_tokens)
       }, {
@@ -222,7 +222,7 @@ export function getBotInfo() {
     id: BOT_USER_ID,
     username: BOT_USERNAME,
     isBot: true,
-    bio: '🤖 I am ChatMe AI Bot, powered by Meta LLaMA 3. Ask me anything!',
+    bio: '🤖 I am ChatMe AI Bot, powered by Google Gemini 2.5 Flash Lite Preview. Ask me anything!',
     avatar: null // Can be set to a bot avatar path
   };
 }
