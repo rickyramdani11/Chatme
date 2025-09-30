@@ -183,3 +183,30 @@ Preferred communication style: Simple, everyday language.
 - **Purchase Flow**: Users pay credits, frame auto-equips, and appears on profile immediately
 - **Expiry Display**: Shows remaining days on owned frames, auto-removes after 14 days
 - **Renewal**: Users can repurchase expired frames to extend rental period
+
+## Room Connection Persistence System (September 2025)
+
+### Architecture Overview
+- **Socket Persistence**: Users remain connected to rooms when switching to other apps or minimizing the app
+- **Activity Tracking**: lastActivityTime tracked for all room participants to monitor engagement
+- **Auto-Cleanup**: Hourly job removes users inactive for 8+ hours from rooms
+- **Auto-Rejoin Logic**: Server automatically rejoins users if socket connection exists but room membership is lost
+
+### Implementation Details
+- **Frontend (ChatScreen.tsx)**: Socket connection persists during component unmount - no disconnect unless user logs out or clicks Leave
+- **Backend (socket-gateway.js)**: 
+  - lastActivityTime field added to roomParticipants tracking (updated on join and message send)
+  - Hourly cleanup job scans all rooms and removes participants inactive for 8+ hours
+  - Auto-rejoin logic in sendMessage handler checks room membership and rejoins if needed
+  - Cleanup broadcasts leave messages and force-disconnects inactive sockets
+- **Disconnect Conditions**: Users only disconnect from rooms when:
+  1. Manual leave via Leave button
+  2. After 8 hours of inactivity (automatic cleanup)
+  3. Logout action
+
+### User Experience
+- **Seamless Multitasking**: Users can switch to other apps and return without losing room connection
+- **Background Persistence**: Room membership maintained while app is backgrounded or minimized
+- **Automatic Cleanup**: Inactive users automatically removed after 8 hours to prevent ghost participants
+- **Transparent Rejoin**: If connection is lost, server automatically rejoins user without manual intervention
+- **Manual Control**: Users have explicit Leave button for intentional disconnection
