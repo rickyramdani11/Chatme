@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import * as ImagePicker from 'expo-image-picker';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
 interface AlbumPhoto {
@@ -261,7 +261,7 @@ export default function EditProfileScreen({ navigation }: any) {
             >
               <View style={styles.avatar}>
                 {profileData.avatar ? (
-                  <Image source={{ uri: `${API_BASE_URL}${profileData.avatar}` }} style={styles.avatarImage} />
+                  <Image source={{ uri: `${BASE_URL}${profileData.avatar}` }} style={styles.avatarImage} />
                 ) : (
                   <Text style={styles.avatarText}>
                     {profileData.username.charAt(0).toUpperCase()}

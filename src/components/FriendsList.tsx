@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 
@@ -158,7 +158,7 @@ export default function FriendsList({
           username: friend.username,
           status: friend.status || 'offline',
           lastSeen: friend.last_seen || friend.lastSeen || 'Recently',
-          avatar: friend.avatar && friend.avatar.startsWith('/api/') ? `${API_BASE_URL}${friend.avatar}` : 
+          avatar: friend.avatar && friend.avatar.startsWith('/api/') ? `${BASE_URL}${friend.avatar}` : 
                   friend.avatar && friend.avatar.startsWith('http') ? friend.avatar : null,
           role: friend.role || 'user'
         }));
@@ -233,7 +233,7 @@ export default function FriendsList({
           username: user.username,
           status: user.status || 'offline',
           lastSeen: user.last_seen || 'Recently',
-          avatar: user.avatar && user.avatar.startsWith('/api/') ? `${API_BASE_URL}${user.avatar}` : 
+          avatar: user.avatar && user.avatar.startsWith('/api/') ? `${BASE_URL}${user.avatar}` : 
                   user.avatar && user.avatar.startsWith('http') ? user.avatar : null,
           role: user.role || 'user'
         }));
@@ -433,7 +433,7 @@ export default function FriendsList({
     if (isValidAvatar) {
       let fullAvatarUrl = avatarUri;
       if (avatarUri.startsWith('/api/users/avatar/')) {
-        fullAvatarUrl = `${API_BASE_URL}${avatarUri}`;
+        fullAvatarUrl = `${BASE_URL}${avatarUri}`;
       }
 
       avatarDisplay = (

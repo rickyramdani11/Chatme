@@ -19,7 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
-import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 
@@ -864,7 +864,7 @@ const HomeScreen = ({ navigation }: any) => {
       // Construct proper URL if it's a server path
       let fullAvatarUrl = avatarUri;
       if (avatarUri.startsWith('/api/users/avatar/')) {
-        fullAvatarUrl = `${API_BASE_URL}${avatarUri}`;
+        fullAvatarUrl = `${BASE_URL}${avatarUri}`;
       }
 
       avatarDisplay = (
@@ -945,7 +945,7 @@ const HomeScreen = ({ navigation }: any) => {
             <TouchableOpacity onPress={toggleStatus}>
               <View style={styles.userAvatar}>
                 {user?.avatar ? (
-                  <Image source={{ uri: `${API_BASE_URL}${user.avatar}` }} style={styles.userAvatarImage} />
+                  <Image source={{ uri: `${BASE_URL}${user.avatar}` }} style={styles.userAvatarImage} />
                 ) : (
                   <Text style={styles.userAvatarText}>
                     {user?.username?.charAt(0).toUpperCase() || 'U'}
@@ -1010,7 +1010,7 @@ const HomeScreen = ({ navigation }: any) => {
       </LinearGradient>
 
       {/* Banner Carousel */}
-      {banners.length > 0 && (
+      {banners.length > 0 && banners[currentBannerIndex] && (
         <View style={styles.bannerSection}>
           <TouchableOpacity
             style={styles.bannerContainer}

@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 interface ChatHistoryItem {
   id: string;
@@ -176,7 +176,7 @@ export default function ChatHistoryScreen() {
       // Construct proper URL if it's a server path
       let fullAvatarUrl = avatarUri;
       if (avatarUri.startsWith('/api/users/avatar/')) {
-        fullAvatarUrl = `${API_BASE_URL}${avatarUri}`;
+        fullAvatarUrl = `${BASE_URL}${avatarUri}`;
       }
 
       avatarDisplay = (

@@ -76,7 +76,7 @@ interface MediaItem {
   size?: number;
 }
 
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 export default function FeedScreen() {
   const { height } = Dimensions.get('window');
@@ -172,7 +172,7 @@ export default function FeedScreen() {
         const processedPosts = postsData.map((post: FeedPost) => ({
           ...post,
           avatar: post.avatar && post.avatar.startsWith('/api/') 
-            ? `${API_BASE_URL}${post.avatar}` 
+            ? `${BASE_URL}${post.avatar}` 
             : post.avatar
         }));
         setFeedPosts(processedPosts);

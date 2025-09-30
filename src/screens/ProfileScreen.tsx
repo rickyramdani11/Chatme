@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
 interface UserProfile {
@@ -202,10 +202,10 @@ export default function ProfileScreen({ navigation, route }: any) {
         // Process avatar URL - handle both full URLs and relative paths
         if (profileData.avatar) {
           if (profileData.avatar.startsWith('/api/')) {
-            profileData.avatar = `${API_BASE_URL}${profileData.avatar}`;
+            profileData.avatar = `${BASE_URL}${profileData.avatar}`;
           } else if (!profileData.avatar.startsWith('http')) {
             // Handle case where avatar might be stored as relative path
-            profileData.avatar = `${API_BASE_URL}${profileData.avatar}`;
+            profileData.avatar = `${BASE_URL}${profileData.avatar}`;
           }
         }
 

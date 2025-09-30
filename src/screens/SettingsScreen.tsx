@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
 export default function SettingsScreen({ navigation }: any) {
@@ -28,7 +28,7 @@ export default function SettingsScreen({ navigation }: any) {
             {user?.avatar ? (
               <Image 
                 source={{ 
-                  uri: user.avatar.startsWith('http') ? user.avatar : `${API_BASE_URL}${user.avatar}` 
+                  uri: user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}` 
                 }} 
                 style={styles.avatarImage} 
               />

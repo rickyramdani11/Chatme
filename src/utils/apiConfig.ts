@@ -6,6 +6,7 @@ const BASE_REPLIT_URL = 'https://abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7
 
 // API Configuration  
 export const API_BASE_URL = `${BASE_REPLIT_URL}/api`; // API Server now on port 5000 (default Replit port)
+export const BASE_URL = BASE_REPLIT_URL; // Base URL without /api for paths that already include /api
 
 // Socket.IO configuration - Proxied through API Server port 5000
 export const SOCKET_URL = BASE_REPLIT_URL; // Socket.IO will append /socket.io/ automatically
