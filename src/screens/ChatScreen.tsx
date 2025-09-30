@@ -898,9 +898,22 @@ export default function ChatScreen() {
       socketInstance.on('receiveGift', (data: any) => {
         console.log('Received gift broadcast:', data);
 
+        // Normalize animation path if it's a string starting with '/'
+        const normalizedGift = { ...data.gift };
+        if (normalizedGift.animation && typeof normalizedGift.animation === 'string') {
+          if (normalizedGift.animation.startsWith('/')) {
+            normalizedGift.animation = `${API_BASE_URL}${normalizedGift.animation}`;
+          }
+        }
+        if (normalizedGift.image && typeof normalizedGift.image === 'string') {
+          if (normalizedGift.image.startsWith('/')) {
+            normalizedGift.image = `${API_BASE_URL}${normalizedGift.image}`;
+          }
+        }
+
         // Show animation for all users (including sender for consistency)
         setActiveGiftAnimation({
-          ...data.gift,
+          ...normalizedGift,
           sender: data.sender,
           timestamp: data.timestamp,
         });
@@ -1685,8 +1698,22 @@ export default function ChatScreen() {
 
     const handleReceiveGift = (data: any) => {
       console.log('Received gift broadcast:', data);
+      
+      // Normalize animation path if it's a string starting with '/'
+      const normalizedGift = { ...data.gift };
+      if (normalizedGift.animation && typeof normalizedGift.animation === 'string') {
+        if (normalizedGift.animation.startsWith('/')) {
+          normalizedGift.animation = `${API_BASE_URL}${normalizedGift.animation}`;
+        }
+      }
+      if (normalizedGift.image && typeof normalizedGift.image === 'string') {
+        if (normalizedGift.image.startsWith('/')) {
+          normalizedGift.image = `${API_BASE_URL}${normalizedGift.image}`;
+        }
+      }
+      
       setActiveGiftAnimation({
-        ...data.gift,
+        ...normalizedGift,
         sender: data.sender,
         timestamp: data.timestamp,
       });
@@ -4376,10 +4403,15 @@ export default function ChatScreen() {
               };
               
               if (videoMap[gift.animation]) {
+                mappedGift.animation = videoMap[gift.animation];
                 mappedGift.videoSource = videoMap[gift.animation];
+              } else {
+                // Keep original path if not in map
+                mappedGift.animation = gift.animation;
               }
             } catch (error) {
               console.log('Video asset not found for:', gift.animation);
+              mappedGift.animation = gift.animation;
             }
           }
 
@@ -4523,14 +4555,19 @@ export default function ChatScreen() {
                       const purchaseData = await purchaseResponse.json();
                       console.log('Gift purchase successful:', purchaseData);
 
+                      // Calculate system share and percentage
+                      const recipientEarnings = purchaseData.earnings || 0;
+                      const systemShare = gift.price - recipientEarnings;
+                      const sharePercentage = gift.price > 0 ? Math.round((recipientEarnings / gift.price) * 100) : 0;
+
                       // Show success message
                       Alert.alert(
                         'Gift Sent!',
                         `${gift.name} berhasil dikirim ke ${recipientUsername}!\n\n` +
                         `Distribusi:\n` +
-                        `• User mendapat: ${purchaseData.transaction.recipientShare} coins (30%)\n` +
-                        `• System: ${purchaseData.transaction.systemShare} coins (70%)\n\n` +
-                        `Saldo Anda: ${purchaseData.balances.senderBalance} coins`
+                        `• ${recipientUsername} mendapat: ${recipientEarnings} coins (${sharePercentage}%)\n` +
+                        `• System: ${systemShare} coins\n\n` +
+                        `Saldo Anda: ${purchaseData.newBalance} coins`
                       );
 
                       // Send gift via socket for real-time display
