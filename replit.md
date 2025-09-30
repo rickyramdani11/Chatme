@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing.
 - **Gaming Integration**: LowCard bot game.
-- **AI Bot Integration**: ChatMe Bot powered by OpenAI GPT-3.5-Turbo (chatme_bot, ID: 43). Can be added to rooms via `/addbot` command (requires room owner/moderator/admin). Once added, responds to ALL messages in that room. Responds to all messages in private chats with bot. Features: 5-second rate limiting, conversation history context, self-reply prevention, 15-second timeout, room membership tracking. Commands: `/addbot` (add bot to room), `/removebot` (remove bot from room). Bot styling: green username (#167027), blue messages (#0f23bd).
+- **AI Bot Integration**: ChatMe Bot powered by OpenAI GPT-3.5-Turbo via OpenRouter API (chatme_bot, ID: 43). Uses OpenRouter for better reliability and cost management. Can be added to rooms via `/addbot` command (requires room owner/moderator/admin). Once added, responds to ALL messages in that room. Responds to all messages in private chats with bot. Features: 5-second rate limiting, conversation history context, self-reply prevention, 15-second timeout, room membership tracking, duplicate message prevention. Commands: `/addbot` (add bot to room), `/removebot` (remove bot from room). Bot styling: green username (#167027), blue messages (#0f23bd).
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking, activity feeds.
 - **Administrative Tools**: Admin panel for moderation, user management, and configuration.
@@ -64,7 +64,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL (pg driver).
 - **Security**: bcrypt, jsonwebtoken.
 - **File Handling**: Multer.
-- **AI Integration**: OpenAI GPT-3.5-Turbo SDK for ChatMe Bot.
+- **AI Integration**: OpenAI SDK with OpenRouter API (https://openrouter.ai/api/v1) for ChatMe Bot using GPT-3.5-Turbo model.
 
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).

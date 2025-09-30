@@ -765,11 +765,23 @@ export default function ChatScreen() {
 
         if (!isPrivateChat && !isSupportChat) {
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === joinMessage.roomId
-                ? { ...tab, messages: [...tab.messages, joinMessage] }
-                : tab
-            )
+            prevTabs.map(tab => {
+              if (tab.id === joinMessage.roomId) {
+                // Check for duplicate join messages
+                const isDuplicate = tab.messages.some(msg =>
+                  msg.id === joinMessage.id ||
+                  (msg.type === 'join' && 
+                   msg.sender === joinMessage.sender &&
+                   Math.abs(new Date(msg.timestamp).getTime() - new Date(joinMessage.timestamp).getTime()) < 2000)
+                );
+                
+                if (!isDuplicate) {
+                  return { ...tab, messages: [...tab.messages, joinMessage] };
+                }
+                console.log('Duplicate join message filtered out');
+              }
+              return tab;
+            })
           );
         } else {
           console.log('Skipping join message for private/support chat.');
@@ -784,11 +796,23 @@ export default function ChatScreen() {
 
         if (!isPrivateChat && !isSupportChat) {
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === leaveMessage.roomId
-                ? { ...tab, messages: [...tab.messages, leaveMessage] }
-                : tab
-            )
+            prevTabs.map(tab => {
+              if (tab.id === leaveMessage.roomId) {
+                // Check for duplicate leave messages
+                const isDuplicate = tab.messages.some(msg =>
+                  msg.id === leaveMessage.id ||
+                  (msg.type === 'leave' && 
+                   msg.sender === leaveMessage.sender &&
+                   Math.abs(new Date(msg.timestamp).getTime() - new Date(leaveMessage.timestamp).getTime()) < 2000)
+                );
+                
+                if (!isDuplicate) {
+                  return { ...tab, messages: [...tab.messages, leaveMessage] };
+                }
+                console.log('Duplicate leave message filtered out');
+              }
+              return tab;
+            })
           );
         } else {
           console.log('Skipping leave message for private/support chat.');
