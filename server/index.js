@@ -3668,8 +3668,20 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
     const friendsQuery = await pool.query(`
       SELECT u.id, u.username as name, u.avatar, 
              CASE WHEN u.last_login > NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END as status,
-             CASE WHEN u.last_login > NOW() - INTERVAL '5 minutes' THEN 'Active now' 
-                  ELSE 'Last seen ' || COALESCE(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60, 0) || ' minutes ago' END as lastSeen
+             CASE 
+               WHEN u.last_login > NOW() - INTERVAL '5 minutes' THEN 'Active now'
+               WHEN u.last_login IS NULL THEN 'Recently'
+               ELSE
+                 CASE 
+                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60) < 1 THEN 'Active now'
+                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60) < 60 THEN 
+                     FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60)::text || ' min ago'
+                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/3600) < 24 THEN 
+                     FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/3600)::text || ' hours ago'
+                   ELSE 
+                     FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/86400)::text || ' days ago'
+                 END
+             END as lastSeen
       FROM users u
       JOIN friendships f ON (f.friend_id = u.id)
       WHERE f.user_id = $1 AND f.status = 'accepted'
