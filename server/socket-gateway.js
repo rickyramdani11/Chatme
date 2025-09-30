@@ -11,6 +11,9 @@ import crypto from 'crypto';
 // Import LowCard bot
 import { processLowCardCommand } from './games/lowcard.js';
 
+// Import ChatMe AI Bot
+import { processBotMessage, BOT_USERNAME } from './bot/chatme-bot.js';
+
 const app = express();
 const server = createServer(app);
 
@@ -1223,6 +1226,59 @@ io.on('connection', (socket) => {
       }
 
       console.log(`Message broadcasted to room ${roomId} from ${sender}`);
+
+      // ChatMe AI Bot Integration
+      // Check if bot should respond to this message
+      if (sender !== BOT_USERNAME) { // Don't respond to bot's own messages
+        try {
+          const botResponse = await processBotMessage({
+            message: content,
+            roomId,
+            username: sender,
+            conversationHistory: [] // Could fetch recent messages from DB for context
+          });
+
+          if (botResponse) {
+            // Bot has a response - broadcast it to the room
+            const botMessageId = `${Date.now()}_${BOT_USERNAME}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            const botMessage = {
+              id: botMessageId,
+              sender: BOT_USERNAME,
+              content: botResponse.content,
+              timestamp: new Date().toISOString(),
+              roomId,
+              role: 'user',
+              level: 1,
+              type: 'message',
+              isBot: true // Mark as bot message for frontend styling
+            };
+
+            // Small delay to make it feel more natural
+            setTimeout(() => {
+              io.to(roomId).emit('new-message', botMessage);
+              console.log(`🤖 ChatMe Bot responded in room ${roomId}: "${botResponse.content}"`);
+              
+              // Save bot message to database for private chats
+              if (isPrivateChat) {
+                saveChatMessage(
+                  roomId,
+                  BOT_USERNAME,
+                  botResponse.content,
+                  null,
+                  'message',
+                  'user',
+                  1,
+                  true
+                ).catch(err => console.error('Error saving bot message:', err));
+              }
+            }, 800); // 800ms delay for natural conversation feel
+          }
+        } catch (botError) {
+          console.error('❌ ChatMe Bot error:', botError);
+          // Don't crash if bot fails - just log the error
+        }
+      }
 
     } catch (error) {
       console.error('Error handling sendMessage:', error);
