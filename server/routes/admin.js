@@ -185,6 +185,7 @@ function sanitizeBody(body) {
   if (!body) return null;
   const sanitized = { ...body };
   const sensitiveFields = ['password', 'pin', 'token', 'secret', 'creditCardNumber'];
+  const base64Fields = ['emojiFile', 'giftImage', 'bannerImage', 'imageData'];
   
   for (const field of sensitiveFields) {
     if (sanitized[field]) {
@@ -192,15 +193,55 @@ function sanitizeBody(body) {
     }
   }
   
-  if (sanitized.emojiFile && sanitized.emojiFile.length > 100) {
-    sanitized.emojiFile = `[BASE64_DATA_${sanitized.emojiFile.length}_BYTES]`;
-  }
-  
-  if (sanitized.giftImage && sanitized.giftImage.length > 100) {
-    sanitized.giftImage = `[BASE64_DATA_${sanitized.giftImage.length}_BYTES]`;
+  for (const field of base64Fields) {
+    if (sanitized[field] && sanitized[field].length > 100) {
+      sanitized[field] = `[BASE64_DATA_${sanitized[field].length}_BYTES]`;
+    }
   }
   
   return sanitized;
+}
+
+// Validate base64 image type and content
+function validateBase64Image(base64Data, allowedTypes = ['png', 'jpg', 'jpeg', 'gif', 'webp']) {
+  if (!base64Data || typeof base64Data !== 'string') {
+    return { valid: false, error: 'Invalid base64 data' };
+  }
+  
+  if (base64Data.length < 100) {
+    return { valid: false, error: 'Base64 data too short' };
+  }
+  
+  if (base64Data.length > 10 * 1024 * 1024) {
+    return { valid: false, error: 'File too large. Maximum size is 10MB' };
+  }
+  
+  const buffer = Buffer.from(base64Data, 'base64');
+  
+  const magicNumbers = {
+    'png': [0x89, 0x50, 0x4E, 0x47],
+    'jpg': [0xFF, 0xD8, 0xFF],
+    'jpeg': [0xFF, 0xD8, 0xFF],
+    'gif': [0x47, 0x49, 0x46],
+    'webp': [0x52, 0x49, 0x46, 0x46]
+  };
+  
+  let detectedType = null;
+  for (const [type, magic] of Object.entries(magicNumbers)) {
+    if (magic.every((byte, i) => buffer[i] === byte)) {
+      detectedType = type;
+      break;
+    }
+  }
+  
+  if (!detectedType || !allowedTypes.includes(detectedType)) {
+    return { 
+      valid: false, 
+      error: `Invalid image type. Allowed: ${allowedTypes.join(', ')}. Detected: ${detectedType || 'unknown'}` 
+    };
+  }
+  
+  return { valid: true, type: detectedType, buffer };
 }
 
 // Get emojis
@@ -236,8 +277,9 @@ router.post('/emojis', authenticateToken, adminOnly, rateLimit(20, 60000), audit
 
     if (emojiFile) {
       try {
-        if (typeof emojiFile !== 'string' || emojiFile.length < 100) {
-          return res.status(400).json({ error: 'Invalid emoji file data' });
+        const validation = validateBase64Image(emojiFile);
+        if (!validation.valid) {
+          return res.status(400).json({ error: validation.error });
         }
 
         const uploadDir = 'assets/emoticon';
@@ -245,17 +287,10 @@ router.post('/emojis', authenticateToken, adminOnly, rateLimit(20, 60000), audit
           fs.mkdirSync(uploadDir, { recursive: true });
         }
 
-        const fileExt = emojiType || 'png';
-        const uniqueFileName = `emoji_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const uniqueFileName = `emoji_${Date.now()}_${Math.random().toString(36).substring(7)}.${validation.type}`;
         const filePath = `${uploadDir}/${uniqueFileName}`;
 
-        const buffer = Buffer.from(emojiFile, 'base64');
-
-        if (buffer.length > 2 * 1024 * 1024) {
-          return res.status(400).json({ error: 'File too large. Maximum size is 2MB.' });
-        }
-
-        fs.writeFileSync(filePath, buffer);
+        fs.writeFileSync(filePath, validation.buffer);
         emojiValue = `/assets/emoticon/${uniqueFileName}`;
 
       } catch (fileError) {
@@ -359,26 +394,35 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
         const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
         const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
         
-        // Validate file type
-        const allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'mp4', 'webm', 'mov'];
-        if (!allowedExtensions.includes(fileExtension)) {
+        const allowedImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+        const allowedVideoExtensions = ['mp4', 'webm', 'mov'];
+        const allAllowedExtensions = [...allowedImageExtensions, ...allowedVideoExtensions];
+        
+        if (!allAllowedExtensions.includes(fileExtension)) {
           return res.status(400).json({ 
-            error: 'Invalid file type. Only PNG, JPG, JPEG, GIF, MP4, WebM, and MOV files are allowed.' 
+            error: `Invalid file type. Allowed: ${allAllowedExtensions.join(', ')}` 
           });
+        }
+
+        let fileBuffer;
+        if (allowedImageExtensions.includes(fileExtension)) {
+          const validation = validateBase64Image(giftImage, allowedImageExtensions);
+          if (!validation.valid) {
+            return res.status(400).json({ error: validation.error });
+          }
+          fileBuffer = validation.buffer;
+        } else {
+          fileBuffer = Buffer.from(giftImage, 'base64');
+          const maxVideoSize = 15 * 1024 * 1024;
+          if (fileBuffer.length > maxVideoSize) {
+            return res.status(400).json({ 
+              error: `Video file too large. Maximum size is ${maxVideoSize / (1024 * 1024)}MB.` 
+            });
+          }
         }
 
         const filename = `gift_${uniqueSuffix}.${fileExtension}`;
         const filepath = path.join(uploadsDir, filename);
-
-        const fileBuffer = Buffer.from(giftImage, 'base64');
-        
-        // Check file size limits
-        const maxSize = ['mp4', 'webm', 'mov'].includes(fileExtension) ? 15 * 1024 * 1024 : 5 * 1024 * 1024;
-        if (fileBuffer.length > maxSize) {
-          return res.status(400).json({ 
-            error: `File too large. Maximum size is ${maxSize / (1024 * 1024)}MB.` 
-          });
-        }
 
         fs.writeFileSync(filepath, fileBuffer);
 

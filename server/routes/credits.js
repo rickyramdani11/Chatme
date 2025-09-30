@@ -9,6 +9,46 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+// Rate limiting for credit operations
+const rateLimitStore = new Map();
+
+const rateLimit = (maxRequests = 5, windowMs = 60000) => {
+  return (req, res, next) => {
+    const key = `${req.user.id}-${req.path}`;
+    const now = Date.now();
+    
+    if (!rateLimitStore.has(key)) {
+      rateLimitStore.set(key, []);
+    }
+    
+    const requests = rateLimitStore.get(key).filter(time => now - time < windowMs);
+    
+    if (requests.length >= maxRequests) {
+      return res.status(429).json({ 
+        error: 'Too many requests. Please try again later.',
+        retryAfter: Math.ceil((requests[0] + windowMs - now) / 1000)
+      });
+    }
+    
+    requests.push(now);
+    rateLimitStore.set(key, requests);
+    
+    next();
+  };
+};
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, requests] of rateLimitStore.entries()) {
+    const validRequests = requests.filter(time => now - time < 60000);
+    if (validRequests.length === 0) {
+      rateLimitStore.delete(key);
+    } else {
+      rateLimitStore.set(key, validRequests);
+    }
+  }
+}, 60000);
+
 // Get user balance
 router.get('/balance', authenticateToken, async (req, res) => {
   try {
@@ -66,8 +106,64 @@ router.get('/history', authenticateToken, async (req, res) => {
   }
 });
 
-// Transfer credits
-router.post('/transfer', authenticateToken, async (req, res) => {
+// Audit logging for credit transfers
+const auditCreditTransfer = async (req, res, next) => {
+  const originalJson = res.json.bind(res);
+  let statusCode = 200;
+  let responseBody = null;
+
+  res.json = function(body) {
+    responseBody = body;
+    statusCode = res.statusCode || 200;
+    return originalJson(body);
+  };
+
+  res.on('finish', async () => {
+    try {
+      const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'Unknown';
+      const status = statusCode >= 200 && statusCode < 300 ? 'success' : 'failed';
+      
+      const auditData = {
+        from_user_id: req.user?.id,
+        from_username: req.user?.username,
+        to_username: req.body?.toUsername,
+        amount: req.body?.amount,
+        pin: '***REDACTED***',
+        status,
+        ip_address: ip,
+        user_agent: userAgent,
+        error_message: status === 'failed' ? (responseBody?.error || 'Unknown error') : null
+      };
+
+      await pool.query(`
+        INSERT INTO admin_audit_logs 
+        (admin_id, admin_username, action, resource_type, resource_id, details, ip_address, user_agent, status, error_message)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `, [
+        req.user.id,
+        req.user.username,
+        'CREDIT_TRANSFER',
+        'credit',
+        req.body?.toUsername,
+        JSON.stringify(auditData),
+        ip,
+        userAgent,
+        status,
+        auditData.error_message
+      ]);
+
+      console.log(`💰 Credit Transfer: ${req.user.username} → ${req.body?.toUsername} (${req.body?.amount} credits) - Status: ${status}`);
+    } catch (auditError) {
+      console.error('Audit logging error for credit transfer:', auditError);
+    }
+  });
+
+  next();
+};
+
+// Transfer credits (rate limited: max 5 transfers per minute)
+router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTransfer, async (req, res) => {
   try {
     const { toUsername, amount, pin } = req.body;
     const fromUserId = req.user.id;

@@ -10,7 +10,14 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.ADMIN_PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Fail fast if JWT_SECRET is missing
+if (!process.env.JWT_SECRET) {
+  console.error('❌ CRITICAL: JWT_SECRET environment variable is not set!');
+  console.error('❌ Admin authentication is INSECURE without a proper JWT secret.');
+  process.exit(1);
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Database configuration
 const pool = new Pool({
@@ -24,7 +31,17 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('server/admin-public'));
 
-// Multer for file uploads
+// Multer for file uploads with security
+const ALLOWED_BANNER_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_BANNER_SIZE = 10 * 1024 * 1024; // 10MB
+
+const fileFilter = (req, file, cb) => {
+  if (!ALLOWED_BANNER_TYPES.includes(file.mimetype)) {
+    return cb(new Error(`Invalid file type. Allowed: ${ALLOWED_BANNER_TYPES.join(', ')}`), false);
+  }
+  cb(null, true);
+};
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadPath = `uploads/${file.fieldname}s/`;
@@ -34,10 +51,19 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    const crypto = require('crypto');
+    const randomSuffix = crypto.randomBytes(8).toString('hex');
+    const sanitizedName = path.basename(file.originalname).replace(/[^a-zA-Z0-9.-]/g, '_');
+    const filename = `${Date.now()}-${randomSuffix}-${sanitizedName}`;
+    cb(null, filename);
   }
 });
-const upload = multer({ storage: storage });
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: MAX_BANNER_SIZE }
+});
 
 // Admin authentication middleware
 const authenticateAdmin = async (req, res, next) => {
@@ -65,6 +91,94 @@ const authenticateAdmin = async (req, res, next) => {
     res.status(400).json({ error: 'Invalid token.' });
   }
 };
+
+// Rate limiting for admin operations
+const rateLimitStore = new Map();
+
+const rateLimit = (maxRequests = 10, windowMs = 60000) => {
+  return (req, res, next) => {
+    if (!req.user) return next();
+    const key = `${req.user.id}-${req.path}`;
+    const now = Date.now();
+    
+    if (!rateLimitStore.has(key)) {
+      rateLimitStore.set(key, []);
+    }
+    
+    const requests = rateLimitStore.get(key).filter(time => now - time < windowMs);
+    
+    if (requests.length >= maxRequests) {
+      return res.status(429).json({ 
+        error: 'Too many requests. Please try again later.',
+        retryAfter: Math.ceil((requests[0] + windowMs - now) / 1000)
+      });
+    }
+    
+    requests.push(now);
+    rateLimitStore.set(key, requests);
+    
+    next();
+  };
+};
+
+// Audit logging middleware
+const auditLog = (action, resourceType = null) => {
+  return async (req, res, next) => {
+    const originalJson = res.json.bind(res);
+    let statusCode = 200;
+    let responseBody = null;
+
+    res.json = function(body) {
+      responseBody = body;
+      statusCode = res.statusCode || 200;
+      return originalJson(body);
+    };
+
+    res.on('finish', async () => {
+      try {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        const status = statusCode >= 200 && statusCode < 300 ? 'success' : 'failed';
+        const resourceId = req.params.roomId || req.params.bannerId || req.body?.id || null;
+        
+        await pool.query(`
+          INSERT INTO admin_audit_logs 
+          (admin_id, admin_username, action, resource_type, resource_id, details, ip_address, user_agent, status, error_message)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `, [
+          req.user?.id,
+          req.user?.username,
+          action,
+          resourceType,
+          resourceId,
+          JSON.stringify({ method: req.method, path: req.path, statusCode }),
+          ip,
+          userAgent,
+          status,
+          status === 'failed' ? (responseBody?.error || 'Unknown error') : null
+        ]);
+
+        console.log(`🔐 Audit: ${req.user?.username} - ${action} on ${resourceType || 'system'} - ${status}`);
+      } catch (auditError) {
+        console.error('Audit logging error:', auditError);
+      }
+    });
+
+    next();
+  };
+};
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, requests] of rateLimitStore.entries()) {
+    const validRequests = requests.filter(time => now - time < 60000);
+    if (validRequests.length === 0) {
+      rateLimitStore.delete(key);
+    } else {
+      rateLimitStore.set(key, validRequests);
+    }
+  }
+}, 60000);
 
 // Admin login endpoint
 app.post('/api/admin/login', async (req, res) => {
@@ -236,7 +350,7 @@ app.get('/api/admin/rooms', authenticateAdmin, async (req, res) => {
 });
 
 // Delete room
-app.delete('/api/admin/rooms/:roomId', authenticateAdmin, async (req, res) => {
+app.delete('/api/admin/rooms/:roomId', authenticateAdmin, rateLimit(5, 60000), auditLog('DELETE_ROOM', 'room'), async (req, res) => {
   try {
     const { roomId } = req.params;
 
@@ -266,7 +380,7 @@ app.get('/api/admin/banners', authenticateAdmin, async (req, res) => {
 });
 
 // Create banner
-app.post('/api/admin/banners', authenticateAdmin, upload.single('banner'), async (req, res) => {
+app.post('/api/admin/banners', authenticateAdmin, rateLimit(10, 60000), auditLog('CREATE_BANNER', 'banner'), upload.single('banner'), async (req, res) => {
   try {
     const { title, description, linkUrl, displayOrder } = req.body;
     const imageUrl = req.file ? `/uploads/banners/${req.file.filename}` : null;
