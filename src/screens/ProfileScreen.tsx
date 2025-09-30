@@ -26,9 +26,11 @@ interface UserProfile {
   bio: string;
   followers: number;
   following: number;
-  avatar?: string;
+  avatar?: string | null;
   avatarFrame?: string;
+  profileBackground?: string;
   level: number;
+  role?: string;
   achievements: Achievement[];
   isOnline: boolean;
   country?: string;
@@ -116,6 +118,10 @@ export default function ProfileScreen({ navigation, route }: any) {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDescription, setReportDescription] = useState('');
+
+  // State for background editing
+  const [selectedPhotoForBackground, setSelectedPhotoForBackground] = useState<AlbumPhoto | null>(null);
+  const [showBackgroundMenu, setShowBackgroundMenu] = useState(false);
 
   // Placeholder for form data and counts if editing is implemented
   const [formData, setFormData] = useState({
@@ -512,12 +518,55 @@ export default function ProfileScreen({ navigation, route }: any) {
     }
   };
 
+  // Handle saving photo as background
+  const handleSaveAsBackground = async (photo: AlbumPhoto) => {
+    if (!token || !user?.id) return;
+    
+    try {
+      const backgroundUrl = photo.url;
+      
+      const response = await fetch(`${API_BASE_URL}/users/${user.id}/profile-background`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ backgroundUrl }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update local profile state
+        setProfile(prev => prev ? { ...prev, profileBackground: data.profileBackground } : null);
+        Alert.alert('Success', 'Background updated successfully');
+      } else {
+        throw new Error('Failed to update background');
+      }
+    } catch (error) {
+      console.error('Error updating background:', error);
+      Alert.alert('Error', 'Failed to update background');
+    } finally {
+      setShowBackgroundMenu(false);
+      setSelectedPhotoForBackground(null);
+    }
+  };
+
   const renderAlbumPhoto = ({ item }: { item: AlbumPhoto }) => (
     <Animated.View style={[styles.albumPhotoItem, { opacity: fadeAnim }]}>
-      <Image 
-        source={{ uri: `${API_BASE_URL}${item.url}` }} 
-        style={styles.albumPhotoImage} 
-      />
+      <TouchableOpacity
+        onPress={() => {
+          if (isOwnProfile) {
+            setSelectedPhotoForBackground(item);
+            setShowBackgroundMenu(true);
+          }
+        }}
+        activeOpacity={isOwnProfile ? 0.7 : 1}
+      >
+        <Image 
+          source={{ uri: `${API_BASE_URL}${item.url}` }} 
+          style={styles.albumPhotoImage} 
+        />
+      </TouchableOpacity>
     </Animated.View>
   );
 
@@ -588,7 +637,9 @@ export default function ProfileScreen({ navigation, route }: any) {
         <View style={styles.backgroundImageContainer}>
           <Image 
             source={
-              albumPhotos.length > 0 && albumPhotos[0]?.url
+              profile.profileBackground
+                ? { uri: `${API_BASE_URL}${profile.profileBackground}` }
+                : albumPhotos.length > 0 && albumPhotos[0]?.url
                 ? { uri: `${API_BASE_URL}${albumPhotos[0].url}` }
                 : require('../../assets/Bg_profile/Bg_profile.jpeg')
             } 
@@ -605,6 +656,21 @@ export default function ProfileScreen({ navigation, route }: any) {
             colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
             style={styles.backgroundOverlay}
           />
+
+          {/* Edit Background Icon - Only show for own profile */}
+          {isOwnProfile && (
+            <TouchableOpacity 
+              style={styles.editBackgroundButton}
+              onPress={() => navigation.navigate('EditProfile')}
+            >
+              <LinearGradient
+                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                style={styles.editBackgroundGradient}
+              >
+                <Ionicons name="pencil" size={20} color="#333" />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
 
           {/* Living Status with pulse animation */}
           {profile.isOnline && (
@@ -904,6 +970,54 @@ export default function ProfileScreen({ navigation, route }: any) {
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
+            </View>
+          </LinearGradient>
+        </View>
+      </Modal>
+
+      {/* Background Menu Modal */}
+      <Modal
+        visible={showBackgroundMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowBackgroundMenu(false);
+          setSelectedPhotoForBackground(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.9)']}
+            style={styles.backgroundMenuContainer}
+          >
+            <View style={styles.backgroundMenuContent}>
+              <Text style={styles.backgroundMenuTitle}>Set as Background</Text>
+              
+              {selectedPhotoForBackground && (
+                <>
+                  <TouchableOpacity
+                    style={styles.backgroundMenuButton}
+                    onPress={() => handleSaveAsBackground(selectedPhotoForBackground)}
+                  >
+                    <LinearGradient
+                      colors={['#667eea', '#764ba2']}
+                      style={styles.backgroundMenuButtonGradient}
+                    >
+                      <Text style={styles.backgroundMenuButtonText}>Save to Background</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.backgroundMenuCancel}
+                    onPress={() => {
+                      setShowBackgroundMenu(false);
+                      setSelectedPhotoForBackground(null);
+                    }}
+                  >
+                    <Text style={styles.backgroundMenuCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </LinearGradient>
         </View>
@@ -1503,5 +1617,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '500',
+  },
+  // Background editing styles
+  editBackgroundButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  editBackgroundGradient: {
+    padding: 10,
+    borderRadius: 20,
+  },
+  backgroundMenuContainer: {
+    borderRadius: 20,
+    marginHorizontal: 20,
+    maxWidth: 400,
+    width: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  backgroundMenuContent: {
+    padding: 25,
+  },
+  backgroundMenuTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  backgroundMenuButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 15,
+  },
+  backgroundMenuButtonGradient: {
+    padding: 18,
+    alignItems: 'center',
+  },
+  backgroundMenuButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backgroundMenuCancel: {
+    padding: 18,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+  },
+  backgroundMenuCancelText: {
+    color: '#7f8c8d',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
