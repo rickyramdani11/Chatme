@@ -44,6 +44,93 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
+// Audit logging middleware
+const auditLog = (action, resourceType = null) => {
+  return async (req, res, next) => {
+    const originalJson = res.json.bind(res);
+    const originalStatus = res.status.bind(res);
+    let statusCode = 200;
+    let responseBody = null;
+
+    res.status = function(code) {
+      statusCode = code;
+      return originalStatus(code);
+    };
+
+    res.json = function(body) {
+      responseBody = body;
+      return originalJson(body);
+    };
+
+    res.on('finish', async () => {
+      try {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        const status = statusCode >= 200 && statusCode < 300 ? 'success' : 'failed';
+        const resourceId = req.params.id || req.body?.id || null;
+        
+        const details = {
+          method: req.method,
+          path: req.path,
+          params: req.params,
+          body: sanitizeBody(req.body),
+          statusCode
+        };
+
+        if (status === 'failed' && responseBody?.error) {
+          details.error = responseBody.error;
+        }
+
+        await pool.query(`
+          INSERT INTO admin_audit_logs 
+          (admin_id, admin_username, action, resource_type, resource_id, details, ip_address, user_agent, status, error_message)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `, [
+          req.user.id,
+          req.user.username,
+          action,
+          resourceType,
+          resourceId,
+          JSON.stringify(details),
+          ip,
+          userAgent,
+          status,
+          status === 'failed' ? (responseBody?.error || 'Unknown error') : null
+        ]);
+
+        console.log(`🔐 Audit Log: Admin ${req.user.username} performed ${action} on ${resourceType || 'system'} - Status: ${status}`);
+      } catch (auditError) {
+        console.error('Audit logging error:', auditError);
+      }
+    });
+
+    next();
+  };
+};
+
+// Sanitize sensitive data from body before logging
+function sanitizeBody(body) {
+  if (!body) return null;
+  const sanitized = { ...body };
+  const sensitiveFields = ['password', 'pin', 'token', 'secret', 'creditCardNumber'];
+  
+  for (const field of sensitiveFields) {
+    if (sanitized[field]) {
+      sanitized[field] = '***REDACTED***';
+    }
+  }
+  
+  if (sanitized.emojiFile && sanitized.emojiFile.length > 100) {
+    sanitized.emojiFile = `[BASE64_DATA_${sanitized.emojiFile.length}_BYTES]`;
+  }
+  
+  if (sanitized.giftImage && sanitized.giftImage.length > 100) {
+    sanitized.giftImage = `[BASE64_DATA_${sanitized.giftImage.length}_BYTES]`;
+  }
+  
+  return sanitized;
+}
+
 // Get emojis
 router.get('/emojis', authenticateToken, adminOnly, async (req, res) => {
   try {
@@ -61,7 +148,7 @@ router.get('/emojis', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Add emoji
-router.post('/emojis', authenticateToken, adminOnly, async (req, res) => {
+router.post('/emojis', authenticateToken, adminOnly, auditLog('ADD_EMOJI', 'emoji'), async (req, res) => {
   try {
     const { name, category = 'general', emoji, emojiFile, emojiType, fileName } = req.body;
 
@@ -119,7 +206,7 @@ router.post('/emojis', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Delete emoji
-router.delete('/emojis/:id', authenticateToken, adminOnly, async (req, res) => {
+router.delete('/emojis/:id', authenticateToken, adminOnly, auditLog('DELETE_EMOJI', 'emoji'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -164,7 +251,7 @@ router.get('/gifts', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Add gift
-router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
+router.post('/gifts', authenticateToken, adminOnly, auditLog('ADD_GIFT', 'gift'), async (req, res) => {
   try {
     const { 
       name, 
@@ -270,7 +357,7 @@ router.post('/gifts', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Delete gift
-router.delete('/gifts/:id', authenticateToken, adminOnly, async (req, res) => {
+router.delete('/gifts/:id', authenticateToken, adminOnly, auditLog('DELETE_GIFT', 'gift'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -330,7 +417,7 @@ router.get('/rooms', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Update room (admin only)
-router.put('/rooms/:roomId', authenticateToken, adminOnly, async (req, res) => {
+router.put('/rooms/:roomId', authenticateToken, adminOnly, auditLog('UPDATE_ROOM', 'room'), async (req, res) => {
   try {
     const { roomId } = req.params;
     const { name, description, maxMembers, managedBy } = req.body;
@@ -382,7 +469,7 @@ router.put('/rooms/:roomId', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Delete room (admin only)
-router.delete('/rooms/:roomId', authenticateToken, adminOnly, async (req, res) => {
+router.delete('/rooms/:roomId', authenticateToken, adminOnly, auditLog('DELETE_ROOM', 'room'), async (req, res) => {
   try {
     const { roomId } = req.params;
 
