@@ -2945,11 +2945,41 @@ export default function ChatScreen() {
         break;
       }
 
+      case '/addbot':
+      case '/botadd': {
+        // Forward /addbot and /botadd commands to backend
+        socket?.emit('sendMessage', {
+          roomId: currentRoomId,
+          sender: user?.username,
+          content: commandMessage,
+          role: user?.role || 'user',
+          level: user?.level || 1,
+          type: 'command',
+          commandType: 'bot'
+        });
+        break;
+      }
+
+      case '/removebot':
+      case '/botremove': {
+        // Forward /removebot and /botremove commands to backend
+        socket?.emit('sendMessage', {
+          roomId: currentRoomId,
+          sender: user?.username,
+          content: commandMessage,
+          role: user?.role || 'user',
+          level: user?.level || 1,
+          type: 'command',
+          commandType: 'bot'
+        });
+        break;
+      }
+
       default: {
         const unknownMessage = {
           id: `unknown_${Date.now()}_${user?.username}`,
           sender: 'System',
-          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot',
+          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot\n/addbot or /botadd - Add ChatMe Bot to room (owner/mod/admin)\n/removebot or /botremove - Remove ChatMe Bot from room (owner/mod/admin)',
           timestamp: new Date(),
           roomId: currentRoomId,
           role: 'system',
