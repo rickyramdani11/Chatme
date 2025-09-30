@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { API_BASE_URL, BASE_URL, SOCKET_URL } from '../utils/apiConfig';
+import { io } from 'socket.io-client';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 
@@ -258,7 +259,6 @@ const HomeScreen = ({ navigation }: any) => {
   // Socket connection effect
   useEffect(() => {
     if (token && user) {
-      const io = require('socket.io-client');
       const socketInstance = io(SOCKET_URL, {
         path: '/socket.io/',
         auth: { token },
@@ -270,7 +270,33 @@ const HomeScreen = ({ navigation }: any) => {
         setSocket(socketInstance);
       });
 
-      // Listen for coin received notifications
+      // Listen for real-time notifications
+      socketInstance.on('new_notification', (notification) => {
+        console.log('New notification received:', notification);
+        
+        // Update unread count
+        setUnreadNotifications(prev => prev + 1);
+        
+        // Add notification to list
+        setNotifications(prev => [notification, ...prev]);
+        
+        // Show alert based on notification type
+        if (notification.type === 'credit_received') {
+          Alert.alert(
+            '🪙 ' + notification.title,
+            notification.message,
+            [{ text: 'OK', onPress: () => fetchUserBalance() }]
+          );
+        } else if (notification.type === 'follow') {
+          Alert.alert(
+            '👤 ' + notification.title,
+            notification.message,
+            [{ text: 'OK' }]
+          );
+        }
+      });
+
+      // Listen for coin received notifications (legacy)
       socketInstance.on('coin-received', (data) => {
         console.log('Coin received via socket:', data);
 
