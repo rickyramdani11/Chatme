@@ -18,12 +18,17 @@ import { API_BASE_URL } from '../utils/apiConfig';
 interface Notification {
   id: string;
   type: 'follow_request' | 'follow_accepted' | 'credit_received' | 'message';
-  fromUser: string;
-  fromUserId: string;
   title: string;
   message: string;
+  data?: {
+    senderId?: string;
+    senderUsername?: string;
+    amount?: number;
+    [key: string]: any;
+  } | null;
   createdAt: string;
   isRead: boolean;
+  readAt?: string | null;
 }
 
 export default function NotificationsScreen({ navigation }: any) {
@@ -46,6 +51,7 @@ export default function NotificationsScreen({ navigation }: any) {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📨 Notifications received:', JSON.stringify(data.notifications, null, 2));
         setNotifications(data.notifications || []);
       }
     } catch (error) {
@@ -95,6 +101,15 @@ export default function NotificationsScreen({ navigation }: any) {
   const renderNotification = (notification: Notification) => {
     const isFollowRequest = notification.type === 'follow_request';
     
+    // Debug log untuk setiap notification
+    console.log(`Rendering notification ${notification.id}:`, {
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      hasTitle: !!notification.title,
+      hasMessage: !!notification.message
+    });
+    
     return (
       <View key={notification.id} style={[
         styles.notificationCard,
@@ -113,8 +128,12 @@ export default function NotificationsScreen({ navigation }: any) {
             />
           </View>
           <View style={styles.notificationContent}>
-            <Text style={styles.notificationTitle}>{notification.title}</Text>
-            <Text style={styles.notificationMessage}>{notification.message}</Text>
+            <Text style={styles.notificationTitle}>
+              {notification.title || '(No title)'}
+            </Text>
+            <Text style={styles.notificationMessage}>
+              {notification.message || '(No message)'}
+            </Text>
             <Text style={styles.notificationTime}>
               {new Date(notification.createdAt).toLocaleDateString('id-ID')}
             </Text>

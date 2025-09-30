@@ -118,6 +118,15 @@ router.get('/', authenticateToken, async (req, res) => {
       readAt: row.read_at
     }));
 
+    console.log(`📨 Fetching notifications for user ${userId}:`, notifications.map(n => ({ 
+      id: n.id, 
+      type: n.type, 
+      title: n.title, 
+      message: n.message, 
+      hasTitle: !!n.title,
+      hasMessage: !!n.message 
+    })));
+
     res.json({
       notifications,
       unreadCount: parseInt(unreadResult.rows[0].count),
