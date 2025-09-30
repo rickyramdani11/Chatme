@@ -98,6 +98,11 @@ export default function PrivateChatScreen() {
     userRef.current = user;
   }, [user]);
 
+  // Load emojis on mount
+  useEffect(() => {
+    loadEmojis();
+  }, []);
+
   // Keyboard listeners
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(
@@ -719,20 +724,88 @@ export default function PrivateChatScreen() {
   };
 
   const renderMessageContent = (content: string) => {
-    // Split content by @ mentions and style them
-    const parts = content.split(/(@\w+)/g);
+    const elements: any[] = [];
+    let remaining = content;
+    let index = 0;
 
-    return parts.map((part, index) => {
-      if (part.startsWith('@')) {
-        // Style @ mentions with purple color
-        return (
-          <Text key={index} style={styles.mentionText}>
-            {part}
+    // Parse emoticons and mentions
+    while (remaining.length > 0) {
+      // Check for emoticon pattern <localimg:name> (new format)
+      const newEmoticonMatch = remaining.match(/^<localimg:(\w+)>/);
+      if (newEmoticonMatch) {
+        const emoticonName = newEmoticonMatch[1];
+        const emoji = emojiList.find(e => e.name === emoticonName);
+        
+        if (emoji && emoji.image) {
+          elements.push(
+            <Image
+              key={`emoji-${index}`}
+              source={emoji.image}
+              style={styles.inlineEmojiIcon}
+            />
+          );
+        } else {
+          elements.push(<Text key={`text-${index}`}>:{emoticonName}:</Text>);
+        }
+        
+        remaining = remaining.substring(newEmoticonMatch[0].length);
+        index++;
+        continue;
+      }
+
+      // Check for emoticon pattern :name: (legacy format)
+      const legacyEmoticonMatch = remaining.match(/^:([\w]+):/);
+      if (legacyEmoticonMatch) {
+        const emoticonName = legacyEmoticonMatch[1];
+        const emoji = emojiList.find(e => e.name === emoticonName);
+        
+        if (emoji && emoji.image) {
+          elements.push(
+            <Image
+              key={`emoji-${index}`}
+              source={emoji.image}
+              style={styles.inlineEmojiIcon}
+            />
+          );
+        } else {
+          // If not found, show as text
+          elements.push(<Text key={`text-${index}`}>{legacyEmoticonMatch[0]}</Text>);
+        }
+        
+        remaining = remaining.substring(legacyEmoticonMatch[0].length);
+        index++;
+        continue;
+      }
+
+      // Check for @mention
+      const mentionMatch = remaining.match(/^(@\w+)/);
+      if (mentionMatch) {
+        elements.push(
+          <Text key={`mention-${index}`} style={styles.mentionText}>
+            {mentionMatch[0]}
           </Text>
         );
+        remaining = remaining.substring(mentionMatch[0].length);
+        index++;
+        continue;
       }
-      return part;
-    });
+
+      // Regular text - take until next special pattern
+      const nextSpecialMatch = remaining.match(/<localimg:\w+>|:\w+:|@\w+/);
+      const textContent = nextSpecialMatch 
+        ? remaining.substring(0, nextSpecialMatch.index)
+        : remaining;
+      
+      if (textContent) {
+        elements.push(<Text key={`text-${index}`}>{textContent}</Text>);
+        remaining = remaining.substring(textContent.length);
+        index++;
+      } else {
+        break;
+      }
+    }
+
+    return elements;
   };
 
   const formatTime = (timestamp: Date) => {
@@ -2153,5 +2226,10 @@ const styles = StyleSheet.create({
   mentionText: {
     color: '#9C27B0',
     fontWeight: 'bold',
+  },
+  inlineEmojiIcon: {
+    width: 24,
+    height: 24,
+    marginHorizontal: 2,
   },
 });
