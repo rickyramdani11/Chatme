@@ -32,6 +32,9 @@ Preferred communication style: Simple, everyday language.
 - **Social Features**: Friend management, user profiles, ranking systems, and activity feeds
 - **Administrative Tools**: Admin panel for content moderation, user management, and system configuration
 - **Notification System**: Real-time notifications for various user interactions
+- **User Presence System**: Real-time online/offline status tracking with multi-device support via Socket.IO
+- **Device Tracking**: Login device info (brand, model, OS) collected via expo-device with IP tracking
+- **Location Tracking**: City/country level location via expo-location with GPS and reverse geocoding
 
 ## Data Management
 - **Authentication Flow**: JWT tokens stored in AsyncStorage with automatic refresh
@@ -117,3 +120,22 @@ Preferred communication style: Simple, everyday language.
 - **PIN Storage**: Currently plaintext with TODO for bcrypt migration
 - **Rate Limiting**: In-memory implementation (consider Redis for distributed deployment)
 - **Banner Upload**: MIME-based validation (magic byte check recommended for enhanced security)
+- **JWT Secrets**: Default secrets exist in auth.js and socket-gateway.js (requires secure environment variables for production)
+
+## Recent Administrative Improvements (September 2025)
+
+### User Presence & Tracking System
+- **Real-Time Online Status**: Socket gateway manages online/offline status based on active WebSocket connections
+- **Multi-Device Support**: User status remains 'online' while any device has an active socket connection
+- **Logout Handling**: Logout endpoint doesn't change status; gateway exclusively manages presence via socket lifecycle
+- **Device Information**: Login captures device brand, model, OS name, and version via expo-device
+- **Location Tracking**: GPS coordinates with reverse geocoding to city/country level via expo-location
+- **IP Address Tracking**: X-Forwarded-For header capture for login IP tracking
+- **Database Schema**: Added device_info, status, last_ip, location, last_login columns to users table
+- **Privacy**: Location limited to city/country level, graceful fallbacks for permission denials
+
+### Admin Panel Enhancements
+- **Credit History Endpoint**: GET /admin/credits/history/:userId returns transaction history with proper JOIN and mapping
+- **User Status Endpoint**: GET /admin/users/status returns comprehensive user data (id, username, email, phone, role, status, credits, device, ip, location, lastLogin)
+- **Real-Time Data**: Admin panel displays live online status, device info, and location from database
+- **Error Resolution**: Fixed "Failed to load Credit history" error in AdminScreen with proper endpoint implementation
