@@ -229,46 +229,47 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
             )}
           </View>
         
-        <View style={styles.memberDetails}>
-          <View style={styles.memberNameRow}>
-            <Text style={styles.memberName}>{item.username}</Text>
-            {item.verified && (
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-            )}
-            {item.familyRole === 'admin' && (
-              <View style={styles.adminBadge}>
-                <Text style={styles.adminBadgeText}>Admin</Text>
-              </View>
-            )}
-          </View>
-          
-          <Text style={styles.memberRole}>
-            {item.familyRole === 'admin' ? 'Administrator' : 
-             item.familyRole === 'moderator' ? 'Moderator' : 'Member'} • Level {item.level}
-          </Text>
-          
-          <Text style={styles.joinedDate}>
-            Joined {new Date(item.joinedAt).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-
-      {canManageRoles && String(item.userId) !== String(user?.id) && item.familyRole !== 'admin' && (
-        <View style={styles.roleActions}>
-          <TouchableOpacity
-            style={[styles.roleButton, styles.moderatorButton]}
-            onPress={() => handleChangeRole(item.userId, 
-              item.familyRole === 'moderator' ? 'member' : 'moderator'
-            )}
-          >
-            <Text style={styles.roleButtonText}>
-              {item.familyRole === 'moderator' ? 'Remove Mod' : 'Make Mod'}
+          <View style={styles.memberDetails}>
+            <View style={styles.memberNameRow}>
+              <Text style={styles.memberName}>{item.username}</Text>
+              {item.verified && (
+                <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+              )}
+              {item.familyRole === 'admin' && (
+                <View style={styles.adminBadge}>
+                  <Text style={styles.adminBadgeText}>Admin</Text>
+                </View>
+              )}
+            </View>
+            
+            <Text style={styles.memberRole}>
+              {item.familyRole === 'admin' ? 'Administrator' : 
+               item.familyRole === 'moderator' ? 'Moderator' : 'Member'} • Level {item.level}
             </Text>
-          </TouchableOpacity>
+            
+            <Text style={styles.joinedDate}>
+              Joined {new Date(item.joinedAt).toLocaleDateString()}
+            </Text>
+          </View>
         </View>
-      )}
-    </View>
-  );
+
+        {canManageRoles && String(item.userId) !== String(user?.id) && item.familyRole !== 'admin' && (
+          <View style={styles.roleActions}>
+            <TouchableOpacity
+              style={[styles.roleButton, styles.moderatorButton]}
+              onPress={() => handleChangeRole(item.userId, 
+                item.familyRole === 'moderator' ? 'member' : 'moderator'
+              )}
+            >
+              <Text style={styles.roleButtonText}>
+                {item.familyRole === 'moderator' ? 'Remove Mod' : 'Make Mod'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   if (loading) {
     return (
