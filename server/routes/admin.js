@@ -76,6 +76,46 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
+// Rate limiting for admin operations
+const rateLimitStore = new Map();
+
+const rateLimit = (maxRequests = 10, windowMs = 60000) => {
+  return (req, res, next) => {
+    const key = `${req.user.id}-${req.path}`;
+    const now = Date.now();
+    
+    if (!rateLimitStore.has(key)) {
+      rateLimitStore.set(key, []);
+    }
+    
+    const requests = rateLimitStore.get(key).filter(time => now - time < windowMs);
+    
+    if (requests.length >= maxRequests) {
+      return res.status(429).json({ 
+        error: 'Too many requests. Please try again later.',
+        retryAfter: Math.ceil((requests[0] + windowMs - now) / 1000)
+      });
+    }
+    
+    requests.push(now);
+    rateLimitStore.set(key, requests);
+    
+    next();
+  };
+};
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, requests] of rateLimitStore.entries()) {
+    const validRequests = requests.filter(time => now - time < 60000);
+    if (validRequests.length === 0) {
+      rateLimitStore.delete(key);
+    } else {
+      rateLimitStore.set(key, validRequests);
+    }
+  }
+}, 60000);
+
 // Audit logging middleware
 const auditLog = (action, resourceType = null) => {
   return async (req, res, next) => {
@@ -180,7 +220,7 @@ router.get('/emojis', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Add emoji
-router.post('/emojis', authenticateToken, adminOnly, auditLog('ADD_EMOJI', 'emoji'), async (req, res) => {
+router.post('/emojis', authenticateToken, adminOnly, rateLimit(20, 60000), auditLog('ADD_EMOJI', 'emoji'), async (req, res) => {
   try {
     const { name, category = 'general', emoji, emojiFile, emojiType, fileName } = req.body;
 
@@ -238,7 +278,7 @@ router.post('/emojis', authenticateToken, adminOnly, auditLog('ADD_EMOJI', 'emoj
 });
 
 // Delete emoji
-router.delete('/emojis/:id', authenticateToken, adminOnly, auditLog('DELETE_EMOJI', 'emoji'), async (req, res) => {
+router.delete('/emojis/:id', authenticateToken, adminOnly, rateLimit(10, 60000), auditLog('DELETE_EMOJI', 'emoji'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -283,7 +323,7 @@ router.get('/gifts', authenticateToken, adminOnly, async (req, res) => {
 });
 
 // Add gift
-router.post('/gifts', authenticateToken, adminOnly, auditLog('ADD_GIFT', 'gift'), async (req, res) => {
+router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditLog('ADD_GIFT', 'gift'), async (req, res) => {
   try {
     const { 
       name, 
@@ -389,7 +429,7 @@ router.post('/gifts', authenticateToken, adminOnly, auditLog('ADD_GIFT', 'gift')
 });
 
 // Delete gift
-router.delete('/gifts/:id', authenticateToken, adminOnly, auditLog('DELETE_GIFT', 'gift'), async (req, res) => {
+router.delete('/gifts/:id', authenticateToken, adminOnly, rateLimit(10, 60000), auditLog('DELETE_GIFT', 'gift'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -501,7 +541,7 @@ router.put('/rooms/:roomId', authenticateToken, adminOnly, auditLog('UPDATE_ROOM
 });
 
 // Delete room (admin only)
-router.delete('/rooms/:roomId', authenticateToken, adminOnly, auditLog('DELETE_ROOM', 'room'), async (req, res) => {
+router.delete('/rooms/:roomId', authenticateToken, adminOnly, rateLimit(5, 60000), auditLog('DELETE_ROOM', 'room'), async (req, res) => {
   try {
     const { roomId } = req.params;
 
