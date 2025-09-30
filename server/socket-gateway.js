@@ -1149,8 +1149,8 @@ io.on('connection', (socket) => {
       // Check if this is a special command that needs server-side handling
       const trimmedContent = content.trim();
 
-      // Handle /addbot command - Add ChatMe Bot to room
-      if (trimmedContent === '/addbot' || trimmedContent === '/addbot chatme_bot') {
+      // Handle /addbot or /botadd command - Add ChatMe Bot to room
+      if (trimmedContent === '/addbot' || trimmedContent === '/addbot chatme_bot' || trimmedContent === '/botadd' || trimmedContent === '/botadd chatme_bot') {
         console.log(`🤖 Processing /addbot command in room ${roomId} by ${sender}`);
         
         try {
@@ -1213,8 +1213,8 @@ io.on('connection', (socket) => {
         return; // Don't process as regular message
       }
 
-      // Handle /removebot command - Remove ChatMe Bot from room
-      if (trimmedContent === '/removebot' || trimmedContent === '/removebot chatme_bot') {
+      // Handle /removebot or /botremove command - Remove ChatMe Bot from room
+      if (trimmedContent === '/removebot' || trimmedContent === '/removebot chatme_bot' || trimmedContent === '/botremove' || trimmedContent === '/botremove chatme_bot') {
         console.log(`🤖 Processing /removebot command in room ${roomId} by ${sender}`);
         
         try {
