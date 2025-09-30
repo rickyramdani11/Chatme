@@ -439,6 +439,27 @@ app.get('/health', (req, res) => {
   });
 });
 
+// HTTP endpoint to emit notifications from API server
+app.post('/emit-notification', express.json(), (req, res) => {
+  try {
+    const { userId, notification } = req.body;
+    
+    if (!userId || !notification) {
+      return res.status(400).json({ error: 'userId and notification are required' });
+    }
+
+    // Emit notification to user's personal room
+    const personalRoom = `user_${userId}`;
+    io.to(personalRoom).emit('new_notification', notification);
+    
+    console.log(`🔔 Notification emitted to ${personalRoom}:`, notification.type);
+    res.json({ success: true, message: 'Notification emitted successfully' });
+  } catch (error) {
+    console.error('Error emitting notification:', error);
+    res.status(500).json({ error: 'Failed to emit notification' });
+  }
+});
+
 // In-memory storage for active rooms and participants
 const roomParticipants = {}; // { roomId: [ { id, username, role, socketId }, ... ] }
 const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
@@ -535,6 +556,11 @@ io.on('connection', (socket) => {
     userId: socket.userId,
     announcedRooms: new Set() // Track rooms where join was already announced
   });
+
+  // Join user to their personal notification room
+  const personalRoom = `user_${socket.userId}`;
+  socket.join(personalRoom);
+  console.log(`🔔 User ${socket.username} joined personal notification room: ${personalRoom}`);
 
   // Join room event
   socket.on('join-room', async (data) => {
