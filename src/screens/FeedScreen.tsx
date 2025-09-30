@@ -883,7 +883,7 @@ export default function FeedScreen() {
               // Construct full URL if needed
               const fullMediaUrl = media.url.startsWith('http') 
                 ? media.url 
-                : `${API_BASE_URL}${media.url}`;
+                : `${BASE_URL}${media.url}`;
 
               return (
                 <View key={media.id || `media-${index}`} style={styles.mediaItem}>
@@ -1164,7 +1164,7 @@ export default function FeedScreen() {
                   ref={videoRef}
                   style={styles.videoPlayer}
                   source={{ 
-                    uri: selectedVideoUrl.startsWith('http') ? selectedVideoUrl : `${API_BASE_URL}${selectedVideoUrl}`
+                    uri: selectedVideoUrl.startsWith('http') ? selectedVideoUrl : `${BASE_URL}${selectedVideoUrl}`
                   }}
                   useNativeControls
                   resizeMode="contain"
@@ -1219,7 +1219,7 @@ export default function FeedScreen() {
                   ref={videoRef}
                   style={styles.videoPlayer}
                   source={{ 
-                    uri: selectedVideoUrl.startsWith('http') ? selectedVideoUrl : `${API_BASE_URL}${selectedVideoUrl}`
+                    uri: selectedVideoUrl.startsWith('http') ? selectedVideoUrl : `${BASE_URL}${selectedVideoUrl}`
                   }}
                   useNativeControls
                   resizeMode="contain"
