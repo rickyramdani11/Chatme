@@ -16,7 +16,7 @@ if (!process.env.OPENAI_API_KEY) {
   console.error('⚠️ OPENAI_API_KEY not found! Bot will return error messages.');
 }
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+// Using gpt-3.5-turbo model for better quota management
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY 
 });
@@ -125,13 +125,13 @@ Respond naturally and helpfully to user messages.`
       content: userMessage
     });
 
-    // Call OpenAI API - the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+    // Call OpenAI API with gpt-3.5-turbo model
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-3.5-turbo",
         messages: messages,
         max_tokens: 500, // Keep responses concise (corrected from max_completion_tokens)
       }, {
