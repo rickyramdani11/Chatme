@@ -77,8 +77,6 @@ interface MediaItem {
   size?: number;
 }
 
-import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
-
 export default function FeedScreen() {
   const { height } = Dimensions.get('window');
   const [postText, setPostText] = useState('');
