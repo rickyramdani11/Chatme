@@ -8,6 +8,16 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 2, 2025** - Implemented video gift support (MP4/WebM/MOV):
+- **Database schema**: Added media_type, thumbnail_url, duration columns to custom_gifts table
+- **Auto-detection**: Backend automatically detects video files (.mp4/.webm/.mov) and sets media_type='video' on upload
+- **Unified video detection**: Replaced hardcoded gift name checks with robust mediaType-first + case-insensitive extension fallback
+- **Admin UI**: Video indicator badge (videocam icon) shown on gift grid for video gifts
+- **Chat rendering**: Video gifts now play correctly with fullscreen animation (not default gift icon)
+- **Case-insensitive**: Supports .mp4, .MP4, .Mp4, .webm, .WebM, .mov, .MOV extensions
+- **TypeScript**: Added mediaType/thumbnailUrl/duration to Gift interface for type safety
+- **API updates**: GET /api/gifts returns mediaType, thumbnailUrl, duration fields for frontend
+
 **October 1, 2025** - Fixed "Girl Car" gift error after admin panel update:
 - Renamed duplicate gift ID 15 from "Girl Car 🦁" to "Baby Lion 🦁" to resolve naming conflict
 - Added PUT /api/admin/gifts/:id endpoint for proper gift updates (was missing, causing admin confusion)
