@@ -1259,34 +1259,40 @@ export default function ChatScreen() {
 
       // Use the 'reconnect' event for reliable reconnection detection
       newSocket.io.on('reconnect', (attemptNumber) => {
-        console.log(`Socket reconnected after ${attemptNumber} attempts - rejoining rooms with silent parameter`);
+        console.log(`Socket reconnected after ${attemptNumber} attempts`);
+        
+        // FIX: Rejoin ONLY the ACTIVE tab to prevent multi-room join bug
+        // Don't rejoin ALL tabs - that causes users to join multiple rooms when clicking one
         setTimeout(() => {
           const currentTabs = chatTabsRef.current;
           const currentUser = userRef.current;
-          if (currentTabs.length > 0 && currentUser?.username) {
-            console.log(`Rejoining ${currentTabs.length} rooms after reconnection (silent)`);
-            currentTabs.forEach((tab, index) => {
-              // Stagger room rejoining to prevent server overload
-              setTimeout(() => {
-                console.log('Rejoining room after reconnect (silent):', tab.id, currentUser.username);
-                if (tab.isSupport) {
-                  newSocket.emit('join-support-room', {
-                    supportRoomId: tab.id,
-                    isAdmin: currentUser.role === 'admin',
-                    silent: true // Don't broadcast join message
-                  });
-                } else {
-                  newSocket.emit('join-room', {
-                    roomId: tab.id,
-                    username: currentUser.username,
-                    role: currentUser.role || 'user',
-                    silent: true // Don't broadcast join message
-                  });
-                }
-              }, index * 200); // 200ms delay between each room join
-            });
+          const currentActiveTab = activeTabRef.current;
+          
+          if (currentTabs.length > 0 && currentUser?.username && currentActiveTab >= 0 && currentTabs[currentActiveTab]) {
+            const activeTab = currentTabs[currentActiveTab];
+            console.log(`Rejoining ONLY active tab after reconnect: ${activeTab.id} (${activeTab.title})`);
+            
+            // Add to joinedRoomsRef to track that we've joined this room
+            joinedRoomsRef.current.add(activeTab.id);
+            
+            if (activeTab.isSupport) {
+              newSocket.emit('join-support-room', {
+                supportRoomId: activeTab.id,
+                isAdmin: currentUser.role === 'admin',
+                silent: true // Don't broadcast join message
+              });
+            } else {
+              newSocket.emit('join-room', {
+                roomId: activeTab.id,
+                username: currentUser.username,
+                role: currentUser.role || 'user',
+                silent: true // Don't broadcast join message
+              });
+            }
+          } else {
+            console.log('No active tab to rejoin after reconnect');
           }
-        }, 300); // Longer delay to ensure connection is stable
+        }, 300); // Delay to ensure connection is stable
       });
 
       newSocket.on('disconnect', (reason) => {
