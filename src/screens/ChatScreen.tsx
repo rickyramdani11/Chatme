@@ -654,7 +654,6 @@ export default function ChatScreen() {
       socketInstance.removeAllListeners('user-muted');
       socketInstance.removeAllListeners('receiveGift');
       socketInstance.removeAllListeners('receive-private-gift');
-      socketInstance.removeAllListeners('gift-animation');
       socketInstance.removeAllListeners('admin-joined'); // Listener for admin joined support chat
       socketInstance.removeAllListeners('support-message'); // Listener for support messages
 
@@ -968,24 +967,38 @@ export default function ChatScreen() {
         }
         // For video gifts, auto-close is handled by video completion callback
 
-        // Add gift message to chat
+        // Add gift message to chat with duplicate checking
         const giftMessage: Message = {
           id: `gift_${Date.now()}_${data.sender}`,
           sender: data.sender,
           content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
           timestamp: new Date(data.timestamp),
-          roomId: chatTabs[activeTab]?.id || data.roomId,
+          roomId: data.roomId, // Use data.roomId from server (more reliable than client state)
           role: data.role || 'user',
           level: data.level || 1,
           type: 'gift'
         };
 
         setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === (chatTabs[activeTab]?.id || data.roomId)
-              ? { ...tab, messages: [...tab.messages, giftMessage] }
-              : tab
-          )
+          prevTabs.map(tab => {
+            if (tab.id === data.roomId) {
+              // Check for duplicate gift messages within last 2 seconds
+              const isDuplicate = tab.messages.some(msg =>
+                msg.type === 'gift' &&
+                msg.sender === data.sender &&
+                msg.content.includes(data.gift.name) &&
+                Math.abs(new Date(msg.timestamp).getTime() - new Date(data.timestamp).getTime()) < 2000
+              );
+
+              if (isDuplicate) {
+                console.log(`🚫 Duplicate gift message filtered: ${data.sender} sent ${data.gift.name}`);
+                return tab; // Don't add duplicate
+              }
+
+              return { ...tab, messages: [...tab.messages, giftMessage] };
+            }
+            return tab;
+          })
         );
       });
 
@@ -1049,12 +1062,9 @@ export default function ChatScreen() {
         // For video gifts, auto-close is handled by video completion callback
       });
 
-      // Listen for gift animations (legacy support)
-      socketInstance.on('gift-animation', (data: any) => {
-        console.log('Received legacy gift animation:', data);
-        // Redirect to receiveGift handler for consistency
-        socketInstance.emit('receiveGift', data);
-      });
+      // NOTE: Removed legacy 'gift-animation' listener
+      // It was causing duplicate gifts by emitting to receiveGift
+      // Server now only emits 'receiveGift' directly
 
       // Listen for admin joined support chat
       socketInstance.on('admin-joined', (data) => {
@@ -1775,18 +1785,33 @@ export default function ChatScreen() {
         sender: data.sender,
         content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
         timestamp: new Date(data.timestamp),
-        roomId: chatTabs[activeTab]?.id || data.roomId,
+        roomId: data.roomId, // Use data.roomId from server (more reliable than client state)
         role: data.role || 'user',
         level: data.level || 1,
         type: 'gift'
       };
 
+      // Add gift message with duplicate checking to prevent multiple sends
       setChatTabs(prevTabs =>
-        prevTabs.map(tab =>
-          tab.id === (chatTabs[activeTab]?.id || data.roomId)
-            ? { ...tab, messages: [...tab.messages, giftMessage] }
-            : tab
-        )
+        prevTabs.map(tab => {
+          if (tab.id === data.roomId) {
+            // Check for duplicate gift messages within last 2 seconds
+            const isDuplicate = tab.messages.some(msg =>
+              msg.type === 'gift' &&
+              msg.sender === data.sender &&
+              msg.content.includes(data.gift.name) &&
+              Math.abs(new Date(msg.timestamp).getTime() - new Date(data.timestamp).getTime()) < 2000
+            );
+
+            if (isDuplicate) {
+              console.log(`🚫 Duplicate gift message filtered: ${data.sender} sent ${data.gift.name}`);
+              return tab; // Don't add duplicate
+            }
+
+            return { ...tab, messages: [...tab.messages, giftMessage] };
+          }
+          return tab;
+        })
       );
     };
 
