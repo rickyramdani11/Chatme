@@ -745,6 +745,175 @@ app.get('/api/store/user-headwear', authenticateToken, async (req, res) => {
   }
 });
 
+// Get frame items for store
+app.get('/api/store/frames', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== FETCHING FRAME ITEMS ===');
+
+    const result = await pool.query(`
+      SELECT id, name, description, image, price, duration_days, is_active
+      FROM frame_items
+      WHERE is_active = true
+      ORDER BY price ASC
+    `);
+
+    console.log('Raw frame data from database:', result.rows);
+
+    const items = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      image: row.image,
+      price: row.price,
+      duration: row.duration_days
+    }));
+
+    console.log('Processed frame items:', items);
+    console.log('Total frame items returned:', items.length);
+
+    res.json({ items });
+  } catch (error) {
+    console.error('Error fetching frame items:', error);
+    res.status(500).json({ error: 'Failed to fetch frame items' });
+  }
+});
+
+// Get user's owned frames
+app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT uf.id, uf.frame_id, uf.expires_at, uf.is_active,
+             fi.name, fi.image
+      FROM user_frames uf
+      JOIN frame_items fi ON uf.frame_id = fi.id
+      WHERE uf.user_id = $1 AND uf.is_active = true
+      ORDER BY uf.purchased_at DESC
+    `, [userId]);
+
+    const frames = result.rows.map(row => ({
+      id: row.id.toString(),
+      frameId: row.frame_id.toString(),
+      name: row.name,
+      image: row.image,
+      expiresAt: row.expires_at,
+      isActive: row.is_active && new Date(row.expires_at) > new Date()
+    }));
+
+    res.json({ frames });
+  } catch (error) {
+    console.error('Error fetching user frames:', error);
+    res.status(500).json({ error: 'Failed to fetch user frames' });
+  }
+});
+
+// Purchase frame endpoint
+app.post('/api/frame/purchase', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { frameId } = req.body;
+
+    console.log('=== FRAME PURCHASE REQUEST ===');
+    console.log('User ID:', userId);
+    console.log('Frame ID:', frameId);
+
+    if (!frameId) {
+      return res.status(400).json({ error: 'Frame ID is required' });
+    }
+
+    await pool.query('BEGIN');
+
+    try {
+      const frameResult = await pool.query(
+        'SELECT * FROM frame_items WHERE id = $1 AND is_active = true',
+        [frameId]
+      );
+
+      if (frameResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'Frame item not found' });
+      }
+
+      const frameItem = frameResult.rows[0];
+
+      const balanceResult = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1',
+        [userId]
+      );
+
+      if (balanceResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'User credits not found' });
+      }
+
+      const currentBalance = balanceResult.rows[0].balance;
+
+      if (currentBalance < frameItem.price) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient balance' });
+      }
+
+      const existingResult = await pool.query(`
+        SELECT * FROM user_frames 
+        WHERE user_id = $1 AND frame_id = $2 AND is_active = true AND expires_at > NOW()
+      `, [userId, frameId]);
+
+      if (existingResult.rows.length > 0) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'You already own this frame' });
+      }
+
+      const newBalance = currentBalance - frameItem.price;
+      await pool.query(
+        'UPDATE user_credits SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+        [newBalance, userId]
+      );
+
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + frameItem.duration_days);
+
+      await pool.query(`
+        INSERT INTO user_frames (user_id, frame_id, expires_at)
+        VALUES ($1, $2, $3)
+      `, [userId, frameId, expiresAt]);
+
+      await pool.query(`
+        UPDATE users 
+        SET avatar_frame = $1
+        WHERE id = $2
+      `, [frameItem.image, userId]);
+
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
+        VALUES ($1, NULL, $2, 'frame_purchase')
+      `, [userId, frameItem.price]);
+
+      await pool.query('COMMIT');
+
+      console.log(`Frame ${frameItem.name} purchased by user ${userId} for ${frameItem.price} credits`);
+
+      res.json({
+        success: true,
+        message: 'Frame purchased successfully',
+        frame: {
+          id: frameItem.id.toString(),
+          name: frameItem.name,
+          image: frameItem.image,
+          expiresAt: expiresAt
+        },
+        newBalance: newBalance
+      });
+    } catch (txError) {
+      await pool.query('ROLLBACK');
+      throw txError;
+    }
+  } catch (error) {
+    console.error('Error purchasing frame:', error);
+    res.status(500).json({ error: 'Failed to purchase frame' });
+  }
+});
+
 // Purchase headwear endpoint
 app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
   try {
