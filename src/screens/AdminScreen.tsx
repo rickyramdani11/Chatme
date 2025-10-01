@@ -42,6 +42,9 @@ interface Gift {
   type: string;
   category?: string;
   image?: string;
+  mediaType?: string;
+  thumbnailUrl?: string;
+  duration?: number;
 }
 
 interface User {
@@ -1613,6 +1616,12 @@ export default function AdminScreen({ navigation }: any) {
         ) : (
           <View style={styles.giftGridEmojiContainer}>
             <Text style={styles.giftGridEmoji}>{item.icon}</Text>
+          </View>
+        )}
+        {/* Video indicator badge */}
+        {(item.mediaType === 'video' || (item.animation && (item.animation.toLowerCase().includes('.mp4') || item.animation.toLowerCase().includes('.webm') || item.animation.toLowerCase().includes('.mov')))) && (
+          <View style={styles.videoIndicatorBadge}>
+            <Ionicons name="videocam" size={14} color="#fff" />
           </View>
         )}
         <View style={styles.giftGridOverlay}>
@@ -4552,6 +4561,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
+  },
+  videoIndicatorBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   giftGridInfo: {
     padding: 8,

@@ -939,10 +939,13 @@ export default function ChatScreen() {
           }),
         ]).start();
 
-        // Auto-close timing based on gift type (same logic as private gifts)
-        const isVideoGift = data.gift.animation && (
-          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        // Auto-close timing based on gift type
+        const isVideoGift = data.gift.mediaType === 'video' || (
+          data.gift.animation && 
+          typeof data.gift.animation === 'string' && 
+          (data.gift.animation.toLowerCase().includes('.mp4') || 
+           data.gift.animation.toLowerCase().includes('.webm') || 
+           data.gift.animation.toLowerCase().includes('.mov'))
         );
 
         // For non-video gifts, use fixed timeout
@@ -1034,9 +1037,12 @@ export default function ChatScreen() {
         ]).start();
 
         // Auto-close timing based on gift type
-        const isVideoGift = data.gift.animation && (
-          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        const isVideoGift = data.gift.mediaType === 'video' || (
+          data.gift.animation && 
+          typeof data.gift.animation === 'string' && 
+          (data.gift.animation.toLowerCase().includes('.mp4') || 
+           data.gift.animation.toLowerCase().includes('.webm') || 
+           data.gift.animation.toLowerCase().includes('.mov'))
         );
 
         // For non-video gifts, use fixed timeout
@@ -1755,9 +1761,12 @@ export default function ChatScreen() {
         }),
       ]).start();
 
-      const isVideoGift = data.gift.animation && (
-        (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-        (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+      const isVideoGift = data.gift.mediaType === 'video' || (
+        data.gift.animation && 
+        typeof data.gift.animation === 'string' && 
+        (data.gift.animation.toLowerCase().includes('.mp4') || 
+         data.gift.animation.toLowerCase().includes('.webm') || 
+         data.gift.animation.toLowerCase().includes('.mov'))
       );
 
       if (!isVideoGift) {
@@ -1842,9 +1851,12 @@ export default function ChatScreen() {
         }),
       ]).start();
 
-      const isVideoGift = data.gift.animation && (
-        (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-        (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+      const isVideoGift = data.gift.mediaType === 'video' || (
+        data.gift.animation && 
+        typeof data.gift.animation === 'string' && 
+        (data.gift.animation.toLowerCase().includes('.mp4') || 
+         data.gift.animation.toLowerCase().includes('.webm') || 
+         data.gift.animation.toLowerCase().includes('.mov'))
       );
 
       if (!isVideoGift) {
@@ -5518,9 +5530,13 @@ export default function ChatScreen() {
                           resizeMode="contain"
                         />
                       ) : gift.animation ? (
-                        // Check if it's MP4 video
-                        (typeof gift.animation === 'string' && gift.animation.toLowerCase().includes('.mp4')) ||
-                        (gift.name && (gift.name.toLowerCase().includes('love') || gift.name.toLowerCase().includes('ufo'))) ? (
+                        // Check if it's video based on mediaType or file extension
+                        (gift.mediaType === 'video' || (
+                          typeof gift.animation === 'string' && 
+                          (gift.animation.toLowerCase().includes('.mp4') || 
+                           gift.animation.toLowerCase().includes('.webm') || 
+                           gift.animation.toLowerCase().includes('.mov'))
+                        )) ? (
                           <Video
                             ref={giftVideoRef}
                             source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
@@ -5758,8 +5774,12 @@ export default function ChatScreen() {
           >
             {/* Full Screen MP4 Video Effect */}
             {activeGiftAnimation.animation && (
-              (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
-              (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
+              activeGiftAnimation.mediaType === 'video' || (
+                typeof activeGiftAnimation.animation === 'string' && 
+                (activeGiftAnimation.animation.toLowerCase().includes('.mp4') || 
+                 activeGiftAnimation.animation.toLowerCase().includes('.webm') || 
+                 activeGiftAnimation.animation.toLowerCase().includes('.mov'))
+              )
             ) && (
               <Video
                 ref={giftVideoRef}
@@ -5805,10 +5825,13 @@ export default function ChatScreen() {
               </View>
             )}
 
-            {/* Fullscreen GIF layer for non-MP4 animations with transparency */}
+            {/* Fullscreen GIF layer for non-video animations with transparency */}
             {activeGiftAnimation.animation &&
-             !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
-             !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
+             activeGiftAnimation.mediaType !== 'video' &&
+             !(typeof activeGiftAnimation.animation === 'string' && 
+               (activeGiftAnimation.animation.toLowerCase().includes('.mp4') || 
+                activeGiftAnimation.animation.toLowerCase().includes('.webm') || 
+                activeGiftAnimation.animation.toLowerCase().includes('.mov'))) && (
               <Image
                 source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
                 style={styles.fullScreenGif}
