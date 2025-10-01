@@ -1457,18 +1457,8 @@ io.on('connection', (socket) => {
 
       console.log(`Gateway relaying gift from ${sender} in room ${roomId}: ${gift.name}`);
 
-      // Save gift message to database
-      const giftContent = recipient ? `sent a ${gift.name} to ${recipient}` : `sent a ${gift.name}`;
-      await saveChatMessage(
-        roomId,
-        sender,
-        giftContent,
-        gift, // media data for the gift
-        'gift',
-        role || 'user',
-        level || 1,
-        false // isPrivate
-      );
+      // Note: Gift messages are real-time only, not saved to database
+      // This keeps chat history clean when users leave rooms
 
       // Broadcast gift to all users in the room
       io.to(roomId).emit('receiveGift', {

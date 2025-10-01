@@ -4116,41 +4116,10 @@ app.post('/api/rooms/:roomId/join', (req, res) => {
 app.get('/api/messages/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
-    console.log(`Fetching messages for room: ${roomId}`);
+    console.log(`Fetching messages for room: ${roomId} - returning empty array (real-time only)`);
 
-    // Query messages from database (get most recent 100, then reverse for chronological order)
-    const messagesQuery = `
-      SELECT 
-        id,
-        username as sender,
-        content,
-        created_at as timestamp,
-        room_id as "roomId",
-        user_role as role,
-        user_level as level,
-        message_type as type
-      FROM chat_messages
-      WHERE room_id = $1 AND is_private = false
-      ORDER BY created_at DESC
-      LIMIT 100
-    `;
-    
-    const result = await pool.query(messagesQuery, [roomId]);
-    
-    // Reverse to get chronological order (oldest first)
-    const messages = result.rows.reverse().map(row => ({
-      id: row.id.toString(),
-      sender: row.sender,
-      content: row.content,
-      timestamp: row.timestamp,
-      roomId: row.roomId,
-      role: row.role || 'user',
-      level: row.level || 1,
-      type: row.type || 'message'
-    }));
-
-    console.log(`Loaded ${messages.length} messages for room ${roomId}`);
-    res.json(messages);
+    // Return empty array - messages are real-time only, not persistent
+    res.json([]);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ error: 'Internal server error' });
