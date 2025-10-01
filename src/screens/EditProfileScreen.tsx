@@ -22,9 +22,9 @@ import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 interface AlbumPhoto {
   id: string;
-  url: string;
+  image_url: string;
   filename: string;
-  uploadedAt: string;
+  uploaded_at: string;
 }
 
 export default function EditProfileScreen({ navigation }: any) {
@@ -61,8 +61,8 @@ export default function EditProfileScreen({ navigation }: any) {
         },
       });
       if (response.ok) {
-        const photos = await response.json();
-        setAlbumPhotos(photos);
+        const data = await response.json();
+        setAlbumPhotos(data.photos || []);
       }
     } catch (error) {
       console.error('Error fetching album:', error);
@@ -232,7 +232,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
   const renderAlbumPhoto = ({ item }: { item: AlbumPhoto }) => (
     <View style={styles.albumPhotoContainer}>
-      <Image source={{ uri: `${API_BASE_URL}${item.url}` }} style={styles.albumPhoto} />
+      <Image source={{ uri: `${API_BASE_URL}${item.image_url}` }} style={styles.albumPhoto} />
     </View>
   );
 
@@ -290,7 +290,7 @@ export default function EditProfileScreen({ navigation }: any) {
             
             {albumPhotos.map((photo) => (
               <View key={photo.id} style={styles.albumPhotoContainer}>
-                <Image source={{ uri: `${API_BASE_URL}${photo.url}` }} style={styles.albumPhoto} />
+                <Image source={{ uri: `${API_BASE_URL}${photo.image_url}` }} style={styles.albumPhoto} />
               </View>
             ))}
           </View>
