@@ -3202,6 +3202,10 @@ export default function ChatScreen() {
         delete flatListRefs.current[currentRoomId];
       }
 
+      // Remove from joinedRoomsRef so next join won't be silent
+      joinedRoomsRef.current.delete(currentRoomId);
+      console.log(`🚪 Removed room ${currentRoomId} from joinedRooms - next join will NOT be silent`);
+
       // Remove the tab from chatTabs and navigate to Room screen
       setChatTabs(prevTabs => {
         const newTabs = prevTabs.filter((_, index) => index !== currentActiveTab);
@@ -4675,6 +4679,7 @@ export default function ChatScreen() {
   // Effect to load initial messages and participants when component mounts or roomId changes
   useEffect(() => {
     if (roomId) {
+      loadRooms(); // Load room and add to chatTabs
       loadParticipants();
     }
     loadEmojis(); // Load emojis when the component mounts or roomId changes
