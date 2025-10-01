@@ -563,8 +563,11 @@ export default function ProfileScreen({ navigation, route }: any) {
         activeOpacity={isOwnProfile ? 0.7 : 1}
       >
         <Image 
-          source={{ uri: `${API_BASE_URL}${item.url}` }} 
-          style={styles.albumPhotoImage} 
+          source={{ uri: `${BASE_URL}${item.url}` }} 
+          style={styles.albumPhotoImage}
+          onError={(error) => {
+            console.log('Album photo loading failed:', item.url, error.nativeEvent.error);
+          }}
         />
       </TouchableOpacity>
     </Animated.View>
@@ -638,9 +641,9 @@ export default function ProfileScreen({ navigation, route }: any) {
           <Image 
             source={
               profile.profileBackground
-                ? { uri: `${API_BASE_URL}${profile.profileBackground}` }
+                ? { uri: `${BASE_URL}${profile.profileBackground}` }
                 : albumPhotos.length > 0 && albumPhotos[0]?.url
-                ? { uri: `${API_BASE_URL}${albumPhotos[0].url}` }
+                ? { uri: `${BASE_URL}${albumPhotos[0].url}` }
                 : require('../../assets/Bg_profile/Bg_profile.jpeg')
             } 
             style={styles.backgroundImage}
