@@ -232,7 +232,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
   const renderAlbumPhoto = ({ item }: { item: AlbumPhoto }) => (
     <View style={styles.albumPhotoContainer}>
-      <Image source={{ uri: `${API_BASE_URL}${item.image_url}` }} style={styles.albumPhoto} />
+      <Image source={{ uri: `${BASE_URL}${item.image_url}` }} style={styles.albumPhoto} />
     </View>
   );
 
@@ -290,7 +290,7 @@ export default function EditProfileScreen({ navigation }: any) {
             
             {albumPhotos.map((photo) => (
               <View key={photo.id} style={styles.albumPhotoContainer}>
-                <Image source={{ uri: `${API_BASE_URL}${photo.image_url}` }} style={styles.albumPhoto} />
+                <Image source={{ uri: `${BASE_URL}${photo.image_url}` }} style={styles.albumPhoto} />
               </View>
             ))}
           </View>

@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 interface FamilyMember {
   userId: string;
@@ -409,7 +409,7 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
                       onPress={() => handleSaveBackground(photo)}
                     >
                       <Image
-                        source={{ uri: `${API_BASE_URL}${photo.image_url}` }}
+                        source={{ uri: `${BASE_URL}${photo.image_url}` }}
                         style={styles.albumPhotoImage}
                       />
                     </TouchableOpacity>
