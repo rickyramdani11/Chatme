@@ -215,13 +215,6 @@ export default function ChatHistoryScreen() {
       >
         <View style={styles.avatarContainer}>
           {avatarDisplay}
-          {item.unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>
-                {item.unreadCount > 99 ? '99+' : item.unreadCount}
-              </Text>
-            </View>
-          )}
           {item.isOnline && item.type === 'private' && (
             <View style={styles.onlineIndicator} />
           )}
@@ -237,9 +230,14 @@ export default function ChatHistoryScreen() {
                 <Ionicons name="checkmark-circle" size={16} color="#FF6B35" style={styles.verifiedIcon} />
               )}
             </View>
-            <Text style={styles.chatTime}>
-              {formatDate(item.lastMessageTime)}
-            </Text>
+            <View style={styles.timeContainer}>
+              <Text style={styles.chatTime}>
+                {formatDate(item.lastMessageTime)}
+              </Text>
+              {item.unreadCount > 0 && (
+                <View style={styles.redCircleIndicator} />
+              )}
+            </View>
           </View>
 
           <Text style={styles.lastMessage} numberOfLines={1}>
@@ -366,23 +364,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  unreadBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: '#FF6B6B',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
+  timeContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    gap: 8,
   },
-  unreadText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+  redCircleIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF3B30',
   },
   onlineIndicator: {
     position: 'absolute',
