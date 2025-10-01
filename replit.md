@@ -37,7 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **User Presence System**: Real-time online/offline status with multi-device support.
 - **Device & Location Tracking**: Collects device info (brand, model, OS) and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
-- **Room Connection Persistence**: Users remain connected to chat rooms across app states with inactivity cleanup and auto-rejoin.
+- **Room Connection Persistence**: Users remain connected to chat rooms across app states with inactivity cleanup. Socket reconnection rejoins ONLY the active tab to prevent multi-room auto-join bug. Auto-focus uses hasAutoFocusedRef to prevent repeated setState during navigation.
 - **Video Call System**: Private video/audio calls with SimpleCallModal UI, incoming call notifications with ringtone (expo-av) and vibration fallback. Call stats tracking (timer, cost calculation, balance checking). Socket-based call signaling (initiate-call, incoming-call, call-response events).
 
 ## Data Management
