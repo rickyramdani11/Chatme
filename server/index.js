@@ -3026,7 +3026,10 @@ app.get('/api/gifts', async (req, res) => {
       type: row.type || 'static',
       category: row.category || 'popular',
       image: row.image ? `${API_BASE_URL}${row.image}` : null,
-      animation: row.animation
+      animation: row.animation,
+      mediaType: row.media_type || 'image',
+      thumbnailUrl: row.thumbnail_url ? `${API_BASE_URL}${row.thumbnail_url}` : null,
+      duration: row.duration
     }));
 
     // If no custom gifts in database, return default gifts

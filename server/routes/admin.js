@@ -347,7 +347,10 @@ router.get('/gifts', authenticateToken, adminOnly, async (req, res) => {
       animation: row.animation,
       price: row.price,
       type: row.type || 'static',
-      category: row.category || 'popular'
+      category: row.category || 'popular',
+      mediaType: row.media_type || 'image',
+      thumbnailUrl: row.thumbnail_url,
+      duration: row.duration
     }));
 
     res.json(gifts);
@@ -436,10 +439,14 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
 
         const filePath = `/assets/gift/image/${filename}`;
         
-        // For video files or GIFs, store as animation
-        if (['mp4', 'webm', 'mov', 'gif'].includes(fileExtension)) {
+        // Determine media type based on file extension
+        let mediaType = 'image';
+        if (['mp4', 'webm', 'mov'].includes(fileExtension)) {
+          mediaType = 'video';
           animationPath = filePath;
-          // For videos, also store a thumbnail/image reference
+          imagePath = filePath; // For now, use same path for image
+        } else if (fileExtension === 'gif') {
+          animationPath = filePath;
           imagePath = filePath;
         } else {
           imagePath = filePath;
@@ -450,7 +457,8 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
           size: fileBuffer.length,
           type: imageType,
           isAnimated: hasAnimation,
-          animationType
+          animationType,
+          mediaType
         });
 
       } catch (error) {
@@ -459,11 +467,14 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
       }
     }
 
+    // Determine media type - default to image if not set above
+    const mediaType = ['mp4', 'webm', 'mov'].some(ext => animationPath?.includes(ext)) ? 'video' : 'image';
+
     const result = await pool.query(`
-      INSERT INTO custom_gifts (name, icon, image, animation, price, type, category, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO custom_gifts (name, icon, image, animation, price, type, category, created_by, media_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `, [name, icon, imagePath, animationPath, parseInt(price), type, category, req.user.id]);
+    `, [name, icon, imagePath, animationPath, parseInt(price), type, category, req.user.id, mediaType]);
 
     const gift = result.rows[0];
     if (gift.image) {
@@ -514,6 +525,7 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
 
     let imagePath = existingGift.rows[0].image;
     let animationPath = existingGift.rows[0].animation;
+    let mediaType = existingGift.rows[0].media_type || 'image';
 
     if (giftImage && imageType && imageName) {
       try {
@@ -559,9 +571,14 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
 
         const filePath = `/assets/gift/image/${filename}`;
         
+        // Determine media type based on file extension
         if (allowedVideoExtensions.includes(fileExtension)) {
+          mediaType = 'video';
           animationPath = filePath;
-          imagePath = null;
+          imagePath = filePath;
+        } else if (fileExtension === 'gif') {
+          animationPath = filePath;
+          imagePath = filePath;
         } else {
           imagePath = filePath;
           animationPath = null;
@@ -590,12 +607,17 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
       }
     }
 
+    // Determine media type if not set during file processing
+    if (!mediaType) {
+      mediaType = allowedVideoExtensions.some(ext => animationPath?.includes(ext)) ? 'video' : 'image';
+    }
+
     const result = await pool.query(`
       UPDATE custom_gifts 
-      SET name = $1, icon = $2, image = $3, animation = $4, price = $5, type = $6, category = $7
-      WHERE id = $8
+      SET name = $1, icon = $2, image = $3, animation = $4, price = $5, type = $6, category = $7, media_type = $8
+      WHERE id = $9
       RETURNING *
-    `, [name.trim(), icon, imagePath, animationPath, parseInt(price), type || 'static', category || 'popular', id]);
+    `, [name.trim(), icon, imagePath, animationPath, parseInt(price), type || 'static', category || 'popular', mediaType, id]);
 
     const gift = result.rows[0];
     if (gift.image) {
