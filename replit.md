@@ -26,6 +26,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing.
+- **Chat History Notifications**: iOS/WhatsApp-style red circle indicator for unread private messages. Real-time socket updates show red dot (10px) next to timestamp when new messages arrive. Auto-clears when chat is opened.
 - **Gaming Integration**: LowCard bot game.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API (chatme_bot, ID: 43). Uses OpenRouter for better reliability and cost management. Can be added to rooms via `/addbot` command (requires room owner/moderator/admin). Once added, responds to ALL messages in that room. Responds to all messages in private chats with bot. Features: 5-second rate limiting, conversation history context, self-reply prevention, 15-second timeout, room membership tracking, duplicate message prevention. Commands: `/addbot` (add bot to room), `/removebot` (remove bot from room). Bot styling: green username (#167027), blue messages (#0f23bd).
 - **Credit System**: Virtual currency with transactions and transfers.
@@ -36,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **Device & Location Tracking**: Collects device info (brand, model, OS) and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Users remain connected to chat rooms across app states with inactivity cleanup and auto-rejoin.
+- **Video Call System**: Private video/audio calls with SimpleCallModal UI, incoming call notifications with ringtone (expo-av) and vibration fallback. Call stats tracking (timer, cost calculation, balance checking). Socket-based call signaling (initiate-call, incoming-call, call-response events).
 
 ## Data Management
 - **Authentication**: JWT tokens in AsyncStorage with refresh.
