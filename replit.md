@@ -15,6 +15,12 @@ Preferred communication style: Simple, everyday language.
 - Improved DELETE endpoint to remove both image and animation files (was only deleting animation)
 - Fixed gift duplicate display issue with 2-second deduplication window in ChatScreen.tsx
 
+**October 1, 2025** - Fixed "Failed to process withdrawal" error:
+- Database schema mismatch resolved: added 5 missing columns to withdrawal_requests table (account_type, account_details, fee_percentage, net_amount_idr, notes)
+- ALTER TABLE added missing columns with proper defaults (fee_percentage defaults to 3.0)
+- Withdrawal processing now works correctly with complete schema (17 columns total)
+- Verified updated_at column exists in user_gift_earnings_balance for balance tracking
+
 # System Architecture
 
 ## Frontend
