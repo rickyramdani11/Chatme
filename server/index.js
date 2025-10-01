@@ -5138,14 +5138,16 @@ app.get('/api/users/:userId/album', async (req, res) => {
       SELECT * FROM user_album WHERE user_id = $1 ORDER BY uploaded_at DESC
     `, [actualUserId]);
 
-    const album = result.rows.map(row => ({
+    const photos = result.rows.map(row => ({
       id: row.id,
-      url: `/api/users/album/${row.id}`,
+      image_url: `/api/users/album/${row.id}`,
       filename: row.filename,
-      uploadedAt: row.uploaded_at
+      uploaded_at: row.uploaded_at
     }));
 
-    res.json(album);
+    console.log(`✅ Found ${photos.length} photos for user ${actualUserId}`);
+
+    res.json({ photos });
   } catch (error) {
     console.error('Error fetching album:', error);
     res.status(500).json({ error: 'Internal server error' });
