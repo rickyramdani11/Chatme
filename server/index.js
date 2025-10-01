@@ -1307,40 +1307,47 @@ app.post('/api/families', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Nama keluarga sudah digunakan' });
     }
 
-    // Check user's credit balance
+    // Get dedicated client for transaction
     const FAMILY_CREATION_COST = 9600;
-    const balanceResult = await pool.query(
-      'SELECT balance FROM user_credits WHERE user_id = $1',
-      [userId]
-    );
-
-    if (balanceResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Saldo tidak ditemukan' });
-    }
-
-    const currentBalance = balanceResult.rows[0].balance;
-
-    if (currentBalance < FAMILY_CREATION_COST) {
-      return res.status(400).json({ 
-        error: `Saldo tidak cukup. Dibutuhkan ${FAMILY_CREATION_COST.toLocaleString('id-ID')} coin untuk membuat keluarga.`,
-        required: FAMILY_CREATION_COST,
-        current: currentBalance
-      });
-    }
-
-    // Start transaction for family creation and payment
-    await pool.query('BEGIN');
+    const client = await pool.connect();
 
     try {
+      // Start transaction
+      await client.query('BEGIN');
+
+      // Check user's credit balance (inside transaction for consistency)
+      const balanceResult = await client.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+        [userId]
+      );
+
+      if (balanceResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(404).json({ error: 'Saldo tidak ditemukan' });
+      }
+
+      const currentBalance = balanceResult.rows[0].balance;
+
+      if (currentBalance < FAMILY_CREATION_COST) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({ 
+          error: `Saldo tidak cukup. Dibutuhkan ${FAMILY_CREATION_COST.toLocaleString('id-ID')} coin untuk membuat keluarga.`,
+          required: FAMILY_CREATION_COST,
+          current: currentBalance
+        });
+      }
+
       // Deduct coins from user's balance
       const newBalance = currentBalance - FAMILY_CREATION_COST;
-      await pool.query(
+      await client.query(
         'UPDATE user_credits SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
         [newBalance, userId]
       );
 
       // Record the transaction
-      await pool.query(`
+      await client.query(`
         INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
         VALUES ($1, NULL, $2, 'family_creation', $3)
       `, [userId, FAMILY_CREATION_COST, `Membuat keluarga "${name.trim()}"`]);
@@ -1353,7 +1360,7 @@ app.post('/api/families', authenticateToken, async (req, res) => {
         const imageId = `family_cover_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
         // Store in database
-        await pool.query(`
+        await client.query(`
           INSERT INTO family_assets (family_id, asset_type, asset_data, filename)
           VALUES (NULL, 'cover_temp', $1, $2)
         `, [coverImage, `${imageId}.jpg`]);
@@ -1362,7 +1369,7 @@ app.post('/api/families', authenticateToken, async (req, res) => {
       }
 
       // Insert family
-      const familyResult = await pool.query(`
+      const familyResult = await client.query(`
         INSERT INTO families (name, description, cover_image, auto_join, created_by_id, created_by_username)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
@@ -1371,14 +1378,14 @@ app.post('/api/families', authenticateToken, async (req, res) => {
       const newFamily = familyResult.rows[0];
 
       // Add creator as family admin (different from global admin role)
-      await pool.query(`
+      await client.query(`
         INSERT INTO family_members (family_id, user_id, username, family_role)
         VALUES ($1, $2, $3, 'admin')
       `, [newFamily.id, userId, username]);
 
       // Update cover image with actual family_id
       if (coverImage) {
-        await pool.query(`
+        await client.query(`
           INSERT INTO family_assets (family_id, asset_type, asset_data, filename) 
           VALUES ($1, 'cover', $2, $3)
           ON CONFLICT DO NOTHING
@@ -1386,7 +1393,8 @@ app.post('/api/families', authenticateToken, async (req, res) => {
       }
 
       // Commit transaction
-      await pool.query('COMMIT');
+      await client.query('COMMIT');
+      client.release();
 
       console.log(`✅ Family created successfully: ${newFamily.name} (Cost: ${FAMILY_CREATION_COST} coins)`);
 
@@ -1408,7 +1416,8 @@ app.post('/api/families', authenticateToken, async (req, res) => {
       });
 
     } catch (txError) {
-      await pool.query('ROLLBACK');
+      await client.query('ROLLBACK');
+      client.release();
       console.error('Transaction failed, rolled back:', txError);
       throw txError;
     }
