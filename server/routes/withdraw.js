@@ -412,12 +412,15 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           description: `Withdrawal for user ${userId}`
         };
 
-        console.log('Sending Xendit payout:', JSON.stringify({ idempotencyKey: `withdrawal-${withdrawal.id}`, data: payoutData }, null, 2));
+        console.log('Sending Xendit payout (direct format):', JSON.stringify({
+          idempotencyKey: `withdrawal-${withdrawal.id}`,
+          ...payoutData
+        }, null, 2));
 
-        // Call Xendit with idempotency key
+        // Call Xendit SDK v7.0.0 - send data directly without wrapper
         const xenditPayout = await xenditClient.Payout.createPayout({
           idempotencyKey: `withdrawal-${withdrawal.id}`,
-          data: payoutData
+          ...payoutData
         });
 
         // Update withdrawal with Xendit payout details
