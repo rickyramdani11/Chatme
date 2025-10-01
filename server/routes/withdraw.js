@@ -379,13 +379,13 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
             throw new Error(`Unsupported bank: ${linkedAccount.account_name}`);
           }
         } else {
-          // E-wallet mapping (uppercase only, no ID_ prefix)
+          // E-wallet mapping (Payout API v2 requires ID_ prefix for Indonesia)
           const ewalletMapping = {
-            'GOPAY': 'GOPAY',
-            'OVO': 'OVO',
-            'DANA': 'DANA',
-            'LINKAJA': 'LINKAJA',
-            'SHOPEEPAY': 'SHOPEEPAY'
+            'GOPAY': 'ID_GOPAY',
+            'OVO': 'ID_OVO',
+            'DANA': 'ID_DANA',
+            'LINKAJA': 'ID_LINKAJA',
+            'SHOPEEPAY': 'ID_SHOPEEPAY'
           };
           channelCode = ewalletMapping[linkedAccount.account_name?.toUpperCase()];
           if (!channelCode) {
