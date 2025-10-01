@@ -7987,21 +7987,6 @@ app.get('/api/rankings/gifts', async (req, res) => {
   }
 });
 
-// Add API endpoint for gift purchase documentation
-app.post('/api/gift/purchase', (req, res) => {
-  res.status(405).json({ message: 'This endpoint is for documentation purposes. Use POST /api/gifts/purchase for actual purchases.' });
-});
-
-// Add documentation for checking gift balance
-app.post('/api/gifts/check-balance', (req, res) => {
-  res.status(405).json({ message: 'This endpoint is for documentation purposes. Use POST /api/gifts/check-balance for actual balance checks.' });
-});
-
-// Add documentation for legacy gift purchase endpoint
-app.post('/api/gifts/purchase', (req, res) => {
-  res.status(405).json({ message: 'This endpoint is for documentation purposes. Use POST /api/gifts/purchase for actual purchases.' });
-});
-
 // Run initial cleanup on server start (after all tables are initialized)
 setTimeout(() => {
   cleanupExpiredMentors();
