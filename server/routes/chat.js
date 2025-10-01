@@ -11,7 +11,7 @@ const pool = new Pool({
 // Create private chat
 router.post('/private', authenticateToken, async (req, res) => {
   try {
-    const { participants, initiatedBy, targetUserId } = req.body;
+    const { participants } = req.body;
     const currentUserId = req.user.userId;
 
     if (!participants || !Array.isArray(participants) || participants.length !== 2) {
@@ -47,6 +47,10 @@ router.post('/private', authenticateToken, async (req, res) => {
     const userIds = [req.user.userId, targetUser.id].sort((a, b) => parseInt(a) - parseInt(b));
     const chatId = `private_${userIds[0]}_${userIds[1]}`;
 
+    // Map usernames to sorted user IDs to ensure consistency
+    const participant1Username = userIds[0] === currentUserId ? req.user.username : targetUser.username;
+    const participant2Username = userIds[1] === currentUserId ? req.user.username : targetUser.username;
+
     const existingChat = await pool.query(`
       SELECT * FROM private_chats WHERE id = $1
     `, [chatId]);
@@ -64,14 +68,18 @@ router.post('/private', authenticateToken, async (req, res) => {
       INSERT INTO private_chats (id, participant1_id, participant1_username, participant2_id, participant2_username, initiated_by)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [chatId, userIds[0], participants[0], userIds[1], participants[1], initiatedBy]);
+    `, [chatId, userIds[0], participant1Username, userIds[1], participant2Username, currentUserId]);
 
-    for (let i = 0; i < participants.length; i++) {
-      await pool.query(`
-        INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
-        VALUES ($1, $2, $3, NOW())
-      `, [chatId, parseInt(userIds[i]), participants[i]]);
-    }
+    // Insert participants with correct ID-username mapping
+    await pool.query(`
+      INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
+      VALUES ($1, $2, $3, NOW())
+    `, [chatId, userIds[0], participant1Username]);
+
+    await pool.query(`
+      INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
+      VALUES ($1, $2, $3, NOW())
+    `, [chatId, userIds[1], participant2Username]);
 
     res.json({
       id: chatId,
