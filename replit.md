@@ -25,8 +25,8 @@ Preferred communication style: Simple, everyday language.
 - **API**: RESTful endpoints with Bearer token authorization
 
 ## Core Features
-- **Chat System**: Multi-room chat, private messaging, emoji support, media sharing.
-- **Gift System**: Virtual gifts with real-time display. Atomic ref-based duplicate send prevention (isSendingGiftRef) prevents race conditions from rapid taps. Batched state updates avoid React useInsertionEffect errors. Alert onDismiss handlers ensure proper cleanup.
+- **Chat System**: Multi-room chat, private messaging, emoji support, media sharing. Room chat messages are real-time only (not persisted) - messages disappear when users leave rooms. Private chat messages are saved to database for history.
+- **Gift System**: Virtual gifts with real-time display. Atomic ref-based duplicate send prevention (isSendingGiftRef) prevents race conditions from rapid taps. Batched state updates avoid React useInsertionEffect errors. Alert onDismiss handlers ensure proper cleanup. Room gifts are real-time only.
 - **Chat History Notifications**: iOS/WhatsApp-style red circle indicator for unread private messages. Real-time socket updates show red dot (10px) next to timestamp when new messages arrive. Auto-clears when chat is opened.
 - **Gaming Integration**: LowCard bot game.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API (chatme_bot, ID: 43). Uses OpenRouter for better reliability and cost management. Can be added to rooms via `/addbot` command (requires room owner/moderator/admin). Once added, responds to ALL messages in that room. Responds to all messages in private chats with bot. Features: 5-second rate limiting, conversation history context, self-reply prevention, 15-second timeout, room membership tracking, duplicate message prevention. Commands: `/addbot` (add bot to room), `/removebot` (remove bot from room). Bot styling: green username (#167027), blue messages (#0f23bd).
