@@ -3161,8 +3161,27 @@ export default function ChatScreen() {
   };
 
   const handleBackPress = () => {
-    // Always navigate to Room screen instead of going back to Home
-    navigation.goBack();
+    if (type === 'room') {
+      // For room chats, check if we can safely go back to Room screen
+      const navState = navigation.getState();
+      const routes = navState?.routes || [];
+      const currentIndex = navState?.index || 0;
+      
+      // Check if previous screen is Room
+      if (currentIndex > 0 && routes[currentIndex - 1]?.name === 'Room') {
+        // Safe to go back to Room screen
+        navigation.goBack();
+      } else {
+        // No Room in stack, reset navigation to Room screen to avoid stacking
+        (navigation as any).reset({
+          index: 0,
+          routes: [{ name: 'Room' }],
+        });
+      }
+    } else {
+      // For private/support chats, always go back to previous screen
+      navigation.goBack();
+    }
   };
 
   const handleEllipsisPress = () => {
