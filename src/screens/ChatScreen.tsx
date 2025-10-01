@@ -3216,53 +3216,56 @@ export default function ChatScreen() {
         });
       }
 
-      // Clear participants for this room
-      setParticipants([]);
+      // Wait a moment for "has left" message to be received and displayed before closing tab
+      setTimeout(() => {
+        // Clear participants for this room
+        setParticipants([]);
 
-      // Clear unread count for this room
-      setUnreadCounts(prev => {
-        const newCounts = { ...prev };
-        delete newCounts[currentRoomId];
-        return newCounts;
-      });
+        // Clear unread count for this room
+        setUnreadCounts(prev => {
+          const newCounts = { ...prev };
+          delete newCounts[currentRoomId];
+          return newCounts;
+        });
 
-      // Clear flatListRef for this room
-      if (flatListRefs.current[currentRoomId]) {
-        delete flatListRefs.current[currentRoomId];
-      }
-
-      // Remove from joinedRoomsRef so next join won't be silent
-      joinedRoomsRef.current.delete(currentRoomId);
-      console.log(`🚪 Removed room ${currentRoomId} from joinedRooms - next join will NOT be silent`);
-
-      // Remove the tab from chatTabs and navigate to Room screen
-      setChatTabs(prevTabs => {
-        const newTabs = prevTabs.filter((_, index) => index !== currentActiveTab);
-
-        // If no tabs left, navigate to Room screen
-        if (newTabs.length === 0) {
-          setTimeout(() => {
-            navigation.navigate('Room');
-          }, 100);
-        } else {
-          // Set new active tab if there are remaining tabs
-          const newActiveTab = currentActiveTab >= newTabs.length
-            ? newTabs.length - 1
-            : currentActiveTab;
-
-          setTimeout(() => {
-            setActiveTab(newActiveTab);
-            if (scrollViewRef.current) {
-              scrollViewRef.current.scrollTo({
-                x: newActiveTab * width,
-                animated: true
-              });
-            }
-          }, 100);
+        // Clear flatListRef for this room
+        if (flatListRefs.current[currentRoomId]) {
+          delete flatListRefs.current[currentRoomId];
         }
 
-        return newTabs;
-      });
+        // Remove from joinedRoomsRef so next join won't be silent
+        joinedRoomsRef.current.delete(currentRoomId);
+        console.log(`🚪 Removed room ${currentRoomId} from joinedRooms - next join will NOT be silent`);
+
+        // Remove the tab from chatTabs and navigate to Room screen
+        setChatTabs(prevTabs => {
+          const newTabs = prevTabs.filter((_, index) => index !== currentActiveTab);
+
+          // If no tabs left, navigate to Room screen
+          if (newTabs.length === 0) {
+            setTimeout(() => {
+              navigation.navigate('Room');
+            }, 100);
+          } else {
+            // Set new active tab if there are remaining tabs
+            const newActiveTab = currentActiveTab >= newTabs.length
+              ? newTabs.length - 1
+              : currentActiveTab;
+
+            setTimeout(() => {
+              setActiveTab(newActiveTab);
+              if (scrollViewRef.current) {
+                scrollViewRef.current.scrollTo({
+                  x: newActiveTab * width,
+                  animated: true
+                });
+              }
+            }, 100);
+          }
+
+          return newTabs;
+        });
+      }, 500); // 500ms delay to show "has left" message before closing tab
     }
   };
 

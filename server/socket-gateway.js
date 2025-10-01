@@ -817,11 +817,31 @@ io.on('connection', (socket) => {
       return;
     }
 
-    socket.leave(roomId);
-    console.log(`${socket.username} left room ${roomId} via gateway`);
-
     // Check if this is a private chat room
     const isPrivateChat = roomId.startsWith('private_');
+
+    // IMPORTANT: Emit leave message BEFORE socket.leave() so sender receives it too
+    if (!isPrivateChat) {
+      const leaveMessage = {
+        id: Date.now().toString(),
+        sender: socket.username,     // Use authenticated username
+        content: `${socket.username} left the room`,
+        timestamp: new Date().toISOString(),
+        roomId: roomId,
+        type: 'leave',
+        userRole: socket.userRole    // Use authenticated role
+      };
+
+      // Emit to ALL users in room INCLUDING the one leaving (so they see "has left" message)
+      io.to(roomId).emit('user-left', leaveMessage);
+      console.log(`📢 Broadcasting leave message for ${socket.username} in room ${roomId} (including sender)`);
+    } else {
+      console.log(`💬 Private chat leave - no broadcast for ${socket.username} in room ${roomId}`);
+    }
+
+    // NOW leave the Socket.IO room (after emit so sender receives the message)
+    socket.leave(roomId);
+    console.log(`${socket.username} left room ${roomId} via gateway`);
 
     // Remove participant from room (use authenticated userId for security)
     if (roomParticipants[roomId]) {
@@ -835,24 +855,6 @@ io.on('connection', (socket) => {
       userInfo.roomId = null;
       // Remove from announced rooms when leaving
       userInfo.announcedRooms?.delete(roomId);
-    }
-
-    // Only broadcast leave message for non-private chats
-    if (!isPrivateChat) {
-      const leaveMessage = {
-        id: Date.now().toString(),
-        sender: socket.username,     // Use authenticated username
-        content: `${socket.username} left the room`,
-        timestamp: new Date().toISOString(),
-        roomId: roomId,
-        type: 'leave',
-        userRole: socket.userRole    // Use authenticated role
-      };
-
-      socket.to(roomId).emit('user-left', leaveMessage);
-      console.log(`📢 Broadcasting leave message for ${socket.username} in room ${roomId}`);
-    } else {
-      console.log(`💬 Private chat leave - no broadcast for ${socket.username} in room ${roomId}`);
     }
   });
 
