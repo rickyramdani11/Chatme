@@ -29,7 +29,7 @@ Preferred communication style: Simple, everyday language.
 - **Chat History Notifications**: iOS/WhatsApp-style red circle indicator for unread private messages. Real-time socket updates show red dot (10px) next to timestamp when new messages arrive. Auto-clears when chat is opened.
 - **Gaming Integration**: LowCard bot game.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API (chatme_bot, ID: 43). Uses OpenRouter for better reliability and cost management. Can be added to rooms via `/addbot` command (requires room owner/moderator/admin). Once added, responds to ALL messages in that room. Responds to all messages in private chats with bot. Features: 5-second rate limiting, conversation history context, self-reply prevention, 15-second timeout, room membership tracking, duplicate message prevention. Commands: `/addbot` (add bot to room), `/removebot` (remove bot from room). Bot styling: green username (#167027), blue messages (#0f23bd).
-- **Credit System**: Virtual currency with transactions and transfers.
+- **Credit System**: Virtual currency with transactions and transfers. Family creation costs 9600 coins with atomic transaction handling.
 - **Social Features**: Friend management, user profiles, ranking, activity feeds.
 - **Administrative Tools**: Admin panel for moderation, user management, and configuration.
 - **Notification System**: Real-time notifications via Socket.IO.
