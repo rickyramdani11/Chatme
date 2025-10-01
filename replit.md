@@ -6,6 +6,15 @@ ChatMe is a cross-platform React Native chat application built with Expo. It pro
 
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+
+**October 1, 2025** - Fixed "Girl Car" gift error after admin panel update:
+- Renamed duplicate gift ID 15 from "Girl Car 🦁" to "Baby Lion 🦁" to resolve naming conflict
+- Added PUT /api/admin/gifts/:id endpoint for proper gift updates (was missing, causing admin confusion)
+- Added duplicate name validation to prevent future gift name conflicts (returns 409 error)
+- Improved DELETE endpoint to remove both image and animation files (was only deleting animation)
+- Fixed gift duplicate display issue with 2-second deduplication window in ChatScreen.tsx
+
 # System Architecture
 
 ## Frontend

@@ -381,6 +381,14 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
       return res.status(400).json({ error: 'Gift media file is required' });
     }
 
+    const nameCheck = await pool.query(
+      'SELECT id FROM custom_gifts WHERE LOWER(name) = LOWER($1)',
+      [name.trim()]
+    );
+    if (nameCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'Gift name already exists' });
+    }
+
     let imagePath = null;
     let animationPath = null;
 
@@ -472,18 +480,163 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
   }
 });
 
+// Update gift
+router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), auditLog('UPDATE_GIFT', 'gift'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, 
+      icon, 
+      price, 
+      type, 
+      category, 
+      giftImage, 
+      imageType, 
+      imageName 
+    } = req.body;
+
+    if (!name || !icon || !price) {
+      return res.status(400).json({ error: 'Name, icon, and price are required' });
+    }
+
+    const existingGift = await pool.query('SELECT * FROM custom_gifts WHERE id = $1', [id]);
+    if (existingGift.rows.length === 0) {
+      return res.status(404).json({ error: 'Gift not found' });
+    }
+
+    const nameCheck = await pool.query(
+      'SELECT id FROM custom_gifts WHERE LOWER(name) = LOWER($1) AND id != $2',
+      [name.trim(), id]
+    );
+    if (nameCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'Gift name already exists' });
+    }
+
+    let imagePath = existingGift.rows[0].image;
+    let animationPath = existingGift.rows[0].animation;
+
+    if (giftImage && imageType && imageName) {
+      try {
+        const uploadsDir = path.resolve(__dirname, '../../assets/gift/image');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+        const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
+        
+        const allowedImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+        const allowedVideoExtensions = ['mp4', 'webm', 'mov'];
+        const allAllowedExtensions = [...allowedImageExtensions, ...allowedVideoExtensions];
+        
+        if (!allAllowedExtensions.includes(fileExtension)) {
+          return res.status(400).json({ 
+            error: `Invalid file type. Allowed: ${allAllowedExtensions.join(', ')}` 
+          });
+        }
+
+        let fileBuffer;
+        if (allowedImageExtensions.includes(fileExtension)) {
+          const validation = validateBase64Image(giftImage, allowedImageExtensions);
+          if (!validation.valid) {
+            return res.status(400).json({ error: validation.error });
+          }
+          fileBuffer = validation.buffer;
+        } else {
+          fileBuffer = Buffer.from(giftImage, 'base64');
+          const maxVideoSize = 15 * 1024 * 1024;
+          if (fileBuffer.length > maxVideoSize) {
+            return res.status(400).json({ 
+              error: `Video file too large. Maximum size is ${maxVideoSize / (1024 * 1024)}MB.` 
+            });
+          }
+        }
+
+        const filename = `gift_${uniqueSuffix}.${fileExtension}`;
+        const filepath = path.join(uploadsDir, filename);
+
+        fs.writeFileSync(filepath, fileBuffer);
+
+        const filePath = `/assets/gift/image/${filename}`;
+        
+        if (allowedVideoExtensions.includes(fileExtension)) {
+          animationPath = filePath;
+          imagePath = null;
+        } else {
+          imagePath = filePath;
+          animationPath = null;
+        }
+
+        if (existingGift.rows[0].image && existingGift.rows[0].image.startsWith('/assets/gift/')) {
+          const oldImagePath = path.resolve(__dirname, '../..' + existingGift.rows[0].image);
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlink(oldImagePath, (err) => {
+              if (err) console.error('Error deleting old image:', err);
+            });
+          }
+        }
+        if (existingGift.rows[0].animation && existingGift.rows[0].animation.startsWith('/assets/gift/')) {
+          const oldAnimPath = path.resolve(__dirname, '../..' + existingGift.rows[0].animation);
+          if (fs.existsSync(oldAnimPath)) {
+            fs.unlink(oldAnimPath, (err) => {
+              if (err) console.error('Error deleting old animation:', err);
+            });
+          }
+        }
+
+      } catch (error) {
+        console.error('Error saving gift file:', error);
+        return res.status(500).json({ error: 'Failed to save gift file' });
+      }
+    }
+
+    const result = await pool.query(`
+      UPDATE custom_gifts 
+      SET name = $1, icon = $2, image = $3, animation = $4, price = $5, type = $6, category = $7
+      WHERE id = $8
+      RETURNING *
+    `, [name.trim(), icon, imagePath, animationPath, parseInt(price), type || 'static', category || 'popular', id]);
+
+    const gift = result.rows[0];
+    if (gift.image) {
+      gift.image = `${API_BASE_URL}${gift.image}`;
+    }
+    if (gift.animation) {
+      gift.animation = `${API_BASE_URL}${gift.animation}`;
+    }
+
+    res.json(gift);
+  } catch (error) {
+    console.error('Error updating gift:', error);
+    res.status(500).json({ error: 'Failed to update gift' });
+  }
+});
+
 // Delete gift
 router.delete('/gifts/:id', authenticateToken, adminOnly, rateLimit(10, 60000), auditLog('DELETE_GIFT', 'gift'), async (req, res) => {
   try {
     const { id } = req.params;
 
-    const giftResult = await pool.query('SELECT animation FROM custom_gifts WHERE id = $1', [id]);
-    if (giftResult.rows.length > 0 && giftResult.rows[0].animation) {
-      const filePath = giftResult.rows[0].animation.substring(1);
-      if (fs.existsSync(filePath)) {
-        fs.unlink(filePath, (err) => {
-          if (err) console.error('Error deleting gift file:', err);
-        });
+    const giftResult = await pool.query('SELECT image, animation FROM custom_gifts WHERE id = $1', [id]);
+    if (giftResult.rows.length > 0) {
+      const gift = giftResult.rows[0];
+      
+      if (gift.image && gift.image.startsWith('/assets/gift/')) {
+        const imagePath = path.resolve(__dirname, '../..' + gift.image);
+        if (fs.existsSync(imagePath)) {
+          fs.unlink(imagePath, (err) => {
+            if (err) console.error('Error deleting image file:', err);
+          });
+        }
+      }
+      
+      if (gift.animation && gift.animation.startsWith('/assets/gift/')) {
+        const animPath = path.resolve(__dirname, '../..' + gift.animation);
+        if (fs.existsSync(animPath)) {
+          fs.unlink(animPath, (err) => {
+            if (err) console.error('Error deleting animation file:', err);
+          });
+        }
       }
     }
 
