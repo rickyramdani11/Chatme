@@ -221,38 +221,99 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
 
     const linkedAccount = accountResult.rows[0];
 
-    // Start transaction
-    await pool.query('BEGIN');
+    // Create withdrawal_requests table if not exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS withdrawal_requests (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        amount_usd DECIMAL(10,2) NOT NULL,
+        amount_coins INTEGER NOT NULL,
+        amount_idr DECIMAL(12,2) NOT NULL,
+        account_id INTEGER NOT NULL,
+        account_type VARCHAR(20) NOT NULL,
+        account_details JSONB NOT NULL,
+        status VARCHAR(20) DEFAULT 'pending',
+        fee_percentage DECIMAL(5,2) DEFAULT 3.0,
+        net_amount_idr DECIMAL(12,2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP,
+        notes TEXT
+      )
+    `);
 
+    // Idempotent FK migration: fix existing wrong FKs
+    await pool.query(`
+      DO $$ 
+      BEGIN
+        -- Drop wrong FK pointing to user_payout_accounts if exists
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint c
+          JOIN pg_class t ON t.oid = c.conrelid
+          JOIN pg_class r ON r.oid = c.confrelid
+          WHERE t.relname = 'withdrawal_requests'
+            AND c.conname = 'withdrawal_requests_account_id_fkey'
+            AND r.relname <> 'user_linked_accounts'
+        ) THEN
+          ALTER TABLE withdrawal_requests DROP CONSTRAINT withdrawal_requests_account_id_fkey;
+        END IF;
+
+        -- Add correct FK to user_linked_accounts if missing
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint c
+          JOIN pg_class t ON t.oid = c.conrelid
+          JOIN pg_class r ON r.oid = c.confrelid
+          WHERE t.relname = 'withdrawal_requests'
+            AND c.conname = 'withdrawal_requests_account_id_fkey'
+            AND r.relname = 'user_linked_accounts'
+        ) THEN
+          ALTER TABLE withdrawal_requests
+            ADD CONSTRAINT withdrawal_requests_account_id_fkey
+            FOREIGN KEY (account_id) REFERENCES user_linked_accounts(id) ON DELETE CASCADE;
+        END IF;
+
+        -- Ensure FK to users exists
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'withdrawal_requests_user_id_fkey'
+        ) THEN
+          ALTER TABLE withdrawal_requests
+            ADD CONSTRAINT withdrawal_requests_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `);
+
+    // Calculate amounts
+    const amountCoins = Math.floor(amount * exchangeRate);
+    const grossAmountIdr = amount * exchangeRate;
+    const feePercentage = 3.0; // 3% fee
+    const netAmountIdr = grossAmountIdr * (1 - feePercentage / 100);
+
+    // Start transaction with dedicated client
+    const client = await pool.connect();
     try {
-      // Create withdrawal_requests table if not exists
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS withdrawal_requests (
-          id SERIAL PRIMARY KEY,
-          user_id INTEGER NOT NULL,
-          amount_usd DECIMAL(10,2) NOT NULL,
-          amount_coins INTEGER NOT NULL,
-          amount_idr DECIMAL(12,2) NOT NULL,
-          account_id INTEGER NOT NULL,
-          account_type VARCHAR(20) NOT NULL,
-          account_details JSONB NOT NULL,
-          status VARCHAR(20) DEFAULT 'pending',
-          fee_percentage DECIMAL(5,2) DEFAULT 3.0,
-          net_amount_idr DECIMAL(12,2) NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          processed_at TIMESTAMP,
-          notes TEXT
-        )
-      `);
+      await client.query('BEGIN');
 
-      // Calculate amounts
-      const amountCoins = Math.floor(amount * exchangeRate);
-      const grossAmountIdr = amount * exchangeRate;
-      const feePercentage = 3.0; // 3% fee
-      const netAmountIdr = grossAmountIdr * (1 - feePercentage / 100);
+      // Atomically deduct from gift earnings balance with balance check
+      const balanceUpdateResult = await client.query(`
+        UPDATE user_gift_earnings_balance 
+        SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $2 AND balance >= $1
+        RETURNING balance
+      `, [amountCoins, userId]);
+
+      if (balanceUpdateResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({ 
+          error: 'Insufficient balance or concurrent withdrawal detected',
+          required: amountCoins,
+          available: currentBalance
+        });
+      }
 
       // Insert withdrawal request
-      const withdrawalResult = await pool.query(`
+      const withdrawalResult = await client.query(`
         INSERT INTO withdrawal_requests 
         (user_id, amount_usd, amount_coins, amount_idr, account_id, account_type, account_details, net_amount_idr)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -272,14 +333,7 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
         netAmountIdr
       ]);
 
-      // Deduct from gift earnings balance
-      await pool.query(`
-        UPDATE user_gift_earnings_balance 
-        SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $2
-      `, [amountCoins, userId]);
-
-      await pool.query('COMMIT');
+      await client.query('COMMIT');
 
       const withdrawal = withdrawalResult.rows[0];
 
@@ -297,8 +351,10 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
       });
 
     } catch (error) {
-      await pool.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw error;
+    } finally {
+      client.release();
     }
 
   } catch (error) {
