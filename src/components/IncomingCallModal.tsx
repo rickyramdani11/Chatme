@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
 interface IncomingCallModalProps {
   visible: boolean;
@@ -30,6 +31,7 @@ export default function IncomingCallModal({
   onDecline,
 }: IncomingCallModalProps) {
   const soundRef = useRef<Audio.Sound | null>(null);
+  const vibrationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -69,16 +71,33 @@ export default function IncomingCallModal({
       await sound.playAsync();
     } catch (error) {
       console.error('Error playing ringtone:', error);
-      // Vibrate as fallback
+      // Vibrate as fallback if audio fails
+      try {
+        const vibrate = async () => {
+          if (!visible) return; // Stop if modal closed
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          vibrationTimeoutRef.current = setTimeout(vibrate, 1000);
+        };
+        vibrate();
+      } catch (hapticError) {
+        console.error('Error with haptic feedback:', hapticError);
+      }
     }
   };
 
   const stopRingtone = async () => {
     try {
+      // Stop audio
       if (soundRef.current) {
         await soundRef.current.stopAsync();
         await soundRef.current.unloadAsync();
         soundRef.current = null;
+      }
+      
+      // Stop vibration
+      if (vibrationTimeoutRef.current) {
+        clearTimeout(vibrationTimeoutRef.current);
+        vibrationTimeoutRef.current = null;
       }
     } catch (error) {
       console.error('Error stopping ringtone:', error);

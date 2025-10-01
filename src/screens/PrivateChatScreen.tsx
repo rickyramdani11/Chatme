@@ -29,6 +29,8 @@ import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import { GiftVideo } from '../components'; // Import the GiftVideo component
+import IncomingCallModal from '../components/IncomingCallModal';
+import SimpleCallModal from '../components/SimpleCallModal';
 
 const { width } = Dimensions.get('window');
 
@@ -74,7 +76,7 @@ export default function PrivateChatScreen() {
   const [callTimer, setCallTimer] = useState(0);
   const [callCost, setCallCost] = useState(0);
   const [totalDeducted, setTotalDeducted] = useState(0);
-  const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const callIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
   const [callRinging, setCallRinging] = useState(false);
@@ -462,7 +464,7 @@ export default function PrivateChatScreen() {
       }
 
       // Create optimistic message
-      const optimisticMessage = {
+      const optimisticMessage: Message = {
         id: `temp_${Date.now()}_${user.username}`,
         sender: user.username,
         content: messageContent,
@@ -470,7 +472,7 @@ export default function PrivateChatScreen() {
         roomId: roomId,
         role: user.role || 'user',
         level: user.level || 1,
-        type: 'message'
+        type: 'message' as const
       };
 
       setMessage('');
@@ -1639,6 +1641,35 @@ export default function PrivateChatScreen() {
           )}
         </View>
       )}
+
+      {/* Incoming Call Modal */}
+      <IncomingCallModal
+        visible={showIncomingCallModal}
+        callerName={incomingCallData?.callerName || 'Unknown'}
+        callerAvatar={undefined}
+        callType={incomingCallData?.callType || 'video'}
+        onAccept={handleAcceptCall}
+        onDecline={handleDeclineCall}
+      />
+
+      {/* Active Call Modal */}
+      <SimpleCallModal
+        visible={showCallModal}
+        callType={callType || 'video'}
+        targetUser={targetUser}
+        callTimer={callTimer}
+        callCost={callCost}
+        totalDeducted={totalDeducted}
+        onEndCall={() => {
+          endCall();
+          if (socket && targetUser) {
+            socket.emit('end-call', {
+              targetUsername: targetUser.username,
+              endedBy: user?.username
+            });
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

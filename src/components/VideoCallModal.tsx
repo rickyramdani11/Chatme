@@ -56,7 +56,7 @@ export default function VideoCallModal({
           .on('joined-meeting', handleJoinedMeeting)
           .on('participant-joined', handleParticipantJoined)
           .on('participant-updated', handleParticipantUpdated)
-          .on('participant-left', handleParticipantLeft)
+          .on('participant-left', handleParticipantLeft as any)
           .on('error', handleError)
           .on('left-meeting', handleLeftMeeting);
 
