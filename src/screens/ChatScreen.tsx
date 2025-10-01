@@ -85,6 +85,7 @@ export default function ChatScreen() {
   const [giftList, setGiftList] = useState<any[]>([]);
   const [activeGiftTab, setActiveGiftTab] = useState<'all' | 'special'>('all');
   const [sendToAllUsers, setSendToAllUsers] = useState(false);
+  const [isSendingGift, setIsSendingGift] = useState(false);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
@@ -4505,11 +4506,19 @@ export default function ChatScreen() {
   // Function to send gift to room
   const handleGiftSend = async (gift: any, recipientUsername?: string) => {
     try {
+      // Prevent duplicate sends
+      if (isSendingGift) {
+        console.log('Gift send already in progress, ignoring duplicate request');
+        return;
+      }
+
       if (!socket) {
         console.log('Socket not connected, cannot send gift');
         Alert.alert('Error', 'Connection lost. Please try again.');
         return;
       }
+
+      setIsSendingGift(true);
 
       // Check balance first
       try {
@@ -4528,6 +4537,7 @@ export default function ChatScreen() {
           const balanceData = await response.json();
 
           if (!balanceData.canAfford) {
+            setIsSendingGift(false);
             Alert.alert(
               'Saldo Tidak Cukup',
               `Anda memerlukan ${gift.price} coins untuk mengirim gift ini. Saldo Anda: ${balanceData.currentBalance} coins.`
@@ -4553,7 +4563,11 @@ export default function ChatScreen() {
             `System cut: ${systemShare} coins\n` +
             `Sisa saldo: ${remainingBalance} coins`,
             [
-              { text: 'Batal', style: 'cancel' },
+              { 
+                text: 'Batal', 
+                style: 'cancel',
+                onPress: () => setIsSendingGift(false)
+              },
               {
                 text: 'Kirim',
                 onPress: async () => {
@@ -4614,14 +4628,17 @@ export default function ChatScreen() {
                         setShowUserGiftPicker(false);
                         setSelectedGiftForUser(null);
                       }
+                      setIsSendingGift(false);
 
                     } else {
                       const errorData = await purchaseResponse.json();
+                      setIsSendingGift(false);
                       Alert.alert('Error', errorData.error || 'Gagal mengirim gift');
                     }
 
                   } catch (purchaseError) {
                     console.error('Error purchasing gift:', purchaseError);
+                    setIsSendingGift(false);
                     Alert.alert('Error', 'Gagal memproses pembelian gift');
                   }
                 }
@@ -4630,25 +4647,31 @@ export default function ChatScreen() {
           );
 
         } else {
+          setIsSendingGift(false);
           Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
         }
 
       } catch (balanceError) {
         console.error('Error checking balance:', balanceError);
+        setIsSendingGift(false);
         Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
       }
 
     } catch (error) {
       console.error('Error sending gift:', error);
+      setIsSendingGift(false);
       Alert.alert('Error', 'Failed to send gift. Please try again.');
     }
   };
 
   // Function to send gift to specific user
   const handleGiftSendToUser = (gift: any) => {
-    setSelectedGiftForUser(gift);
-    setShowGiftPicker(false);
-    setShowUserGiftPicker(true);
+    // Batch state updates to prevent useInsertionEffect error
+    setTimeout(() => {
+      setSelectedGiftForUser(gift);
+      setShowGiftPicker(false);
+      setShowUserGiftPicker(true);
+    }, 0);
   };
 
   // Function to send gift to selected user
