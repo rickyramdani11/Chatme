@@ -232,6 +232,7 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           user_id INTEGER NOT NULL,
           amount_usd DECIMAL(10,2) NOT NULL,
           amount_coins INTEGER NOT NULL,
+          amount_idr DECIMAL(12,2) NOT NULL,
           account_id INTEGER NOT NULL,
           account_type VARCHAR(20) NOT NULL,
           account_details JSONB NOT NULL,
@@ -253,13 +254,14 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
       // Insert withdrawal request
       const withdrawalResult = await pool.query(`
         INSERT INTO withdrawal_requests 
-        (user_id, amount_usd, amount_coins, account_id, account_type, account_details, net_amount_idr)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        (user_id, amount_usd, amount_coins, amount_idr, account_id, account_type, account_details, net_amount_idr)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `, [
         userId, 
         amount, 
-        amountCoins, 
+        amountCoins,
+        grossAmountIdr,
         accountId, 
         linkedAccount.account_type,
         JSON.stringify({
