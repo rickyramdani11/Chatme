@@ -1307,92 +1307,111 @@ app.post('/api/families', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Nama keluarga sudah digunakan' });
     }
 
-    // Create families table if not exists
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS families (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
-        description TEXT,
-        cover_image TEXT,
-        auto_join BOOLEAN DEFAULT true,
-        created_by_id INTEGER NOT NULL,
-        created_by_username VARCHAR(50) NOT NULL,
-        members_count INTEGER DEFAULT 1,
-        max_members INTEGER DEFAULT 50,
-        level INTEGER DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    // Check user's credit balance
+    const FAMILY_CREATION_COST = 9600;
+    const balanceResult = await pool.query(
+      'SELECT balance FROM user_credits WHERE user_id = $1',
+      [userId]
+    );
 
-    // Create family_members table if not exists
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS family_members (
-        id SERIAL PRIMARY KEY,
-        family_id INTEGER REFERENCES families(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL,
-        username VARCHAR(50) NOT NULL,
-        family_role VARCHAR(20) DEFAULT 'member',
-        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        is_active BOOLEAN DEFAULT true,
-        UNIQUE(family_id, user_id)
-      )
-    `);
-
-    // Save cover image if provided
-    let coverImagePath = null;
-    if (coverImage) {
-      const imageId = `family_cover_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      // Store in database
-      await pool.query(`
-        INSERT INTO family_assets (family_id, asset_type, asset_data, filename)
-        VALUES (NULL, 'cover_temp', $1, $2)
-      `, [coverImage, `${imageId}.jpg`]);
-
-      coverImagePath = `/api/families/cover/${imageId}`;
+    if (balanceResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Saldo tidak ditemukan' });
     }
 
-    // Insert family
-    const familyResult = await pool.query(`
-      INSERT INTO families (name, description, cover_image, auto_join, created_by_id, created_by_username)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *
-    `, [name.trim(), description.trim(), coverImagePath, autoJoin, userId, username]);
+    const currentBalance = balanceResult.rows[0].balance;
 
-    const newFamily = familyResult.rows[0];
-
-    // Add creator as family admin (different from global admin role)
-    await pool.query(`
-      INSERT INTO family_members (family_id, user_id, username, family_role)
-      VALUES ($1, $2, $3, 'admin')
-    `, [newFamily.id, userId, username]);
-
-    // Update cover image with actual family_id
-    if (coverImage) {
-      await pool.query(`
-        INSERT INTO family_assets (family_id, asset_type, asset_data, filename) 
-        VALUES ($1, 'cover', $2, $3)
-        ON CONFLICT DO NOTHING
-      `, [newFamily.id, coverImage, `family_cover_${newFamily.id}.jpg`]);
+    if (currentBalance < FAMILY_CREATION_COST) {
+      return res.status(400).json({ 
+        error: `Saldo tidak cukup. Dibutuhkan ${FAMILY_CREATION_COST.toLocaleString('id-ID')} coin untuk membuat keluarga.`,
+        required: FAMILY_CREATION_COST,
+        current: currentBalance
+      });
     }
 
-    console.log('Family created successfully:', newFamily.name);
+    // Start transaction for family creation and payment
+    await pool.query('BEGIN');
 
-    res.status(201).json({
-      success: true,
-      family: {
-        id: newFamily.id.toString(),
-        name: newFamily.name,
-        description: newFamily.description,
-        coverImage: newFamily.cover_image,
-        autoJoin: newFamily.auto_join,
-        createdBy: newFamily.created_by_username,
-        membersCount: newFamily.members_count,
-        level: newFamily.level,
-        createdAt: newFamily.created_at
+    try {
+      // Deduct coins from user's balance
+      const newBalance = currentBalance - FAMILY_CREATION_COST;
+      await pool.query(
+        'UPDATE user_credits SET balance = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+        [newBalance, userId]
+      );
+
+      // Record the transaction
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+        VALUES ($1, NULL, $2, 'family_creation', $3)
+      `, [userId, FAMILY_CREATION_COST, `Membuat keluarga "${name.trim()}"`]);
+
+      console.log(`✅ Deducted ${FAMILY_CREATION_COST} coins from user ${userId} for family creation`);
+
+      // Save cover image if provided
+      let coverImagePath = null;
+      if (coverImage) {
+        const imageId = `family_cover_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+        // Store in database
+        await pool.query(`
+          INSERT INTO family_assets (family_id, asset_type, asset_data, filename)
+          VALUES (NULL, 'cover_temp', $1, $2)
+        `, [coverImage, `${imageId}.jpg`]);
+
+        coverImagePath = `/api/families/cover/${imageId}`;
       }
-    });
+
+      // Insert family
+      const familyResult = await pool.query(`
+        INSERT INTO families (name, description, cover_image, auto_join, created_by_id, created_by_username)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+      `, [name.trim(), description.trim(), coverImagePath, autoJoin, userId, username]);
+
+      const newFamily = familyResult.rows[0];
+
+      // Add creator as family admin (different from global admin role)
+      await pool.query(`
+        INSERT INTO family_members (family_id, user_id, username, family_role)
+        VALUES ($1, $2, $3, 'admin')
+      `, [newFamily.id, userId, username]);
+
+      // Update cover image with actual family_id
+      if (coverImage) {
+        await pool.query(`
+          INSERT INTO family_assets (family_id, asset_type, asset_data, filename) 
+          VALUES ($1, 'cover', $2, $3)
+          ON CONFLICT DO NOTHING
+        `, [newFamily.id, coverImage, `family_cover_${newFamily.id}.jpg`]);
+      }
+
+      // Commit transaction
+      await pool.query('COMMIT');
+
+      console.log(`✅ Family created successfully: ${newFamily.name} (Cost: ${FAMILY_CREATION_COST} coins)`);
+
+      res.status(201).json({
+        success: true,
+        family: {
+          id: newFamily.id.toString(),
+          name: newFamily.name,
+          description: newFamily.description,
+          coverImage: newFamily.cover_image,
+          autoJoin: newFamily.auto_join,
+          createdBy: newFamily.created_by_username,
+          membersCount: newFamily.members_count,
+          level: newFamily.level,
+          createdAt: newFamily.created_at
+        },
+        newBalance: newBalance,
+        cost: FAMILY_CREATION_COST
+      });
+
+    } catch (txError) {
+      await pool.query('ROLLBACK');
+      console.error('Transaction failed, rolled back:', txError);
+      throw txError;
+    }
 
   } catch (error) {
     console.error('Error creating family:', error);
