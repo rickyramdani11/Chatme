@@ -2,17 +2,11 @@
 const express = require('express');
 const { Pool } = require('pg');
 const { authenticateToken } = require('./auth');
-const { Xendit } = require('xendit-node');
 
 const router = express.Router();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
-
-// Initialize Xendit client
-const xenditClient = new Xendit({
-  secretKey: process.env.XENDIT_SECRET_KEY
 });
 
 // Get exchange rate
@@ -412,16 +406,30 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           description: `Withdrawal for user ${userId}`
         };
 
-        console.log('Sending Xendit payout (direct format):', JSON.stringify({
-          idempotencyKey: `withdrawal-${withdrawal.id}`,
-          ...payoutData
-        }, null, 2));
+        console.log('🚀 Sending Xendit payout via raw HTTP:', JSON.stringify(payoutData, null, 2));
 
-        // Call Xendit SDK v7.0.0 - send data directly without wrapper
-        const xenditPayout = await xenditClient.Payout.createPayout({
-          idempotencyKey: `withdrawal-${withdrawal.id}`,
-          ...payoutData
+        // Call Xendit Payout API v2 directly (SDK v7.0.0 is broken)
+        // Using Basic Auth: base64(XENDIT_SECRET_KEY:)
+        const xenditSecretKey = process.env.XENDIT_SECRET_KEY;
+        const authHeader = 'Basic ' + Buffer.from(xenditSecretKey + ':').toString('base64');
+        
+        const xenditResponse = await fetch('https://api.xendit.co/v2/payouts', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+            'Idempotency-key': `withdrawal-${withdrawal.id}`
+          },
+          body: JSON.stringify(payoutData)
         });
+
+        if (!xenditResponse.ok) {
+          const errorData = await xenditResponse.json();
+          throw new Error(`Xendit API error: ${JSON.stringify(errorData)}`);
+        }
+
+        const xenditPayout = await xenditResponse.json();
+        console.log('✅ Xendit payout created:', xenditPayout);
 
         // Update withdrawal with Xendit payout details
         await client.query(`
