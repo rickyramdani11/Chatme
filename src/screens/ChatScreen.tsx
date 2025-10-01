@@ -86,6 +86,7 @@ export default function ChatScreen() {
   const [activeGiftTab, setActiveGiftTab] = useState<'all' | 'special'>('all');
   const [sendToAllUsers, setSendToAllUsers] = useState(false);
   const [isSendingGift, setIsSendingGift] = useState(false);
+  const isSendingGiftRef = useRef(false);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
@@ -4506,8 +4507,8 @@ export default function ChatScreen() {
   // Function to send gift to room
   const handleGiftSend = async (gift: any, recipientUsername?: string) => {
     try {
-      // Prevent duplicate sends
-      if (isSendingGift) {
+      // Atomic check to prevent duplicate sends (ref-based for race condition protection)
+      if (isSendingGiftRef.current) {
         console.log('Gift send already in progress, ignoring duplicate request');
         return;
       }
@@ -4518,6 +4519,8 @@ export default function ChatScreen() {
         return;
       }
 
+      // Set both ref (atomic) and state (for UI)
+      isSendingGiftRef.current = true;
       setIsSendingGift(true);
 
       // Check balance first
@@ -4537,6 +4540,7 @@ export default function ChatScreen() {
           const balanceData = await response.json();
 
           if (!balanceData.canAfford) {
+            isSendingGiftRef.current = false;
             setIsSendingGift(false);
             Alert.alert(
               'Saldo Tidak Cukup',
@@ -4566,7 +4570,10 @@ export default function ChatScreen() {
               { 
                 text: 'Batal', 
                 style: 'cancel',
-                onPress: () => setIsSendingGift(false)
+                onPress: () => {
+                  isSendingGiftRef.current = false;
+                  setIsSendingGift(false);
+                }
               },
               {
                 text: 'Kirim',
@@ -4628,37 +4635,50 @@ export default function ChatScreen() {
                         setShowUserGiftPicker(false);
                         setSelectedGiftForUser(null);
                       }
+                      isSendingGiftRef.current = false;
                       setIsSendingGift(false);
 
                     } else {
                       const errorData = await purchaseResponse.json();
+                      isSendingGiftRef.current = false;
                       setIsSendingGift(false);
                       Alert.alert('Error', errorData.error || 'Gagal mengirim gift');
                     }
 
                   } catch (purchaseError) {
                     console.error('Error purchasing gift:', purchaseError);
+                    isSendingGiftRef.current = false;
                     setIsSendingGift(false);
                     Alert.alert('Error', 'Gagal memproses pembelian gift');
                   }
                 }
               }
-            ]
+            ],
+            {
+              cancelable: true,
+              onDismiss: () => {
+                isSendingGiftRef.current = false;
+                setIsSendingGift(false);
+              }
+            }
           );
 
         } else {
+          isSendingGiftRef.current = false;
           setIsSendingGift(false);
           Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
         }
 
       } catch (balanceError) {
         console.error('Error checking balance:', balanceError);
+        isSendingGiftRef.current = false;
         setIsSendingGift(false);
         Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
       }
 
     } catch (error) {
       console.error('Error sending gift:', error);
+      isSendingGiftRef.current = false;
       setIsSendingGift(false);
       Alert.alert('Error', 'Failed to send gift. Please try again.');
     }
