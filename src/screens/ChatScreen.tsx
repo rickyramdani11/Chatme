@@ -116,6 +116,7 @@ export default function ChatScreen() {
   const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const hasAutoFocusedRef = useRef(false); // Track if we've already auto-focused a tab
 
   // Get user and token before any refs that depend on them
   const { user, token } = useAuth();
@@ -1495,10 +1496,11 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated from RoomScreen or ProfileScreen, focus on that specific room/chat
-    // Only run this on initial load, not when chatTabs changes
-    if (roomId && autoFocusTab && chatTabs.length > 0 && activeTab === 0) {
+    // Only run this ONCE on initial load using ref to prevent re-renders
+    if (roomId && autoFocusTab && chatTabs.length > 0 && !hasAutoFocusedRef.current) {
       const tabIndex = chatTabs.findIndex(tab => tab.id === roomId);
       if (tabIndex !== -1) {
+        hasAutoFocusedRef.current = true; // Mark as focused to prevent future runs
         setActiveTab(tabIndex);
         // Scroll to the active tab
         if (scrollViewRef.current) {
