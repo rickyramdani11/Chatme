@@ -368,8 +368,6 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
 
       // Create Xendit payout
       try {
-        const { Payout } = xenditClient;
-        
         // Map account to Xendit channel code (all uppercase for e-wallets, ID_ prefix for banks)
         let channelCode;
         if (linkedAccount.account_type === 'bank') {
@@ -401,25 +399,25 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           }
         }
         
-        // Xendit requires snake_case payload
-        const payoutData = {
+        // Xendit requires snake_case payload (SDK v7.0.0)
+        const payoutRequest = {
           reference_id: `WD-${withdrawal.id}-${Date.now()}`,
           channel_code: channelCode,
           channel_properties: {
             account_holder_name: linkedAccount.holder_name || linkedAccount.account_name,
-            account_number: linkedAccount.account_number // Phone number for e-wallet, account number for bank
+            account_number: linkedAccount.account_number
           },
-          amount: Math.floor(netAmountIdr), // Must be integer
+          amount: Math.floor(netAmountIdr),
           currency: 'IDR',
           description: `Withdrawal for user ${userId}`,
           type: 'DIRECT_DISBURSEMENT'
         };
 
-        // Call Xendit with idempotency key
-        const xenditPayout = await Payout.createPayout({
-          idempotencyKey: `withdrawal-${withdrawal.id}`,
-          data: payoutData
-        });
+        // Call Xendit with idempotency key (SDK v7.0.0 format)
+        const xenditPayout = await xenditClient.Payout.createPayout()
+          .idempotencyKey(`withdrawal-${withdrawal.id}`)
+          .createPayoutRequest(payoutRequest)
+          .execute();
 
         // Update withdrawal with Xendit payout details
         await client.query(`
@@ -454,13 +452,13 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
       } catch (xenditError) {
         console.error('Xendit payout error:', xenditError);
         
-        // Update withdrawal with error details
+        // Update withdrawal with error details (use 'rejected' status, not 'failed')
         await client.query(`
           UPDATE withdrawal_requests 
           SET status = $1, notes = $2, xendit_response = $3
           WHERE id = $4
         `, [
-          'failed',
+          'rejected',
           `Xendit error: ${xenditError.message}`,
           JSON.stringify({ error: xenditError.message }),
           withdrawal.id
