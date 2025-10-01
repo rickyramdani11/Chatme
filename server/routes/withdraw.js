@@ -399,8 +399,8 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           }
         }
         
-        // Xendit requires snake_case payload (SDK v7.0.0)
-        const payoutRequest = {
+        // Xendit Payout API v2 format (snake_case required fields only)
+        const payoutData = {
           reference_id: `WD-${withdrawal.id}-${Date.now()}`,
           channel_code: channelCode,
           channel_properties: {
@@ -409,15 +409,16 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           },
           amount: Math.floor(netAmountIdr),
           currency: 'IDR',
-          description: `Withdrawal for user ${userId}`,
-          type: 'DIRECT_DISBURSEMENT'
+          description: `Withdrawal for user ${userId}`
         };
 
-        // Call Xendit with idempotency key (SDK v7.0.0 format)
-        const xenditPayout = await xenditClient.Payout.createPayout()
-          .idempotencyKey(`withdrawal-${withdrawal.id}`)
-          .createPayoutRequest(payoutRequest)
-          .execute();
+        console.log('Sending Xendit payout:', JSON.stringify({ idempotencyKey: `withdrawal-${withdrawal.id}`, data: payoutData }, null, 2));
+
+        // Call Xendit with idempotency key
+        const xenditPayout = await xenditClient.Payout.createPayout({
+          idempotencyKey: `withdrawal-${withdrawal.id}`,
+          data: payoutData
+        });
 
         // Update withdrawal with Xendit payout details
         await client.query(`
