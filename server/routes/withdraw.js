@@ -2,11 +2,17 @@
 const express = require('express');
 const { Pool } = require('pg');
 const { authenticateToken } = require('./auth');
+const { Xendit } = require('xendit-node');
 
 const router = express.Router();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+// Initialize Xendit client
+const xenditClient = new Xendit({
+  secretKey: process.env.XENDIT_SECRET_KEY
 });
 
 // Get exchange rate
@@ -235,13 +241,16 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
         status VARCHAR(20) DEFAULT 'pending',
         fee_percentage DECIMAL(5,2) DEFAULT 3.0,
         net_amount_idr DECIMAL(12,2) NOT NULL,
+        payout_id VARCHAR(255),
+        xendit_status VARCHAR(50),
+        xendit_response JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         processed_at TIMESTAMP,
         notes TEXT
       )
     `);
 
-    // Idempotent FK migration: fix existing wrong FKs
+    // Idempotent migrations
     await pool.query(`
       DO $$ 
       BEGIN
@@ -279,6 +288,28 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           ALTER TABLE withdrawal_requests
             ADD CONSTRAINT withdrawal_requests_user_id_fkey
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+
+        -- Add Xendit columns if not exist
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'withdrawal_requests' AND column_name = 'payout_id'
+        ) THEN
+          ALTER TABLE withdrawal_requests ADD COLUMN payout_id VARCHAR(255);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'withdrawal_requests' AND column_name = 'xendit_status'
+        ) THEN
+          ALTER TABLE withdrawal_requests ADD COLUMN xendit_status VARCHAR(50);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'withdrawal_requests' AND column_name = 'xendit_response'
+        ) THEN
+          ALTER TABLE withdrawal_requests ADD COLUMN xendit_response JSONB;
         END IF;
       END $$;
     `);
@@ -333,22 +364,115 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
         netAmountIdr
       ]);
 
-      await client.query('COMMIT');
-
       const withdrawal = withdrawalResult.rows[0];
 
-      res.json({
-        success: true,
-        message: 'Withdrawal request submitted successfully',
-        withdrawal: {
-          id: withdrawal.id.toString(),
-          amountUsd: withdrawal.amount_usd,
-          amountCoins: withdrawal.amount_coins,
-          netAmountIdr: withdrawal.net_amount_idr,
-          status: withdrawal.status,
-          createdAt: withdrawal.created_at
+      // Create Xendit payout
+      try {
+        const { Payout } = xenditClient;
+        
+        // Map account to Xendit channel code (all uppercase for e-wallets, ID_ prefix for banks)
+        let channelCode;
+        if (linkedAccount.account_type === 'bank') {
+          // Bank mapping based on account_name
+          const bankMapping = {
+            'BCA': 'ID_BCA',
+            'MANDIRI': 'ID_MANDIRI',
+            'BNI': 'ID_BNI',
+            'BRI': 'ID_BRI',
+            'CIMB': 'ID_CIMB',
+            'PERMATA': 'ID_PERMATA'
+          };
+          channelCode = bankMapping[linkedAccount.account_name?.toUpperCase()];
+          if (!channelCode) {
+            throw new Error(`Unsupported bank: ${linkedAccount.account_name}`);
+          }
+        } else {
+          // E-wallet mapping (uppercase only, no ID_ prefix)
+          const ewalletMapping = {
+            'GOPAY': 'GOPAY',
+            'OVO': 'OVO',
+            'DANA': 'DANA',
+            'LINKAJA': 'LINKAJA',
+            'SHOPEEPAY': 'SHOPEEPAY'
+          };
+          channelCode = ewalletMapping[linkedAccount.account_name?.toUpperCase()];
+          if (!channelCode) {
+            throw new Error(`Unsupported e-wallet: ${linkedAccount.account_name}`);
+          }
         }
-      });
+        
+        // Xendit requires snake_case payload
+        const payoutData = {
+          reference_id: `WD-${withdrawal.id}-${Date.now()}`,
+          channel_code: channelCode,
+          channel_properties: {
+            account_holder_name: linkedAccount.holder_name || linkedAccount.account_name,
+            account_number: linkedAccount.account_number // Phone number for e-wallet, account number for bank
+          },
+          amount: Math.floor(netAmountIdr), // Must be integer
+          currency: 'IDR',
+          description: `Withdrawal for user ${userId}`,
+          type: 'DIRECT_DISBURSEMENT'
+        };
+
+        // Call Xendit with idempotency key
+        const xenditPayout = await Payout.createPayout({
+          idempotencyKey: `withdrawal-${withdrawal.id}`,
+          data: payoutData
+        });
+
+        // Update withdrawal with Xendit payout details
+        await client.query(`
+          UPDATE withdrawal_requests 
+          SET payout_id = $1, xendit_status = $2, xendit_response = $3, status = $4
+          WHERE id = $5
+        `, [
+          xenditPayout.id,
+          xenditPayout.status,
+          JSON.stringify(xenditPayout),
+          'processing',
+          withdrawal.id
+        ]);
+
+        await client.query('COMMIT');
+
+        res.json({
+          success: true,
+          message: 'Withdrawal request submitted to Xendit successfully',
+          withdrawal: {
+            id: withdrawal.id.toString(),
+            amountUsd: withdrawal.amount_usd,
+            amountCoins: withdrawal.amount_coins,
+            netAmountIdr: withdrawal.net_amount_idr,
+            status: 'processing',
+            xenditPayoutId: xenditPayout.id,
+            xenditStatus: xenditPayout.status,
+            createdAt: withdrawal.created_at
+          }
+        });
+
+      } catch (xenditError) {
+        console.error('Xendit payout error:', xenditError);
+        
+        // Update withdrawal with error details
+        await client.query(`
+          UPDATE withdrawal_requests 
+          SET status = $1, notes = $2, xendit_response = $3
+          WHERE id = $4
+        `, [
+          'failed',
+          `Xendit error: ${xenditError.message}`,
+          JSON.stringify({ error: xenditError.message }),
+          withdrawal.id
+        ]);
+
+        await client.query('COMMIT');
+
+        return res.status(500).json({ 
+          error: 'Failed to process payout with Xendit',
+          details: xenditError.message
+        });
+      }
 
     } catch (error) {
       await client.query('ROLLBACK');

@@ -15,6 +15,18 @@ Preferred communication style: Simple, everyday language.
 - Improved DELETE endpoint to remove both image and animation files (was only deleting animation)
 - Fixed gift duplicate display issue with 2-second deduplication window in ChatScreen.tsx
 
+**October 1, 2025** - Integrated Xendit Payout API for withdrawal system:
+- **Xendit SDK integrated**: All withdrawal requests now automatically create real payouts in Xendit dashboard
+- **Database schema updated**: Added payout_id, xendit_status, xendit_response columns with idempotent migrations
+- **Correct API payload**: Uses snake_case (reference_id, channel_code, channel_properties) as required by Xendit
+- **Smart channel mapping**: Bank codes (ID_MANDIRI, ID_BCA, etc.) and e-wallet codes (GOPAY, DANA, OVO, etc.)
+- **Idempotency protection**: Withdrawal ID used as idempotency key to prevent duplicate payouts
+- **Strict validation**: Throws error for unsupported banks/e-wallets (no risky fallback defaults)
+- **E-wallet support**: Properly sends phone numbers for GOPAY, DANA, OVO, LINKAJA, SHOPEEPAY
+- **Bank support**: Sends account numbers for MANDIRI, BCA, BNI, BRI, CIMB, PERMATA
+- **Transaction flow**: Balance deduction → Create payout in Xendit → Save payout_id → Commit (all atomic)
+- **Error handling**: Failed Xendit calls saved to DB with error details for admin review
+
 **October 1, 2025** - Fixed withdrawal system errors (null value & foreign key constraint):
 - **Issue 1 (null value)**: Added amount_idr column to INSERT statement and CREATE TABLE schema
 - **Issue 2 (FK constraint)**: Fixed foreign key pointing to wrong table (user_payout_accounts → user_linked_accounts)
