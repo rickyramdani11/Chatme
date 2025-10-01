@@ -2168,8 +2168,9 @@ io.on('connection', (socket) => {
           io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
 
           // Only broadcast leave message for public rooms (not private chats or support chats)
-          // and only if this was the last connection for this user
-          if (!isPrivateChat && !isSupportChat) {
+          // and ONLY if user has NO active connections anywhere (not just in this room)
+          // This prevents "has left" message when user just switches apps or minimizes
+          if (!isPrivateChat && !isSupportChat && !hasAnyActiveConnections) {
             // Check if we've already broadcast a leave message for this user in this room recently (within 5 seconds)
             const leaveKey = `${userInfo.userId}_${userInfo.roomId}`;
             const lastBroadcastTime = recentLeaveBroadcasts.get(leaveKey);
@@ -2205,6 +2206,8 @@ io.on('connection', (socket) => {
               console.log(`💬 Private chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
             } else if (isSupportChat) {
               console.log(`🆘 Support chat disconnect - no broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+            } else if (hasAnyActiveConnections) {
+              console.log(`📱 User ${userInfo.username} still has active app connections - no leave broadcast (app backgrounded/switched)`);
             }
           }
         }
