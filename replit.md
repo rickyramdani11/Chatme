@@ -15,11 +15,14 @@ Preferred communication style: Simple, everyday language.
 - Improved DELETE endpoint to remove both image and animation files (was only deleting animation)
 - Fixed gift duplicate display issue with 2-second deduplication window in ChatScreen.tsx
 
-**October 1, 2025** - Fixed "Failed to process withdrawal" error:
-- Database schema mismatch resolved: added 5 missing columns to withdrawal_requests table (account_type, account_details, fee_percentage, net_amount_idr, notes)
-- ALTER TABLE added missing columns with proper defaults (fee_percentage defaults to 3.0)
-- Withdrawal processing now works correctly with complete schema (17 columns total)
-- Verified updated_at column exists in user_gift_earnings_balance for balance tracking
+**October 1, 2025** - Fixed withdrawal system errors (null value & foreign key constraint):
+- **Issue 1 (null value)**: Added amount_idr column to INSERT statement and CREATE TABLE schema
+- **Issue 2 (FK constraint)**: Fixed foreign key pointing to wrong table (user_payout_accounts → user_linked_accounts)
+- **Issue 3 (transaction safety)**: Implemented proper transaction handling with dedicated client (pool.connect() instead of pool.query('BEGIN'))
+- **Issue 4 (concurrency)**: Atomic balance deduction with WHERE balance >= amount prevents race conditions and double-spend
+- **Issue 5 (schema drift)**: Added idempotent FK migration that auto-fixes existing databases (drops wrong FK, adds correct FK to user_linked_accounts)
+- Improved error handling: 400 status for insufficient balance (not 500)
+- Withdrawal flow now production-safe with ACID guarantees
 
 # System Architecture
 
