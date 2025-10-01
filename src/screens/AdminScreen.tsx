@@ -328,7 +328,7 @@ export default function AdminScreen({ navigation }: any) {
   const handleFileUpload = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['image/*', 'application/json'],
+        type: ['image/*', 'video/*', 'application/json'],
         copyToCacheDirectory: true,
       });
 
