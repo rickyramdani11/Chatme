@@ -1699,130 +1699,127 @@ export default function AdminScreen({ navigation }: any) {
 
       case 'gift':
         return (
-          <FlatList
-            data={gifts}
-            renderItem={renderGiftGridItem}
-            keyExtractor={(item) => item.id}
-            numColumns={3}
-            contentContainerStyle={styles.giftGridListContainer}
-            showsVerticalScrollIndicator={false}
-            columnWrapperStyle={styles.giftGridRow}
-            ListHeaderComponent={
-              <View style={styles.giftFormContainer}>
-                <View style={styles.giftFormCard}>
-                  <Text style={styles.formTitle}>Add New Gift</Text>
+          <ScrollView style={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.giftFormCard}>
+              <Text style={styles.formTitle}>Add New Gift</Text>
 
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Nama Gift</Text>
-                    <TextInput
-                      style={styles.formInput}
-                      value={itemName}
-                      onChangeText={setItemName}
-                      placeholder="Masukkan nama gift..."
-                      placeholderTextColor="#999"
-                    />
-                  </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Nama Gift</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={itemName}
+                  onChangeText={setItemName}
+                  placeholder="Masukkan nama gift..."
+                  placeholderTextColor="#999"
+                />
+              </View>
 
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Harga Gift</Text>
-                    <TextInput
-                      style={styles.formInput}
-                      value={itemPrice}
-                      onChangeText={setItemPrice}
-                      placeholder="Masukkan harga dalam credits..."
-                      placeholderTextColor="#999"
-                      keyboardType="numeric"
-                    />
-                  </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Harga Gift</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={itemPrice}
+                  onChangeText={setItemPrice}
+                  placeholder="Masukkan harga dalam credits..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
 
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Upload Gambar Gift (PNG)</Text>
-                    <TouchableOpacity
-                      style={styles.uploadFormButton}
-                      onPress={handleGiftImageUpload}
-                    >
-                      <Ionicons name="image-outline" size={24} color="#FF6B35" />
-                      <Text style={styles.uploadFormText}>
-                        {uploadedGiftImage ? uploadedGiftImage.name : 'Pilih Gambar PNG'}
-                      </Text>
-                    </TouchableOpacity>
-                    {uploadedGiftImage && (
-                      <View style={styles.formPreviewContainer}>
-                        {uploadedGiftImage.type?.startsWith('video/') ? (
-                          <View style={styles.videoPreviewContainer}>
-                            <Ionicons name="videocam" size={40} color="#FF6B35" />
-                            <Text style={styles.videoPreviewText}>
-                              Video: {uploadedGiftImage.name}
-                            </Text>
-                            {uploadedGiftImage.duration && (
-                              <Text style={styles.videoDurationText}>
-                                Duration: {Math.round(uploadedGiftImage.duration / 1000)}s
-                              </Text>
-                            )}
-                          </View>
-                        ) : (
-                          <Image source={{ uri: uploadedGiftImage.uri }} style={styles.formPreviewImage} />
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Upload Gambar Gift (PNG)</Text>
+                <TouchableOpacity
+                  style={styles.uploadFormButton}
+                  onPress={handleGiftImageUpload}
+                >
+                  <Ionicons name="image-outline" size={24} color="#FF6B35" />
+                  <Text style={styles.uploadFormText}>
+                    {uploadedGiftImage ? uploadedGiftImage.name : 'Pilih Gambar PNG'}
+                  </Text>
+                </TouchableOpacity>
+                {uploadedGiftImage && (
+                  <View style={styles.formPreviewContainer}>
+                    {uploadedGiftImage.type?.startsWith('video/') ? (
+                      <View style={styles.videoPreviewContainer}>
+                        <Ionicons name="videocam" size={40} color="#FF6B35" />
+                        <Text style={styles.videoPreviewText}>
+                          Video: {uploadedGiftImage.name}
+                        </Text>
+                        {uploadedGiftImage.duration && (
+                          <Text style={styles.videoDurationText}>
+                            Duration: {Math.round(uploadedGiftImage.duration / 1000)}s
+                          </Text>
                         )}
-                        <TouchableOpacity
-                          style={styles.formRemoveButton}
-                          onPress={() => setUploadedGiftImage(null)}
-                        >
-                          <Ionicons name="close-circle" size={20} color="#F44336" />
-                        </TouchableOpacity>
                       </View>
-                    )}
-                  </View>
-
-                  <View style={styles.formGroup}>
-                    <Text style={styles.formLabel}>Upload Gift Animasi (MP4/GIF/Lottie JSON)</Text>
-                    <TouchableOpacity
-                      style={styles.uploadFormButton}
-                      onPress={handleFileUpload}
-                    >
-                      <Ionicons name="play-circle-outline" size={24} color="#FF6B35" />
-                      <Text style={styles.uploadFormText}>
-                        {selectedFile ? selectedFile.name : 'Pilih File Animasi'}
-                      </Text>
-                    </TouchableOpacity>
-                    {selectedFile && (
-                      <View style={styles.formFileInfo}>
-                        <Text style={styles.formFileName}>{selectedFile.name}</Text>
-                        <TouchableOpacity
-                          style={styles.formRemoveButton}
-                          onPress={() => setSelectedFile(null)}
-                        >
-                          <Ionicons name="close-circle" size={20} color="#F44336" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.submitButton}
-                    onPress={handleAddGift}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <ActivityIndicator size="small" color="#fff" />
                     ) : (
-                      <Text style={styles.submitButtonText}>Submit Gift</Text>
+                      <Image source={{ uri: uploadedGiftImage.uri }} style={styles.formPreviewImage} />
                     )}
-                  </TouchableOpacity>
-                </View>
+                    <TouchableOpacity
+                      style={styles.formRemoveButton}
+                      onPress={() => setUploadedGiftImage(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#F44336" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
 
-                <View style={styles.giftListContainer}>
-                  <Text style={styles.giftListTitle}>Gift yang Sudah Ditambahkan ({gifts.length})</Text>
-                  <Text style={styles.giftHelpText}>Tekan lama gift untuk mengedit</Text>
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Upload Gift Animasi (MP4/GIF/Lottie JSON)</Text>
+                <TouchableOpacity
+                  style={styles.uploadFormButton}
+                  onPress={handleFileUpload}
+                >
+                  <Ionicons name="play-circle-outline" size={24} color="#FF6B35" />
+                  <Text style={styles.uploadFormText}>
+                    {selectedFile ? selectedFile.name : 'Pilih File Animasi'}
+                  </Text>
+                </TouchableOpacity>
+                {selectedFile && (
+                  <View style={styles.formFileInfo}>
+                    <Text style={styles.formFileName}>{selectedFile.name}</Text>
+                    <TouchableOpacity
+                      style={styles.formRemoveButton}
+                      onPress={() => setSelectedFile(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#F44336" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleAddGift}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Gift</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.giftListContainer}>
+              <Text style={styles.giftListTitle}>Gift yang Sudah Ditambahkan ({gifts.length})</Text>
+              <Text style={styles.giftHelpText}>Tekan lama gift untuk mengedit</Text>
+              {gifts.length > 0 ? (
+                <View style={styles.giftGridContainer}>
+                  {gifts.map((item) => (
+                    <View key={item.id}>
+                      {renderGiftGridItem({ item, index: 0 })}
+                    </View>
+                  ))}
                 </View>
-              </View>
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyGiftList}>
-                <Ionicons name="gift-outline" size={40} color="#ccc" />
-                <Text style={styles.emptyGiftText}>Belum ada gift yang ditambahkan</Text>
-              </View>
-            }
-          />
+              ) : (
+                <View style={styles.emptyGiftList}>
+                  <Ionicons name="gift-outline" size={40} color="#ccc" />
+                  <Text style={styles.emptyGiftText}>Belum ada gift yang ditambahkan</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
         );
 
       case 'users':
@@ -4495,6 +4492,12 @@ const styles = StyleSheet.create({
   },
 
   // Gift Grid Styles
+  giftGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+  },
   giftGridListContainer: {
     paddingHorizontal: 5,
     paddingVertical: 10,
