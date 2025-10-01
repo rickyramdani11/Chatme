@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
-import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL, SOCKET_URL } from '../utils/apiConfig';
+import io, { Socket } from 'socket.io-client';
 
 interface ChatHistoryItem {
   id: string;
@@ -40,6 +41,7 @@ export default function ChatHistoryScreen() {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
 
   const fetchChatHistory = async () => {
     try {
@@ -70,6 +72,61 @@ export default function ChatHistoryScreen() {
   useEffect(() => {
     fetchChatHistory();
   }, []);
+
+  // Socket connection for real-time updates
+  useEffect(() => {
+    if (!token || !user) return;
+
+    // Connect to socket
+    const socket = io(SOCKET_URL, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
+
+    socketRef.current = socket;
+
+    // Listen for new private messages
+    socket.on('new-message', (message: any) => {
+      // Only update if it's a private chat and not from current user
+      if (message.roomId?.startsWith('private_') && message.sender !== user.username) {
+        setChatHistory(prevHistory => {
+          const chatIndex = prevHistory.findIndex(chat => chat.id === message.roomId);
+          
+          if (chatIndex !== -1) {
+            const updatedHistory = [...prevHistory];
+            const chat = { ...updatedHistory[chatIndex] };
+            
+            // Increment unread count
+            chat.unreadCount = (chat.unreadCount || 0) + 1;
+            // Update last message
+            chat.lastMessage = message.content;
+            chat.lastMessageTime = message.timestamp;
+            
+            // Move to top of list
+            updatedHistory.splice(chatIndex, 1);
+            updatedHistory.unshift(chat);
+            
+            return updatedHistory;
+          }
+          
+          return prevHistory;
+        });
+      }
+    });
+
+    socket.on('connect', () => {
+      console.log('ChatHistory: Socket connected');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('ChatHistory: Socket disconnected');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socket.disconnect();
+    };
+  }, [token, user]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -120,6 +177,15 @@ export default function ChatHistoryScreen() {
   };
 
   const handleChatPress = (chat: ChatHistoryItem) => {
+    // Clear unread count for this chat
+    if (chat.unreadCount > 0) {
+      setChatHistory(prevHistory => 
+        prevHistory.map(item => 
+          item.id === chat.id ? { ...item, unreadCount: 0 } : item
+        )
+      );
+    }
+
     if (chat.type === 'private') {
       // Ensure we have proper targetUser data for private chat
       const targetUser = chat.targetUser || {
