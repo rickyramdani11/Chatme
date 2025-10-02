@@ -65,10 +65,10 @@ router.post('/private', authenticateToken, async (req, res) => {
     }
 
     const chatResult = await pool.query(`
-      INSERT INTO private_chats (id, participant1_id, participant1_username, participant2_id, participant2_username, initiated_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO private_chats (id, created_by, participant1_id, participant1_username, participant2_id, participant2_username, initiated_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
-    `, [chatId, userIds[0], participant1Username, userIds[1], participant2Username, currentUserId]);
+    `, [chatId, req.user.username, userIds[0], participant1Username, userIds[1], participant2Username, currentUserId]);
 
     // Insert participants with correct ID-username mapping
     await pool.query(`
