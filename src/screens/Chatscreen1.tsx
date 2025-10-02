@@ -4218,7 +4218,7 @@ export default function ChatScreen() {
           ) : (
             // Regular Room Header
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, { color: '#d2691e' }]}>{chatTabs[activeTab]?.title}</Text>
+              <Text style={[styles.headerTitle, { color: '#ffffff' }]}>{chatTabs[activeTab]?.title}</Text>
               <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
                 {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
                 {!isSocketConnected && ' • Reconnecting...'}
@@ -6170,7 +6170,7 @@ const styles = StyleSheet.create({
   },
   // roleBadgeText is defined above
   actionText: {
-    fontSize: 13,
+    fontSize: 15,
     color: '#666',
     fontWeight: '500',
   },

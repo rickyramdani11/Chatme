@@ -18,13 +18,14 @@ Preferred communication style: Simple, everyday language.
 - **Result**: All messages now display level badge as icon with number, badge size matches username height, room info perfectly left-aligned with usernames
 
 **October 2, 2025** - Chat UI improvements and header redesign:
-- **Header redesign**: Moved header elements down (paddingTop: 25px), removed calendar and grid icons for cleaner interface
+- **Header redesign**: Moved header elements down (paddingTop: 25px), removed calendar and grid icons for cleaner interface. Room name in header is WHITE (#ffffff) to differentiate from role colors and info room
 - **Username size**: Increased senderName fontSize from 14 to 15 for better readability
-- **Color consistency**: Room names now use dark orange (#d2691e) consistently across header, room info messages, and join/leave messages
+- **"has entered" font**: Changed fontSize from 13 to 15 to match username size for visual consistency
+- **Color consistency**: Room names in info/join messages use dark orange (#d2691e), header uses white (#ffffff) for clear distinction
 - **Room info NO badge**: Room info messages show only "RoomName: message" without level badge
 - **Perfect alignment**: ALL message types use messagesContainer paddingHorizontal: 12 for consistent left alignment
 - **Tighter spacing**: Reduced all margins - messageContainer (marginBottom: 4), messageRow (marginVertical: 2), roomInfo (marginBottom: 2), joinLeave (marginVertical: 2, paddingVertical: 4)
-- **Result**: Cleaner chat UI with compact spacing, perfect left alignment, consistent room name colors
+- **Result**: Cleaner chat UI with compact spacing, perfect left alignment, consistent font sizes, clear color differentiation between header and message content
 
 **October 2, 2025** - Migrated all features to Chatscreen1.tsx (bug-free version):
 - **Migration completed**: Moved gift modal, participant modal, and message styling from buggy ChatScreen.tsx to working Chatscreen1.tsx
