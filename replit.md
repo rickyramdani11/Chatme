@@ -13,9 +13,9 @@ Preferred communication style: Simple, everyday language.
 - **Badge implementation**: ImageBackground 22x24px showing lvl_ic.png with white level number overlaid (fontSize: 12, fontWeight: bold)
 - **Message types updated**: Regular messages, command messages, /me commands, gift messages, support messages all use ImageBackground badge
 - **Proper alignment**: flexDirection:'row' with alignItems:'center' ensures perfect vertical alignment of badge with username (fontSize 15)
-- **Room info alignment**: paddingHorizontal: 12 + marginLeft: 0 override (removed default 6px) to align room names perfectly with usernames
+- **Room info structure**: Uses same View-based row structure as regular messages (without badge) for perfect alignment - Text components directly in flexDirection:'row' container
 - **Spacing**: marginHorizontal: 3 on badge for proper spacing between username and level
-- **Result**: All messages now display level badge as icon with number, badge size matches username height, room info perfectly aligned left
+- **Result**: All messages now display level badge as icon with number, badge size matches username height, room info perfectly aligned with usernames
 
 **October 2, 2025** - Chat UI improvements and header redesign:
 - **Header redesign**: Moved header elements down (paddingTop: 25px), removed calendar and grid icons for cleaner interface

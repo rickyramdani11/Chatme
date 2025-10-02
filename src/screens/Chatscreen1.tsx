@@ -3299,7 +3299,7 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle room info messages - style like regular messages with room name prefix
+    // Handle room info messages - same structure as regular messages but without badge
     if (item.type === 'room_info') {
       return (
         <TouchableOpacity 
@@ -3307,14 +3307,12 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={styles.messageContentRow}>
-              <Text style={[styles.messageText, { marginLeft: 0 }]}>
-                <Text style={[styles.senderName, { color: '#d2691e' }]}>
-                  {item.sender}:
-                </Text>
-                <Text style={[styles.messageContent, { color: '#333' }]}>
-                  {' '}{item.content}
-                </Text>
+            <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+              <Text style={[styles.senderName, { color: '#d2691e' }]}>
+                {item.sender}:
+              </Text>
+              <Text style={[styles.messageContent, { color: '#333', flex: 1 }]}>
+                {' '}{item.content}
               </Text>
             </View>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
