@@ -3308,7 +3308,7 @@ export default function ChatScreen() {
         >
           <View style={styles.messageRow}>
             <View style={styles.messageContentRow}>
-              <Text style={styles.messageText}>
+              <Text style={[styles.messageText, { marginLeft: 0 }]}>
                 <Text style={[styles.senderName, { color: '#d2691e' }]}>
                   {item.sender}:
                 </Text>
