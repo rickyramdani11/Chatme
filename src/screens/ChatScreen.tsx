@@ -604,6 +604,23 @@ export default function ChatScreen() {
 
       // Add the new tab and set it as active
       setChatTabs(prevTabs => {
+        // ✅ DUPLICATE CHECK - Don't add if room already exists!
+        const existingTabIndex = prevTabs.findIndex(tab => tab.id === roomId);
+        if (existingTabIndex !== -1) {
+          console.log('⛔ setChatTabs BLOCKED - room already in tabs:', roomId);
+          // Just activate existing tab
+          setActiveTab(existingTabIndex);
+          setTimeout(() => {
+            if (scrollViewRef.current) {
+              scrollViewRef.current.scrollTo({
+                x: existingTabIndex * width,
+                animated: true
+              });
+            }
+          }, 100);
+          return prevTabs; // Return unchanged tabs
+        }
+        
         const newTabs = [...prevTabs, newTab];
         
         // UPDATE REF IMMEDIATELY to prevent duplicate joins!
@@ -623,6 +640,7 @@ export default function ChatScreen() {
           }
         }, 100);
 
+        console.log('✅ setChatTabs - Added new tab:', roomId);
         return newTabs;
       });
 
