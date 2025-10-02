@@ -542,37 +542,40 @@ export default function ChatScreen() {
           // Room description message
           roomInfoMessages.push({
             id: `room_info_desc_${roomId}`,
-            sender: roomName,
+            sender: 'System',
             content: roomDescription || `Welcome to ${roomName} official chatroom. Here you can chat and interact with other users.`,
             timestamp: new Date(currentTime.getTime() - 3000), // 3 seconds earlier
             roomId: roomId,
             role: 'system' as const,
             level: 1,
-            type: 'room_info' as const
+            type: 'system' as const,
+            commandType: 'room-info' as const
           });
 
           // Managed by message
           roomInfoMessages.push({
             id: `room_info_managed_${roomId}`,
-            sender: roomName,
+            sender: 'System',
             content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
             timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
             role: 'system' as const,
             level: 1,
-            type: 'room_info' as const
+            type: 'system' as const,
+            commandType: 'room-info' as const
           });
 
           // Currently in the room message (will be updated with actual participants)
           roomInfoMessages.push({
             id: `room_info_current_${roomId}`,
-            sender: roomName,
+            sender: 'System',
             content: `Currently in the room: Loading participants...`,
             timestamp: new Date(currentTime.getTime() - 1000), // 1 second earlier
             roomId: roomId,
             role: 'system' as const,
             level: 1,
-            type: 'room_info' as const
+            type: 'system' as const,
+            commandType: 'room-info' as const
           });
         }
 
@@ -593,23 +596,6 @@ export default function ChatScreen() {
 
       // Add the new tab and set it as active
       setChatTabs(prevTabs => {
-        // ✅ DUPLICATE CHECK - Don't add if room already exists!
-        const existingTabIndex = prevTabs.findIndex(tab => tab.id === roomId);
-        if (existingTabIndex !== -1) {
-          console.log('⛔ setChatTabs BLOCKED - room already in tabs:', roomId);
-          // Just activate existing tab
-          setActiveTab(existingTabIndex);
-          setTimeout(() => {
-            if (scrollViewRef.current) {
-              scrollViewRef.current.scrollTo({
-                x: existingTabIndex * width,
-                animated: true
-              });
-            }
-          }, 100);
-          return prevTabs; // Return unchanged tabs
-        }
-        
         const newTabs = [...prevTabs, newTab];
         
         // UPDATE REF IMMEDIATELY to prevent duplicate joins!
