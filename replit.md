@@ -13,7 +13,10 @@ Preferred communication style: Simple, everyday language.
 - **Gift modal**: Atomic ref-based duplicate send prevention (isSendingGiftRef), category tabs, send-to-all toggle, balance display, confirmation alerts
 - **Participant modal**: Full participant list with role colors, context menu (View Profile, Private Chat, Kick, Block, Mute, Ban, Lock Room, Report), proper permission checks
 - **Message styling**: Support message blue background, bot vs system command differentiation, @mention styling, room_info rendering, video/GIF/image gift support
-- **Emoji URL fix**: Fixed double `/api/api/emojis` → `/api/emojis` in loadEmojis function
+- **API URL fixes**: Fixed all double `/api/api/...` URLs in Chatscreen1.tsx:
+  - Emoji endpoint: `/api/api/emojis` → `/api/emojis`
+  - Add participant endpoint: `/api/api/rooms/:id/participants` → `/api/rooms/:id/participants`
+  - Load participants endpoint: `/api/api/rooms/:id/participants` → `/api/rooms/:id/participants`
 - **AppNavigator**: Now uses Chatscreen1.tsx (confirmed no duplicate room join bug)
 - **Result**: Multi-tab chat works perfectly without duplicates, all features functional
 

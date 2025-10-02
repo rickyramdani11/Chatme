@@ -2661,9 +2661,9 @@ export default function ChatScreen() {
       if (chatTabs[activeTab]) {
         const currentRoomId = chatTabs[activeTab].id;
         const isSupportChat = chatTabs[activeTab].isSupport;
-        let endpoint = `${API_BASE_URL}/api/rooms/${currentRoomId}/participants`;
+        let endpoint = `${API_BASE_URL}/rooms/${currentRoomId}/participants`;
         if (isSupportChat) {
-          endpoint = `${API_BASE_URL}/api/support/${currentRoomId}/participants`;
+          endpoint = `${API_BASE_URL}/support/${currentRoomId}/participants`;
         }
 
         const response = await fetch(endpoint, {
@@ -2718,7 +2718,7 @@ export default function ChatScreen() {
 
   const addParticipantToRoom = async (roomId: string, username: string, role: string = 'user') => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/participants`, {
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/participants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
