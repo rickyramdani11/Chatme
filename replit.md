@@ -69,3 +69,18 @@ Preferred communication style: Simple, everyday language.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.
 - **Payment Gateway**: Xendit Payout API for withdrawal system.
+
+# Recent Changes
+
+**October 3, 2025** - Image emoji auto-send & local emoticon integration:
+- **Image emoji behavior**: Tap image emoji (dari assets/emoticon) langsung terkirim ke room tanpa muncul di input text
+- **Text emoji behavior**: Tap text emoji (😀😂🥰 dll) masuk ke input text seperti biasa
+- **Total emoji**: 151 emoji tersedia (89 text + 62 custom image dari assets/emoticon)
+- **UX improvement**: Tidak ada lagi placeholder text `<localimg:Sleeping>` - gambar emoji langsung terkirim ke chat
+- **Local emoticons**: Semua 62 emoticon dari folder assets/emoticon berhasil dimuat ke emoji picker
+
+**October 3, 2025** - Fixed room info "managed by" display:
+- **Root cause**: ID type mismatch in roomData lookup - `r.id === roomId` failed when types differ
+- **Fix**: Changed to `r.id.toString() === roomId.toString()` for reliable string comparison
+- **Database verified**: All rooms have correct `managed_by` and `created_by` fields
+- **Result**: Room info now correctly displays "This room is managed by [actual creator]" instead of hardcoded "admin"

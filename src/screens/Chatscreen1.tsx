@@ -2728,23 +2728,91 @@ export default function ChatScreen() {
 
   const handleEmojiSelect = (selectedEmoji: any) => {
     if (selectedEmoji.type === 'image' && selectedEmoji.url) {
-      // For image emojis from server, use the server URL
-      if (typeof selectedEmoji.url === 'string' && selectedEmoji.url.startsWith('/')) {
-        setMessage(prev => prev + `<img:${selectedEmoji.url}>`);
-      } else if (typeof selectedEmoji.url === 'number') {
-        // For local image emojis (require() returns a number), use a special format
-        setMessage(prev => prev + `<localimg:${selectedEmoji.name}>`);
-      } else {
-        setMessage(prev => prev + `<img:${selectedEmoji.url}>`);
+      // For image emojis, send directly to room instead of adding to input
+      if (!isSocketConnected || !socket?.connected) {
+        Alert.alert('Connection Lost', 'Reconnecting to server... Please try again in a moment.');
+        return;
       }
+
+      if (chatTabs[activeTab]) {
+        const currentRoomId = chatTabs[activeTab].id;
+        const currentTab = chatTabs[activeTab];
+        let emojiContent = '';
+
+        // Determine emoji content format
+        if (typeof selectedEmoji.url === 'string' && selectedEmoji.url.startsWith('/')) {
+          emojiContent = `<img:${selectedEmoji.url}>`;
+        } else if (typeof selectedEmoji.url === 'number') {
+          // For local image emojis (require() returns a number), use a special format
+          emojiContent = `<localimg:${selectedEmoji.name}>`;
+        } else {
+          emojiContent = `<img:${selectedEmoji.url}>`;
+        }
+
+        // Create optimistic message object
+        const optimisticMessage = {
+          id: `temp_${Date.now()}_${user?.username}`,
+          sender: user?.username || 'User',
+          content: emojiContent,
+          timestamp: new Date(),
+          roomId: currentRoomId,
+          role: user?.role || 'user',
+          level: user?.level || 1,
+          type: currentTab?.isSupport ? 'support' : 'message'
+        };
+
+        // Add message optimistically to UI first
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab => 
+            tab.id === currentRoomId
+              ? { ...tab, messages: [...tab.messages, optimisticMessage] }
+              : tab
+          )
+        );
+
+        // Auto-scroll
+        setTimeout(() => {
+          if (flatListRefs.current[currentRoomId]) {
+            flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
+          }
+        }, 100);
+
+        // Emit to server
+        const messageData = {
+          roomId: currentRoomId,
+          sender: user?.username || 'User',
+          content: emojiContent,
+          role: user?.role || 'user',
+          level: user?.level || 1,
+          type: 'message',
+          tempId: optimisticMessage.id
+        };
+
+        if (currentTab?.isSupport) {
+          socket?.emit('support-message', {
+            supportRoomId: currentRoomId,
+            content: emojiContent,
+            isAdmin: user?.role === 'admin',
+            sender: user?.username || 'User',
+            role: user?.role || 'user',
+            level: user?.level || 1,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          socket?.emit('sendMessage', messageData);
+        }
+      }
+      
+      setShowEmojiPicker(false);
     } else if (selectedEmoji.emoji) {
-      // For text emojis, use the emoji character
+      // For text emojis, add to input text
       setMessage(prev => prev + selectedEmoji.emoji);
+      setShowEmojiPicker(false);
     } else {
       // Fallback to name if no emoji character available
       setMessage(prev => prev + selectedEmoji.name);
+      setShowEmojiPicker(false);
     }
-    setShowEmojiPicker(false);
   };
 
   const handleParticipantPress = (participant: any) => {
