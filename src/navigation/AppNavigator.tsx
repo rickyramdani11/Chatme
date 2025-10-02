@@ -11,7 +11,7 @@ import FeedScreen from '../screens/FeedScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import RoomScreen from '../screens/RoomScreen';
-import ChatScreen from '../screens/ChatScreen';
+import ChatScreen from '../screens/Chatscreen1';
 import PrivateChatScreen from '../screens/PrivateChatScreen';
 import ProfileScreen from '../screens/ProfileScreen'; // Assuming ProfileScreen is in ../screens/ProfileScreen
 import PrivacySecurityScreen from '../screens/PrivacySecurityScreen'; // Import the new screen
