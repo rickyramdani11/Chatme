@@ -116,6 +116,7 @@ export default function ChatScreen() {
   const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
   const navigationJoinedRef = useRef<string | null>(null); // Track room joined from navigation params
   const joiningRoomsRef = useRef(new Set<string>()); // Track rooms currently being joined (prevent race condition)
+  const socketRef = useRef<Socket | null>(null); // Ref to avoid closure issues in AppState handler
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const hasAutoFocusedRef = useRef(false); // Track if we've already auto-focused a tab
@@ -1241,7 +1242,8 @@ export default function ChatScreen() {
         return;
       }
 
-      if (socket && socket.connected) {
+      const currentSocket = socketRef.current;
+      if (currentSocket && currentSocket.connected) {
         console.log('Socket already connected, skipping initialization');
         return;
       }
@@ -1249,10 +1251,11 @@ export default function ChatScreen() {
       isInitializingSocketRef.current = true;
 
       // Clean up existing socket if it exists
-      if (socket) {
+      if (currentSocket) {
         console.log('Cleaning up existing socket before creating new one');
-        socket.removeAllListeners();
-        socket.disconnect();
+        currentSocket.removeAllListeners();
+        currentSocket.disconnect();
+        socketRef.current = null;
       }
 
       // Initialize socket connection to gateway with better stability options
@@ -1380,6 +1383,7 @@ export default function ChatScreen() {
       });
 
       setSocket(newSocket);
+      socketRef.current = newSocket; // Update ref to avoid closure issues
     };
 
     const attemptReconnection = () => {
@@ -1400,10 +1404,12 @@ export default function ChatScreen() {
         console.log(`Reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts}`);
 
         // Clean up existing socket properly
-        if (socket) {
+        const currentSocket = socketRef.current;
+        if (currentSocket) {
           console.log('Disconnecting existing socket for reconnection');
-          socket.removeAllListeners();
-          socket.disconnect();
+          currentSocket.removeAllListeners();
+          currentSocket.disconnect();
+          socketRef.current = null;
         }
 
         initializeSocket();
@@ -1423,11 +1429,14 @@ export default function ChatScreen() {
         // Reset scroll state
         setIsUserScrolling(false);
 
+        // Use socketRef to avoid closure issues
+        const currentSocket = socketRef.current;
+        
         // Only reconnect if socket exists and is actually disconnected
-        if (socket && !socket.connected) {
+        if (currentSocket && !currentSocket.connected) {
           console.log('Socket disconnected, attempting to reconnect existing socket');
-          socket.connect();
-        } else if (!socket) {
+          currentSocket.connect();
+        } else if (!currentSocket) {
           console.log('No socket exists, initializing new socket connection');
           initializeSocket();
         } else {
