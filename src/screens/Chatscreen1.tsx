@@ -642,10 +642,8 @@ export default function ChatScreen() {
         return newTabs;
       });
 
-      // Only add participant to room if it's not a private or support chat
-      if (user?.username && type !== 'private' && !isSupport) {
-        await addParticipantToRoom(roomId, user.username, user.role || 'user');
-      }
+      // Participant is automatically added by socket gateway on join-room event
+      // No need to manually call addParticipantToRoom here
 
       // Join room via socket (for both room and private chat)
       if (socket) {
@@ -1526,10 +1524,8 @@ export default function ChatScreen() {
             setChatTabs([newTab]);
             setActiveTab(0);
 
-            // Add participant and join room
+            // Join room via socket (participant automatically added by gateway)
             if (user?.username) {
-              await addParticipantToRoom(targetRoom.id.toString(), user.username, user.role || 'user');
-
               socket?.emit('join-room', {
                 roomId: targetRoom.id.toString(),
                 username: user?.username || 'Guest',
@@ -2716,30 +2712,8 @@ export default function ChatScreen() {
     }
   };
 
-  const addParticipantToRoom = async (roomId: string, username: string, role: string = 'user') => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/participants`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'ChatMe-Mobile-App',
-        },
-        body: JSON.stringify({ username, role }),
-      });
-
-      if (response.ok) {
-        const participant = await response.json();
-        console.log('Participant added to room:', participant);
-        return participant;
-      } else {
-        console.error('Failed to add participant to room');
-        return null;
-      }
-    } catch (error) {
-      console.error('Error adding participant to room:', error);
-      return null;
-    }
-  };
+  // addParticipantToRoom removed - participants are automatically added by socket gateway on join-room event
+  // This prevents duplicate participant additions and "Failed to add participant to room" errors
 
   const handleListPress = async () => {
     await loadParticipants();

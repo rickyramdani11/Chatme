@@ -17,6 +17,7 @@ Preferred communication style: Simple, everyday language.
   - Emoji endpoint: `/api/api/emojis` → `/api/emojis`
   - Add participant endpoint: `/api/api/rooms/:id/participants` → `/api/rooms/:id/participants`
   - Load participants endpoint: `/api/api/rooms/:id/participants` → `/api/rooms/:id/participants`
+- **Participant management fix**: Removed manual addParticipantToRoom() calls - socket gateway handles participant management automatically on join-room event to prevent conflicts
 - **AppNavigator**: Now uses Chatscreen1.tsx (confirmed no duplicate room join bug)
 - **Result**: Multi-tab chat works perfectly without duplicates, all features functional
 
