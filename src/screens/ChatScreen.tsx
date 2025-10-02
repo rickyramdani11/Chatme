@@ -1510,8 +1510,19 @@ export default function ChatScreen() {
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
     if (roomId && roomName && socket) {
+      // ✅ ATOMIC GUARD: Prevent duplicate calls using Set
+      if (joiningRoomsRef.current.has(roomId)) {
+        console.log('⛔ Navigation blocked - already joining:', roomId);
+        return;
+      }
+      
       console.log('Navigated to specific room/chat:', roomId, roomName, type);
-      joinSpecificRoom(roomId, roomName);
+      joiningRoomsRef.current.add(roomId);
+      
+      joinSpecificRoom(roomId, roomName).finally(() => {
+        // Clean up after join attempt (success or failure)
+        setTimeout(() => joiningRoomsRef.current.delete(roomId), 1000);
+      });
     }
   }, [roomId, roomName, socket, type, isSupport]);
 
