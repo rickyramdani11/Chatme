@@ -7034,7 +7034,7 @@ const styles = StyleSheet.create({
   // Room Info Message Styles
   roomInfoMessageContainer: {
     marginBottom: 2,
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingVertical: 2,
     marginHorizontal: 0,
   },
