@@ -132,6 +132,7 @@ export default function RoomScreen() {
         roomId, 
         roomName,
         roomDescription: roomDescription || `${roomName} room`,
+        type: 'room',
         autoFocusTab: true 
       });
 
