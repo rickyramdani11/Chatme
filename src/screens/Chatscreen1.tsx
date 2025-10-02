@@ -5658,14 +5658,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   levelBadgeImage: {
-    width: 16,
-    height: 18,
+    width: 22,
+    height: 24,
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 3,
   },
   levelBadgeText: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
@@ -7036,7 +7036,7 @@ const styles = StyleSheet.create({
   // Room Info Message Styles
   roomInfoMessageContainer: {
     marginBottom: 2,
-    paddingHorizontal: 0,
+    paddingHorizontal: 12,
     paddingVertical: 2,
     marginHorizontal: 0,
   },
