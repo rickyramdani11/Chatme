@@ -458,15 +458,6 @@ export default function ChatScreen() {
   const joinSpecificRoom = async (roomId: string, roomName: string) => {
     try {
       console.log('Joining specific room/chat:', roomId, roomName, type, 'User:', user?.username);
-
-      // Prevent race condition: check if this room is already being joined
-      if (joiningRoomsRef.current.has(roomId)) {
-        console.log('⚠️ Room already being joined, skipping duplicate join:', roomId);
-        return;
-      }
-
-      // Mark room as being joined BEFORE checking existing tabs
-      joiningRoomsRef.current.add(roomId);
       console.log('✅ Started joining room:', roomId);
 
       // Check if room already exists in tabs using REF (not stale state!)
@@ -481,8 +472,6 @@ export default function ChatScreen() {
             animated: true
           });
         }
-        // Remove from joining set
-        joiningRoomsRef.current.delete(roomId);
         return;
       }
 
@@ -676,13 +665,10 @@ export default function ChatScreen() {
         }
       }
 
-      // DON'T delete from joiningRoomsRef here - let useEffect cleanup after params cleared!
       console.log('✅ Finished joining room:', roomId);
 
     } catch (error) {
       console.error('Error joining specific room:', error);
-      // Remove from joining set on error only
-      joiningRoomsRef.current.delete(roomId);
     }
   };
 
@@ -1542,13 +1528,7 @@ export default function ChatScreen() {
     console.log('🔄 NAV EFFECT - roomId:', roomId, 'roomName:', roomName);
     
     if (roomId && roomName && socketRef.current) {
-      // ATOMIC CHECK-AND-ADD: Check + Add must be in same synchronous block!
-      if (joiningRoomsRef.current.has(roomId)) {
-        console.log('⛔ NAV EFFECT BLOCKED - already joining:', roomId);
-        return;
-      }
-      
-      // Check if room already exists in tabs
+      // Check if room already exists in tabs (using chatTabsRef for current state)
       const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
         console.log('⛔ NAV EFFECT BLOCKED - room already in tabs:', roomId);
@@ -1563,11 +1543,7 @@ export default function ChatScreen() {
         return;
       }
       
-      // IMMEDIATELY mark as joining to block concurrent calls
-      joiningRoomsRef.current.add(roomId);
-      console.log('🔒 NAV EFFECT LOCKED:', roomId, 'in joiningRoomsRef');
-      
-      // Join the room (DON'T unlock here - let chatTabs effect do it!)
+      // Join the room (duplicate check is inside joinSpecificRoom)
       joinSpecificRoom(roomId, roomName).then(() => {
         console.log('✅ NAV EFFECT joinSpecificRoom complete:', roomId);
         // Clear navigation params after successful join
@@ -1578,26 +1554,11 @@ export default function ChatScreen() {
           isSupport: undefined,
           autoFocusTab: undefined
         });
-        // NOTE: Don't delete from joiningRoomsRef here!
-        // Let the chatTabs update effect handle cleanup
       }).catch((error) => {
-        // Remove lock on error
         console.log('❌ NAV EFFECT ERROR:', roomId, error);
-        joiningRoomsRef.current.delete(roomId);
       });
     }
   }, [roomId, roomName, type, isSupport]);
-
-  // Unlock joiningRoomsRef AFTER chatTabs updates (prevents duplicate joins)
-  useEffect(() => {
-    // When chatTabs changes, unlock any rooms that are now in tabs
-    chatTabsRef.current.forEach((tab) => {
-      if (joiningRoomsRef.current.has(tab.id)) {
-        console.log('🔓 CLEANUP EFFECT unlocked:', tab.id, '(now in chatTabs)');
-        joiningRoomsRef.current.delete(tab.id);
-      }
-    });
-  }, [chatTabs]);
 
   // Effect untuk mempertahankan state pesan saat app kembali aktif
   useEffect(() => {
