@@ -457,14 +457,12 @@ export default function ChatScreen() {
   // Function to join a specific room (called when navigating from RoomScreen)
   const joinSpecificRoom = async (roomId: string, roomName: string) => {
     try {
-      console.log('Joining specific room/chat:', roomId, roomName, type, 'User:', user?.username);
-      console.log('✅ Started joining room:', roomId);
+      console.log('Joining specific room/chat:', roomId, roomName, type || 'room', 'User:', user?.username);
 
-      // Check if room already exists in tabs using REF (not stale state!)
-      const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
+      // Check if room already exists in tabs
+      const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
         // Room already exists, just switch to it
-        console.log('✅ Room already in tabs, switching to index:', existingTabIndex);
         setActiveTab(existingTabIndex);
         if (scrollViewRef.current) {
           scrollViewRef.current.scrollTo({
