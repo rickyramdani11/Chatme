@@ -11,10 +11,11 @@ Preferred communication style: Simple, everyday language.
 **October 2, 2025** - Chat UI improvements and header redesign:
 - **Header redesign**: Moved header elements down (paddingTop: 25px), removed calendar and grid icons for cleaner interface
 - **Badge positioning**: Changed badge from left side to inline with username - "Username Lv.X:" instead of "[Lv.X] Username:"
-- **Badge applies to all message types**: Regular messages, command messages, room_info messages, gift messages, support messages
-- **Room info styling**: Reduced margins for better alignment (marginHorizontal: 0, paddingHorizontal: 8px)
+- **Badge applies to message types**: Regular messages, command messages, gift messages, support messages
+- **Room info NO badge**: Room info messages show only "RoomName: message" without level badge
+- **Tighter spacing**: Reduced all margins/padding - messageContainer (marginBottom: 4, paddingHorizontal: 4), messageRow (marginVertical: 2), roomInfo (marginBottom: 2, paddingHorizontal: 4)
 - **Removed LevelBadge component**: No longer needed, badges now rendered inline as Text components
-- **Result**: Cleaner chat UI with better message readability and professional header layout
+- **Result**: Cleaner chat UI with compact spacing, room info without badges, better readability
 
 **October 2, 2025** - Migrated all features to Chatscreen1.tsx (bug-free version):
 - **Migration completed**: Moved gift modal, participant modal, and message styling from buggy ChatScreen.tsx to working Chatscreen1.tsx

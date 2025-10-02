@@ -3302,11 +3302,8 @@ export default function ChatScreen() {
             <View style={styles.messageContentRow}>
               <Text style={styles.messageText}>
                 <Text style={[styles.senderName, { color: '#d2691e' }]}>
-                  {item.sender}
+                  {item.sender}:
                 </Text>
-                <Text> </Text>
-                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
-                <Text style={[styles.senderName, { color: '#d2691e' }]}>:</Text>
                 <Text style={[styles.messageContent, { color: '#333' }]}>
                   {' '}{item.content}
                 </Text>
@@ -5580,8 +5577,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   messageContainer: {
-    marginBottom: 6,
-    paddingHorizontal: 8,
+    marginBottom: 4,
+    paddingHorizontal: 4,
   },
   supportMessageContainer: {
     marginBottom: 6,
@@ -5611,7 +5608,7 @@ const styles = StyleSheet.create({
   messageRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginVertical: 4,
+    marginVertical: 2,
   },
   messageContentRow: {
     flex: 1,
@@ -7010,9 +7007,9 @@ const styles = StyleSheet.create({
   },
   // Room Info Message Styles
   roomInfoMessageContainer: {
-    marginBottom: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    marginBottom: 2,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     marginHorizontal: 0,
   },
   roomInfoMessageRow: {
