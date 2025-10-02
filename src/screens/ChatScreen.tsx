@@ -1521,36 +1521,37 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
-    // Prevent duplicate joins by checking if we've already consumed these params
-    console.log('🔄 useEffect triggered - roomId:', roomId, 'roomName:', roomName, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport);
-    console.log('📊 joiningRoomsRef:', Array.from(joiningRoomsRef.current));
-    console.log('📊 prevNavigationParamsRef:', prevNavigationParamsRef.current);
-    console.log('📊 chatTabsRef length:', chatTabsRef.current.length, 'tabs:', chatTabsRef.current.map(t => t.id));
+    console.log('🔄 useEffect triggered - roomId:', roomId, 'roomName:', roomName);
     
     if (roomId && roomName && socketRef.current) {
-      // CRITICAL: Check if room is currently being joined (prevents race condition!)
+      // ATOMIC CHECK-AND-ADD: Check + Add must be in same synchronous block!
       if (joiningRoomsRef.current.has(roomId)) {
-        console.log('⛔ GUARD 1 BLOCKED - room already being joined:', roomId);
+        console.log('⛔ BLOCKED - already joining/joined:', roomId);
         return;
       }
       
-      // Check if we've already consumed this exact roomId
-      const alreadyConsumed = prevNavigationParamsRef.current?.roomId === roomId;
-      
-      if (alreadyConsumed) {
-        console.log('⛔ GUARD 2 BLOCKED - roomId already consumed:', roomId);
+      // Check if room already exists in tabs
+      const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
+      if (existingTabIndex !== -1) {
+        console.log('⛔ BLOCKED - room already in tabs:', roomId);
+        // Clear params to prevent re-trigger
+        navigation.setParams({
+          roomId: undefined,
+          roomName: undefined,
+          type: undefined,
+          isSupport: undefined,
+          autoFocusTab: undefined
+        });
         return;
       }
       
-      console.log('✅ New roomId from navigation, joining:', roomId, roomName, type);
-      
-      // Mark this roomId as consumed BEFORE join
-      prevNavigationParamsRef.current = { roomId, roomName, type, isSupport };
+      // IMMEDIATELY mark as joining to block concurrent calls
+      joiningRoomsRef.current.add(roomId);
+      console.log('✅ LOCKED roomId for join:', roomId);
       
       // Join the room
       joinSpecificRoom(roomId, roomName).then(() => {
-        // Clear navigation params after successful join to prevent re-trigger
-        console.log('🧹 Clearing navigation params to prevent duplicate join');
+        // Clear navigation params after successful join
         navigation.setParams({
           roomId: undefined,
           roomName: undefined,
@@ -1559,14 +1560,16 @@ export default function ChatScreen() {
           autoFocusTab: undefined
         });
         
-        // Remove from joiningRoomsRef AFTER params cleared
+        // Remove lock after delay
         setTimeout(() => {
           joiningRoomsRef.current.delete(roomId);
-          console.log('🧹 Cleaned up joiningRoomsRef for:', roomId);
+          console.log('🔓 UNLOCKED roomId:', roomId);
         }, 500);
+      }).catch((error) => {
+        // Remove lock on error
+        joiningRoomsRef.current.delete(roomId);
+        console.log('❌ UNLOCKED roomId (error):', roomId);
       });
-    } else {
-      console.log('⏭️ Skipping join - missing params or socket:', { roomId, roomName, socket: !!socketRef.current });
     }
   }, [roomId, roomName, type, isSupport]);
 
