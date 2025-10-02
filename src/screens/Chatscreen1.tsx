@@ -552,7 +552,7 @@ export default function ChatScreen() {
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
-              roomData = rooms.find((r: any) => r.id === roomId);
+              roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
             }
           } catch (error) {
             console.log('Could not fetch room data');
