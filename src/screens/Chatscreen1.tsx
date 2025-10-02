@@ -3396,7 +3396,7 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <Text style={styles.joinLeaveMessageText}>
-            <Text style={[styles.roomNameText, { color: roomColor }]}>{roomName} </Text>
+            <Text style={[styles.roomNameText, { color: '#d2691e' }]}>{roomName} </Text>
             <Text style={[styles.usernameText, { color: getRoleColor(userRole, username, chatTabs[activeTab]?.id) }]}>{username} </Text>
             <Text style={styles.roleBadgeText}>{getRoleBadgeText(userRole)} </Text>
             <Text style={styles.actionText}>{actionText} </Text>
@@ -4203,7 +4203,7 @@ export default function ChatScreen() {
           ) : (
             // Regular Room Header
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, { color: '#fff' }]}>{chatTabs[activeTab]?.title}</Text>
+              <Text style={[styles.headerTitle, { color: '#d2691e' }]}>{chatTabs[activeTab]?.title}</Text>
               <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
                 {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
                 {!isSocketConnected && ' • Reconnecting...'}
@@ -6121,9 +6121,9 @@ const styles = StyleSheet.create({
   },
   // Join/Leave message styles
   joinLeaveMessageContainer: {
-    marginVertical: 4,
+    marginVertical: 2,
     paddingHorizontal: 0,
-    paddingVertical: 8,
+    paddingVertical: 4,
     alignSelf: 'flex-start',
   },
   joinLeaveMessageText: {
