@@ -5578,11 +5578,11 @@ const styles = StyleSheet.create({
   },
   messageContainer: {
     marginBottom: 4,
-    paddingHorizontal: 4,
+    paddingHorizontal: 0,
   },
   supportMessageContainer: {
     marginBottom: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
   },
   supportMessageBubble: {
     backgroundColor: '#E3F2FD',
@@ -6122,7 +6122,7 @@ const styles = StyleSheet.create({
   // Join/Leave message styles
   joinLeaveMessageContainer: {
     marginVertical: 4,
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingVertical: 8,
     alignSelf: 'flex-start',
   },
@@ -6155,7 +6155,7 @@ const styles = StyleSheet.create({
   },
   commandMessageContainer: {
     marginBottom: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
     alignSelf: 'flex-start',
   },
   commandMessageRow: {
@@ -6978,7 +6978,7 @@ const styles = StyleSheet.create({
   // Gift Message Styles
   giftMessageContainer: {
     marginBottom: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
   },
   giftMessageBubble: {
     backgroundColor: '#FFF3E0',
@@ -7008,7 +7008,7 @@ const styles = StyleSheet.create({
   // Room Info Message Styles
   roomInfoMessageContainer: {
     marginBottom: 2,
-    paddingHorizontal: 4,
+    paddingHorizontal: 0,
     paddingVertical: 2,
     marginHorizontal: 0,
   },

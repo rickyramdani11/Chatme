@@ -13,9 +13,10 @@ Preferred communication style: Simple, everyday language.
 - **Badge positioning**: Changed badge from left side to inline with username - "Username Lv.X:" instead of "[Lv.X] Username:"
 - **Badge applies to message types**: Regular messages, command messages, gift messages, support messages
 - **Room info NO badge**: Room info messages show only "RoomName: message" without level badge
-- **Tighter spacing**: Reduced all margins/padding - messageContainer (marginBottom: 4, paddingHorizontal: 4), messageRow (marginVertical: 2), roomInfo (marginBottom: 2, paddingHorizontal: 4)
+- **Perfect alignment**: ALL message types now have paddingHorizontal: 0 - room info, regular messages, gifts, commands, join/leave all perfectly aligned to the left
+- **Tighter spacing**: Reduced all margins - messageContainer (marginBottom: 4), messageRow (marginVertical: 2), roomInfo (marginBottom: 2)
 - **Removed LevelBadge component**: No longer needed, badges now rendered inline as Text components
-- **Result**: Cleaner chat UI with compact spacing, room info without badges, better readability
+- **Result**: Cleaner chat UI with compact spacing, perfect left alignment, room info without badges
 
 **October 2, 2025** - Migrated all features to Chatscreen1.tsx (bug-free version):
 - **Migration completed**: Moved gift modal, participant modal, and message styling from buggy ChatScreen.tsx to working Chatscreen1.tsx
