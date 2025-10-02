@@ -1511,53 +1511,11 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
-    console.log('🔄 NAV EFFECT - roomId:', roomId, 'roomName:', roomName);
-    
-    if (roomId && roomName && socketRef.current) {
-      // ✅ ATOMIC CHECK: Prevent race condition with Set (check + add is atomic)
-      if (joiningRoomsRef.current.has(roomId)) {
-        console.log('⛔ NAV EFFECT BLOCKED - already joining room:', roomId);
-        return;
-      }
-      
-      // Check if room already exists in tabs (using chatTabsRef for current state)
-      const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
-      if (existingTabIndex !== -1) {
-        console.log('⛔ NAV EFFECT BLOCKED - room already in tabs:', roomId);
-        // Clear params to prevent re-trigger
-        navigation.setParams({
-          roomId: undefined,
-          roomName: undefined,
-          type: undefined,
-          isSupport: undefined,
-          autoFocusTab: undefined
-        });
-        return;
-      }
-      
-      // Mark this room as being joined (atomic operation prevents race condition)
-      joiningRoomsRef.current.add(roomId);
-      console.log('🔒 NAV EFFECT LOCKED (Set.add) for room:', roomId);
-      
-      // Join the room (duplicate check is inside joinSpecificRoom)
-      joinSpecificRoom(roomId, roomName).then(() => {
-        console.log('✅ NAV EFFECT joinSpecificRoom complete:', roomId);
-        // Remove from joining set
-        joiningRoomsRef.current.delete(roomId);
-        // Clear navigation params after successful join
-        navigation.setParams({
-          roomId: undefined,
-          roomName: undefined,
-          type: undefined,
-          isSupport: undefined,
-          autoFocusTab: undefined
-        });
-      }).catch((error) => {
-        console.log('❌ NAV EFFECT ERROR:', roomId, error);
-        joiningRoomsRef.current.delete(roomId); // Clear from set on error
-      });
+    if (roomId && roomName && socket) {
+      console.log('Navigated to specific room/chat:', roomId, roomName, type);
+      joinSpecificRoom(roomId, roomName);
     }
-  }, [roomId, roomName, type, isSupport]);
+  }, [roomId, roomName, socket, type, isSupport]);
 
   // Effect untuk mempertahankan state pesan saat app kembali aktif
   useEffect(() => {
