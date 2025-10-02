@@ -614,10 +614,6 @@ export default function ChatScreen() {
           }
         }, 100);
 
-        // Remove from joining set after successful tab creation
-        joiningRoomsRef.current.delete(roomId);
-        console.log('✅ Finished joining room:', roomId);
-
         return newTabs;
       });
 
@@ -652,6 +648,10 @@ export default function ChatScreen() {
           });
         }
       }
+
+      // Remove from joining set AFTER all operations complete
+      joiningRoomsRef.current.delete(roomId);
+      console.log('✅ Finished joining room:', roomId);
 
     } catch (error) {
       console.error('Error joining specific room:', error);
@@ -1506,10 +1506,14 @@ export default function ChatScreen() {
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
     // Prevent duplicate joins by checking if we already joined this room from navigation
+    console.log('🔄 useEffect triggered - roomId:', roomId, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport, 'navigationJoinedRef:', navigationJoinedRef.current);
+    
     if (roomId && roomName && socket && navigationJoinedRef.current !== roomId) {
-      console.log('Navigated to specific room/chat:', roomId, roomName, type);
+      console.log('✅ Navigated to specific room/chat:', roomId, roomName, type);
       navigationJoinedRef.current = roomId; // Mark room as joined from navigation
       joinSpecificRoom(roomId, roomName);
+    } else if (roomId && navigationJoinedRef.current === roomId) {
+      console.log('⛔ Skipping join - already joined this room from navigation:', roomId);
     }
   }, [roomId, roomName, socket, type, isSupport]);
 
