@@ -85,6 +85,8 @@ export default function ChatScreen() {
   const [giftList, setGiftList] = useState<any[]>([]);
   const [activeGiftTab, setActiveGiftTab] = useState<'all' | 'special'>('all');
   const [sendToAllUsers, setSendToAllUsers] = useState(false);
+  const [isSendingGift, setIsSendingGift] = useState(false);
+  const isSendingGiftRef = useRef(false);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
@@ -2833,6 +2835,14 @@ export default function ChatScreen() {
           targetUser: targetUser,
           autoFocusTab: true
         });
+      } else if (response.status === 423) {
+        // User is busy
+        const errorData = await response.json();
+        Alert.alert(
+          'User is Busy',
+          errorData.error || 'This user cannot be chatted, is busy',
+          [{ text: 'OK' }]
+        );
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Private chat creation failed:', errorData);
@@ -2845,8 +2855,8 @@ export default function ChatScreen() {
   };
 
   const handleKickUser = async () => {
-    if (user?.role !== 'admin' && user?.role !== 'mentor') {
-      Alert.alert('Error', 'Only admins and mentors can kick users');
+    if (!selectedParticipant?.username) {
+      Alert.alert('Error', 'No user selected');
       return;
     }
 
@@ -2862,24 +2872,25 @@ export default function ChatScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Remove from participants
               const roomId = chatTabs[activeTab]?.id;
-              if (roomId && participants.some(p => p.username === selectedParticipant?.username)) {
-                setParticipants(prev => prev.filter(p => p.username !== selectedParticipant?.username));
-
-                // Emit kick event via socket
-                socket?.emit('kick-user', {
-                  roomId,
-                  kickedUser: selectedParticipant?.username,
-                  kickedBy: user?.username
-                });
-
-                Alert.Alert('Success', `${selectedParticipant?.username} has been kicked from the room`);
-              } else {
-                Alert.alert('Error', 'User not found in the current room.');
+              if (!roomId) {
+                Alert.alert('Error', 'No active room found');
+                return;
               }
+
+              // Show loading
+              Alert.alert('Processing', 'Kicking user...');
+
+              // Emit kick event via socket - server will handle permission checking
+              socket?.emit('kick-user', {
+                roomId,
+                targetUsername: selectedParticipant.username,
+                reason: 'Kicked by moderator'
+              });
+
             } catch (error) {
-              Alert.alert('Error', 'Failed to kick user');
+              console.error('Error kicking user:', error);
+              Alert.alert('Error', 'Failed to kick user. Please try again.');
             }
           }
         }
@@ -2924,7 +2935,7 @@ export default function ChatScreen() {
               Alert.alert('Success', `${selectedParticipant?.username} has been unmuted`);
             } else {
               setMutedUsers(prev => [...prev, selectedParticipant?.username]);
-              Alert.Alert('Success', `${selectedParticipant?.username} has been muted`);
+              Alert.alert('Success', `${selectedParticipant?.username} has been muted`);
             }
 
             // Emit mute event via socket
@@ -3292,17 +3303,24 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle room info messages
-    if (item.type === 'room_info') { // Assuming a new type 'room_info' for these messages
+    // Handle room info messages - style like regular messages with room name prefix
+    if (item.type === 'room_info') {
       return (
         <TouchableOpacity 
-          style={styles.roomInfoMessageContainer}
+          style={styles.messageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
-          <View style={styles.roomInfoMessageRow}>
-            <Text style={styles.roomInfoMessageText}>
-              <Text style={styles.roomInfoContent}>{item.content}</Text>
-            </Text>
+          <View style={styles.messageRow}>
+            <View style={styles.messageContentRow}>
+              <Text style={styles.messageText}>
+                <Text style={[styles.senderName, { color: '#d2691e' }]}>
+                  {item.sender}:
+                </Text>
+                <Text style={[styles.messageContent, { color: '#333' }]}>
+                  {' '}{item.content}
+                </Text>
+              </Text>
+            </View>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
@@ -3434,29 +3452,31 @@ export default function ChatScreen() {
 
     // Render support messages differently
     if (item.type === 'support') {
-      const senderIsAdmin = item.role === 'admin'; // Assuming admin role is passed for support messages
+      const senderIsAdmin = item.role === 'admin';
       const senderColor = senderIsAdmin ? '#FF6B35' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
 
       return (
         <TouchableOpacity 
-          style={[styles.messageContainer, styles.supportMessageContainer]}
+          style={styles.supportMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
-          <View style={styles.messageRow}>
-            <View style={styles.messageContentRow}>
-              <LevelBadge level={item.level || 1} />
-              <View style={styles.messageTextContainer}>
-                <Text style={styles.messageText}>
-                  <Text style={[styles.senderName, { color: senderColor }]}>
-                    {item.sender} {senderIsAdmin && '(Admin)'}: 
+          <View style={styles.supportMessageBubble}>
+            <View style={styles.messageRow}>
+              <View style={styles.messageContentRow}>
+                <LevelBadge level={item.level || 1} />
+                <View style={styles.messageTextContainer}>
+                  <Text style={styles.messageText}>
+                    <Text style={[styles.senderName, { color: senderColor }]}>
+                      {item.sender} {senderIsAdmin && '(Admin)'}: 
+                    </Text>
+                    <Text style={[styles.messageContent, { color: '#333' }]}>
+                      {renderMessageContent(item.content)}
+                    </Text>
                   </Text>
-                  <Text style={[styles.messageContent, { color: '#333' }]}>
-                    {renderMessageContent(item.content)}
-                  </Text>
-                </Text>
+                </View>
               </View>
+              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -3476,13 +3496,13 @@ export default function ChatScreen() {
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
-                  { color: item.sender === 'LowCardBot' ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}: 
+                  {item.sender}:
                 </Text>
                 <Text style={[
                   styles.messageContent,
-                  { color: item.sender === 'LowCardBot' ? '#0f23bd' : '#333' }
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333' }
                 ]}>
                   {renderMessageContent(item.content)}
                 </Text>
@@ -3733,174 +3753,114 @@ export default function ChatScreen() {
     }
   };
 
-  // Function to load gifts from the admin API
+  // Function to load gifts from the server API
   const loadGifts = async () => {
     try {
-      // Local gift assets
-      const localGifts = [
-        { 
-          id: 'local_1', 
-          name: 'Lion Animation', 
-          icon: '🦁', 
-          price: 150, 
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Lion.gif'),
-          category: 'animals'
-        },
-        { 
-          id: 'local_2', 
-          name: 'Lion Image', 
-          icon: '🦁', 
-          price: 100, 
-          type: 'static',
-          image: require('../../assets/gift/image/lion_img.gif'),
-          category: 'animals'
-        },
-        { 
-          id: 'local_3', 
-          name: 'Love Animation', 
-          icon: '💕', 
-          price: 200, 
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Love.mp4'),
-          category: 'romance'
-        },
-        { 
-          id: 'local_4', 
-          name: 'UFO Animation', 
-          icon: '🛸', 
-          price: 300, 
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Ufonew.mp4'),
-          category: 'space'
-        },
-        { 
-          id: 'local_5', 
-          name: 'Mermaid', 
-          icon: '🧜‍♀️', 
-          price: 80, 
-          type: 'static',
-          image: require('../../assets/gift/image/duyung.png'),
-          category: 'fantasy'
-        },
-        { 
-          id: 'local_6', 
-          name: 'Princess Mermaid', 
-          icon: '👸', 
-          price: 120, 
-          type: 'static',
-          image: require('../../assets/gift/image/putri_duyung.png'),
-          category: 'fantasy'
-        },
-        { 
-          id: 'local_7', 
-          name: 'Girl', 
-          icon: '👧', 
-          price: 90, 
-          type: 'static',
-          image: require('../../assets/gift/image/girl.png'),
-          category: 'people'
-        },
-        { 
-          id: 'local_8', 
-          name: 'Dolphin', 
-          icon: '🐬', 
-          price: 110, 
-          type: 'static',
-          image: require('../../assets/gift/image/lumba.png'),
-          category: 'animals'
-        },
-      ];
-
-      console.log('Loading gifts from:', `${API_BASE_URL}/api/gifts`);
-      const response = await fetch(`${API_BASE_URL}/api/gifts`, {
-        method: 'GET',
+      console.log('Loading gifts from server API...');
+      const response = await fetch(`${API_BASE_URL}/gifts`, {
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
         },
       });
 
-      let serverGifts = [];
       if (response.ok) {
-        serverGifts = await response.json();
-        console.log('Server gifts loaded:', serverGifts.length);
-      } else {
-        console.error('Failed to load server gifts');
-        // Fallback to default gifts
-        serverGifts = [
-          { id: '1', name: 'Heart', icon: '❤️', price: 10, type: 'static' },
-          { id: '2', name: 'Rose', icon: '🌹', price: 20, type: 'static' },
-          { id: '3', name: 'Crown', icon: '👑', price: 50, type: 'static' },
-          { id: '4', name: 'Diamond', icon: '💎', price: 100, type: 'static' },
-          { id: '5', name: 'Rocket', icon: '🚀', price: 200, type: 'animated' },
-        ];
-      }
+        const serverGifts = await response.json();
+        console.log('Gifts loaded from server:', serverGifts.length);
+        
+        // Map server gifts and add local asset references
+        const gifts = serverGifts.map((gift: any) => {
+          const mappedGift: any = {
+            id: gift.id.toString(),
+            name: gift.name,
+            icon: gift.icon,
+            price: gift.price,
+            type: gift.type || 'static',
+            category: gift.category || 'popular'
+          };
 
-      // Combine local gifts with server gifts
-      const allGifts = [...localGifts, ...serverGifts];
-      setGiftList(allGifts);
-      console.log('Total gifts loaded:', allGifts.length);
+          // Add local asset references for better performance
+          if (gift.image) {
+            try {
+              // Map known image paths to require statements
+              const imageMap: { [key: string]: any } = {
+                '/assets/gift/image/putri_duyung.png': require('../../assets/gift/image/putri_duyung.png'),
+                '/assets/gift/image/girl.png': require('../../assets/gift/image/girl.png'),
+                '/assets/gift/image/lion_img.gif': require('../../assets/gift/image/lion_img.gif'),
+                '/assets/gift/image/lumba.png': require('../../assets/gift/image/lumba.png'),
+                '/assets/gift/image/Baby Lion.png': require('../../assets/gift/image/Baby Lion.png'),
+                '/assets/gift/image/Birds Love.png': require('../../assets/gift/image/Birds Love.png'),
+                '/assets/gift/image/Couple.png': require('../../assets/gift/image/Couple.png'),
+                '/assets/gift/image/Flower Girls.png': require('../../assets/gift/image/Flower Girls.png'),
+                '/assets/gift/image/Happy Jump.gif': require('../../assets/gift/image/Happy Jump.gif'),
+                '/assets/gift/image/Hug.png': require('../../assets/gift/image/Hug.png'),
+                '/assets/gift/image/I Loveyou .png': require('../../assets/gift/image/I Loveyou .png'),
+                '/assets/gift/image/Kids Hug.png': require('../../assets/gift/image/Kids Hug.png'),
+                '/assets/gift/image/Kiss.png': require('../../assets/gift/image/Kiss.png'),
+                '/assets/gift/image/Love Panda.png': require('../../assets/gift/image/Love Panda.png'),
+                '/assets/gift/image/Panda.png': require('../../assets/gift/image/Panda.png')
+              };
+              
+              if (imageMap[gift.image]) {
+                mappedGift.image = imageMap[gift.image];
+              }
+            } catch (error) {
+              console.log('Image asset not found for:', gift.image);
+            }
+          }
+
+          if (gift.animation) {
+            try {
+              // Map known video paths to require statements
+              const videoMap: { [key: string]: any } = {
+                '/assets/gift/animated/Love.mp4': require('../../assets/gift/animated/Love.mp4'),
+                '/assets/gift/animated/Ufonew.mp4': require('../../assets/gift/animated/Ufonew.mp4'),
+                '/assets/gift/animated/BabyLion.mp4': require('../../assets/gift/animated/BabyLion.mp4'),
+                '/assets/gift/animated/bookmagical.mp4': require('../../assets/gift/animated/bookmagical.mp4'),
+                '/assets/gift/animated/Grildcar.mp4': require('../../assets/gift/animated/Grildcar.mp4'),
+                '/assets/gift/animated/luxurycar.mp4': require('../../assets/gift/animated/luxurycar.mp4')
+              };
+              
+              if (videoMap[gift.animation]) {
+                mappedGift.animation = videoMap[gift.animation];
+                mappedGift.videoSource = videoMap[gift.animation];
+              } else {
+                // Keep original path if not in map
+                mappedGift.animation = gift.animation;
+              }
+            } catch (error) {
+              console.log('Video asset not found for:', gift.animation);
+              mappedGift.animation = gift.animation;
+            }
+          }
+
+          return mappedGift;
+        });
+
+        setGiftList(gifts);
+      } else {
+        console.error('Failed to load gifts from API, using fallback');
+        // Simple fallback gifts if API fails
+        const fallbackGifts = [
+          { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+          { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+          { id: '3', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
+        ];
+        setGiftList(fallbackGifts);
+      }
     } catch (error) {
       console.error('Error loading gifts:', error);
-      // Fallback with local gifts and defaults
+      // Simple fallback gifts on error
       const fallbackGifts = [
-        { 
-          id: 'local_1', 
-          name: 'Lion Animation', 
-          icon: '🦁', 
-          price: 150, 
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Lion.gif'),
-          category: 'animals'
-        },
-        { 
-          id: 'local_2', 
-          name: 'Lion Image', 
-          icon: '🦁', 
-          price: 100, 
-          type: 'static',
-          image: require('../../assets/gift/image/lion_img.gif'),
-          category: 'animals'
-        },
-        { 
-          id: 'local_3', 
-          name: 'Love Animation', 
-          icon: '💕', 
-          price: 200, 
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Love.mp4'),
-          category: 'romance'
-        },
-        { 
-          id: 'local_4', 
-          name: 'UFO Animation', 
-          icon: '🛸', 
-          price: 300, 
-          type: 'animated',
-          animation: require('../../assets/gift/animated/Ufonew.mp4'),
-          category: 'space'
-        },
-        { 
-          id: 'local_5', 
-          name: 'Mermaid', 
-          icon: '🧜‍♀️', 
-          price: 80, 
-          type: 'static',
-          image: require('../../assets/gift/image/duyung.png'),
-          category: 'fantasy'
-        },
-        { id: '1', name: 'Heart', icon: '❤️', price: 10, type: 'static' },
-        { id: '2', name: 'Rose', icon: '🌹', price: 20, type: 'static' },
-        { id: '3', name: 'Crown', icon: '👑', price: 50, type: 'static' },
-        { id: '4', name: 'Diamond', icon: '💎', price: 100, type: 'static' },
-        { id: '5', name: 'Rocket', icon: '🚀', price: 200, type: 'animated' },
+        { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
+        { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
+        { id: '3', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
       ];
       setGiftList(fallbackGifts);
     }
   };
 
-  // Handle gift sending to all users in room
+  // Function to send gift to all users in room
   const handleGiftSendToAll = async (gift: any) => {
     if (!user || !user.balance || user.balance < gift.price * participants.length) {
       Alert.alert('Insufficient Coins', `You need ${(gift.price * participants.length).toLocaleString()} coins to send this gift to all users in the room.`);
@@ -3941,15 +3901,25 @@ export default function ChatScreen() {
   // Function to send gift to room
   const handleGiftSend = async (gift: any, recipientUsername?: string) => {
     try {
+      // Atomic check to prevent duplicate sends (ref-based for race condition protection)
+      if (isSendingGiftRef.current) {
+        console.log('Gift send already in progress, ignoring duplicate request');
+        return;
+      }
+
       if (!socket) {
         console.log('Socket not connected, cannot send gift');
         Alert.alert('Error', 'Connection lost. Please try again.');
         return;
       }
 
+      // Set both ref (atomic) and state (for UI)
+      isSendingGiftRef.current = true;
+      setIsSendingGift(true);
+
       // Check balance first
       try {
-        const response = await fetch(`${API_BASE_URL}/api/gifts/check-balance`, {
+        const response = await fetch(`${API_BASE_URL}/gifts/check-balance`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -3964,72 +3934,158 @@ export default function ChatScreen() {
           const balanceData = await response.json();
 
           if (!balanceData.canAfford) {
+            isSendingGiftRef.current = false;
+            setIsSendingGift(false);
             Alert.alert(
-              'Saldo Tidak Cukup', 
+              'Saldo Tidak Cukup',
               `Anda memerlukan ${gift.price} coins untuk mengirim gift ini. Saldo Anda: ${balanceData.currentBalance} coins.`
             );
             return;
           }
 
+          // Calculate recipient and system shares
+          const isPrivateChat = chatTabs[activeTab]?.type === 'private';
+          const recipientPercentage = isPrivateChat ? 0.3 : 0.7;
+          const recipientShare = Math.floor(gift.price * recipientPercentage);
+          const systemShare = gift.price - recipientShare;
+          const remainingBalance = balanceData.currentBalance - gift.price;
+
           // Show cost breakdown confirmation
           const recipientText = recipientUsername ? `ke ${recipientUsername}` : 'ke room';
+          const shareText = isPrivateChat ? '30%' : '70%';
           Alert.alert(
             'Konfirmasi Gift',
             `Kirim ${gift.name} ${recipientText}?\n\n` +
             `Total: ${gift.price} coins\n` +
-            `${recipientUsername ? `${recipientUsername} mendapat: ${balanceData.recipientShare} coins\n` : ''}` +
-            `System fee: ${balanceData.systemShare} coins\n` +
-            `Sisa saldo: ${balanceData.remainingBalance} coins`,
+            `${recipientUsername ? `${recipientUsername} mendapat: ${recipientShare} coins (${shareText})\n` : ''}` +
+            `System cut: ${systemShare} coins\n` +
+            `Sisa saldo: ${remainingBalance} coins`,
             [
-              { text: 'Batal', style: 'cancel' },
               { 
-                text: 'Kirim', 
+                text: 'Batal', 
+                style: 'cancel',
                 onPress: () => {
-                  const giftData = {
-                    roomId: chatTabs[activeTab]?.id,
-                    sender: user?.username,
-                    gift,
-                    recipient: recipientUsername,
-                    timestamp: new Date().toISOString(),
-                    role: user?.role || 'user',
-                    level: user?.level || 1
-                  };
+                  isSendingGiftRef.current = false;
+                  setIsSendingGift(false);
+                }
+              },
+              {
+                text: 'Kirim',
+                onPress: async () => {
+                  try {
+                    // Process gift purchase through new endpoint
+                    const purchaseResponse = await fetch(`${API_BASE_URL}/gift/purchase`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        giftId: gift.id,
+                        giftPrice: gift.price,
+                        recipientUsername: recipientUsername,
+                        roomId: chatTabs[activeTab]?.id,
+                        isPrivate: chatTabs[activeTab]?.type === 'private' || false
+                      }),
+                    });
 
-                  console.log('Sending gift via socket:', giftData);
-                  socket.emit('sendGift', giftData);
+                    if (purchaseResponse.ok) {
+                      const purchaseData = await purchaseResponse.json();
+                      console.log('Gift purchase successful:', purchaseData);
 
-                  setShowGiftPicker(false);
-                  setSelectedGift(null);
-                  // Close the user gift picker if it was open
-                  if (showUserGiftPicker) {
-                    setShowUserGiftPicker(false);
-                    setSelectedGiftForUser(null);
+                      // Calculate system share and percentage
+                      const recipientEarnings = purchaseData.earnings || 0;
+                      const systemShare = gift.price - recipientEarnings;
+                      const sharePercentage = gift.price > 0 ? Math.round((recipientEarnings / gift.price) * 100) : 0;
+
+                      // Show success message
+                      Alert.alert(
+                        'Gift Sent!',
+                        `${gift.name} berhasil dikirim ke ${recipientUsername}!\n\n` +
+                        `Distribusi:\n` +
+                        `• ${recipientUsername} mendapat: ${recipientEarnings} coins (${sharePercentage}%)\n` +
+                        `• System: ${systemShare} coins\n\n` +
+                        `Saldo Anda: ${purchaseData.newBalance} coins`
+                      );
+
+                      // Send gift via socket for real-time display
+                      const giftData = {
+                        roomId: chatTabs[activeTab]?.id,
+                        sender: user?.username,
+                        gift,
+                        recipient: recipientUsername,
+                        timestamp: new Date().toISOString(),
+                        role: user?.role || 'user',
+                        level: user?.level || 1
+                      };
+
+                      console.log('Sending gift via socket:', giftData);
+                      socket.emit('sendGift', giftData);
+
+                      setShowGiftPicker(false);
+                      setSelectedGift(null);
+                      // Close the user gift picker if it was open
+                      if (showUserGiftPicker) {
+                        setShowUserGiftPicker(false);
+                        setSelectedGiftForUser(null);
+                      }
+                      isSendingGiftRef.current = false;
+                      setIsSendingGift(false);
+
+                    } else {
+                      const errorData = await purchaseResponse.json();
+                      isSendingGiftRef.current = false;
+                      setIsSendingGift(false);
+                      Alert.alert('Error', errorData.error || 'Gagal mengirim gift');
+                    }
+
+                  } catch (purchaseError) {
+                    console.error('Error purchasing gift:', purchaseError);
+                    isSendingGiftRef.current = false;
+                    setIsSendingGift(false);
+                    Alert.alert('Error', 'Gagal memproses pembelian gift');
                   }
                 }
               }
-            ]
+            ],
+            {
+              cancelable: true,
+              onDismiss: () => {
+                isSendingGiftRef.current = false;
+                setIsSendingGift(false);
+              }
+            }
           );
 
         } else {
+          isSendingGiftRef.current = false;
+          setIsSendingGift(false);
           Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
         }
 
       } catch (balanceError) {
         console.error('Error checking balance:', balanceError);
+        isSendingGiftRef.current = false;
+        setIsSendingGift(false);
         Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
       }
 
     } catch (error) {
       console.error('Error sending gift:', error);
-      Alert.alert('Error', 'Gagal mengirim gift. Silakan coba lagi.');
+      isSendingGiftRef.current = false;
+      setIsSendingGift(false);
+      Alert.alert('Error', 'Failed to send gift. Please try again.');
     }
   };
 
   // Function to send gift to specific user
   const handleGiftSendToUser = (gift: any) => {
-    setSelectedGiftForUser(gift);
-    setShowGiftPicker(false);
-    setShowUserGiftPicker(true);
+    // Batch state updates to prevent useInsertionEffect error
+    setTimeout(() => {
+      setSelectedGiftForUser(gift);
+      setShowGiftPicker(false);
+      setShowUserGiftPicker(true);
+    }, 0);
   };
 
   // Function to send gift to selected user
@@ -5533,11 +5589,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   supportMessageContainer: {
-    backgroundColor: '#E3F2FD', // Light blue background for support messages
+    marginBottom: 6,
+    paddingHorizontal: 8,
+  },
+  supportMessageBubble: {
+    backgroundColor: '#E3F2FD',
     borderLeftWidth: 4,
-    borderLeftColor: '#2196F3', // Blue border for support messages
+    borderLeftColor: '#2196F3',
     borderRadius: 8,
-    marginVertical: 2,
+    padding: 8,
   },
   botCommandContainer: {
     backgroundColor: '#FFF3E0',
@@ -6776,8 +6836,8 @@ const styles = StyleSheet.create({
   },
   // Mention Text Style
   mentionText: {
-    color: '#FF6B35',
-    fontWeight: 'bold',
+    color: '#007AFF',
+    fontWeight: '600',
   },
   // Call Modal Styles
   callModalContainer: {

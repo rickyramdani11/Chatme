@@ -4143,29 +4143,31 @@ export default function ChatScreen() {
 
     // Render support messages differently
     if (item.type === 'support') {
-      const senderIsAdmin = item.role === 'admin'; // Assuming admin role is passed for support messages
+      const senderIsAdmin = item.role === 'admin';
       const senderColor = senderIsAdmin ? '#FF6B35' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
 
       return (
         <TouchableOpacity
-          style={[styles.messageContainer, styles.supportMessageContainer]}
+          style={styles.supportMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
-          <View style={styles.messageRow}>
-            <View style={styles.messageContentRow}>
-              <LevelBadge level={item.level || 1} />
-              <View style={styles.messageTextContainer}>
-                <Text style={styles.messageText}>
-                  <Text style={[styles.senderName, { color: senderColor }]}>
-                    {item.sender} {senderIsAdmin && '(Admin)'}:
+          <View style={styles.supportMessageBubble}>
+            <View style={styles.messageRow}>
+              <View style={styles.messageContentRow}>
+                <LevelBadge level={item.level || 1} />
+                <View style={styles.messageTextContainer}>
+                  <Text style={styles.messageText}>
+                    <Text style={[styles.senderName, { color: senderColor }]}>
+                      {item.sender} {senderIsAdmin && '(Admin)'}:
+                    </Text>
+                    <Text style={[styles.messageContent, { color: '#333' }]}>
+                      {renderMessageContent(item.content)}
+                    </Text>
                   </Text>
-                  <Text style={[styles.messageContent, { color: '#333' }]}>
-                    {renderMessageContent(item.content)}
-                  </Text>
-                </Text>
+                </View>
               </View>
+              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -6284,11 +6286,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   supportMessageContainer: {
-    backgroundColor: '#E3F2FD', // Light blue background for support messages
+    marginBottom: 6,
+    paddingHorizontal: 8,
+  },
+  supportMessageBubble: {
+    backgroundColor: '#E3F2FD',
     borderLeftWidth: 4,
-    borderLeftColor: '#2196F3', // Blue border for support messages
+    borderLeftColor: '#2196F3',
     borderRadius: 8,
-    marginVertical: 2,
+    padding: 8,
   },
   botCommandContainer: {
     backgroundColor: '#FFF3E0',
@@ -7475,8 +7481,8 @@ const styles = StyleSheet.create({
   },
   // Mention Text Style
   mentionText: {
-    color: '#FF6B35',
-    fontWeight: 'bold',
+    color: '#007AFF',
+    fontWeight: '600',
   },
   // Call Modal Styles
   callModalContainer: {
