@@ -16,6 +16,7 @@ import {
   Keyboard,
   Platform,
   Image,
+  ImageBackground,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
@@ -3230,8 +3231,7 @@ export default function ChatScreen() {
                 ]}>
                   {item.sender}
                 </Text>
-                <Text> </Text>
-                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                <Text> Lv.{item.level || 1} </Text>
                 <Text style={[
                   styles.senderName,
                   { 
@@ -3273,8 +3273,7 @@ export default function ChatScreen() {
                 ]}>
                   {item.sender}
                 </Text>
-                <Text> </Text>
-                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                <Text> Lv.{item.level || 1} </Text>
                 <Text style={[
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
@@ -3326,7 +3325,7 @@ export default function ChatScreen() {
           {item.type === 'me' ? (
             <View style={styles.commandMessageRow}>
               <Text style={styles.commandMessageText}>
-                <Text style={styles.levelBadge}>Lv.{item.level || 1} </Text>
+                <Text>Lv.{item.level || 1} </Text>
                 <Text style={[
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
@@ -3424,8 +3423,7 @@ export default function ChatScreen() {
                     ]}>
                       {item.sender}
                     </Text>
-                    <Text> </Text>
-                    <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                    <Text> Lv.{item.level || 1} </Text>
                     <Text style={styles.giftMessageInline}>
                       {renderMessageContent(item.content)}
                     </Text>
@@ -3457,8 +3455,7 @@ export default function ChatScreen() {
                     <Text style={[styles.senderName, { color: senderColor }]}>
                       {item.sender} {senderIsAdmin && '(Admin)'}
                     </Text>
-                    <Text> </Text>
-                    <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                    <Text> Lv.{item.level || 1} </Text>
                     <Text style={[styles.senderName, { color: senderColor }]}>: 
                     </Text>
                     <Text style={[styles.messageContent, { color: '#333' }]}>
@@ -3491,8 +3488,7 @@ export default function ChatScreen() {
                 ]}>
                   {item.sender}
                 </Text>
-                <Text> </Text>
-                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                <Text> Lv.{item.level || 1} </Text>
                 <Text style={[
                   styles.senderName,
                   { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
@@ -5636,6 +5632,23 @@ const styles = StyleSheet.create({
   },
   levelBadgeText: {
     fontSize: 8,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+  levelBadgeImageContainer: {
+    width: 16,
+    height: 18,
+    marginHorizontal: 2,
+  },
+  levelBadgeImage: {
+    width: 16,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  levelBadgeText: {
+    fontSize: 9,
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
