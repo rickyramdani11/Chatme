@@ -1514,6 +1514,12 @@ export default function ChatScreen() {
     console.log('🔄 NAV EFFECT - roomId:', roomId, 'roomName:', roomName);
     
     if (roomId && roomName && socketRef.current) {
+      // ✅ PREVENT DUPLICATE: Check if we already processed this navigation
+      if (navigationJoinedRef.current === roomId) {
+        console.log('⛔ NAV EFFECT BLOCKED - already processed navigation for:', roomId);
+        return;
+      }
+      
       // Check if room already exists in tabs (using chatTabsRef for current state)
       const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
@@ -1529,6 +1535,10 @@ export default function ChatScreen() {
         return;
       }
       
+      // Mark this room as being processed
+      navigationJoinedRef.current = roomId;
+      console.log('🔒 NAV EFFECT LOCKED navigation for:', roomId);
+      
       // Join the room (duplicate check is inside joinSpecificRoom)
       joinSpecificRoom(roomId, roomName).then(() => {
         console.log('✅ NAV EFFECT joinSpecificRoom complete:', roomId);
@@ -1540,8 +1550,13 @@ export default function ChatScreen() {
           isSupport: undefined,
           autoFocusTab: undefined
         });
+        // Clear the lock after params are cleared
+        setTimeout(() => {
+          navigationJoinedRef.current = null;
+        }, 100);
       }).catch((error) => {
         console.log('❌ NAV EFFECT ERROR:', roomId, error);
+        navigationJoinedRef.current = null; // Clear lock on error
       });
     }
   }, [roomId, roomName, type, isSupport]);
