@@ -658,13 +658,12 @@ export default function ChatScreen() {
         }
       }
 
-      // Remove from joining set AFTER all operations complete
-      joiningRoomsRef.current.delete(roomId);
+      // DON'T delete from joiningRoomsRef here - let useEffect cleanup after params cleared!
       console.log('✅ Finished joining room:', roomId);
 
     } catch (error) {
       console.error('Error joining specific room:', error);
-      // Remove from joining set on error
+      // Remove from joining set on error only
       joiningRoomsRef.current.delete(roomId);
     }
   };
@@ -1526,6 +1525,12 @@ export default function ChatScreen() {
     console.log('🔄 useEffect triggered - roomId:', roomId, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport);
     
     if (roomId && roomName && socketRef.current) {
+      // CRITICAL: Check if room is currently being joined (prevents race condition!)
+      if (joiningRoomsRef.current.has(roomId)) {
+        console.log('⛔ Skipping - room already being joined:', roomId);
+        return;
+      }
+      
       // Check if we've already consumed this exact roomId
       const alreadyConsumed = prevNavigationParamsRef.current?.roomId === roomId;
       
@@ -1550,6 +1555,12 @@ export default function ChatScreen() {
           isSupport: undefined,
           autoFocusTab: undefined
         });
+        
+        // Remove from joiningRoomsRef AFTER params cleared
+        setTimeout(() => {
+          joiningRoomsRef.current.delete(roomId);
+          console.log('🧹 Cleaned up joiningRoomsRef for:', roomId);
+        }, 500);
       });
     }
   }, [roomId, roomName, type, isSupport]);
