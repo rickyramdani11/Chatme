@@ -1522,12 +1522,15 @@ export default function ChatScreen() {
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
     // Prevent duplicate joins by checking if we've already consumed these params
-    console.log('🔄 useEffect triggered - roomId:', roomId, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport);
+    console.log('🔄 useEffect triggered - roomId:', roomId, 'roomName:', roomName, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport);
+    console.log('📊 joiningRoomsRef:', Array.from(joiningRoomsRef.current));
+    console.log('📊 prevNavigationParamsRef:', prevNavigationParamsRef.current);
+    console.log('📊 chatTabsRef length:', chatTabsRef.current.length, 'tabs:', chatTabsRef.current.map(t => t.id));
     
     if (roomId && roomName && socketRef.current) {
       // CRITICAL: Check if room is currently being joined (prevents race condition!)
       if (joiningRoomsRef.current.has(roomId)) {
-        console.log('⛔ Skipping - room already being joined:', roomId);
+        console.log('⛔ GUARD 1 BLOCKED - room already being joined:', roomId);
         return;
       }
       
@@ -1535,7 +1538,7 @@ export default function ChatScreen() {
       const alreadyConsumed = prevNavigationParamsRef.current?.roomId === roomId;
       
       if (alreadyConsumed) {
-        console.log('⛔ Skipping join - roomId already consumed:', roomId);
+        console.log('⛔ GUARD 2 BLOCKED - roomId already consumed:', roomId);
         return;
       }
       
@@ -1562,6 +1565,8 @@ export default function ChatScreen() {
           console.log('🧹 Cleaned up joiningRoomsRef for:', roomId);
         }, 500);
       });
+    } else {
+      console.log('⏭️ Skipping join - missing params or socket:', { roomId, roomName, socket: !!socketRef.current });
     }
   }, [roomId, roomName, type, isSupport]);
 
