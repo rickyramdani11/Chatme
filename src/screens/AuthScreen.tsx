@@ -56,23 +56,23 @@ export default function AuthScreen() {
   const [resetEmail, setResetEmail] = useState('');
   const { login, register } = useAuth();
 
-  // Load remembered credentials on mount
-  useEffect(() => {
-    const loadCredentials = async () => {
-      try {
-        const credentials = await AsyncStorage.getItem('rememberedCredentials');
-        if (credentials) {
-          const { username: rememberedUsername, password: rememberedPassword } = JSON.parse(credentials);
-          setUsername(rememberedUsername);
-          setPassword(rememberedPassword);
-          setRememberMe(true);
-        }
-      } catch (error) {
-        console.error('Failed to load credentials:', error);
-      }
-    };
-    loadCredentials();
-  }, []);
+  // Auto-login disabled - users must manually enter credentials after restart
+  // useEffect(() => {
+  //   const loadCredentials = async () => {
+  //     try {
+  //       const credentials = await AsyncStorage.getItem('rememberedCredentials');
+  //       if (credentials) {
+  //         const { username: rememberedUsername, password: rememberedPassword } = JSON.parse(credentials);
+  //         setUsername(rememberedUsername);
+  //         setPassword(rememberedPassword);
+  //         setRememberMe(true);
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to load credentials:', error);
+  //     }
+  //   };
+  //   loadCredentials();
+  // }, []);
 
 
   // Animation values
