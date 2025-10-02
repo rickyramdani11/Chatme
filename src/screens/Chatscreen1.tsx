@@ -3221,34 +3221,39 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={styles.messageContentRow}>
-              <Text style={styles.messageText}>
-                <Text style={[
-                  styles.senderName,
-                  { 
-                    color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
-                  }
-                ]}>
-                  {item.sender}
-                </Text>
-                <Text> Lv.{item.level || 1} </Text>
-                <Text style={[
-                  styles.senderName,
-                  { 
-                    color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
-                  }
-                ]}>: 
-                </Text>
-                <Text style={[
-                  styles.messageContent, 
-                  { 
-                    color: isBotCommand ? '#0f23bd' : '#8B4513', 
-                    fontWeight: 'bold',
-                    fontStyle: isBotCommand ? 'italic' : 'normal'
-                  }
-                ]}>
-                  {item.content}
-                </Text>
+            <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+              <Text style={[
+                styles.senderName,
+                { 
+                  color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                }
+              ]}>
+                {item.sender}
+              </Text>
+              <ImageBackground 
+                source={require('../../assets/icon/lvl_ic.png')} 
+                style={styles.levelBadgeImage}
+                resizeMode="contain"
+              >
+                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+              </ImageBackground>
+              <Text style={[
+                styles.senderName,
+                { 
+                  color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                }
+              ]}>: 
+              </Text>
+              <Text style={[
+                styles.messageContent, 
+                { 
+                  color: isBotCommand ? '#0f23bd' : '#8B4513', 
+                  fontWeight: 'bold',
+                  fontStyle: isBotCommand ? 'italic' : 'normal',
+                  flex: 1
+                }
+              ]}>
+                {item.content}
               </Text>
             </View>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
@@ -3265,23 +3270,27 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={styles.messageContentRow}>
-              <Text style={styles.messageText}>
-                <Text style={[
-                  styles.senderName,
-                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>
-                  {item.sender}
-                </Text>
-                <Text> Lv.{item.level || 1} </Text>
-                <Text style={[
-                  styles.senderName,
-                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>: 
-                </Text>
-                <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
-                  {item.content}
-                </Text>
+            <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+              <Text style={[
+                styles.senderName,
+                { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+              ]}>
+                {item.sender}
+              </Text>
+              <ImageBackground 
+                source={require('../../assets/icon/lvl_ic.png')} 
+                style={styles.levelBadgeImage}
+                resizeMode="contain"
+              >
+                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+              </ImageBackground>
+              <Text style={[
+                styles.senderName,
+                { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+              ]}>: 
+              </Text>
+              <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold', flex: 1 }]}>
+                {item.content}
               </Text>
             </View>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
@@ -3323,17 +3332,21 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           {item.type === 'me' ? (
-            <View style={styles.commandMessageRow}>
-              <Text style={styles.commandMessageText}>
-                <Text>Lv.{item.level || 1} </Text>
-                <Text style={[
-                  styles.senderName,
-                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>
-                  {item.sender} 
-                </Text>
-                <Text style={styles.commandContentText}>{item.content}</Text>
+            <View style={[styles.commandMessageRow, { flexDirection: 'row', alignItems: 'center' }]}>
+              <ImageBackground 
+                source={require('../../assets/icon/lvl_ic.png')} 
+                style={styles.levelBadgeImage}
+                resizeMode="contain"
+              >
+                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+              </ImageBackground>
+              <Text style={[
+                styles.senderName,
+                { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+              ]}>
+                {item.sender} 
               </Text>
+              <Text style={[styles.commandContentText, { flex: 1 }]}>{item.content}</Text>
               <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
           ) : (
@@ -3414,21 +3427,23 @@ export default function ChatScreen() {
         >
           <View style={styles.giftMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={styles.messageContentRow}>
-                <View style={styles.messageTextContainer}>
-                  <Text style={styles.messageText}>
-                    <Text style={[
-                      styles.senderName,
-                      { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                    ]}>
-                      {item.sender}
-                    </Text>
-                    <Text> Lv.{item.level || 1} </Text>
-                    <Text style={styles.giftMessageInline}>
-                      {renderMessageContent(item.content)}
-                    </Text>
-                  </Text>
-                </View>
+              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+                <Text style={[
+                  styles.senderName,
+                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>
+                  {item.sender}
+                </Text>
+                <ImageBackground 
+                  source={require('../../assets/icon/lvl_ic.png')} 
+                  style={styles.levelBadgeImage}
+                  resizeMode="contain"
+                >
+                  <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+                </ImageBackground>
+                <Text style={[styles.giftMessageInline, { flex: 1 }]}>
+                  {renderMessageContent(item.content)}
+                </Text>
               </View>
               <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
@@ -3449,20 +3464,22 @@ export default function ChatScreen() {
         >
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={styles.messageContentRow}>
-                <View style={styles.messageTextContainer}>
-                  <Text style={styles.messageText}>
-                    <Text style={[styles.senderName, { color: senderColor }]}>
-                      {item.sender} {senderIsAdmin && '(Admin)'}
-                    </Text>
-                    <Text> Lv.{item.level || 1} </Text>
-                    <Text style={[styles.senderName, { color: senderColor }]}>: 
-                    </Text>
-                    <Text style={[styles.messageContent, { color: '#333' }]}>
-                      {renderMessageContent(item.content)}
-                    </Text>
-                  </Text>
-                </View>
+              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+                <Text style={[styles.senderName, { color: senderColor }]}>
+                  {item.sender} {senderIsAdmin && '(Admin)'}
+                </Text>
+                <ImageBackground 
+                  source={require('../../assets/icon/lvl_ic.png')} 
+                  style={styles.levelBadgeImage}
+                  resizeMode="contain"
+                >
+                  <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+                </ImageBackground>
+                <Text style={[styles.senderName, { color: senderColor }]}>: 
+                </Text>
+                <Text style={[styles.messageContent, { color: '#333', flex: 1 }]}>
+                  {renderMessageContent(item.content)}
+                </Text>
               </View>
               <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
@@ -3479,37 +3496,41 @@ export default function ChatScreen() {
       >
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
-          <View style={styles.messageContentRow}>
-            <View style={styles.messageTextContainer}>
-              <Text style={styles.messageText}>
-                <Text style={[
-                  styles.senderName,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>
-                  {item.sender}
-                </Text>
-                <Text> Lv.{item.level || 1} </Text>
-                <Text style={[
-                  styles.senderName,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>:
-                </Text>
-                <Text style={[
-                  styles.messageContent,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333' }
-                ]}>
-                  {renderMessageContent(item.content)}
-                </Text>
+          <View style={[styles.messageContentRow, { flexDirection: 'column', flex: 1 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <Text style={[
+                styles.senderName,
+                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+              ]}>
+                {item.sender}
               </Text>
-              {/* Display card image if available */}
-              {item.image && (
-                <Image
-                  source={{ uri: `${API_BASE_URL}${item.image}` }}
-                  style={styles.cardMessageImage}
-                  resizeMode="contain"
-                />
-              )}
+              <ImageBackground 
+                source={require('../../assets/icon/lvl_ic.png')} 
+                style={styles.levelBadgeImage}
+                resizeMode="contain"
+              >
+                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+              </ImageBackground>
+              <Text style={[
+                styles.senderName,
+                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+              ]}>:
+              </Text>
+              <Text style={[
+                styles.messageContent,
+                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333', flex: 1 }
+              ]}>
+                {renderMessageContent(item.content)}
+              </Text>
             </View>
+            {/* Display card image if available */}
+            {item.image && (
+              <Image
+                source={{ uri: `${API_BASE_URL}${item.image}` }}
+                style={styles.cardMessageImage}
+                resizeMode="contain"
+              />
+            )}
           </View>
 
           {/* Time */}
@@ -5636,16 +5657,12 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
   },
-  levelBadgeImageContainer: {
-    width: 16,
-    height: 18,
-    marginHorizontal: 2,
-  },
   levelBadgeImage: {
     width: 16,
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    marginHorizontal: 3,
   },
   levelBadgeText: {
     fontSize: 9,

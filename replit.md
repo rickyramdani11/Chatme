@@ -8,18 +8,22 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 2, 2025** - Implemented level badge with ImageBackground (lvl_ic.png icon):
+- **View-based refactor**: Changed all message structures from Text-based nested to View-based flexDirection:'row' to support ImageBackground (React Native constraint: Image components cannot be nested inside Text)
+- **Badge implementation**: ImageBackground 16x18px showing lvl_ic.png with white level number overlaid (fontSize: 9, fontWeight: bold)
+- **Message types updated**: Regular messages, command messages, /me commands, gift messages, support messages all use ImageBackground badge
+- **Proper alignment**: flexDirection:'row' with alignItems:'center' ensures perfect vertical alignment of badge with username
+- **Spacing**: marginHorizontal: 3 on badge for proper spacing between username and level
+- **Result**: All messages now display level badge as icon with number instead of text-only badge
+
 **October 2, 2025** - Chat UI improvements and header redesign:
 - **Header redesign**: Moved header elements down (paddingTop: 25px), removed calendar and grid icons for cleaner interface
-- **Badge positioning**: Changed badge from left side to inline with username - "Username Lv.X:" instead of "[Lv.X] Username:"
-- **Badge styling**: Redesigned level badge to pill-shaped rounded style (borderRadius: 12, cyan background #00BCD4, fontSize: 10, paddingHorizontal: 8)
 - **Username size**: Increased senderName fontSize from 14 to 15 for better readability
 - **Color consistency**: Room names now use dark orange (#d2691e) consistently across header, room info messages, and join/leave messages
-- **Badge applies to message types**: Regular messages, command messages, gift messages, support messages
 - **Room info NO badge**: Room info messages show only "RoomName: message" without level badge
 - **Perfect alignment**: ALL message types use messagesContainer paddingHorizontal: 12 for consistent left alignment
 - **Tighter spacing**: Reduced all margins - messageContainer (marginBottom: 4), messageRow (marginVertical: 2), roomInfo (marginBottom: 2), joinLeave (marginVertical: 2, paddingVertical: 4)
-- **Removed LevelBadge component**: No longer needed, badges now rendered inline as Text components
-- **Result**: Cleaner chat UI with compact spacing, perfect left alignment, pill-shaped badges, consistent room name colors
+- **Result**: Cleaner chat UI with compact spacing, perfect left alignment, consistent room name colors
 
 **October 2, 2025** - Migrated all features to Chatscreen1.tsx (bug-free version):
 - **Migration completed**: Moved gift modal, participant modal, and message styling from buggy ChatScreen.tsx to working Chatscreen1.tsx
