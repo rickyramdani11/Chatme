@@ -1517,14 +1517,14 @@ export default function ChatScreen() {
     // Prevent duplicate joins by checking if we already joined this room from navigation
     console.log('🔄 useEffect triggered - roomId:', roomId, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport, 'navigationJoinedRef:', navigationJoinedRef.current);
     
-    if (roomId && roomName && socket && navigationJoinedRef.current !== roomId) {
+    if (roomId && roomName && socketRef.current && navigationJoinedRef.current !== roomId) {
       console.log('✅ Navigated to specific room/chat:', roomId, roomName, type);
       navigationJoinedRef.current = roomId; // Mark room as joined from navigation
       joinSpecificRoom(roomId, roomName);
     } else if (roomId && navigationJoinedRef.current === roomId) {
       console.log('⛔ Skipping join - already joined this room from navigation:', roomId);
     }
-  }, [roomId, roomName, socket, type, isSupport]);
+  }, [roomId, roomName, type, isSupport]);
 
   // Effect untuk mempertahankan state pesan saat app kembali aktif
   useEffect(() => {
