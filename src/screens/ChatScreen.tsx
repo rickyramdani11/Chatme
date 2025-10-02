@@ -115,6 +115,7 @@ export default function ChatScreen() {
   const hadConnectedRef = useRef(false);
   const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
   const navigationJoinedRef = useRef<string | null>(null); // Track room joined from navigation params
+  const joiningRoomsRef = useRef(new Set<string>()); // Track rooms currently being joined (prevent race condition)
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const hasAutoFocusedRef = useRef(false); // Track if we've already auto-focused a tab
@@ -470,6 +471,16 @@ export default function ChatScreen() {
         return;
       }
 
+      // Prevent race condition: check if this room is already being joined
+      if (joiningRoomsRef.current.has(roomId)) {
+        console.log('⚠️ Room already being joined, skipping duplicate join:', roomId);
+        return;
+      }
+
+      // Mark room as being joined
+      joiningRoomsRef.current.add(roomId);
+      console.log('✅ Started joining room:', roomId);
+
       // For regular rooms, load messages from room API
       let messages = [];
       if (!isSupport) { // Exclude support chats from room message loading
@@ -603,6 +614,10 @@ export default function ChatScreen() {
           }
         }, 100);
 
+        // Remove from joining set after successful tab creation
+        joiningRoomsRef.current.delete(roomId);
+        console.log('✅ Finished joining room:', roomId);
+
         return newTabs;
       });
 
@@ -640,6 +655,8 @@ export default function ChatScreen() {
 
     } catch (error) {
       console.error('Error joining specific room:', error);
+      // Remove from joining set on error
+      joiningRoomsRef.current.delete(roomId);
     }
   };
 
