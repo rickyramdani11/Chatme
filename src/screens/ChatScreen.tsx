@@ -4221,7 +4221,7 @@ export default function ChatScreen() {
       <View style={styles.indicatorContainer}>
         {chatTabs.map((tab, index) => (
           <TouchableOpacity
-            key={index}
+            key={tab.id}
             style={[
               styles.indicator,
               index === activeTab && styles.activeIndicator,
@@ -4980,7 +4980,7 @@ export default function ChatScreen() {
             scrollEventThrottle={16}
           >
             {chatTabs.map((tab, index) => (
-              <TouchableWithoutFeedback key={`${tab.id}-${index}`} onPress={() => Keyboard.dismiss()}>
+              <TouchableWithoutFeedback key={tab.id} onPress={() => Keyboard.dismiss()}>
                 <View style={styles.tabContent}>
                   <FlatList
                     ref={(ref) => { flatListRefs.current[tab.id] = ref; }} // Assign ref to the FlatList
