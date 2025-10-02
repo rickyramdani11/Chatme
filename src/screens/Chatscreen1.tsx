@@ -3221,7 +3221,6 @@ export default function ChatScreen() {
         >
           <View style={styles.messageRow}>
             <View style={styles.messageContentRow}>
-              <LevelBadge level={item.level || 1} />
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
@@ -3229,7 +3228,16 @@ export default function ChatScreen() {
                     color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                   }
                 ]}>
-                  {item.sender}: 
+                  {item.sender}
+                </Text>
+                <Text> </Text>
+                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                <Text style={[
+                  styles.senderName,
+                  { 
+                    color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                  }
+                ]}>: 
                 </Text>
                 <Text style={[
                   styles.messageContent, 
@@ -3258,13 +3266,19 @@ export default function ChatScreen() {
         >
           <View style={styles.messageRow}>
             <View style={styles.messageContentRow}>
-              <LevelBadge level={item.level || 1} />
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}: 
+                  {item.sender}
+                </Text>
+                <Text> </Text>
+                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                <Text style={[
+                  styles.senderName,
+                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>: 
                 </Text>
                 <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
                   {item.content}
@@ -3281,15 +3295,18 @@ export default function ChatScreen() {
     if (item.type === 'room_info') {
       return (
         <TouchableOpacity 
-          style={styles.messageContainer}
+          style={styles.roomInfoMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
             <View style={styles.messageContentRow}>
               <Text style={styles.messageText}>
                 <Text style={[styles.senderName, { color: '#d2691e' }]}>
-                  {item.sender}:
+                  {item.sender}
                 </Text>
+                <Text> </Text>
+                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                <Text style={[styles.senderName, { color: '#d2691e' }]}>:</Text>
                 <Text style={[styles.messageContent, { color: '#333' }]}>
                   {' '}{item.content}
                 </Text>
@@ -3402,7 +3419,6 @@ export default function ChatScreen() {
           <View style={styles.giftMessageBubble}>
             <View style={styles.messageRow}>
               <View style={styles.messageContentRow}>
-                <LevelBadge level={item.level || 1} />
                 <View style={styles.messageTextContainer}>
                   <Text style={styles.messageText}>
                     <Text style={[
@@ -3411,6 +3427,8 @@ export default function ChatScreen() {
                     ]}>
                       {item.sender}
                     </Text>
+                    <Text> </Text>
+                    <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
                     <Text style={styles.giftMessageInline}>
                       {renderMessageContent(item.content)}
                     </Text>
@@ -3437,11 +3455,14 @@ export default function ChatScreen() {
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
               <View style={styles.messageContentRow}>
-                <LevelBadge level={item.level || 1} />
                 <View style={styles.messageTextContainer}>
                   <Text style={styles.messageText}>
                     <Text style={[styles.senderName, { color: senderColor }]}>
-                      {item.sender} {senderIsAdmin && '(Admin)'}: 
+                      {item.sender} {senderIsAdmin && '(Admin)'}
+                    </Text>
+                    <Text> </Text>
+                    <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                    <Text style={[styles.senderName, { color: senderColor }]}>: 
                     </Text>
                     <Text style={[styles.messageContent, { color: '#333' }]}>
                       {renderMessageContent(item.content)}
@@ -3465,14 +3486,20 @@ export default function ChatScreen() {
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
           <View style={styles.messageContentRow}>
-            <LevelBadge level={item.level || 1} />
             <View style={styles.messageTextContainer}>
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
                   { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}:
+                  {item.sender}
+                </Text>
+                <Text> </Text>
+                <Text style={styles.levelBadge}>Lv.{item.level || 1}</Text>
+                <Text style={[
+                  styles.senderName,
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>:
                 </Text>
                 <Text style={[
                   styles.messageContent,
@@ -4214,12 +4241,6 @@ export default function ChatScreen() {
             ) : (
               // Room Chat Icons
               <>
-                <TouchableOpacity style={styles.headerIcon}>
-                  <Ionicons name="calendar-outline" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIcon}>
-                  <Ionicons name="grid-outline" size={24} color="#fff" />
-                </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleListPress}>
                   <Ionicons name="list-outline" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -5372,7 +5393,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   header: {
-    paddingTop: 10,
+    paddingTop: 25,
     paddingBottom: 15,
     paddingHorizontal: 16,
   },
@@ -6989,14 +7010,10 @@ const styles = StyleSheet.create({
   },
   // Room Info Message Styles
   roomInfoMessageContainer: {
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#E8F5E8',
-    marginHorizontal: 8,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginHorizontal: 0,
   },
   roomInfoMessageRow: {
     flexDirection: 'row',
