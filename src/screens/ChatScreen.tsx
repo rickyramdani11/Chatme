@@ -459,10 +459,21 @@ export default function ChatScreen() {
     try {
       console.log('Joining specific room/chat:', roomId, roomName, type, 'User:', user?.username);
 
-      // Check if room already exists in tabs
-      const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
+      // Prevent race condition: check if this room is already being joined
+      if (joiningRoomsRef.current.has(roomId)) {
+        console.log('⚠️ Room already being joined, skipping duplicate join:', roomId);
+        return;
+      }
+
+      // Mark room as being joined BEFORE checking existing tabs
+      joiningRoomsRef.current.add(roomId);
+      console.log('✅ Started joining room:', roomId);
+
+      // Check if room already exists in tabs using REF (not stale state!)
+      const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
         // Room already exists, just switch to it
+        console.log('✅ Room already in tabs, switching to index:', existingTabIndex);
         setActiveTab(existingTabIndex);
         if (scrollViewRef.current) {
           scrollViewRef.current.scrollTo({
@@ -470,18 +481,10 @@ export default function ChatScreen() {
             animated: true
           });
         }
+        // Remove from joining set
+        joiningRoomsRef.current.delete(roomId);
         return;
       }
-
-      // Prevent race condition: check if this room is already being joined
-      if (joiningRoomsRef.current.has(roomId)) {
-        console.log('⚠️ Room already being joined, skipping duplicate join:', roomId);
-        return;
-      }
-
-      // Mark room as being joined
-      joiningRoomsRef.current.add(roomId);
-      console.log('✅ Started joining room:', roomId);
 
       // For regular rooms, load messages from room API
       let messages = [];
