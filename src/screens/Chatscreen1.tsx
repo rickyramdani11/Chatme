@@ -39,10 +39,10 @@ interface Message {
   content: string;
   timestamp: Date;
   roomId: string;
-  role?: any;
+  role?: 'user' | 'merchant' | 'mentor' | 'admin' | 'system';
   level?: number;
-  type?: any;
-  commandType?: any;
+  type?: 'join' | 'leave' | 'message' | 'command' | 'me' | 'room_info' | 'report' | 'ban' | 'kick' | 'lock' | 'support' | 'gift' | 'error' | 'system';
+  commandType?: 'system' | 'bot';
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
   image?: string;
   isSupport?: boolean;
@@ -85,8 +85,6 @@ export default function ChatScreen() {
   const [giftList, setGiftList] = useState<any[]>([]);
   const [activeGiftTab, setActiveGiftTab] = useState<'all' | 'special'>('all');
   const [sendToAllUsers, setSendToAllUsers] = useState(false);
-  const [isSendingGift, setIsSendingGift] = useState(false);
-  const isSendingGiftRef = useRef(false);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
   const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
@@ -94,8 +92,8 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
   const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
-
-  // Create refs to store state values that socket listeners need to avoid stale closures
+  
+  // Create refs for state values that socket listeners need to avoid stale closures
   const chatTabsRef = useRef<ChatTab[]>([]);
   const activeTabRef = useRef<number>(0);
   const autoScrollEnabledRef = useRef<boolean>(true);
@@ -111,77 +109,97 @@ export default function ChatScreen() {
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const maxReconnectAttempts = 5;
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isInitializingSocketRef = useRef(false);
-  const hadConnectedRef = useRef(false);
-  const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
-  const navigationJoinedRef = useRef<string | null>(null); // Track room joined from navigation params
-  const joiningRoomsRef = useRef(new Set<string>()); // Track rooms currently being joined (prevent race condition)
-  const socketRef = useRef<Socket | null>(null); // Ref to avoid closure issues in AppState handler
-  const prevNavigationParamsRef = useRef<any>(null); // Track previous navigation params to prevent duplicate joins
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const hasAutoFocusedRef = useRef(false); // Track if we've already auto-focused a tab
-
+  
   // Get user and token before any refs that depend on them
   const { user, token } = useAuth();
-
-  // Get room data from navigation params
+  
+  // Get room data from navigation params  
   const routeParams = (route.params as any) || {};
-  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', isSupport } = routeParams;
-
+  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
+  
   // Update refs whenever state changes to avoid stale closures
   useEffect(() => {
     chatTabsRef.current = chatTabs;
   }, [chatTabs]);
-
+  
   useEffect(() => {
     activeTabRef.current = activeTab;
   }, [activeTab]);
-
+  
   useEffect(() => {
     autoScrollEnabledRef.current = autoScrollEnabled;
   }, [autoScrollEnabled]);
-
+  
   useEffect(() => {
     isUserScrollingRef.current = isUserScrolling;
   }, [isUserScrolling]);
-
+  
   useEffect(() => {
     userRef.current = user;
   }, [user]);
-
+  
   // Add AppState listener for proper background/foreground handling
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
       console.log('AppState changed to:', nextAppState);
 
       if (nextAppState === 'active') {
-        console.log('App became active - maintaining socket connection');
-
+        console.log('App became active - ensuring socket connection and rejoining rooms');
+        
         // Reset scroll state
         setIsUserScrolling(false);
-
-        // Force scroll to bottom for current tab without rejoining rooms
+        
+        if (socket) {
+          // Always rejoin rooms using latest state from refs
+          setTimeout(() => {
+            const currentTabs = chatTabsRef.current;
+            const currentUser = userRef.current;
+            if (currentTabs.length > 0 && currentUser?.username) {
+              console.log(`Rejoining ${currentTabs.length} rooms after app resume`);
+              currentTabs.forEach((tab, index) => {
+                setTimeout(() => {
+                  console.log('Rejoining room after app resume:', tab.id, currentUser.username);
+                  if (tab.isSupport) {
+                    socket.emit('join-support-room', {
+                      supportRoomId: tab.id,
+                      isAdmin: currentUser.role === 'admin'
+                    });
+                  } else {
+                    socket.emit('join-room', {
+                      roomId: tab.id,
+                      username: currentUser.username,
+                      role: currentUser.role || 'user'
+                    });
+                  }
+                }, index * 100); // Stagger rejoining
+              });
+            }
+          }, 500);
+        }
+        
+        // Force scroll to bottom for current tab
         setTimeout(() => {
           const currentTab = chatTabsRef.current[activeTabRef.current];
           if (currentTab && flatListRefs.current[currentTab.id]) {
             flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: true });
           }
-        }, 500);
-
+        }, 1000);
+        
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
-        // Keep socket alive and maintain room connections
+        // Keep socket alive for better message delivery
       }
     };
 
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
-
+    
     return () => {
       appStateSubscription?.remove();
     };
   }, [socket]); // Dependency on socket to re-setup when socket changes
-
+  
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
   const [selectedGiftForUser, setSelectedGiftForUser] = useState<any>(null);
@@ -210,7 +228,7 @@ export default function ChatScreen() {
   // Call handling functions
   const checkUserBalance = async (requiredAmount: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/user/balance`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -230,7 +248,7 @@ export default function ChatScreen() {
 
   const deductCoins = async (amount: number, type: string, description: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/user/deduct-coins`, {
+      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -240,7 +258,7 @@ export default function ChatScreen() {
           amount,
           type: `${type}_call`,
           description: `${type} call for ${description}`,
-          recipientUsername: selectedParticipant?.username // Use selectedParticipant for recipient
+          recipientUsername: targetUser?.username
         }),
       });
 
@@ -306,7 +324,7 @@ export default function ChatScreen() {
     const finalEarnings = Math.floor(totalDeducted * 0.7);
     if (finalEarnings > 0) {
       Alert.alert(
-        'Call Ended',
+        'Call Ended', 
         `Total earnings: ${finalEarnings} coins (70% of ${totalDeducted} coins spent)`,
         [{ text: 'OK' }]
       );
@@ -322,8 +340,8 @@ export default function ChatScreen() {
 
   const handleVideoCall = async () => {
     // Get targetUser from navigation params or selected participant
-    const callTargetUser = selectedParticipant; // Use selectedParticipant
-
+    const callTargetUser = targetUser || selectedParticipant;
+    
     if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
       return;
@@ -340,8 +358,8 @@ export default function ChatScreen() {
       `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start Call',
+        { 
+          text: 'Start Call', 
           onPress: () => {
             // Send call notification to target user
             if (socket && user) {
@@ -361,8 +379,8 @@ export default function ChatScreen() {
 
   const handleAudioCall = async () => {
     // Get targetUser from navigation params or selected participant
-    const callTargetUser = selectedParticipant; // Use selectedParticipant
-
+    const callTargetUser = targetUser || selectedParticipant;
+    
     if (!callTargetUser || !callTargetUser.username) {
       Alert.alert('Error', 'No target user for call');
       return;
@@ -379,8 +397,8 @@ export default function ChatScreen() {
       `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start Call',
+        { 
+          text: 'Start Call', 
           onPress: () => {
             // Send call notification to target user
             if (socket && user) {
@@ -457,14 +475,12 @@ export default function ChatScreen() {
   // Function to join a specific room (called when navigating from RoomScreen)
   const joinSpecificRoom = async (roomId: string, roomName: string) => {
     try {
-      console.log('Joining specific room/chat:', roomId, roomName, type, 'User:', user?.username);
-      console.log('✅ Started joining room:', roomId);
+      console.log('Joining specific room/chat:', roomId, roomName, type || 'room', 'User:', user?.username);
 
-      // Check if room already exists in tabs using REF (not stale state!)
-      const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
+      // Check if room already exists in tabs
+      const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
         // Room already exists, just switch to it
-        console.log('✅ Room already in tabs, switching to index:', existingTabIndex);
         setActiveTab(existingTabIndex);
         if (scrollViewRef.current) {
           scrollViewRef.current.scrollTo({
@@ -475,12 +491,12 @@ export default function ChatScreen() {
         return;
       }
 
-      // For regular rooms, load messages from room API
+      // For private chats, don't try to load messages from room API
       let messages = [];
-      if (!isSupport) { // Exclude support chats from room message loading
+      if (type !== 'private' && !isSupport) { // Also exclude support chats from room message loading
         // Load messages for the specific room
         try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/messages/${roomId}`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${roomId}`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -491,11 +507,24 @@ export default function ChatScreen() {
           console.log('No previous messages for room');
           messages = [];
         }
-
+      } else if (type === 'private') {
+        // For private chats, try to load private chat messages
+        try {
+          const messagesResponse = await fetch(`${API_BASE_URL}/api/chat/private/${roomId}/messages`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'ChatMe-Mobile-App',
+            },
+          });
+          messages = messagesResponse.ok ? await messagesResponse.json() : [];
+        } catch (error) {
+          console.log('No previous messages for private chat');
+          messages = [];
+        }
       } else if (isSupport) {
         // Load messages for support chat
         try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/support/${roomId}/messages`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/api/support/${roomId}/messages`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -512,7 +541,7 @@ export default function ChatScreen() {
         let roomData = null;
         if (type !== 'private' && !isSupport) {
           try {
-            const roomResponse = await fetch(`${API_BASE_URL}/rooms`, {
+            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms`, {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
@@ -534,62 +563,59 @@ export default function ChatScreen() {
           };
         }
 
-        // Create room info messages for room types (not support chats)
+        // Create room info messages for room types (not private chats or support chats)
         let roomInfoMessages = [];
-        if (!isSupport) {
+        if (type !== 'private' && !isSupport) {
           const currentTime = new Date();
 
           // Room description message
           roomInfoMessages.push({
             id: `room_info_desc_${roomId}`,
-            sender: 'System',
-            content: roomDescription || `Welcome to ${roomName} official chatroom. Here you can chat and interact with other users.`,
+            sender: roomName,
+            content: roomDescription || `Welcome to ${roomName} official chatroom`,
             timestamp: new Date(currentTime.getTime() - 3000), // 3 seconds earlier
             roomId: roomId,
-            role: 'system' as const,
+            role: 'system',
             level: 1,
-            type: 'system' as const,
-            commandType: 'room-info' as const
+            type: 'room_info'
           });
 
-          // Managed by message
+          // Managed by message  
           roomInfoMessages.push({
             id: `room_info_managed_${roomId}`,
-            sender: 'System',
+            sender: roomName,
             content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
             timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
-            role: 'system' as const,
+            role: 'system',
             level: 1,
-            type: 'system' as const,
-            commandType: 'room-info' as const
+            type: 'room_info'
           });
 
           // Currently in the room message (will be updated with actual participants)
           roomInfoMessages.push({
             id: `room_info_current_${roomId}`,
-            sender: 'System',
+            sender: roomName,
             content: `Currently in the room: Loading participants...`,
             timestamp: new Date(currentTime.getTime() - 1000), // 1 second earlier
             roomId: roomId,
-            role: 'system' as const,
+            role: 'system',
             level: 1,
-            type: 'system' as const,
-            commandType: 'room-info' as const
+            type: 'room_info'
           });
         }
 
         // Combine room info messages with existing messages
         const allMessages = [...roomInfoMessages, ...messages];
 
-        // Create new tab for the room or support chat
+        // Create new tab for the room or private chat or support chat
         const newTab: ChatTab = {
           id: roomId,
           title: roomName,
           type: isSupport ? 'support' : (type || 'room'),
           messages: allMessages,
-          managedBy: roomData?.managedBy || roomData?.createdBy || 'admin',
-          description: roomDescription || (isSupport ? 'Support Chat' : `${roomName} room`),
+          managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.createdBy || 'admin'),
+          description: roomDescription || (type === 'private' ? `Private chat with ${targetUser?.username}` : isSupport ? 'Support Chat' : `${roomName} room`),
           moderators: roomData?.moderators || [],
           isSupport: isSupport
         };
@@ -597,10 +623,6 @@ export default function ChatScreen() {
       // Add the new tab and set it as active
       setChatTabs(prevTabs => {
         const newTabs = [...prevTabs, newTab];
-        
-        // UPDATE REF IMMEDIATELY to prevent duplicate joins!
-        chatTabsRef.current = newTabs;
-        
         // Set the new room as active tab
         const newActiveTab = newTabs.length - 1;
         setActiveTab(newActiveTab);
@@ -615,43 +637,31 @@ export default function ChatScreen() {
           }
         }, 100);
 
-        console.log('✅ setChatTabs - Added new tab:', roomId);
         return newTabs;
       });
 
-      // Only add participant to room if it's not a support chat
-      if (user?.username && !isSupport) {
+      // Only add participant to room if it's not a private or support chat
+      if (user?.username && type !== 'private' && !isSupport) {
         await addParticipantToRoom(roomId, user.username, user.role || 'user');
       }
 
       // Join room via socket (for both room and private chat)
-      // Use silent flag based on whether we've joined this room before in this session
       if (socket) {
-        const hasJoinedBefore = joinedRoomsRef.current.has(roomId);
-        const shouldBeSilent = hasJoinedBefore; // Silent if we've joined before
-
-        console.log(`Emitting join-room for room ${roomId}, silent: ${shouldBeSilent}`);
-        joinedRoomsRef.current.add(roomId); // Mark room as joined
-
         if (isSupport) {
           // Join support room with admin status
           socket.emit('join-support-room', {
             supportRoomId: roomId,
-            isAdmin: user?.role === 'admin',
-            silent: shouldBeSilent
+            isAdmin: user?.role === 'admin'
           });
         } else {
           // Join regular room or private chat
           socket.emit('join-room', {
             roomId: roomId,
             username: user?.username || 'Guest',
-            role: user?.role || 'user',
-            silent: shouldBeSilent
+            role: user?.role || 'user'
           });
         }
       }
-
-      console.log('✅ Finished joining room:', roomId);
 
     } catch (error) {
       console.error('Error joining specific room:', error);
@@ -660,7 +670,7 @@ export default function ChatScreen() {
 
   // Initialize socket with persistent connection and auto-reconnect
   useEffect(() => {
-    const setupSocketListeners = (socketInstance: any) => {
+    const setupSocketListeners = (socketInstance) => {
       // Clear existing listeners to prevent duplicates
       socketInstance.removeAllListeners('new-message');
       socketInstance.removeAllListeners('user-joined');
@@ -670,10 +680,11 @@ export default function ChatScreen() {
       socketInstance.removeAllListeners('user-muted');
       socketInstance.removeAllListeners('receiveGift');
       socketInstance.removeAllListeners('receive-private-gift');
+      socketInstance.removeAllListeners('gift-animation');
       socketInstance.removeAllListeners('admin-joined'); // Listener for admin joined support chat
       socketInstance.removeAllListeners('support-message'); // Listener for support messages
 
-      socketInstance.on('new-message', (newMessage: any) => {
+      socketInstance.on('new-message', (newMessage: Message) => {
         console.log('Received new message:', {
           sender: newMessage.sender,
           content: newMessage.content,
@@ -681,16 +692,6 @@ export default function ChatScreen() {
           role: newMessage.role,
           roomId: newMessage.roomId
         });
-
-        // Special handling for error messages - show alert if not displayed in UI
-        if (newMessage.type === 'error' && newMessage.sender === 'System') {
-          console.log('🚨 ERROR MESSAGE RECEIVED:', newMessage.content);
-          
-          // Show error in alert for immediate visibility
-          setTimeout(() => {
-            Alert.alert('System Error', newMessage.content);
-          }, 500);
-        }
 
         // Ensure timestamp is a proper Date object
         if (typeof newMessage.timestamp === 'string') {
@@ -701,8 +702,8 @@ export default function ChatScreen() {
           const updatedTabs = prevTabs.map(tab => {
             if (tab.id === newMessage.roomId) {
               // Replace optimistic message if it exists, otherwise add new message
-              const existingIndex = tab.messages.findIndex(msg =>
-                msg.id === newMessage.id ||
+              const existingIndex = tab.messages.findIndex(msg => 
+                msg.id === newMessage.id || 
                 (msg.sender === newMessage.sender && msg.content === newMessage.content && msg.id.startsWith('temp_'))
               );
 
@@ -719,9 +720,9 @@ export default function ChatScreen() {
                   console.log('System message added to tab:', tab.id, 'Content:', newMessage.content.substring(0, 50));
                 } else {
                   // For user messages, be more lenient with duplicate checking to prevent message loss
-                  const isDuplicate = tab.messages.some(msg =>
-                    msg.id === newMessage.id ||
-                    (msg.sender === newMessage.sender &&
+                  const isDuplicate = tab.messages.some(msg => 
+                    msg.id === newMessage.id || 
+                    (msg.sender === newMessage.sender && 
                      msg.content === newMessage.content &&
                      Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 1000)
                   );
@@ -763,7 +764,7 @@ export default function ChatScreen() {
             [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
           }));
         }
-
+        
         // Force scroll to bottom for current room messages with better timing using refs
         if (newMessage.roomId === chatTabsRef.current[activeTabRef.current]?.id) {
           setTimeout(() => {
@@ -776,65 +777,23 @@ export default function ChatScreen() {
       });
 
       socketInstance.on('user-joined', (joinMessage: Message) => {
-        // Only add join/leave messages if it's not a private chat or support chat
-        const targetTab = chatTabsRef.current.find(tab => tab.id === joinMessage.roomId);
-        const isPrivateChat = targetTab?.type === 'private';
-        const isSupportChat = targetTab?.isSupport;
-
-        if (!isPrivateChat && !isSupportChat) {
-          setChatTabs(prevTabs =>
-            prevTabs.map(tab => {
-              if (tab.id === joinMessage.roomId) {
-                // Check for duplicate join messages
-                const isDuplicate = tab.messages.some(msg =>
-                  msg.id === joinMessage.id ||
-                  (msg.type === 'join' && 
-                   msg.sender === joinMessage.sender &&
-                   Math.abs(new Date(msg.timestamp).getTime() - new Date(joinMessage.timestamp).getTime()) < 2000)
-                );
-                
-                if (!isDuplicate) {
-                  return { ...tab, messages: [...tab.messages, joinMessage] };
-                }
-                console.log('Duplicate join message filtered out');
-              }
-              return tab;
-            })
-          );
-        } else {
-          console.log('Skipping join message for private/support chat.');
-        }
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === joinMessage.roomId
+              ? { ...tab, messages: [...tab.messages, joinMessage] }
+              : tab
+          )
+        );
       });
 
       socketInstance.on('user-left', (leaveMessage: Message) => {
-        // Only add join/leave messages if it's not a private chat or support chat
-        const targetTab = chatTabsRef.current.find(tab => tab.id === leaveMessage.roomId);
-        const isPrivateChat = targetTab?.type === 'private';
-        const isSupportChat = targetTab?.isSupport;
-
-        if (!isPrivateChat && !isSupportChat) {
-          setChatTabs(prevTabs =>
-            prevTabs.map(tab => {
-              if (tab.id === leaveMessage.roomId) {
-                // Check for duplicate leave messages
-                const isDuplicate = tab.messages.some(msg =>
-                  msg.id === leaveMessage.id ||
-                  (msg.type === 'leave' && 
-                   msg.sender === leaveMessage.sender &&
-                   Math.abs(new Date(msg.timestamp).getTime() - new Date(leaveMessage.timestamp).getTime()) < 2000)
-                );
-                
-                if (!isDuplicate) {
-                  return { ...tab, messages: [...tab.messages, leaveMessage] };
-                }
-                console.log('Duplicate leave message filtered out');
-              }
-              return tab;
-            })
-          );
-        } else {
-          console.log('Skipping leave message for private/support chat.');
-        }
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab =>
+            tab.id === leaveMessage.roomId
+              ? { ...tab, messages: [...tab.messages, leaveMessage] }
+              : tab
+          )
+        );
       });
 
       // Listen for participant updates using refs to avoid stale closures
@@ -916,22 +875,9 @@ export default function ChatScreen() {
       socketInstance.on('receiveGift', (data: any) => {
         console.log('Received gift broadcast:', data);
 
-        // Normalize animation path if it's a string starting with '/'
-        const normalizedGift = { ...data.gift };
-        if (normalizedGift.animation && typeof normalizedGift.animation === 'string') {
-          if (normalizedGift.animation.startsWith('/')) {
-            normalizedGift.animation = `${API_BASE_URL}${normalizedGift.animation}`;
-          }
-        }
-        if (normalizedGift.image && typeof normalizedGift.image === 'string') {
-          if (normalizedGift.image.startsWith('/')) {
-            normalizedGift.image = `${API_BASE_URL}${normalizedGift.image}`;
-          }
-        }
-
         // Show animation for all users (including sender for consistency)
         setActiveGiftAnimation({
-          ...normalizedGift,
+          ...data.gift,
           sender: data.sender,
           timestamp: data.timestamp,
         });
@@ -955,13 +901,10 @@ export default function ChatScreen() {
           }),
         ]).start();
 
-        // Auto-close timing based on gift type
-        const isVideoGift = data.gift.mediaType === 'video' || (
-          data.gift.animation && 
-          typeof data.gift.animation === 'string' && 
-          (data.gift.animation.toLowerCase().includes('.mp4') || 
-           data.gift.animation.toLowerCase().includes('.webm') || 
-           data.gift.animation.toLowerCase().includes('.mov'))
+        // Auto-close timing based on gift type (same logic as private gifts)
+        const isVideoGift = data.gift.animation && (
+          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
         );
 
         // For non-video gifts, use fixed timeout
@@ -986,38 +929,24 @@ export default function ChatScreen() {
         }
         // For video gifts, auto-close is handled by video completion callback
 
-        // Add gift message to chat with duplicate checking
+        // Add gift message to chat
         const giftMessage: Message = {
           id: `gift_${Date.now()}_${data.sender}`,
           sender: data.sender,
           content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
           timestamp: new Date(data.timestamp),
-          roomId: data.roomId, // Use data.roomId from server (more reliable than client state)
+          roomId: chatTabs[activeTab]?.id || data.roomId,
           role: data.role || 'user',
           level: data.level || 1,
           type: 'gift'
         };
 
         setChatTabs(prevTabs =>
-          prevTabs.map(tab => {
-            if (tab.id === data.roomId) {
-              // Check for duplicate gift messages within last 2 seconds
-              const isDuplicate = tab.messages.some(msg =>
-                msg.type === 'gift' &&
-                msg.sender === data.sender &&
-                msg.content.includes(data.gift.name) &&
-                Math.abs(new Date(msg.timestamp).getTime() - new Date(data.timestamp).getTime()) < 2000
-              );
-
-              if (isDuplicate) {
-                console.log(`🚫 Duplicate gift message filtered: ${data.sender} sent ${data.gift.name}`);
-                return tab; // Don't add duplicate
-              }
-
-              return { ...tab, messages: [...tab.messages, giftMessage] };
-            }
-            return tab;
-          })
+          prevTabs.map(tab =>
+            tab.id === (chatTabs[activeTab]?.id || data.roomId)
+              ? { ...tab, messages: [...tab.messages, giftMessage] }
+              : tab
+          )
         );
       });
 
@@ -1053,12 +982,9 @@ export default function ChatScreen() {
         ]).start();
 
         // Auto-close timing based on gift type
-        const isVideoGift = data.gift.mediaType === 'video' || (
-          data.gift.animation && 
-          typeof data.gift.animation === 'string' && 
-          (data.gift.animation.toLowerCase().includes('.mp4') || 
-           data.gift.animation.toLowerCase().includes('.webm') || 
-           data.gift.animation.toLowerCase().includes('.mov'))
+        const isVideoGift = data.gift.animation && (
+          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
+          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
         );
 
         // For non-video gifts, use fixed timeout
@@ -1084,9 +1010,12 @@ export default function ChatScreen() {
         // For video gifts, auto-close is handled by video completion callback
       });
 
-      // NOTE: Removed legacy 'gift-animation' listener
-      // It was causing duplicate gifts by emitting to receiveGift
-      // Server now only emits 'receiveGift' directly
+      // Listen for gift animations (legacy support)
+      socketInstance.on('gift-animation', (data: any) => {
+        console.log('Received legacy gift animation:', data);
+        // Redirect to receiveGift handler for consistency
+        socketInstance.emit('receiveGift', data);
+      });
 
       // Listen for admin joined support chat
       socketInstance.on('admin-joined', (data) => {
@@ -1104,7 +1033,7 @@ export default function ChatScreen() {
 
         // Find the correct tab and add the message
         setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
+          prevTabs.map(tab => 
             tab.id === currentRoomId // Ensure we add to the correct support chat tab
               ? { ...tab, messages: [...tab.messages, adminMessage] }
               : tab
@@ -1161,7 +1090,7 @@ export default function ChatScreen() {
       socketInstance.on('call-response-received', (responseData) => {
         console.log('Call response received:', responseData);
         setCallRinging(false);
-
+        
         if (responseData.response === 'accept') {
           Alert.alert(
             'Call Accepted',
@@ -1233,31 +1162,8 @@ export default function ChatScreen() {
         return;
       }
 
-      // Prevent creating multiple socket connections
-      if (isInitializingSocketRef.current) {
-        console.log('Socket initialization already in progress, skipping');
-        return;
-      }
-
-      const currentSocket = socketRef.current;
-      if (currentSocket && currentSocket.connected) {
-        console.log('Socket already connected, skipping initialization');
-        return;
-      }
-
-      isInitializingSocketRef.current = true;
-
-      // Clean up existing socket if it exists
-      if (currentSocket) {
-        console.log('Cleaning up existing socket before creating new one');
-        currentSocket.removeAllListeners();
-        currentSocket.disconnect();
-        socketRef.current = null;
-      }
-
       // Initialize socket connection to gateway with better stability options
       const newSocket = io(SOCKET_URL, { // Use SOCKET_URL
-        path: '/socket.io/', // Default Socket.IO path (proxied to Gateway)
         transports: ['polling', 'websocket'], // Start with polling first for better Replit compatibility
         autoConnect: true,
         reconnection: true,
@@ -1280,62 +1186,41 @@ export default function ChatScreen() {
         console.log('Socket ID:', newSocket.id);
         setIsSocketConnected(true);
         setReconnectAttempts(0);
-        isInitializingSocketRef.current = false;
-
-        // Mark that we've had a successful connection
-        hadConnectedRef.current = true;
 
         // Setup all socket listeners after connection
         setupSocketListeners(newSocket);
 
-        console.log('Initial connection - not rejoining rooms automatically');
-      });
-
-      // Use the 'reconnect' event for reliable reconnection detection
-      newSocket.io.on('reconnect', (attemptNumber) => {
-        console.log(`Socket reconnected after ${attemptNumber} attempts`);
-        
-        // FIX: Rejoin ONLY the ACTIVE tab to prevent multi-room join bug
-        // Don't rejoin ALL tabs - that causes users to join multiple rooms when clicking one
+        // Rejoin all active rooms after reconnection using refs to avoid stale closures
         setTimeout(() => {
           const currentTabs = chatTabsRef.current;
           const currentUser = userRef.current;
-          const currentActiveTab = activeTabRef.current;
-          
-          if (currentTabs.length > 0 && currentUser?.username && currentActiveTab >= 0 && currentTabs[currentActiveTab]) {
-            const activeTab = currentTabs[currentActiveTab];
-            console.log(`Rejoining ONLY active tab after reconnect: ${activeTab.id} (${activeTab.title})`);
-            
-            // Add to joinedRoomsRef to track that we've joined this room
-            joinedRoomsRef.current.add(activeTab.id);
-            
-            if (activeTab.isSupport) {
-              newSocket.emit('join-support-room', {
-                supportRoomId: activeTab.id,
-                isAdmin: currentUser.role === 'admin',
-                silent: true // Don't broadcast join message
-              });
-            } else {
-              newSocket.emit('join-room', {
-                roomId: activeTab.id,
-                username: currentUser.username,
-                role: currentUser.role || 'user',
-                silent: true // Don't broadcast join message
-              });
-            }
-          } else {
-            console.log('No active tab to rejoin after reconnect');
+          if (currentTabs.length > 0 && currentUser?.username) {
+            console.log(`Rejoining ${currentTabs.length} rooms after reconnection`);
+            currentTabs.forEach((tab, index) => {
+              // Stagger room rejoining to prevent server overload
+              setTimeout(() => {
+                console.log('Rejoining room after reconnect:', tab.id, currentUser.username);
+                if (tab.isSupport) {
+                  newSocket.emit('join-support-room', {
+                    supportRoomId: tab.id,
+                    isAdmin: currentUser.role === 'admin'
+                  });
+                } else {
+                  newSocket.emit('join-room', {
+                    roomId: tab.id,
+                    username: currentUser.username,
+                    role: currentUser.role || 'user'
+                  });
+                }
+              }, index * 100); // 100ms delay between each room join
+            });
           }
-        }, 300); // Delay to ensure connection is stable
+        }, 200); // Initial delay to ensure connection is stable
       });
 
       newSocket.on('disconnect', (reason) => {
         console.log('Socket disconnected from gateway:', reason);
         setIsSocketConnected(false);
-
-        // Clear joined rooms tracking on disconnect since server session will be lost
-        joinedRoomsRef.current.clear();
-        console.log('Cleared joined rooms tracking due to disconnect');
 
         // Don't attempt reconnection for intentional disconnects
         if (reason === 'io client disconnect' || reason === 'io server disconnect') {
@@ -1352,7 +1237,6 @@ export default function ChatScreen() {
         console.error('Socket connection error:', error.message);
         console.error('Gateway URL:', SOCKET_URL);
         setIsSocketConnected(false);
-        isInitializingSocketRef.current = false;
 
         // Don't attempt reconnection if it's a network issue
         if (error.message && error.message.includes('websocket error')) {
@@ -1380,7 +1264,6 @@ export default function ChatScreen() {
       });
 
       setSocket(newSocket);
-      socketRef.current = newSocket; // Update ref to avoid closure issues
     };
 
     const attemptReconnection = () => {
@@ -1398,15 +1281,9 @@ export default function ChatScreen() {
 
       reconnectTimeoutRef.current = setTimeout(() => {
         setReconnectAttempts(prev => prev + 1);
-        console.log(`Reconnection attempt ${reconnectAttempts + 1}/${maxReconnectAttempts}`);
 
-        // Clean up existing socket properly
-        const currentSocket = socketRef.current;
-        if (currentSocket) {
-          console.log('Disconnecting existing socket for reconnection');
-          currentSocket.removeAllListeners();
-          currentSocket.disconnect();
-          socketRef.current = null;
+        if (socket) {
+          socket.disconnect();
         }
 
         initializeSocket();
@@ -1416,71 +1293,107 @@ export default function ChatScreen() {
     // Initialize socket on component mount
     initializeSocket();
 
-    // AppState listener for minimal background/foreground handling
+    // AppState listener for reconnection when app becomes active
     const handleAppStateChange = (nextAppState: string) => {
       console.log('AppState changed to:', nextAppState);
 
       if (nextAppState === 'active') {
-        console.log('App became active - maintaining existing connections');
-
-        // Reset scroll state
-        setIsUserScrolling(false);
-
-        // Use socketRef to avoid closure issues
-        const currentSocket = socketRef.current;
+        // Force reconnection when app becomes active
+        console.log('App became active - forcing socket reconnection');
         
-        // Only reconnect if socket exists and is actually disconnected
-        if (currentSocket && !currentSocket.connected) {
-          console.log('Socket disconnected, attempting to reconnect existing socket');
-          currentSocket.connect();
-        } else if (!currentSocket) {
-          console.log('No socket exists, initializing new socket connection');
-          initializeSocket();
-        } else {
-          console.log('Socket already connected, no reconnection needed');
+        // Reset states that might affect message display
+        setIsUserScrolling(false);
+        
+        if (socket) {
+          // Always re-setup listeners and rejoin rooms for better reliability
+          console.log('Re-setup listeners and rejoin rooms on app active');
+          setupSocketListeners(socket);
+
+          // Force reconnection if not connected
+          if (!socket.connected) {
+            console.log('Socket not connected, forcing reconnection');
+            socket.disconnect();
+            setTimeout(() => {
+              socket.connect();
+            }, 100);
+          }
+
+          // Always rejoin all rooms to ensure we're still in them using refs
+          setTimeout(() => {
+            const currentTabs = chatTabsRef.current;
+            const currentUser = userRef.current;
+            if (currentTabs.length > 0 && currentUser?.username) {
+              currentTabs.forEach((tab, index) => {
+                setTimeout(() => {
+                  console.log('Rejoining room after app resume:', tab.id, currentUser.username);
+                  if (tab.isSupport) {
+                    socket.emit('join-support-room', {
+                      supportRoomId: tab.id,
+                      isAdmin: currentUser.role === 'admin'
+                    });
+                  } else {
+                    socket.emit('join-room', {
+                      roomId: tab.id,
+                      username: currentUser.username,
+                      role: currentUser.role || 'user'
+                    });
+                  }
+                }, index * 50); // Stagger the rejoining
+              });
+            }
+          }, 200);
         }
 
-        // Ensure current tab messages are visible
+        // Force re-render of current chat messages
+        setTimeout(() => {
+          setChatTabs(prevTabs => [...prevTabs]);
+        }, 300);
+
+        // Reload participants for current room using refs
+        const currentTab = chatTabsRef.current[activeTabRef.current];
+        if (currentTab && currentTab.type !== 'private') {
+          setTimeout(() => {
+            loadParticipants();
+          }, 500);
+        }
+
+        // Ensure current tab messages are visible with multiple attempts using refs
         setTimeout(() => {
           const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
           if (currentTabId && flatListRefs.current[currentTabId]) {
             flatListRefs.current[currentTabId]?.scrollToEnd({ animated: false });
           }
-        }, 500);
-
+        }, 600);
+        
+        // Second attempt to ensure scrolling
+        setTimeout(() => {
+          const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
+          if (currentTabId && flatListRefs.current[currentTabId]) {
+            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: true });
+          }
+        }, 1000);
+        
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
-        // Keep all connections alive - don't disconnect anything
+        // Don't disconnect socket when going to background
+        // Keep connection alive for better message delivery
       }
     };
 
     const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
 
     return () => {
-      console.log('Cleaning up socket connection - maintaining room membership');
+      console.log('Cleaning up socket connection');
 
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
       }
-
-      isInitializingSocketRef.current = false;
-      hadConnectedRef.current = false;
-      // Don't clear joinedRoomsRef on routine cleanup - only clear on disconnect/logout
-      navigationJoinedRef.current = null; // Reset navigation join tracker on unmount
 
       appStateSubscription?.remove();
 
-      // Don't disconnect socket when component unmounts (app switching)
-      // Socket will persist and maintain room membership
-      // Users only disconnect when:
-      // 1. Manually clicking Leave button (calls leave-room event)
-      // 2. After 8 hours of inactivity (handled by server cleanup job)
-      // 3. Logging out (logout function disconnects)
       if (socket) {
         socket.removeAllListeners();
-        // Keep socket connected - DO NOT call socket.disconnect() here
-        // This allows users to stay in rooms when switching apps
+        socket.disconnect();
       }
     };
   }, []);
@@ -1511,53 +1424,11 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
-    console.log('🔄 NAV EFFECT - roomId:', roomId, 'roomName:', roomName);
-    
-    if (roomId && roomName && socketRef.current) {
-      // ✅ ATOMIC CHECK: Prevent race condition with Set (check + add is atomic)
-      if (joiningRoomsRef.current.has(roomId)) {
-        console.log('⛔ NAV EFFECT BLOCKED - already joining room:', roomId);
-        return;
-      }
-      
-      // Check if room already exists in tabs (using chatTabsRef for current state)
-      const existingTabIndex = chatTabsRef.current.findIndex(tab => tab.id === roomId);
-      if (existingTabIndex !== -1) {
-        console.log('⛔ NAV EFFECT BLOCKED - room already in tabs:', roomId);
-        // Clear params to prevent re-trigger
-        navigation.setParams({
-          roomId: undefined,
-          roomName: undefined,
-          type: undefined,
-          isSupport: undefined,
-          autoFocusTab: undefined
-        });
-        return;
-      }
-      
-      // Mark this room as being joined (atomic operation prevents race condition)
-      joiningRoomsRef.current.add(roomId);
-      console.log('🔒 NAV EFFECT LOCKED (Set.add) for room:', roomId);
-      
-      // Join the room (duplicate check is inside joinSpecificRoom)
-      joinSpecificRoom(roomId, roomName).then(() => {
-        console.log('✅ NAV EFFECT joinSpecificRoom complete:', roomId);
-        // Remove from joining set
-        joiningRoomsRef.current.delete(roomId);
-        // Clear navigation params after successful join
-        navigation.setParams({
-          roomId: undefined,
-          roomName: undefined,
-          type: undefined,
-          isSupport: undefined,
-          autoFocusTab: undefined
-        });
-      }).catch((error) => {
-        console.log('❌ NAV EFFECT ERROR:', roomId, error);
-        joiningRoomsRef.current.delete(roomId); // Clear from set on error
-      });
+    if (roomId && roomName && socket) {
+      console.log('Navigated to specific room/chat:', roomId, roomName, type);
+      joinSpecificRoom(roomId, roomName);
     }
-  }, [roomId, roomName, type, isSupport]);
+  }, [roomId, roomName, socket, type, isSupport]);
 
   // Effect untuk mempertahankan state pesan saat app kembali aktif
   useEffect(() => {
@@ -1566,7 +1437,7 @@ export default function ChatScreen() {
       if (chatTabs.length > 0 && activeTab >= 0 && chatTabs[activeTab]) {
         const currentTab = chatTabs[activeTab];
         console.log(`Preserving messages for tab: ${currentTab.title}, Messages count: ${currentTab.messages.length}`);
-
+        
         // Force update FlatList jika ada pesan
         if (currentTab.messages.length > 0) {
           setTimeout(() => {
@@ -1585,11 +1456,10 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated from RoomScreen or ProfileScreen, focus on that specific room/chat
-    // Only run this ONCE on initial load using ref to prevent re-renders
-    if (roomId && autoFocusTab && chatTabs.length > 0 && !hasAutoFocusedRef.current) {
+    // Only run this on initial load, not when chatTabs changes
+    if (roomId && autoFocusTab && chatTabs.length > 0 && activeTab === 0) {
       const tabIndex = chatTabs.findIndex(tab => tab.id === roomId);
       if (tabIndex !== -1) {
-        hasAutoFocusedRef.current = true; // Mark as focused to prevent future runs
         setActiveTab(tabIndex);
         // Scroll to the active tab
         if (scrollViewRef.current) {
@@ -1602,550 +1472,12 @@ export default function ChatScreen() {
     }
   }, [roomId, autoFocusTab, chatTabs.length]);
 
-  // Socket event listeners
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleNewMessage = (newMessage: any) => {
-      console.log('Received new message:', { sender: newMessage.sender, content: newMessage.content, type: newMessage.type, roomId: newMessage.roomId });
-
-      // Special handling for error messages - show alert for immediate visibility
-      if (newMessage.type === 'error' && newMessage.sender === 'System') {
-        console.log('🚨 ERROR MESSAGE RECEIVED:', newMessage.content);
-        
-        // Show error in alert with rejoin option
-        setTimeout(() => {
-          if (newMessage.content.includes('not in the room')) {
-            Alert.alert(
-              'Room Connection Error',
-              newMessage.content + '\n\nWould you like to rejoin the room?',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Rejoin Room', onPress: forceRejoinRoom }
-              ]
-            );
-          } else {
-            Alert.alert('System Error', newMessage.content);
-          }
-        }, 500);
-      }
-
-      // Ensure timestamp is a proper Date object
-      if (typeof newMessage.timestamp === 'string') {
-        newMessage.timestamp = new Date(newMessage.timestamp);
-      }
-
-      setChatTabs(prevTabs => {
-        const updatedTabs = prevTabs.map(tab => {
-          if (tab.id === newMessage.roomId) {
-            // Replace optimistic message if it exists, otherwise add new message
-            const existingIndex = tab.messages.findIndex(msg =>
-              msg.id === newMessage.id ||
-              (msg.sender === newMessage.sender && msg.content === newMessage.content && msg.id.startsWith('temp_'))
-            );
-
-            let updatedMessages;
-            if (existingIndex !== -1) {
-              // Replace optimistic message with real message
-              updatedMessages = [...tab.messages];
-              updatedMessages[existingIndex] = { ...newMessage };
-              console.log('Replaced optimistic message with real message');
-            } else {
-              // Always add system messages and error messages without duplicate check (they're from server and should be shown)
-              if (newMessage.sender === 'System' || newMessage.type === 'error') {
-                updatedMessages = [...tab.messages, newMessage];
-                console.log('System/Error message added to tab:', tab.id, 'Type:', newMessage.type);
-              } else {
-                // For user messages, be more lenient with duplicate checking to prevent message loss
-                const isDuplicate = tab.messages.some(msg =>
-                  msg.id === newMessage.id ||
-                  (msg.sender === newMessage.sender &&
-                   msg.content === newMessage.content &&
-                   Math.abs(new Date(msg.timestamp).getTime() - new Date(newMessage.timestamp).getTime()) < 1000)
-                );
-
-                if (!isDuplicate) {
-                  updatedMessages = [...tab.messages, newMessage];
-                  console.log('User message added to tab:', tab.id, 'Total messages:', updatedMessages.length);
-                } else {
-                  console.log('Duplicate user message filtered out');
-                  return tab; // Don't update if duplicate
-                }
-              }
-            }
-
-            // Auto-scroll for ALL messages if autoscroll is enabled and user is not manually scrolling
-            if (autoScrollEnabledRef.current && !isUserScrollingRef.current) {
-              setTimeout(() => {
-                console.log('Auto-scrolling to end for room:', tab.id);
-                flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
-              }, 100);
-            }
-
-            return { ...tab, messages: updatedMessages };
-          }
-          return tab;
-        });
-
-        console.log('Updated chatTabs with new message, total tabs:', updatedTabs.length);
-        return updatedTabs;
-      });
-
-      // Track unread messages for other tabs using refs to avoid stale closures
-      const currentRoomId = chatTabsRef.current[activeTabRef.current]?.id;
-      if (newMessage.roomId !== currentRoomId && newMessage.sender !== userRef.current?.username) {
-        setUnreadCounts(prev => ({
-          ...prev,
-          [newMessage.roomId]: (prev[newMessage.roomId] || 0) + 1
-        }));
-      }
-
-      // Force scroll to bottom for current room messages with better timing using refs
-      if (newMessage.roomId === chatTabsRef.current[activeTabRef.current]?.id) {
-        setTimeout(() => {
-          console.log('Forcing scroll for current room message:', newMessage.roomId);
-          if (flatListRefs.current[newMessage.roomId]) {
-            flatListRefs.current[newMessage.roomId]?.scrollToEnd({ animated: true });
-          }
-        }, 150);
-      }
-    };
-
-    const handleParticipantsUpdated = (updatedParticipants: any[]) => {
-      console.log('Participants updated:', updatedParticipants.length);
-      setParticipants(updatedParticipants);
-
-      // Update the "Currently in the room" message with new participants using refs
-      const currentTabs = chatTabsRef.current;
-      const currentActiveTab = activeTabRef.current;
-      if (currentTabs[currentActiveTab] && currentTabs[currentActiveTab].type !== 'private' && updatedParticipants.length > 0) {
-        const currentRoomId = currentTabs[currentActiveTab].id;
-        const participantNames = updatedParticipants.map(p => p.username).join(', ');
-        const updatedContent = `Currently in the room: ${participantNames}`;
-
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab => {
-            if (tab.id === currentRoomId) {
-              const updatedMessages = tab.messages.map(msg => {
-                if (msg.id === `room_info_current_${currentRoomId}`) {
-                  return { ...msg, content: updatedContent };
-                }
-                return msg;
-              });
-              return { ...tab, messages: updatedMessages };
-            }
-            return tab;
-          })
-        );
-      }
-    };
-
-    const handleUserJoined = (joinMessage: Message) => {
-      const targetTab = chatTabsRef.current.find(tab => tab.id === joinMessage.roomId);
-      const isPrivateChat = targetTab?.type === 'private';
-      const isSupportChat = targetTab?.isSupport;
-
-      if (!isPrivateChat && !isSupportChat) {
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab => {
-            if (tab.id === joinMessage.roomId) {
-              // Check for duplicate join messages in the last 5 seconds
-              const isDuplicate = tab.messages.some(msg =>
-                msg.type === 'join' &&
-                msg.sender === joinMessage.sender &&
-                Math.abs(new Date(msg.timestamp).getTime() - new Date(joinMessage.timestamp).getTime()) < 5000
-              );
-
-              if (isDuplicate) {
-                console.log(`🚫 Skipping duplicate join message for ${joinMessage.sender}`);
-                return tab; // Don't add duplicate
-              }
-
-              return { ...tab, messages: [...tab.messages, joinMessage] };
-            }
-            return tab;
-          })
-        );
-      } else {
-        console.log('Skipping join message for private/support chat.');
-      }
-    };
-
-    const handleUserLeft = (leaveMessage: Message) => {
-      const targetTab = chatTabsRef.current.find(tab => tab.id === leaveMessage.roomId);
-      const isPrivateChat = targetTab?.type === 'private';
-      const isSupportChat = targetTab?.isSupport;
-
-      if (!isPrivateChat && !isSupportChat) {
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
-            tab.id === leaveMessage.roomId
-              ? { ...tab, messages: [...tab.messages, leaveMessage] }
-              : tab
-          )
-        );
-      } else {
-        console.log('Skipping leave message for private/support chat.');
-      }
-    };
-
-    const handleReceiveGift = (data: any) => {
-      console.log('Received gift broadcast:', data);
-      
-      // Normalize animation path if it's a string starting with '/'
-      const normalizedGift = { ...data.gift };
-      if (normalizedGift.animation && typeof normalizedGift.animation === 'string') {
-        if (normalizedGift.animation.startsWith('/')) {
-          normalizedGift.animation = `${API_BASE_URL}${normalizedGift.animation}`;
-        }
-      }
-      if (normalizedGift.image && typeof normalizedGift.image === 'string') {
-        if (normalizedGift.image.startsWith('/')) {
-          normalizedGift.image = `${API_BASE_URL}${normalizedGift.image}`;
-        }
-      }
-      
-      setActiveGiftAnimation({
-        ...normalizedGift,
-        sender: data.sender,
-        timestamp: data.timestamp,
-      });
-
-      giftScaleAnim.setValue(0.3);
-      giftOpacityAnim.setValue(0);
-
-      Animated.parallel([
-        Animated.spring(giftScaleAnim, {
-          toValue: 1,
-          tension: 80,
-          friction: 6,
-          useNativeDriver: true,
-        }),
-        Animated.timing(giftOpacityAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      const isVideoGift = data.gift.mediaType === 'video' || (
-        data.gift.animation && 
-        typeof data.gift.animation === 'string' && 
-        (data.gift.animation.toLowerCase().includes('.mp4') || 
-         data.gift.animation.toLowerCase().includes('.webm') || 
-         data.gift.animation.toLowerCase().includes('.mov'))
-      );
-
-      if (!isVideoGift) {
-        const duration = data.gift.type === 'animated' ? 5000 : 3000;
-        setTimeout(() => {
-          Animated.parallel([
-            Animated.timing(giftScaleAnim, {
-              toValue: 1.1,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-            Animated.timing(giftOpacityAnim, {
-              toValue: 0,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            setActiveGiftAnimation(null);
-          });
-        }, duration);
-      }
-
-      const giftMessage: Message = {
-        id: `gift_${Date.now()}_${data.sender}`,
-        sender: data.sender,
-        content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
-        timestamp: new Date(data.timestamp),
-        roomId: data.roomId, // Use data.roomId from server (more reliable than client state)
-        role: data.role || 'user',
-        level: data.level || 1,
-        type: 'gift'
-      };
-
-      // Add gift message with duplicate checking to prevent multiple sends
-      setChatTabs(prevTabs =>
-        prevTabs.map(tab => {
-          if (tab.id === data.roomId) {
-            // Check for duplicate gift messages within last 2 seconds
-            const isDuplicate = tab.messages.some(msg =>
-              msg.type === 'gift' &&
-              msg.sender === data.sender &&
-              msg.content.includes(data.gift.name) &&
-              Math.abs(new Date(msg.timestamp).getTime() - new Date(data.timestamp).getTime()) < 2000
-            );
-
-            if (isDuplicate) {
-              console.log(`🚫 Duplicate gift message filtered: ${data.sender} sent ${data.gift.name}`);
-              return tab; // Don't add duplicate
-            }
-
-            return { ...tab, messages: [...tab.messages, giftMessage] };
-          }
-          return tab;
-        })
-      );
-    };
-
-    const handleReceivePrivateGift = (data: any) => {
-      console.log('Received private gift:', data);
-      setActiveGiftAnimation({
-        ...data.gift,
-        sender: data.from,
-        recipient: user?.username,
-        timestamp: data.timestamp,
-        isPrivate: true
-      });
-
-      giftScaleAnim.setValue(0.3);
-      giftOpacityAnim.setValue(0);
-
-      Animated.parallel([
-        Animated.spring(giftScaleAnim, {
-          toValue: 1,
-          tension: 80,
-          friction: 6,
-          useNativeDriver: true,
-        }),
-        Animated.timing(giftOpacityAnim, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      const isVideoGift = data.gift.mediaType === 'video' || (
-        data.gift.animation && 
-        typeof data.gift.animation === 'string' && 
-        (data.gift.animation.toLowerCase().includes('.mp4') || 
-         data.gift.animation.toLowerCase().includes('.webm') || 
-         data.gift.animation.toLowerCase().includes('.mov'))
-      );
-
-      if (!isVideoGift) {
-        const duration = data.gift.type === 'animated' ? 5000 : 3000;
-        setTimeout(() => {
-          Animated.parallel([
-            Animated.timing(giftScaleAnim, {
-              toValue: 1.1,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-            Animated.timing(giftOpacityAnim, {
-              toValue: 0,
-              duration: 400,
-              useNativeDriver: true,
-            }),
-          ]).start(() => {
-            setActiveGiftAnimation(null);
-          });
-        }, duration);
-      }
-    };
-
-    const handleUserTyping = (data: any) => { /* Handle typing indicators if needed */ };
-    const handleSupportMessage = (supportMessage: Message) => {
-      console.log('Received support message:', supportMessage);
-      if (typeof supportMessage.timestamp === 'string') {
-        supportMessage.timestamp = new Date(supportMessage.timestamp);
-      }
-      setChatTabs(prevTabs =>
-        prevTabs.map(tab => {
-          if (tab.id === supportMessage.roomId && tab.isSupport) {
-            const updatedMessages = [...tab.messages, supportMessage];
-            if (autoScrollEnabled && !isUserScrolling) {
-              setTimeout(() => {
-                flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
-              }, 30);
-            }
-            return { ...tab, messages: updatedMessages };
-          }
-          return tab;
-        })
-      );
-
-      const currentTab = chatTabs[activeTab];
-      if (currentTab && currentTab.id !== supportMessage.roomId && currentTab.isSupport) {
-        setUnreadCounts(prev => ({
-          ...prev,
-          [supportMessage.roomId]: (prev[supportMessage.roomId] || 0) + 1
-        }));
-      }
-    };
-    const handleAdminJoined = (data) => {
-      console.log('Admin joined support chat:', data);
-      const adminMessage: Message = {
-        id: `admin_join_${Date.now()}`,
-        sender: 'System',
-        content: data.message,
-        timestamp: new Date(),
-        roomId: currentRoomId,
-        role: 'system',
-        level: 1,
-        type: 'join'
-      };
-      setChatTabs(prevTabs =>
-        prevTabs.map(tab =>
-          tab.id === currentRoomId
-            ? { ...tab, messages: [...tab.messages, adminMessage] }
-            : tab
-        )
-      );
-    };
-    const handleRoomLocked = (data) => { console.log('Room locked:', data); Alert.alert('Room Locked', `Room ${data.roomId} has been locked by ${data.lockedBy}`); };
-    const handleRoomUnlocked = (data) => { console.log('Room unlocked:', data); Alert.alert('Room Unlocked', `Room ${data.roomId} has been unlocked`); };
-    const handleUserKicked = (data) => {
-      console.log('User kicked event:', data);
-      if (data.kickedUser === user?.username) {
-        Alert.alert('You have been kicked', `You were kicked from ${data.roomName} by ${data.kickedBy}`);
-        setChatTabs(prevTabs => prevTabs.filter(tab => tab.id !== data.roomId));
-      } else {
-        setParticipants(prev => prev.filter(p => p.username !== data.kickedUser));
-      }
-    };
-    const handleUserBanned = (data) => {
-      console.log('User banned event:', data);
-      if (data.bannedUser === user?.username) {
-        if (data.action === 'ban') {
-          setBannedUsers(prev => [...prev, data.bannedUser]);
-          Alert.alert('You have been banned', `You were banned from ${data.roomName} by ${data.bannedBy}`);
-          setChatTabs(prevTabs => prevTabs.filter(tab => tab.id !== data.roomId));
-        } else {
-          setBannedUsers(prev => prev.filter(username => username !== data.bannedUser));
-          Alert.alert('You have been unbanned', `You were unbanned from ${data.roomName} by ${data.bannedBy}`);
-        }
-      } else {
-        if (data.action === 'ban') {
-          setParticipants(prev => prev.filter(p => p.username !== data.bannedUser));
-        }
-      }
-    };
-    const handleUserMuted = (data) => {
-      console.log('User muted event:', data);
-      if (data.mutedUser === user?.username) {
-        if (data.action === 'mute') {
-          setMutedUsers(prev => [...prev, data.mutedUser]);
-          Alert.alert('You have been muted', `You were muted by ${data.mutedBy}`);
-        } else {
-          setMutedUsers(prev => prev.filter(username => username !== data.mutedUser));
-          Alert.alert('You have been unmuted', `You were unmuted by ${data.mutedBy}`);
-        }
-      }
-    };
-    const handleForceLeaveRoom = (data) => { console.log('Force leave room:', data); Alert.alert('Left Room', `You have been removed from ${data.roomName}`); };
-    const handleIncomingCall = (callData) => {
-      console.log('Received incoming call:', callData);
-      setIncomingCallData(callData);
-      setShowIncomingCallModal(true);
-    };
-    const handleCallResponse = (responseData) => {
-      console.log('Call response received:', responseData);
-      setCallRinging(false);
-      if (responseData.response === 'accept') {
-        Alert.alert('Call Accepted', `${responseData.responderName} accepted your call`, [{ text: 'Start Call', onPress: () => { setShowCallModal(true); startCallTimer(incomingCallData?.callType || 'video'); } }]);
-      } else {
-        Alert.alert('Call Declined', `${responseData.responderName} declined your call`);
-      }
-    };
-    const handleCallEnded = (endData) => {
-      console.log('Call ended:', endData);
-      setCallRinging(false);
-      setShowCallModal(false);
-      setShowIncomingCallModal(false);
-      endCall();
-      Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
-    };
-    const handleCoinReceived = (data) => { console.log('Coin received:', data); };
-
-    // Moderation action response listeners
-    socket?.on('kick-user-success', (data) => {
-      Alert.alert('✅ Success', `${data.targetUsername} has been kicked from the room`);
-      // Remove from local participants list
-      setParticipants(prev => prev.filter(p => p.username !== data.targetUsername));
-    });
-
-    socket?.on('kick-user-error', (data) => {
-      Alert.alert('❌ Error', data.error || 'Failed to kick user');
-    });
-
-    socket?.on('ban-user-success', (data) => {
-      Alert.alert('✅ Success', `${data.targetUsername} has been ${data.action}ned`);
-      if (data.action === 'ban') {
-        setBannedUsers(prev => [...prev, data.targetUsername]);
-        setParticipants(prev => prev.filter(p => p.username !== data.targetUsername));
-      } else {
-        setBannedUsers(prev => prev.filter(username => username !== data.targetUsername));
-      }
-    });
-
-    socket?.on('ban-user-error', (data) => {
-      Alert.alert('❌ Error', data.error || 'Failed to ban/unban user');
-    });
-
-    socket?.on('mute-user-success', (data) => {
-      Alert.alert('✅ Success', `${data.targetUsername} has been ${data.action}d`);
-      if (data.action === 'mute') {
-        setMutedUsers(prev => [...prev, data.targetUsername]);
-      } else {
-        setMutedUsers(prev => prev.filter(username => username !== data.targetUsername));
-      }
-    });
-
-    socket?.on('mute-user-error', (data) => {
-      Alert.alert('❌ Error', data.error || 'Failed to mute/unmute user');
-    });
-
-    socket?.on('lock-room-success', (data) => {
-      Alert.alert('✅ Success', `Room has been ${data.action}ed`);
-    });
-
-    socket?.on('lock-room-error', (data) => {
-      Alert.alert('❌ Error', data.error || 'Failed to lock/unlock room');
-    });
-
-    // Cleanup listeners when component unmounts or socket changes
-    return () => {
-      socket?.off('new-message', handleNewMessage);
-      socket?.off('participants-updated', handleParticipantsUpdated);
-      socket?.off('user-joined', handleUserJoined);
-      socket?.off('user-left', handleUserLeft);
-      socket?.off('receiveGift', handleReceiveGift);
-      socket?.off('receive-private-gift', handleReceivePrivateGift);
-      socket?.off('user-typing', handleUserTyping);
-      socket?.off('support-message', handleSupportMessage);
-      socket?.off('admin-joined', handleAdminJoined);
-      socket?.off('room-locked', handleRoomLocked);
-      socket?.off('room-unlocked', handleRoomUnlocked);
-      socket?.off('user-kicked', handleUserKicked);
-      socket?.off('user-banned', handleUserBanned);
-      socket?.off('user-muted', handleUserMuted);
-      socket?.off('force-leave-room', handleForceLeaveRoom);
-      socket?.off('incoming-call', handleIncomingCall);
-      socket?.off('call-response-received', handleCallResponse);
-      socket?.off('call-ended', handleCallEnded);
-      socket?.off('coin-received', handleCoinReceived);
-
-      // Remove moderation response listeners
-      socket?.off('kick-user-success');
-      socket?.off('kick-user-error');
-      socket?.off('ban-user-success');
-      socket?.off('ban-user-error');
-      socket?.off('mute-user-success');
-      socket?.off('mute-user-error');
-      socket?.off('lock-room-success');
-      socket?.off('lock-room-error');
-    };
-  }, [socket]); // Re-run effect if socket changes
-
+  // Socket listeners are now managed in the main socket initialization useEffect above
 
   const loadRooms = async () => {
     try {
-      console.log('Loading rooms from:', `${API_BASE_URL}/rooms`);
-      const response = await fetch(`${API_BASE_URL}/rooms`, {
+      console.log('Loading rooms from:', `${API_BASE_URL}/api/rooms`);
+      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -2171,7 +1503,7 @@ export default function ChatScreen() {
 
         if (targetRoom) {
           try {
-            const messagesResponse = await fetch(`${API_BASE_URL}/messages/${targetRoom.id}`, {
+            const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${targetRoom.id}`, {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
@@ -2252,7 +1584,7 @@ export default function ChatScreen() {
         }
       }
     }, 100);
-
+    
     // Second attempt for better reliability
     setTimeout(() => {
       if (chatTabs[index] && chatTabs[index].messages.length > 0) {
@@ -2386,7 +1718,7 @@ export default function ChatScreen() {
 
           // Add locally and emit to server
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, meMessage] }
                 : tab
@@ -2426,7 +1758,7 @@ export default function ChatScreen() {
 
             // Add locally for immediate feedback
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, whoisMessage] }
                   : tab
@@ -2447,7 +1779,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2467,7 +1799,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2516,7 +1848,7 @@ export default function ChatScreen() {
 
             // Add locally and emit to server
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, giftMessage] }
                   : tab
@@ -2544,7 +1876,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2564,7 +1896,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2594,7 +1926,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2620,20 +1952,20 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, banMessage] }
                   : tab
               )
             );
 
-            setBannedUsers(prev => [...prev, targetUsername]);
-
-            socket?.emit('ban-user', {
+            socket?.emit('sendMessage', {
               roomId: currentRoomId,
-              bannedUser: targetUsername,
-              bannedBy: user?.username,
-              action: 'ban'
+              sender: 'System',
+              content: `🚫 ${targetUsername} has been banned from the room by ${user?.username}`,
+              role: 'system',
+              level: 1,
+              type: 'ban'
             });
           } else {
             const errorMessage = {
@@ -2648,7 +1980,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2668,7 +2000,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2698,7 +2030,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2724,7 +2056,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, kickMessage] }
                   : tab
@@ -2749,7 +2081,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2769,7 +2101,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2799,7 +2131,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2830,7 +2162,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, lockMessage] }
                 : tab
@@ -2858,7 +2190,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2888,7 +2220,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -2914,7 +2246,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, banMessage] }
                   : tab
@@ -2942,7 +2274,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -2962,7 +2294,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -2992,7 +2324,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, errorMessage] }
                 : tab
@@ -3017,7 +2349,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, unbanMessage] }
                   : tab
@@ -3045,7 +2377,7 @@ export default function ChatScreen() {
             };
 
             setChatTabs(prevTabs =>
-              prevTabs.map(tab =>
+              prevTabs.map(tab => 
                 tab.id === currentRoomId
                   ? { ...tab, messages: [...tab.messages, errorMessage] }
                   : tab
@@ -3065,7 +2397,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -3100,7 +2432,7 @@ export default function ChatScreen() {
           };
 
           setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
+            prevTabs.map(tab => 
               tab.id === currentRoomId
                 ? { ...tab, messages: [...tab.messages, helpMessage] }
                 : tab
@@ -3110,41 +2442,11 @@ export default function ChatScreen() {
         break;
       }
 
-      case '/addbot':
-      case '/botadd': {
-        // Forward /addbot and /botadd commands to backend
-        socket?.emit('sendMessage', {
-          roomId: currentRoomId,
-          sender: user?.username,
-          content: commandMessage,
-          role: user?.role || 'user',
-          level: user?.level || 1,
-          type: 'command',
-          commandType: 'bot'
-        });
-        break;
-      }
-
-      case '/removebot':
-      case '/botremove': {
-        // Forward /removebot and /botremove commands to backend
-        socket?.emit('sendMessage', {
-          roomId: currentRoomId,
-          sender: user?.username,
-          content: commandMessage,
-          role: user?.role || 'user',
-          level: user?.level || 1,
-          type: 'command',
-          commandType: 'bot'
-        });
-        break;
-      }
-
       default: {
         const unknownMessage = {
           id: `unknown_${Date.now()}_${user?.username}`,
           sender: 'System',
-          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot\n/addbot or /botadd - Add ChatMe Bot to room (owner/mod/admin)\n/removebot or /botremove - Remove ChatMe Bot from room (owner/mod/admin)',
+          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot',
           timestamp: new Date(),
           roomId: currentRoomId,
           role: 'system',
@@ -3153,7 +2455,7 @@ export default function ChatScreen() {
         };
 
         setChatTabs(prevTabs =>
-          prevTabs.map(tab =>
+          prevTabs.map(tab => 
             tab.id === currentRoomId
               ? { ...tab, messages: [...tab.messages, unknownMessage] }
               : tab
@@ -3210,13 +2512,13 @@ export default function ChatScreen() {
       // Clear message immediately
       setMessage('');
       setShowUserTagMenu(false);
-
+      
       // Reset scroll state to ensure autoscroll works after sending message
       setIsUserScrolling(false);
 
       // Add message optimistically to UI first (instant feedback)
       setChatTabs(prevTabs =>
-        prevTabs.map(tab =>
+        prevTabs.map(tab => 
           tab.id === currentRoomId
             ? { ...tab, messages: [...tab.messages, optimisticMessage] }
             : tab
@@ -3275,27 +2577,8 @@ export default function ChatScreen() {
   };
 
   const handleBackPress = () => {
-    if (type === 'room') {
-      // For room chats, check if we can safely go back to Room screen
-      const navState = navigation.getState();
-      const routes = navState?.routes || [];
-      const currentIndex = navState?.index || 0;
-      
-      // Check if previous screen is Room
-      if (currentIndex > 0 && routes[currentIndex - 1]?.name === 'Room') {
-        // Safe to go back to Room screen
-        navigation.goBack();
-      } else {
-        // No Room in stack, reset navigation to Room screen to avoid stacking
-        (navigation as any).reset({
-          index: 0,
-          routes: [{ name: 'Room' }],
-        });
-      }
-    } else {
-      // For private/support chats, always go back to previous screen
-      navigation.goBack();
-    }
+    // Always navigate to Room screen instead of going back to Home
+    navigation.goBack();
   };
 
   const handleEllipsisPress = () => {
@@ -3320,56 +2603,49 @@ export default function ChatScreen() {
         });
       }
 
-      // Wait a moment for "has left" message to be received and displayed before closing tab
-      setTimeout(() => {
-        // Clear participants for this room
-        setParticipants([]);
+      // Clear participants for this room
+      setParticipants([]);
 
-        // Clear unread count for this room
-        setUnreadCounts(prev => {
-          const newCounts = { ...prev };
-          delete newCounts[currentRoomId];
-          return newCounts;
-        });
+      // Clear unread count for this room
+      setUnreadCounts(prev => {
+        const newCounts = { ...prev };
+        delete newCounts[currentRoomId];
+        return newCounts;
+      });
 
-        // Clear flatListRef for this room
-        if (flatListRefs.current[currentRoomId]) {
-          delete flatListRefs.current[currentRoomId];
+      // Clear flatListRef for this room
+      if (flatListRefs.current[currentRoomId]) {
+        delete flatListRefs.current[currentRoomId];
+      }
+
+      // Remove the tab from chatTabs and navigate to Room screen
+      setChatTabs(prevTabs => {
+        const newTabs = prevTabs.filter((_, index) => index !== currentActiveTab);
+
+        // If no tabs left, navigate to Room screen
+        if (newTabs.length === 0) {
+          setTimeout(() => {
+            navigation.navigate('Room');
+          }, 100);
+        } else {
+          // Set new active tab if there are remaining tabs
+          const newActiveTab = currentActiveTab >= newTabs.length
+            ? newTabs.length - 1
+            : currentActiveTab;
+
+          setTimeout(() => {
+            setActiveTab(newActiveTab);
+            if (scrollViewRef.current) {
+              scrollViewRef.current.scrollTo({
+                x: newActiveTab * width,
+                animated: true
+              });
+            }
+          }, 100);
         }
 
-        // Remove from joinedRoomsRef so next join won't be silent
-        joinedRoomsRef.current.delete(currentRoomId);
-        console.log(`🚪 Removed room ${currentRoomId} from joinedRooms - next join will NOT be silent`);
-
-        // Remove the tab from chatTabs and navigate to Room screen
-        setChatTabs(prevTabs => {
-          const newTabs = prevTabs.filter((_, index) => index !== currentActiveTab);
-
-          // If no tabs left, navigate to Room screen
-          if (newTabs.length === 0) {
-            setTimeout(() => {
-              navigation.navigate('Room');
-            }, 100);
-          } else {
-            // Set new active tab if there are remaining tabs
-            const newActiveTab = currentActiveTab >= newTabs.length
-              ? newTabs.length - 1
-              : currentActiveTab;
-
-            setTimeout(() => {
-              setActiveTab(newActiveTab);
-              if (scrollViewRef.current) {
-                scrollViewRef.current.scrollTo({
-                  x: newActiveTab * width,
-                  animated: true
-                });
-              }
-            }, 100);
-          }
-
-          return newTabs;
-        });
-      }, 500); // 500ms delay to show "has left" message before closing tab
+        return newTabs;
+      });
     }
   };
 
@@ -3383,9 +2659,9 @@ export default function ChatScreen() {
       if (chatTabs[activeTab]) {
         const currentRoomId = chatTabs[activeTab].id;
         const isSupportChat = chatTabs[activeTab].isSupport;
-        let endpoint = `${API_BASE_URL}/rooms/${currentRoomId}/participants`;
+        let endpoint = `${API_BASE_URL}/api/rooms/${currentRoomId}/participants`;
         if (isSupportChat) {
-          endpoint = `${API_BASE_URL}/support/${currentRoomId}/participants`;
+          endpoint = `${API_BASE_URL}/api/support/${currentRoomId}/participants`;
         }
 
         const response = await fetch(endpoint, {
@@ -3440,7 +2716,7 @@ export default function ChatScreen() {
 
   const addParticipantToRoom = async (roomId: string, username: string, role: string = 'user') => {
     try {
-      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/participants`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/participants`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3520,7 +2796,7 @@ export default function ChatScreen() {
       }
 
       // Create private chat via API
-      const response = await fetch(`${API_BASE_URL}/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3549,7 +2825,7 @@ export default function ChatScreen() {
         };
 
         // Navigate to private chat (existing or new)
-        (navigation as any).navigate('Chat', {
+        navigation.navigate('Chat', {
           roomId: privateChat.id,
           roomName: `Chat with ${selectedParticipant?.username}`,
           roomDescription: `Private chat with ${selectedParticipant?.username}`,
@@ -3557,14 +2833,6 @@ export default function ChatScreen() {
           targetUser: targetUser,
           autoFocusTab: true
         });
-      } else if (response.status === 423) {
-        // User is busy
-        const errorData = await response.json();
-        Alert.alert(
-          'User is Busy',
-          errorData.error || 'This user cannot be chatted, is busy',
-          [{ text: 'OK' }]
-        );
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('Private chat creation failed:', errorData);
@@ -3577,8 +2845,8 @@ export default function ChatScreen() {
   };
 
   const handleKickUser = async () => {
-    if (!selectedParticipant?.username) {
-      Alert.alert('Error', 'No user selected');
+    if (user?.role !== 'admin' && user?.role !== 'mentor') {
+      Alert.alert('Error', 'Only admins and mentors can kick users');
       return;
     }
 
@@ -3594,32 +2862,30 @@ export default function ChatScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Remove from participants
               const roomId = chatTabs[activeTab]?.id;
-              if (!roomId) {
-                Alert.alert('Error', 'No active room found');
-                return;
+              if (roomId && participants.some(p => p.username === selectedParticipant?.username)) {
+                setParticipants(prev => prev.filter(p => p.username !== selectedParticipant?.username));
+
+                // Emit kick event via socket
+                socket?.emit('kick-user', {
+                  roomId,
+                  kickedUser: selectedParticipant?.username,
+                  kickedBy: user?.username
+                });
+
+                Alert.Alert('Success', `${selectedParticipant?.username} has been kicked from the room`);
+              } else {
+                Alert.alert('Error', 'User not found in the current room.');
               }
-
-              // Show loading
-              Alert.alert('Processing', 'Kicking user...');
-
-              // Emit kick event via socket - server will handle permission checking
-              socket?.emit('kick-user', {
-                roomId,
-                targetUsername: selectedParticipant.username,
-                reason: 'Kicked by moderator'
-              });
-
             } catch (error) {
-              console.error('Error kicking user:', error);
-              Alert.alert('Error', 'Failed to kick user. Please try again.');
+              Alert.alert('Error', 'Failed to kick user');
             }
           }
         }
       ]
     );
   };
-
 
   const handleBlockUser = () => {
     setShowParticipantMenu(false);
@@ -3631,7 +2897,7 @@ export default function ChatScreen() {
       Alert.alert('Success', `${selectedParticipant?.username} has been unblocked`);
     } else {
       setBlockedUsers(prev => [...prev, selectedParticipant?.username]);
-      Alert.alert('Success', `${selectedParticipant?.username} has been blocked. You won't see their messages.`);
+      Alert.alert('Success', `${selectedParticipant?.username} has been blocked. You won\'t see their messages.`);
     }
   };
 
@@ -3658,7 +2924,7 @@ export default function ChatScreen() {
               Alert.alert('Success', `${selectedParticipant?.username} has been unmuted`);
             } else {
               setMutedUsers(prev => [...prev, selectedParticipant?.username]);
-              Alert.alert('Success', `${selectedParticipant?.username} has been muted`);
+              Alert.Alert('Success', `${selectedParticipant?.username} has been muted`);
             }
 
             // Emit mute event via socket
@@ -3960,7 +3226,7 @@ export default function ChatScreen() {
       const isSystemCommand = item.commandType === 'system';
 
       return (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={[
             styles.messageContainer,
             isBotCommand && styles.botCommandContainer,
@@ -3974,16 +3240,16 @@ export default function ChatScreen() {
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
-                  {
+                  { 
                     color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                   }
                 ]}>
-                  {item.sender}:
+                  {item.sender}: 
                 </Text>
                 <Text style={[
-                  styles.messageContent,
-                  {
-                    color: isBotCommand ? '#0f23bd' : '#8B4513',
+                  styles.messageContent, 
+                  { 
+                    color: isBotCommand ? '#0f23bd' : '#8B4513', 
                     fontWeight: 'bold',
                     fontStyle: isBotCommand ? 'italic' : 'normal'
                   }
@@ -4001,7 +3267,7 @@ export default function ChatScreen() {
     // Handle user command input (when user types /roll, /whois, etc.) - Legacy support
     if (item.content.startsWith('/') && item.sender === user?.username && item.type === 'message') {
       return (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.messageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -4013,7 +3279,7 @@ export default function ChatScreen() {
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}:
+                  {item.sender}: 
                 </Text>
                 <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
                   {item.content}
@@ -4026,24 +3292,17 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle room info messages - style like regular messages with room name prefix
-    if (item.type === 'room_info') {
+    // Handle room info messages
+    if (item.type === 'room_info') { // Assuming a new type 'room_info' for these messages
       return (
-        <TouchableOpacity
-          style={styles.messageContainer}
+        <TouchableOpacity 
+          style={styles.roomInfoMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
-          <View style={styles.messageRow}>
-            <View style={styles.messageContentRow}>
-              <Text style={styles.messageText}>
-                <Text style={[styles.senderName, { color: '#d2691e' }]}>
-                  {item.sender}:
-                </Text>
-                <Text style={[styles.messageContent, { color: '#333' }]}>
-                  {' '}{item.content}
-                </Text>
-              </Text>
-            </View>
+          <View style={styles.roomInfoMessageRow}>
+            <Text style={styles.roomInfoMessageText}>
+              <Text style={styles.roomInfoContent}>{item.content}</Text>
+            </Text>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
@@ -4054,7 +3313,7 @@ export default function ChatScreen() {
     // Handle special command messages (me, roll, whois, gift commands, errors)
     if (item.type === 'me' || item.type === 'roll' || item.type === 'whois' || item.type === 'error') {
       return (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.commandMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -4066,7 +3325,7 @@ export default function ChatScreen() {
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}
+                  {item.sender} 
                 </Text>
                 <Text style={styles.commandContentText}>{item.content}</Text>
               </Text>
@@ -4091,7 +3350,7 @@ export default function ChatScreen() {
     if (item.sender === 'System' || item.role === 'system') {
       console.log('Rendering system message:', item.content);
       return (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.systemMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -4123,18 +3382,17 @@ export default function ChatScreen() {
       };
 
       const actionText = item.type === 'join' ? 'has entered' : 'has left';
-      // Use fixed dark orange color for room name instead of user role color
-      const roomColor = '#d2691e'; // Dark orange color for room name
+      const roomColor = getRoleColor(userRole, username, chatTabs[activeTab]?.id);
 
       return (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.joinLeaveMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
           <Text style={styles.joinLeaveMessageText}>
-            <Text style={[styles.roomNameText, { color: roomColor }]}>{roomName}: </Text>
-            <Text style={[styles.usernameText, { color: getRoleColor(userRole, username, chatTabs[activeTab]?.id) }]}>{username}</Text>
-            <Text style={styles.roleBadgeText}>[{getRoleBadgeText(userRole)}] </Text>
+            <Text style={[styles.roomNameText, { color: roomColor }]}>{roomName} </Text>
+            <Text style={[styles.usernameText, { color: getRoleColor(userRole, username, chatTabs[activeTab]?.id) }]}>{username} </Text>
+            <Text style={styles.roleBadgeText}>{getRoleBadgeText(userRole)} </Text>
             <Text style={styles.actionText}>{actionText} </Text>
             <Text style={styles.joinLeaveTime}>({formatTime(item.timestamp)})</Text>
           </Text>
@@ -4145,7 +3403,7 @@ export default function ChatScreen() {
     // Handle gift messages
     if (item.type === 'gift') {
       return (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.giftMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -4180,7 +3438,7 @@ export default function ChatScreen() {
       const senderColor = senderIsAdmin ? '#FF6B35' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
 
       return (
-        <TouchableOpacity
+        <TouchableOpacity 
           style={[styles.messageContainer, styles.supportMessageContainer]}
           onLongPress={() => handleMessageLongPress(item)}
         >
@@ -4190,7 +3448,7 @@ export default function ChatScreen() {
               <View style={styles.messageTextContainer}>
                 <Text style={styles.messageText}>
                   <Text style={[styles.senderName, { color: senderColor }]}>
-                    {item.sender} {senderIsAdmin && '(Admin)'}:
+                    {item.sender} {senderIsAdmin && '(Admin)'}: 
                   </Text>
                   <Text style={[styles.messageContent, { color: '#333' }]}>
                     {renderMessageContent(item.content)}
@@ -4206,7 +3464,7 @@ export default function ChatScreen() {
 
     // Regular message
     return (
-      <TouchableOpacity
+      <TouchableOpacity 
         style={styles.messageContainer}
         onLongPress={() => handleMessageLongPress(item)}
       >
@@ -4218,13 +3476,13 @@ export default function ChatScreen() {
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                  { color: item.sender === 'LowCardBot' ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}:
+                  {item.sender}: 
                 </Text>
                 <Text style={[
                   styles.messageContent,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333' }
+                  { color: item.sender === 'LowCardBot' ? '#0f23bd' : '#333' }
                 ]}>
                   {renderMessageContent(item.content)}
                 </Text>
@@ -4232,7 +3490,7 @@ export default function ChatScreen() {
               {/* Display card image if available */}
               {item.image && (
                 <Image
-                  source                  source={{ uri: `${API_BASE_URL}${item.image}` }}
+                  source={{ uri: `${API_BASE_URL}${item.image}` }}
                   style={styles.cardMessageImage}
                   resizeMode="contain"
                 />
@@ -4254,7 +3512,7 @@ export default function ChatScreen() {
       <View style={styles.indicatorContainer}>
         {chatTabs.map((tab, index) => (
           <TouchableOpacity
-            key={tab.id}
+            key={index}
             style={[
               styles.indicator,
               index === activeTab && styles.activeIndicator,
@@ -4433,8 +3691,9 @@ export default function ChatScreen() {
         { url: require('../../assets/emoticon/yuck.png'), type: 'image', name: 'Yuck' },
         { url: require('../../assets/emoticon/yum.png'), type: 'image', name: 'Yum' },
       ];
-      console.log('Loading emojis from:', `${API_BASE_URL}/emojis`);
-      const response = await fetch(`${API_BASE_URL}/emojis`, {
+
+      console.log('Loading emojis from:', `${API_BASE_URL}/api/emojis`);
+      const response = await fetch(`${API_BASE_URL}/api/emojis`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -4463,7 +3722,7 @@ export default function ChatScreen() {
         { emoji: '🥰', type: 'text', name: 'Smiling Face with Hearts' },
         { emoji: '😊', type: 'text', name: 'Smiling Face with Smiling Eyes' },
         { emoji: '😍', type: 'text', name: 'Smiling Face with Heart-Eyes' },
-        // Add local emoticons as fallback
+        // Add some local emoticons as fallback
         { url: require('../../assets/emoticon/happy.png'), type: 'image', name: 'Happy' },
         { url: require('../../assets/emoticon/sad.png'), type: 'image', name: 'Sad' },
         { url: require('../../assets/emoticon/wink.png'), type: 'image', name: 'Wink' },
@@ -4474,114 +3733,174 @@ export default function ChatScreen() {
     }
   };
 
-  // Function to load gifts from the server API
+  // Function to load gifts from the admin API
   const loadGifts = async () => {
     try {
-      console.log('Loading gifts from server API...');
-      const response = await fetch(`${API_BASE_URL}/gifts`, {
+      // Local gift assets
+      const localGifts = [
+        { 
+          id: 'local_1', 
+          name: 'Lion Animation', 
+          icon: '🦁', 
+          price: 150, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Lion.gif'),
+          category: 'animals'
+        },
+        { 
+          id: 'local_2', 
+          name: 'Lion Image', 
+          icon: '🦁', 
+          price: 100, 
+          type: 'static',
+          image: require('../../assets/gift/image/lion_img.gif'),
+          category: 'animals'
+        },
+        { 
+          id: 'local_3', 
+          name: 'Love Animation', 
+          icon: '💕', 
+          price: 200, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Love.mp4'),
+          category: 'romance'
+        },
+        { 
+          id: 'local_4', 
+          name: 'UFO Animation', 
+          icon: '🛸', 
+          price: 300, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Ufonew.mp4'),
+          category: 'space'
+        },
+        { 
+          id: 'local_5', 
+          name: 'Mermaid', 
+          icon: '🧜‍♀️', 
+          price: 80, 
+          type: 'static',
+          image: require('../../assets/gift/image/duyung.png'),
+          category: 'fantasy'
+        },
+        { 
+          id: 'local_6', 
+          name: 'Princess Mermaid', 
+          icon: '👸', 
+          price: 120, 
+          type: 'static',
+          image: require('../../assets/gift/image/putri_duyung.png'),
+          category: 'fantasy'
+        },
+        { 
+          id: 'local_7', 
+          name: 'Girl', 
+          icon: '👧', 
+          price: 90, 
+          type: 'static',
+          image: require('../../assets/gift/image/girl.png'),
+          category: 'people'
+        },
+        { 
+          id: 'local_8', 
+          name: 'Dolphin', 
+          icon: '🐬', 
+          price: 110, 
+          type: 'static',
+          image: require('../../assets/gift/image/lumba.png'),
+          category: 'animals'
+        },
+      ];
+
+      console.log('Loading gifts from:', `${API_BASE_URL}/api/gifts`);
+      const response = await fetch(`${API_BASE_URL}/api/gifts`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'ChatMe-Mobile-App',
         },
       });
 
+      let serverGifts = [];
       if (response.ok) {
-        const serverGifts = await response.json();
-        console.log('Gifts loaded from server:', serverGifts.length);
-        
-        // Map server gifts and add local asset references
-        const gifts = serverGifts.map((gift: any) => {
-          const mappedGift: any = {
-            id: gift.id.toString(),
-            name: gift.name,
-            icon: gift.icon,
-            price: gift.price,
-            type: gift.type || 'static',
-            category: gift.category || 'popular'
-          };
-
-          // Add local asset references for better performance
-          if (gift.image) {
-            try {
-              // Map known image paths to require statements
-              const imageMap: { [key: string]: any } = {
-                '/assets/gift/image/putri_duyung.png': require('../../assets/gift/image/putri_duyung.png'),
-                '/assets/gift/image/girl.png': require('../../assets/gift/image/girl.png'),
-                '/assets/gift/image/lion_img.gif': require('../../assets/gift/image/lion_img.gif'),
-                '/assets/gift/image/lumba.png': require('../../assets/gift/image/lumba.png'),
-                '/assets/gift/image/Baby Lion.png': require('../../assets/gift/image/Baby Lion.png'),
-                '/assets/gift/image/Birds Love.png': require('../../assets/gift/image/Birds Love.png'),
-                '/assets/gift/image/Couple.png': require('../../assets/gift/image/Couple.png'),
-                '/assets/gift/image/Flower Girls.png': require('../../assets/gift/image/Flower Girls.png'),
-                '/assets/gift/image/Happy Jump.gif': require('../../assets/gift/image/Happy Jump.gif'),
-                '/assets/gift/image/Hug.png': require('../../assets/gift/image/Hug.png'),
-                '/assets/gift/image/I Loveyou .png': require('../../assets/gift/image/I Loveyou .png'),
-                '/assets/gift/image/Kids Hug.png': require('../../assets/gift/image/Kids Hug.png'),
-                '/assets/gift/image/Kiss.png': require('../../assets/gift/image/Kiss.png'),
-                '/assets/gift/image/Love Panda.png': require('../../assets/gift/image/Love Panda.png'),
-                '/assets/gift/image/Panda.png': require('../../assets/gift/image/Panda.png')
-              };
-              
-              if (imageMap[gift.image]) {
-                mappedGift.image = imageMap[gift.image];
-              }
-            } catch (error) {
-              console.log('Image asset not found for:', gift.image);
-            }
-          }
-
-          if (gift.animation) {
-            try {
-              // Map known video paths to require statements
-              const videoMap: { [key: string]: any } = {
-                '/assets/gift/animated/Love.mp4': require('../../assets/gift/animated/Love.mp4'),
-                '/assets/gift/animated/Ufonew.mp4': require('../../assets/gift/animated/Ufonew.mp4'),
-                '/assets/gift/animated/BabyLion.mp4': require('../../assets/gift/animated/BabyLion.mp4'),
-                '/assets/gift/animated/bookmagical.mp4': require('../../assets/gift/animated/bookmagical.mp4'),
-                '/assets/gift/animated/Grildcar.mp4': require('../../assets/gift/animated/Grildcar.mp4'),
-                '/assets/gift/animated/luxurycar.mp4': require('../../assets/gift/animated/luxurycar.mp4')
-              };
-              
-              if (videoMap[gift.animation]) {
-                mappedGift.animation = videoMap[gift.animation];
-                mappedGift.videoSource = videoMap[gift.animation];
-              } else {
-                // Keep original path if not in map
-                mappedGift.animation = gift.animation;
-              }
-            } catch (error) {
-              console.log('Video asset not found for:', gift.animation);
-              mappedGift.animation = gift.animation;
-            }
-          }
-
-          return mappedGift;
-        });
-
-        setGiftList(gifts);
+        serverGifts = await response.json();
+        console.log('Server gifts loaded:', serverGifts.length);
       } else {
-        console.error('Failed to load gifts from API, using fallback');
-        // Simple fallback gifts if API fails
-        const fallbackGifts = [
-          { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
-          { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
-          { id: '3', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
+        console.error('Failed to load server gifts');
+        // Fallback to default gifts
+        serverGifts = [
+          { id: '1', name: 'Heart', icon: '❤️', price: 10, type: 'static' },
+          { id: '2', name: 'Rose', icon: '🌹', price: 20, type: 'static' },
+          { id: '3', name: 'Crown', icon: '👑', price: 50, type: 'static' },
+          { id: '4', name: 'Diamond', icon: '💎', price: 100, type: 'static' },
+          { id: '5', name: 'Rocket', icon: '🚀', price: 200, type: 'animated' },
         ];
-        setGiftList(fallbackGifts);
       }
+
+      // Combine local gifts with server gifts
+      const allGifts = [...localGifts, ...serverGifts];
+      setGiftList(allGifts);
+      console.log('Total gifts loaded:', allGifts.length);
     } catch (error) {
       console.error('Error loading gifts:', error);
-      // Simple fallback gifts on error
+      // Fallback with local gifts and defaults
       const fallbackGifts = [
-        { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'static', category: 'popular' },
-        { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'static', category: 'popular' },
-        { id: '3', name: 'Lucky Pearls', icon: '🦪', price: 500, type: 'static', category: 'lucky' },
+        { 
+          id: 'local_1', 
+          name: 'Lion Animation', 
+          icon: '🦁', 
+          price: 150, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Lion.gif'),
+          category: 'animals'
+        },
+        { 
+          id: 'local_2', 
+          name: 'Lion Image', 
+          icon: '🦁', 
+          price: 100, 
+          type: 'static',
+          image: require('../../assets/gift/image/lion_img.gif'),
+          category: 'animals'
+        },
+        { 
+          id: 'local_3', 
+          name: 'Love Animation', 
+          icon: '💕', 
+          price: 200, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Love.mp4'),
+          category: 'romance'
+        },
+        { 
+          id: 'local_4', 
+          name: 'UFO Animation', 
+          icon: '🛸', 
+          price: 300, 
+          type: 'animated',
+          animation: require('../../assets/gift/animated/Ufonew.mp4'),
+          category: 'space'
+        },
+        { 
+          id: 'local_5', 
+          name: 'Mermaid', 
+          icon: '🧜‍♀️', 
+          price: 80, 
+          type: 'static',
+          image: require('../../assets/gift/image/duyung.png'),
+          category: 'fantasy'
+        },
+        { id: '1', name: 'Heart', icon: '❤️', price: 10, type: 'static' },
+        { id: '2', name: 'Rose', icon: '🌹', price: 20, type: 'static' },
+        { id: '3', name: 'Crown', icon: '👑', price: 50, type: 'static' },
+        { id: '4', name: 'Diamond', icon: '💎', price: 100, type: 'static' },
+        { id: '5', name: 'Rocket', icon: '🚀', price: 200, type: 'animated' },
       ];
       setGiftList(fallbackGifts);
     }
   };
 
-  // Function to send gift to all users in room
+  // Handle gift sending to all users in room
   const handleGiftSendToAll = async (gift: any) => {
     if (!user || !user.balance || user.balance < gift.price * participants.length) {
       Alert.alert('Insufficient Coins', `You need ${(gift.price * participants.length).toLocaleString()} coins to send this gift to all users in the room.`);
@@ -4622,25 +3941,15 @@ export default function ChatScreen() {
   // Function to send gift to room
   const handleGiftSend = async (gift: any, recipientUsername?: string) => {
     try {
-      // Atomic check to prevent duplicate sends (ref-based for race condition protection)
-      if (isSendingGiftRef.current) {
-        console.log('Gift send already in progress, ignoring duplicate request');
-        return;
-      }
-
       if (!socket) {
         console.log('Socket not connected, cannot send gift');
         Alert.alert('Error', 'Connection lost. Please try again.');
         return;
       }
 
-      // Set both ref (atomic) and state (for UI)
-      isSendingGiftRef.current = true;
-      setIsSendingGift(true);
-
       // Check balance first
       try {
-        const response = await fetch(`${API_BASE_URL}/gifts/check-balance`, {
+        const response = await fetch(`${API_BASE_URL}/api/gifts/check-balance`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -4655,158 +3964,72 @@ export default function ChatScreen() {
           const balanceData = await response.json();
 
           if (!balanceData.canAfford) {
-            isSendingGiftRef.current = false;
-            setIsSendingGift(false);
             Alert.alert(
-              'Saldo Tidak Cukup',
+              'Saldo Tidak Cukup', 
               `Anda memerlukan ${gift.price} coins untuk mengirim gift ini. Saldo Anda: ${balanceData.currentBalance} coins.`
             );
             return;
           }
 
-          // Calculate recipient and system shares
-          const isPrivateChat = chatTabs[activeTab]?.type === 'private';
-          const recipientPercentage = isPrivateChat ? 0.3 : 0.7;
-          const recipientShare = Math.floor(gift.price * recipientPercentage);
-          const systemShare = gift.price - recipientShare;
-          const remainingBalance = balanceData.currentBalance - gift.price;
-
           // Show cost breakdown confirmation
           const recipientText = recipientUsername ? `ke ${recipientUsername}` : 'ke room';
-          const shareText = isPrivateChat ? '30%' : '70%';
           Alert.alert(
             'Konfirmasi Gift',
             `Kirim ${gift.name} ${recipientText}?\n\n` +
             `Total: ${gift.price} coins\n` +
-            `${recipientUsername ? `${recipientUsername} mendapat: ${recipientShare} coins (${shareText})\n` : ''}` +
-            `System cut: ${systemShare} coins\n` +
-            `Sisa saldo: ${remainingBalance} coins`,
+            `${recipientUsername ? `${recipientUsername} mendapat: ${balanceData.recipientShare} coins\n` : ''}` +
+            `System fee: ${balanceData.systemShare} coins\n` +
+            `Sisa saldo: ${balanceData.remainingBalance} coins`,
             [
+              { text: 'Batal', style: 'cancel' },
               { 
-                text: 'Batal', 
-                style: 'cancel',
+                text: 'Kirim', 
                 onPress: () => {
-                  isSendingGiftRef.current = false;
-                  setIsSendingGift(false);
-                }
-              },
-              {
-                text: 'Kirim',
-                onPress: async () => {
-                  try {
-                    // Process gift purchase through new endpoint
-                    const purchaseResponse = await fetch(`${API_BASE_URL}/gift/purchase`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        giftId: gift.id,
-                        giftPrice: gift.price,
-                        recipientUsername: recipientUsername,
-                        roomId: chatTabs[activeTab]?.id,
-                        isPrivate: chatTabs[activeTab]?.type === 'private' || false
-                      }),
-                    });
+                  const giftData = {
+                    roomId: chatTabs[activeTab]?.id,
+                    sender: user?.username,
+                    gift,
+                    recipient: recipientUsername,
+                    timestamp: new Date().toISOString(),
+                    role: user?.role || 'user',
+                    level: user?.level || 1
+                  };
 
-                    if (purchaseResponse.ok) {
-                      const purchaseData = await purchaseResponse.json();
-                      console.log('Gift purchase successful:', purchaseData);
+                  console.log('Sending gift via socket:', giftData);
+                  socket.emit('sendGift', giftData);
 
-                      // Calculate system share and percentage
-                      const recipientEarnings = purchaseData.earnings || 0;
-                      const systemShare = gift.price - recipientEarnings;
-                      const sharePercentage = gift.price > 0 ? Math.round((recipientEarnings / gift.price) * 100) : 0;
-
-                      // Show success message
-                      Alert.alert(
-                        'Gift Sent!',
-                        `${gift.name} berhasil dikirim ke ${recipientUsername}!\n\n` +
-                        `Distribusi:\n` +
-                        `• ${recipientUsername} mendapat: ${recipientEarnings} coins (${sharePercentage}%)\n` +
-                        `• System: ${systemShare} coins\n\n` +
-                        `Saldo Anda: ${purchaseData.newBalance} coins`
-                      );
-
-                      // Send gift via socket for real-time display
-                      const giftData = {
-                        roomId: chatTabs[activeTab]?.id,
-                        sender: user?.username,
-                        gift,
-                        recipient: recipientUsername,
-                        timestamp: new Date().toISOString(),
-                        role: user?.role || 'user',
-                        level: user?.level || 1
-                      };
-
-                      console.log('Sending gift via socket:', giftData);
-                      socket.emit('sendGift', giftData);
-
-                      setShowGiftPicker(false);
-                      setSelectedGift(null);
-                      // Close the user gift picker if it was open
-                      if (showUserGiftPicker) {
-                        setShowUserGiftPicker(false);
-                        setSelectedGiftForUser(null);
-                      }
-                      isSendingGiftRef.current = false;
-                      setIsSendingGift(false);
-
-                    } else {
-                      const errorData = await purchaseResponse.json();
-                      isSendingGiftRef.current = false;
-                      setIsSendingGift(false);
-                      Alert.alert('Error', errorData.error || 'Gagal mengirim gift');
-                    }
-
-                  } catch (purchaseError) {
-                    console.error('Error purchasing gift:', purchaseError);
-                    isSendingGiftRef.current = false;
-                    setIsSendingGift(false);
-                    Alert.alert('Error', 'Gagal memproses pembelian gift');
+                  setShowGiftPicker(false);
+                  setSelectedGift(null);
+                  // Close the user gift picker if it was open
+                  if (showUserGiftPicker) {
+                    setShowUserGiftPicker(false);
+                    setSelectedGiftForUser(null);
                   }
                 }
               }
-            ],
-            {
-              cancelable: true,
-              onDismiss: () => {
-                isSendingGiftRef.current = false;
-                setIsSendingGift(false);
-              }
-            }
+            ]
           );
 
         } else {
-          isSendingGiftRef.current = false;
-          setIsSendingGift(false);
           Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
         }
 
       } catch (balanceError) {
         console.error('Error checking balance:', balanceError);
-        isSendingGiftRef.current = false;
-        setIsSendingGift(false);
         Alert.alert('Error', 'Gagal memeriksa saldo. Silakan coba lagi.');
       }
 
     } catch (error) {
       console.error('Error sending gift:', error);
-      isSendingGiftRef.current = false;
-      setIsSendingGift(false);
-      Alert.alert('Error', 'Failed to send gift. Please try again.');
+      Alert.alert('Error', 'Gagal mengirim gift. Silakan coba lagi.');
     }
   };
 
   // Function to send gift to specific user
   const handleGiftSendToUser = (gift: any) => {
-    // Batch state updates to prevent useInsertionEffect error
-    setTimeout(() => {
-      setSelectedGiftForUser(gift);
-      setShowGiftPicker(false);
-      setShowUserGiftPicker(true);
-    }, 0);
+    setSelectedGiftForUser(gift);
+    setShowGiftPicker(false);
+    setShowUserGiftPicker(true);
   };
 
   // Function to send gift to selected user
@@ -4825,38 +4048,9 @@ export default function ChatScreen() {
     }
   };
 
-  // Function to force rejoin current room
-  const forceRejoinRoom = () => {
-    if (!socket || !user || chatTabs.length === 0) return;
-
-    const currentTab = chatTabs[activeTab];
-    if (!currentTab) return;
-
-    console.log('🔄 Force rejoining room:', currentTab.id);
-
-    if (currentTab.isSupport) {
-      socket.emit('join-support-room', {
-        supportRoomId: currentTab.id,
-        isAdmin: user.role === 'admin',
-        silent: false
-      });
-    } else {
-      socket.emit('join-room', {
-        roomId: currentTab.id,
-        username: user.username,
-        role: user.role || 'user',
-        silent: false
-      });
-    }
-
-    // Show feedback to user
-    Alert.alert('Room Rejoined', 'You have been reconnected to the room. Try sending your message again.');
-  };
-
   // Effect to load initial messages and participants when component mounts or roomId changes
   useEffect(() => {
     if (roomId) {
-      loadRooms(); // Load room and add to chatTabs
       loadParticipants();
     }
     loadEmojis(); // Load emojis when the component mounts or roomId changes
@@ -4913,7 +4107,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header with Gradient */}
       <LinearGradient
-        colors={chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
+        colors={chatTabs[activeTab]?.type === 'private' ? ['#FF9800', '#FF5722'] : chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
@@ -4923,7 +4117,28 @@ export default function ChatScreen() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
-          {chatTabs[activeTab]?.isSupport ? (
+          {chatTabs[activeTab]?.type === 'private' ? (
+            // Private Chat Header with Avatar
+            <View style={styles.privateChatHeaderContent}>
+              <View style={styles.privateChatAvatar}>
+                {targetUser?.avatar ? (
+                  <Image source={{ uri: targetUser.avatar }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.defaultAvatarContainer}>
+                    <Text style={styles.avatarInitial}>
+                      {targetUser?.username ? targetUser.username.charAt(0).toUpperCase() : 'U'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.privateChatInfo}>
+                <Text style={styles.privateChatName}>
+                  {targetUser?.username || chatTabs[activeTab]?.title.replace('Chat with ', '')}
+                </Text>
+                <Text style={styles.privateChatStatus}>Online</Text>
+              </View>
+            </View>
+          ) : chatTabs[activeTab]?.isSupport ? (
             // Support Chat Header
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>Support Chat</Text>
@@ -4936,14 +4151,27 @@ export default function ChatScreen() {
             <View style={styles.headerTextContainer}>
               <Text style={[styles.headerTitle, { color: '#fff' }]}>{chatTabs[activeTab]?.title}</Text>
               <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
-                Chatroom
+                {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
                 {!isSocketConnected && ' • Reconnecting...'}
               </Text>
             </View>
           )}
 
           <View style={styles.headerIcons}>
-            {chatTabs[activeTab]?.isSupport ? (
+            {chatTabs[activeTab]?.type === 'private' ? (
+              // Private Chat Icons
+              <>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
+                  <Ionicons name="videocam-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
+                  <Ionicons name="call-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
+                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                </TouchableOpacity>
+              </>
+            ) : chatTabs[activeTab]?.isSupport ? (
               // Support Chat Icons (e.g., options for support)
               <>
                 <TouchableOpacity style={styles.headerIcon}>
@@ -4956,6 +4184,12 @@ export default function ChatScreen() {
             ) : (
               // Room Chat Icons
               <>
+                <TouchableOpacity style={styles.headerIcon}>
+                  <Ionicons name="calendar-outline" size={24} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerIcon}>
+                  <Ionicons name="grid-outline" size={24} color="#fff" />
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleListPress}>
                   <Ionicons name="list-outline" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -5013,7 +4247,7 @@ export default function ChatScreen() {
             scrollEventThrottle={16}
           >
             {chatTabs.map((tab, index) => (
-              <TouchableWithoutFeedback key={tab.id} onPress={() => Keyboard.dismiss()}>
+              <TouchableWithoutFeedback key={`${tab.id}-${index}`} onPress={() => Keyboard.dismiss()}>
                 <View style={styles.tabContent}>
                   <FlatList
                     ref={(ref) => { flatListRefs.current[tab.id] = ref; }} // Assign ref to the FlatList
@@ -5130,7 +4364,7 @@ export default function ChatScreen() {
                   style={styles.menuItem}
                   onPress={() => {
                     setShowPopupMenu(false);
-                    navigation.navigate('Profile', { userId: selectedParticipant?.username });
+                    navigation.navigate('Profile', { userId: targetUser?.id || targetUser?.username });
                   }}
                 >
                   <Ionicons name="person-outline" size={20} color="#333" />
@@ -5148,16 +4382,16 @@ export default function ChatScreen() {
                   <Text style={styles.menuText}>Search Messages</Text>
                 </TouchableOpacity>
 
-                {/* Clear Chat option for private chats */}
-                {chatTabs[activeTab]?.type === 'private' && (
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => handlePopupMenuPress('clear')}
-                  >
-                    <Ionicons name="trash-outline" size={20} color="#FF6B35" />
-                    <Text style={[styles.menuText, { color: '#FF6B35' }]}>Clear Chat</Text>
-                  </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setShowPopupMenu(false);
+                    Alert.alert('Clear Chat', 'Clear chat functionality will be added soon');
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF9800" />
+                  <Text style={[styles.menuText, { color: '#FF9800' }]}>Clear Chat</Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.menuItem, styles.lastMenuItem]}
@@ -5312,10 +4546,10 @@ export default function ChatScreen() {
                           styles.participantRole,
                           { color: getRoleColor(participant.role, participant.username, chatTabs[activeTab]?.id) }
                         ]}>
-                        {(() => {
-                          const currentRoom = chatTabs[activeTab];
-                          const isOwner = currentRoom && currentRoom.managedBy === participant.username;
-                          const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
+                          {(() => {
+                            const currentRoom = chatTabs[activeTab];
+                            const isOwner = currentRoom && currentRoom.managedBy === participant.username;
+                            const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(participant.username);
 
                             if (isOwner) return '👤 Owner';
                             if (isModerator) return '🛡️ Moderator';
@@ -5326,8 +4560,7 @@ export default function ChatScreen() {
                               case 'mentor': return '🎓 Mentor';
                               default: return '👤 User';
                             }
-                          })()
-                        }
+                          })()}
                         </Text>
                         {mutedUsers.includes(participant.username) && (
                           <Text style={styles.mutedIndicator}>🔇 Muted</Text>
@@ -5494,15 +4727,9 @@ export default function ChatScreen() {
                         {emoji.type === 'text' ? (
                           <Text style={styles.emojiText}>{emoji.emoji}</Text>
                         ) : emoji.type === 'image' && typeof emoji.url === 'string' ? (
-                          <Image
-                            source={{ uri: `${API_BASE_URL}${emoji.url}` }}
-                            style={styles.emojiImage}
-                          />
+                          <Image source={{ uri: `${API_BASE_URL}${emoji.url}` }} style={styles.emojiImage} />
                         ) : emoji.type === 'image' && typeof emoji.url === 'number' ? (
-                          <Image
-                            source={emoji.url}
-                            style={styles.emojiImage}
-                          />
+                          <Image source={emoji.url} style={styles.emojiImage} />
                         ) : (
                           <Text style={styles.emojiText}>🙂</Text>
                         )}
@@ -5543,13 +4770,13 @@ export default function ChatScreen() {
             {/* Gift Category Tabs */}
             <View style={styles.giftCategoryTabs}>
               <View style={styles.tabRow}>
-                <TouchableOpacity
+                <TouchableOpacity 
                   style={[styles.categoryTab, activeGiftTab === 'all' && styles.activeCategoryTab]}
                   onPress={() => setActiveGiftTab('all')}
                 >
                   <Text style={[styles.categoryTabText, activeGiftTab === 'all' && styles.activeCategoryTabText]}>Semua hadiah</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                <TouchableOpacity 
                   style={[styles.categoryTab, activeGiftTab === 'special' && styles.activeCategoryTab]}
                   onPress={() => setActiveGiftTab('special')}
                 >
@@ -5560,14 +4787,14 @@ export default function ChatScreen() {
 
             {/* Send to All Toggle */}
             <View style={styles.sendToAllContainer}>
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={styles.sendToAllToggle}
                 onPress={() => setSendToAllUsers(!sendToAllUsers)}
               >
-                <Ionicons
-                  name={sendToAllUsers ? "checkbox" : "square-outline"}
-                  size={20}
-                  color={sendToAllUsers ? "#4ADE80" : "#666"}
+                <Ionicons 
+                  name={sendToAllUsers ? "checkbox" : "square-outline"} 
+                  size={20} 
+                  color={sendToAllUsers ? "#4ADE80" : "#666"} 
                 />
                 <Text style={styles.sendToAllText}>Kirim ke semua user di room</Text>
               </TouchableOpacity>
@@ -5591,21 +4818,16 @@ export default function ChatScreen() {
                   >
                     <View style={styles.newGiftIconContainer}>
                       {gift.image ? (
-                        <Image
-                          source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image}
-                          style={styles.giftImage}
+                        <Image 
+                          source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
+                          style={styles.giftImage} 
                           resizeMode="contain"
                         />
                       ) : gift.animation ? (
-                        // Check if it's video based on mediaType or file extension
-                        (gift.mediaType === 'video' || (
-                          typeof gift.animation === 'string' && 
-                          (gift.animation.toLowerCase().includes('.mp4') || 
-                           gift.animation.toLowerCase().includes('.webm') || 
-                           gift.animation.toLowerCase().includes('.mov'))
-                        )) ? (
+                        // Check if it's MP4 video
+                        (typeof gift.animation === 'string' && gift.animation.toLowerCase().includes('.mp4')) ||
+                        (gift.name && (gift.name.toLowerCase().includes('love') || gift.name.toLowerCase().includes('ufo'))) ? (
                           <Video
-                            ref={giftVideoRef}
                             source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
                             style={styles.giftImage}
                             resizeMode="contain"
@@ -5615,13 +4837,20 @@ export default function ChatScreen() {
                           />
                         ) : (
                           // For GIF animations
-                          <Image
-                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
-                            style={styles.giftImage}
+                          <Image 
+                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
+                            style={styles.giftImage} 
                             resizeMode="contain"
                           />
                         )
-                      ) : null}
+                      ) : (
+                        <Text style={styles.newGiftIcon}>{gift.icon}</Text>
+                      )}
+                      {gift.type === 'animated' && (
+                        <View style={styles.animatedBadge}>
+                          <Text style={styles.animatedBadgeText}>✨</Text>
+                        </View>
+                      )}
                     </View>
                     <Text style={styles.newGiftName}>{gift.name}</Text>
                     <View style={styles.giftPriceContainer}>
@@ -5829,7 +5058,7 @@ export default function ChatScreen() {
       {activeGiftAnimation && (
         <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
           {/* Full Screen Video/Animation Layer */}
-          <Animated.View
+          <Animated.View 
             style={[
               styles.fullScreenAnimationContainer,
               {
@@ -5841,12 +5070,8 @@ export default function ChatScreen() {
           >
             {/* Full Screen MP4 Video Effect */}
             {activeGiftAnimation.animation && (
-              activeGiftAnimation.mediaType === 'video' || (
-                typeof activeGiftAnimation.animation === 'string' && 
-                (activeGiftAnimation.animation.toLowerCase().includes('.mp4') || 
-                 activeGiftAnimation.animation.toLowerCase().includes('.webm') || 
-                 activeGiftAnimation.animation.toLowerCase().includes('.mov'))
-              )
+              (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
+              (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
             ) && (
               <Video
                 ref={giftVideoRef}
@@ -5884,23 +5109,20 @@ export default function ChatScreen() {
             {/* Small Static Image/GIF Effect (30x30) */}
             {activeGiftAnimation.image && (
               <View style={styles.smallGiftContainer}>
-                <Image
-                  source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image}
+                <Image 
+                  source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
                   style={styles.smallGiftImage}
                   resizeMode="contain"
                 />
               </View>
             )}
 
-            {/* Fullscreen GIF layer for non-video animations with transparency */}
-            {activeGiftAnimation.animation &&
-             activeGiftAnimation.mediaType !== 'video' &&
-             !(typeof activeGiftAnimation.animation === 'string' && 
-               (activeGiftAnimation.animation.toLowerCase().includes('.mp4') || 
-                activeGiftAnimation.animation.toLowerCase().includes('.webm') || 
-                activeGiftAnimation.animation.toLowerCase().includes('.mov'))) && (
-              <Image
-                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
+            {/* Fullscreen GIF layer for non-MP4 animations with transparency */}
+            {activeGiftAnimation.animation && 
+             !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
+             !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
+              <Image 
+                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
                 style={styles.fullScreenGif}
                 resizeMode="cover"
               />
@@ -5915,7 +5137,7 @@ export default function ChatScreen() {
           </Animated.View>
 
           {/* Gift Info Overlay - Bottom */}
-          <Animated.View
+          <Animated.View 
             style={[
               styles.giftInfoOverlay,
               {
@@ -5953,7 +5175,7 @@ export default function ChatScreen() {
               {callType === 'video' ? 'Video Call' : 'Audio Call'}
             </Text>
             <Text style={styles.callTargetName}>
-              {selectedParticipant?.username}
+              {targetUser?.username}
             </Text>
             <Text style={styles.callTimer}>
               {formatCallTime(callTimer)}
@@ -5967,7 +5189,7 @@ export default function ChatScreen() {
             {isInCall && (
               <View style={{ flex: 1, backgroundColor: '#000' }}>
                 <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
-                  Call Active with {selectedParticipant?.username}
+                  Call Active with {targetUser?.username}
                 </Text>
                 <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
                   {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
@@ -5981,8 +5203,8 @@ export default function ChatScreen() {
           </View>
 
           <View style={styles.callControls}>
-            <TouchableOpacity
-              style={[styles.callButton, styles.endCallButton]}
+            <TouchableOpacity 
+              style={[styles.callButton, styles.endCallButton]} 
               onPress={endCall}
             >
               <Ionicons name="call" size={30} color="white" />
@@ -6021,16 +5243,16 @@ export default function ChatScreen() {
             </View>
 
             <View style={styles.incomingCallButtons}>
-              <TouchableOpacity
-                style={[styles.callActionButton, styles.declineButton]}
+              <TouchableOpacity 
+                style={[styles.callActionButton, styles.declineButton]} 
                 onPress={handleDeclineCall}
               >
                 <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: '135deg' }] }} />
                 <Text style={styles.callActionText}>Decline</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.callActionButton, styles.acceptButton]}
+              <TouchableOpacity 
+                style={[styles.callActionButton, styles.acceptButton]} 
                 onPress={handleAcceptCall}
               >
                 <Ionicons name="call" size={30} color="white" />
@@ -6128,7 +5350,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
   },
   backButton: {
     padding: 8,
@@ -6152,15 +5373,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 12,
-    paddingVertical: 8,
   },
   privateChatAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
     overflow: 'hidden',
-    marginTop: 4,
   },
   avatarImage: {
     width: 40,
@@ -6182,27 +5401,24 @@ const styles = StyleSheet.create({
   },
   privateChatInfo: {
     flex: 1,
-    paddingTop: 4,
   },
   privateChatName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 2,
   },
   privateChatStatus: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
   },
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 4,
   },
   headerIcon: {
-    padding: 10,
-    marginLeft: 2,
-    marginTop: 4,
+    padding: 8,
+    marginLeft: 4,
   },
   indicatorContainer: {
     flexDirection: 'row',
@@ -6236,7 +5452,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginRight: 8,
-    borderRadius: 20,
+    borderRadius:    20,
     backgroundColor: '#F5F5F5',
   },
   activeTabNavItem: {
@@ -6309,12 +5525,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContainer: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
   messageContainer: {
-    marginBottom: 3,
-    paddingHorizontal: 4,
+    marginBottom: 6,
+    paddingHorizontal: 8,
   },
   supportMessageContainer: {
     backgroundColor: '#E3F2FD', // Light blue background for support messages
@@ -6352,12 +5568,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     textAlignVertical: 'top',
-    marginLeft: 2,
+    marginLeft: 6,
   },
   levelBadgeContainer: {
     backgroundColor: '#229c93',
     borderRadius: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     minWidth: 20,
     height: 20,
@@ -6365,7 +5581,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     marginTop: 1,
-    marginRight: 4,
   },
   levelBadgeText: {
     fontSize: 8,
@@ -6386,6 +5601,11 @@ const styles = StyleSheet.create({
     height: 16,
     textAlign: 'center',
     textAlignVertical: 'center',
+  },
+  levelText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: 'white',
   },
   roleBadge: {
     borderRadius: 8,
@@ -6850,7 +6070,7 @@ const styles = StyleSheet.create({
   // Join/Leave message styles
   joinLeaveMessageContainer: {
     marginVertical: 4,
-    paddingHorizontal: 4,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     alignSelf: 'flex-start',
   },
@@ -6870,6 +6090,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  // roleBadgeText is defined above
   actionText: {
     fontSize: 13,
     color: '#666',
@@ -6944,11 +6165,11 @@ const styles = StyleSheet.create({
   // Gift Picker Styles
   giftModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: '70%',
@@ -6961,7 +6182,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#444',
   },
   giftPickerTitle: {
     fontSize: 18,
@@ -6972,7 +6193,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#444',
   },
   tabRow: {
     flexDirection: 'row',
@@ -6982,7 +6203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#444',
   },
   sendToAllToggle: {
     flexDirection: 'row',
@@ -7016,6 +6237,30 @@ const styles = StyleSheet.create({
     color: '#FF8C00',
     fontWeight: 'bold',
   },
+  coinBalanceContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#444',
+  },
+  coinBalance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  coinIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  coinText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  coinDescription: {
+    fontSize: 14,
+    color: '#888',
+  },
   giftPickerContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -7032,12 +6277,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   newGiftItem: {
-    backgroundColor: '#2A2A2A',
-    borderRadius: 12,
+    backgroundColor: '#3C3C3E',
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#444',
+    borderWidth: 2,
+    borderColor: 'transparent',
     position: 'relative',
     minHeight: 140,
   },
@@ -7120,45 +6365,28 @@ const styles = StyleSheet.create({
   newGiftIcon: {
     fontSize: 48,
   },
-  animatedBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#FF69B4',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  animatedBadgeText: {
-    fontSize: 10,
-    color: 'white',
-  },
   newGiftName: {
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 6,
     textAlign: 'center',
-    minHeight: 28,
-    lineHeight: 16,
   },
   newGiftPrice: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#FFD700',
-    marginLeft: 2,
+    marginLeft: 4,
   },
   giftGridContainer: {
-    paddingHorizontal: 5,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    textAlign: 'center',
   },
   newGiftPriceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
   },
   coinPriceIcon: {
     fontSize: 14,
@@ -7211,16 +6439,15 @@ const styles = StyleSheet.create({
   },
   sendToUserButton: {
     flex: 1,
-    backgroundColor: '#E91E63',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 105, 180, 0.8)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
   },
   giftActionText: {
-    color: '#fff',
-    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 10,
     fontWeight: '600',
   },
   giftIconContainer: {
@@ -7233,6 +6460,47 @@ const styles = StyleSheet.create({
   },
   giftIcon: {
     fontSize: 40,
+  },
+  animatedBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF69B4',
+    borderRadius: 8,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  animatedBadgeText: {
+    fontSize: 10,
+    color: 'white',
+  },
+  giftName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 6,
+    textAlign: 'center',
+    minHeight: 28,
+    lineHeight: 14,
+  },
+  giftPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  giftPrice: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginLeft: 2,
+  },
+  giftPreviewImage: {
+    width: 60,
+    height: 70,
+    borderRadius: 8,
+    resizeMode: 'contain',
   },
   // Auto scroll button styles
   autoScrollButton: {
@@ -7378,7 +6646,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#444',
   },
   coinBalanceRow: {
     flexDirection: 'row',
