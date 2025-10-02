@@ -52,12 +52,32 @@ const generateRoomDescription = (roomName, creatorUsername) => {
   return `${roomName} - Welcome to merchant official chatroom. This room is managed by ${creatorUsername}`;
 };
 
-// Get rooms endpoint
-router.get('/', (req, res) => {
+// Get rooms endpoint - Query database directly for fresh data
+router.get('/', async (req, res) => {
   try {
     console.log('GET /api/rooms -', new Date().toISOString());
     console.log('Headers:', req.headers);
-    res.json(rooms);
+    
+    // Query database for real-time room data (not in-memory cache)
+    const result = await pool.query(`
+      SELECT id, name, description, managed_by, type, members, max_members, created_by, created_at
+      FROM rooms 
+      ORDER BY created_at ASC
+    `);
+
+    const freshRooms = result.rows.map(row => ({
+      id: row.id.toString(),
+      name: row.name,
+      description: row.description,
+      managedBy: row.managed_by,
+      type: row.type,
+      members: row.members || 0,
+      maxMembers: row.max_members || 25,
+      createdBy: row.created_by,
+      createdAt: row.created_at
+    }));
+
+    res.json(freshRooms);
   } catch (error) {
     console.error('Error fetching rooms:', error);
     res.status(500).json({ error: 'Internal server error' });
