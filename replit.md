@@ -8,6 +8,13 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 2, 2025** - Fixed duplicate tab creation bug when joining rooms:
+- **Root cause**: Race condition in joinSpecificRoom() - multiple calls before setChatTabs completed would create duplicate tabs
+- **Fix 1**: Added navigationJoinedRef to prevent useEffect from re-joining same room from navigation params
+- **Fix 2**: Added joiningRoomsRef Set to block concurrent joins - prevents duplicate tabs from rapid clicks or dependency re-runs
+- **Cleanup**: Properly removes room from joiningRoomsRef on both success and error paths
+- **Result**: Only 1 tab created per room, no empty duplicate tabs
+
 **October 2, 2025** - Implemented video gift support (MP4/WebM/MOV):
 - **Database schema**: Added media_type, thumbnail_url, duration columns to custom_gifts table
 - **Auto-detection**: Backend automatically detects video files (.mp4/.webm/.mov) and sets media_type='video' on upload
