@@ -114,6 +114,7 @@ export default function ChatScreen() {
   const isInitializingSocketRef = useRef(false);
   const hadConnectedRef = useRef(false);
   const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
+  const navigationJoinedRef = useRef<string | null>(null); // Track room joined from navigation params
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const hasAutoFocusedRef = useRef(false); // Track if we've already auto-focused a tab
@@ -1443,6 +1444,7 @@ export default function ChatScreen() {
       isInitializingSocketRef.current = false;
       hadConnectedRef.current = false;
       // Don't clear joinedRoomsRef on routine cleanup - only clear on disconnect/logout
+      navigationJoinedRef.current = null; // Reset navigation join tracker on unmount
 
       appStateSubscription?.remove();
 
@@ -1486,8 +1488,10 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
-    if (roomId && roomName && socket) {
+    // Prevent duplicate joins by checking if we already joined this room from navigation
+    if (roomId && roomName && socket && navigationJoinedRef.current !== roomId) {
       console.log('Navigated to specific room/chat:', roomId, roomName, type);
+      navigationJoinedRef.current = roomId; // Mark room as joined from navigation
       joinSpecificRoom(roomId, roomName);
     }
   }, [roomId, roomName, socket, type, isSupport]);
