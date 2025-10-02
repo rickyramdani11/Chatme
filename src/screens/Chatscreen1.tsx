@@ -3712,8 +3712,8 @@ export default function ChatScreen() {
         { url: require('../../assets/emoticon/yum.png'), type: 'image', name: 'Yum' },
       ];
 
-      console.log('Loading emojis from:', `${API_BASE_URL}/api/emojis`);
-      const response = await fetch(`${API_BASE_URL}/api/emojis`, {
+      console.log('Loading emojis from:', `${API_BASE_URL}/emojis`);
+      const response = await fetch(`${API_BASE_URL}/emojis`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

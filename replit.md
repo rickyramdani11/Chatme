@@ -8,6 +8,15 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 2, 2025** - Migrated all features to Chatscreen1.tsx (bug-free version):
+- **Migration completed**: Moved gift modal, participant modal, and message styling from buggy ChatScreen.tsx to working Chatscreen1.tsx
+- **Gift modal**: Atomic ref-based duplicate send prevention (isSendingGiftRef), category tabs, send-to-all toggle, balance display, confirmation alerts
+- **Participant modal**: Full participant list with role colors, context menu (View Profile, Private Chat, Kick, Block, Mute, Ban, Lock Room, Report), proper permission checks
+- **Message styling**: Support message blue background, bot vs system command differentiation, @mention styling, room_info rendering, video/GIF/image gift support
+- **Emoji URL fix**: Fixed double `/api/api/emojis` → `/api/emojis` in loadEmojis function
+- **AppNavigator**: Now uses Chatscreen1.tsx (confirmed no duplicate room join bug)
+- **Result**: Multi-tab chat works perfectly without duplicates, all features functional
+
 **October 2, 2025** - Fixed duplicate tab creation bug when joining rooms:
 - **Root cause**: Race condition in joinSpecificRoom() - multiple calls before setChatTabs completed would create duplicate tabs
 - **Fix 1**: Added navigationJoinedRef to prevent useEffect from re-joining same room from navigation params
