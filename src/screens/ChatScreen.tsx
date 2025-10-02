@@ -605,6 +605,10 @@ export default function ChatScreen() {
       // Add the new tab and set it as active
       setChatTabs(prevTabs => {
         const newTabs = [...prevTabs, newTab];
+        
+        // UPDATE REF IMMEDIATELY to prevent duplicate joins!
+        chatTabsRef.current = newTabs;
+        
         // Set the new room as active tab
         const newActiveTab = newTabs.length - 1;
         setActiveTab(newActiveTab);
