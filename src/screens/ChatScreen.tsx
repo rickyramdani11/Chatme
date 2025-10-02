@@ -117,6 +117,7 @@ export default function ChatScreen() {
   const navigationJoinedRef = useRef<string | null>(null); // Track room joined from navigation params
   const joiningRoomsRef = useRef(new Set<string>()); // Track rooms currently being joined (prevent race condition)
   const socketRef = useRef<Socket | null>(null); // Ref to avoid closure issues in AppState handler
+  const prevNavigationParamsRef = useRef<any>(null); // Track previous navigation params to prevent duplicate joins
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const hasAutoFocusedRef = useRef(false); // Track if we've already auto-focused a tab
@@ -1514,15 +1515,25 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
-    // Prevent duplicate joins by checking if we already joined this room from navigation
-    console.log('🔄 useEffect triggered - roomId:', roomId, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport, 'navigationJoinedRef:', navigationJoinedRef.current);
+    // Prevent duplicate joins by deep comparison of ALL navigation params
+    console.log('🔄 useEffect triggered - roomId:', roomId, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport);
     
-    if (roomId && roomName && socketRef.current && navigationJoinedRef.current !== roomId) {
-      console.log('✅ Navigated to specific room/chat:', roomId, roomName, type);
-      navigationJoinedRef.current = roomId; // Mark room as joined from navigation
+    // Create current params object for comparison
+    const currentParams = { roomId, roomName, type, isSupport };
+    
+    // Deep comparison: check if ANY param changed
+    const paramsChanged = !prevNavigationParamsRef.current || 
+                          prevNavigationParamsRef.current.roomId !== currentParams.roomId ||
+                          prevNavigationParamsRef.current.roomName !== currentParams.roomName ||
+                          prevNavigationParamsRef.current.type !== currentParams.type ||
+                          prevNavigationParamsRef.current.isSupport !== currentParams.isSupport;
+    
+    if (roomId && roomName && socketRef.current && paramsChanged) {
+      console.log('✅ Navigation params changed, joining room:', roomId, roomName, type);
+      prevNavigationParamsRef.current = currentParams; // Store current params
       joinSpecificRoom(roomId, roomName);
-    } else if (roomId && navigationJoinedRef.current === roomId) {
-      console.log('⛔ Skipping join - already joined this room from navigation:', roomId);
+    } else if (roomId && !paramsChanged) {
+      console.log('⛔ Skipping join - navigation params unchanged:', roomId);
     }
   }, [roomId, roomName, type, isSupport]);
 
