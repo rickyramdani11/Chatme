@@ -5573,7 +5573,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContainer: {
-    paddingHorizontal: 0,
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   messageContainer: {
