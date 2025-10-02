@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -14,7 +14,7 @@ import {
   Modal,
   } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../hooks';
 import { API_BASE_URL } from '../utils/apiConfig';
 
@@ -224,6 +224,14 @@ export default function RoomScreen() {
   useEffect(() => {
     fetchRooms();
   }, []);
+
+  // Auto-refresh rooms when screen is focused (e.g., after deleting from admin panel)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('RoomScreen focused - refreshing room list');
+      fetchRooms();
+    }, [])
+  );
 
   // Set managed by when user is loaded
   useEffect(() => {
