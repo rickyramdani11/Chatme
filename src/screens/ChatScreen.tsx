@@ -1522,25 +1522,35 @@ export default function ChatScreen() {
 
   useEffect(() => {
     // If navigated with specific room/chat ID, join it immediately
-    // Prevent duplicate joins by deep comparison of ALL navigation params
+    // Prevent duplicate joins by checking if we've already consumed these params
     console.log('🔄 useEffect triggered - roomId:', roomId, 'socket:', !!socket, 'type:', type, 'isSupport:', isSupport);
     
-    // Create current params object for comparison
-    const currentParams = { roomId, roomName, type, isSupport };
-    
-    // Deep comparison: check if ANY param changed
-    const paramsChanged = !prevNavigationParamsRef.current || 
-                          prevNavigationParamsRef.current.roomId !== currentParams.roomId ||
-                          prevNavigationParamsRef.current.roomName !== currentParams.roomName ||
-                          prevNavigationParamsRef.current.type !== currentParams.type ||
-                          prevNavigationParamsRef.current.isSupport !== currentParams.isSupport;
-    
-    if (roomId && roomName && socketRef.current && paramsChanged) {
-      console.log('✅ Navigation params changed, joining room:', roomId, roomName, type);
-      prevNavigationParamsRef.current = currentParams; // Store current params
-      joinSpecificRoom(roomId, roomName);
-    } else if (roomId && !paramsChanged) {
-      console.log('⛔ Skipping join - navigation params unchanged:', roomId);
+    if (roomId && roomName && socketRef.current) {
+      // Check if we've already consumed this exact roomId
+      const alreadyConsumed = prevNavigationParamsRef.current?.roomId === roomId;
+      
+      if (alreadyConsumed) {
+        console.log('⛔ Skipping join - roomId already consumed:', roomId);
+        return;
+      }
+      
+      console.log('✅ New roomId from navigation, joining:', roomId, roomName, type);
+      
+      // Mark this roomId as consumed BEFORE join
+      prevNavigationParamsRef.current = { roomId, roomName, type, isSupport };
+      
+      // Join the room
+      joinSpecificRoom(roomId, roomName).then(() => {
+        // Clear navigation params after successful join to prevent re-trigger
+        console.log('🧹 Clearing navigation params to prevent duplicate join');
+        navigation.setParams({
+          roomId: undefined,
+          roomName: undefined,
+          type: undefined,
+          isSupport: undefined,
+          autoFocusTab: undefined
+        });
+      });
     }
   }, [roomId, roomName, type, isSupport]);
 
