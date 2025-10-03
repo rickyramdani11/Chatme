@@ -72,6 +72,11 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Fixed emoji size in input field:
+- **Issue fixed**: Emoji di input field terlalu besar karena fontSize: 16
+- **Solution**: Reduced textInput fontSize from 16 to 14
+- **Result**: Emoji dalam input field sekarang sama ukurannya dengan emoji default
+
 **October 3, 2025** - Enlarged gift emoji display size with smart detection:
 - **Issue fixed**: Gift emojis (🧜‍♀️ dll) terlalu kecil saat ditampilkan di room chat
 - **Smart detection**: Auto-detects standalone gift images vs inline text emojis using regex `/^<(img|localimg):[^>]+>$/`
