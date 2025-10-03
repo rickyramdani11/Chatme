@@ -74,6 +74,7 @@ export default function ChatScreen() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [emojiList, setEmojiList] = useState<any[]>([]); // Changed to any[] to hold diverse emoji data
+  const [selectedImageEmojis, setSelectedImageEmojis] = useState<any[]>([]); // Queue for image emojis to send with message
   const [showParticipantMenu, setShowParticipantMenu] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<any>(null);
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
@@ -2483,15 +2484,34 @@ export default function ChatScreen() {
       return;
     }
 
-    if (message.trim() && socket && user && chatTabs[activeTab]) {
+    // Check if there's either text or queued emojis
+    if ((message.trim() || selectedImageEmojis.length > 0) && socket && user && chatTabs[activeTab]) {
       const currentRoomId = chatTabs[activeTab].id;
       const currentTab = chatTabs[activeTab];
-      const messageContent = message.trim();
+      
+      // Build message content: text + queued image emojis
+      let messageContent = message.trim();
+      
+      // Append queued image emojis as tags
+      if (selectedImageEmojis.length > 0) {
+        const emojiTags = selectedImageEmojis.map(emoji => {
+          if (typeof emoji.url === 'string' && emoji.url.startsWith('/')) {
+            return `<img:${emoji.url}>`;
+          } else if (typeof emoji.url === 'number') {
+            return `<localimg:${emoji.name}>`;
+          } else {
+            return `<img:${emoji.url}>`;
+          }
+        }).join(' ');
+        
+        messageContent = messageContent ? `${messageContent} ${emojiTags}` : emojiTags;
+      }
 
       // Handle special commands (only for non-support chats)
       if (messageContent.startsWith('/') && !currentTab?.isSupport) {
         handleSpecialCommand(messageContent, currentRoomId);
         setMessage('');
+        setSelectedImageEmojis([]);
         setShowUserTagMenu(false);
         return;
       }
@@ -2508,8 +2528,9 @@ export default function ChatScreen() {
         type: currentTab?.isSupport ? 'support' : 'message' // Set type based on tab
       };
 
-      // Clear message immediately
+      // Clear message and queued emojis immediately
       setMessage('');
+      setSelectedImageEmojis([]);
       setShowUserTagMenu(false);
       
       // Reset scroll state to ensure autoscroll works after sending message
@@ -2727,21 +2748,13 @@ export default function ChatScreen() {
   };
 
   const handleEmojiSelect = (selectedEmoji: any) => {
-    // All emojis (text and image) now go to input field
     if (selectedEmoji.type === 'image' && selectedEmoji.url) {
-      // For image emojis, add formatted tag to input text
-      let emojiContent = '';
-      
-      if (typeof selectedEmoji.url === 'string' && selectedEmoji.url.startsWith('/')) {
-        emojiContent = `<img:${selectedEmoji.url}>`;
-      } else if (typeof selectedEmoji.url === 'number') {
-        // For local image emojis (require() returns a number), use special format
-        emojiContent = `<localimg:${selectedEmoji.name}>`;
-      } else {
-        emojiContent = `<img:${selectedEmoji.url}>`;
-      }
-      
-      setMessage(prev => prev + emojiContent);
+      // For image emojis, add to queue with unique ID
+      const emojiWithId = {
+        ...selectedEmoji,
+        uniqueId: `${Date.now()}_${Math.random()}`,
+      };
+      setSelectedImageEmojis(prev => [...prev, emojiWithId]);
       setShowEmojiPicker(false);
     } else if (selectedEmoji.emoji) {
       // For text emojis, add to input text
@@ -2752,6 +2765,10 @@ export default function ChatScreen() {
       setMessage(prev => prev + selectedEmoji.name);
       setShowEmojiPicker(false);
     }
+  };
+
+  const handleRemoveImageEmoji = (uniqueId: string) => {
+    setSelectedImageEmojis(prev => prev.filter(emoji => emoji.uniqueId !== uniqueId));
   };
 
   const handleParticipantPress = (participant: any) => {
