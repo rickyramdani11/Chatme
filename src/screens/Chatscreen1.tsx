@@ -6728,10 +6728,12 @@ const styles = StyleSheet.create({
   },
   smallGiftContainer: {
     position: 'absolute',
-    top: '45%',
-    left: '45%',
-    width: 60,
-    height: 70,
+    top: '50%',
+    left: '50%',
+    marginLeft: -60,
+    marginTop: -70,
+    width: 120,
+    height: 140,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -6740,8 +6742,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   smallGiftImage: {
-    width: 60,
-    height: 70,
+    width: 120,
+    height: 140,
   },
   smallGiftEmoji: {
     fontSize: 24,

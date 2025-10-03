@@ -72,6 +72,14 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Enlarged gift item display size:
+- **Issue fixed**: Gift items dari assets/gift/image terlalu kecil saat ditampilkan di room
+- **User clarification**: Ini bukan emoji picker, tapi gift items (Little Mermaid, Dolphin, dll)
+- **Solution**: 
+  - Increased smallGiftImage size from 60x70 to 120x140 pixels (doubled)
+  - Adjusted position from top:45% left:45% to top:50% left:50% with marginLeft:-60 marginTop:-70 for true centering
+- **Result**: Gift items sekarang lebih besar, centered di semua screen sizes, dan jelas terlihat saat animation
+
 **October 3, 2025** - Fixed emoji size in input field:
 - **Issue fixed**: Emoji di input field terlalu besar karena fontSize: 16
 - **Solution**: Reduced textInput fontSize from 16 to 14
