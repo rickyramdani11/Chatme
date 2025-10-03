@@ -72,6 +72,13 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Emoji behavior unified: All emojis 16x16 and go to input field:
+- **Change**: All emojis (text & image) now insert into input field for composition
+- **Previous**: Image emojis auto-sent (64x64 standalone, 16x16 inline), text emojis to input
+- **New**: All emojis 16x16, inserted into input field, user sends manually
+- **Location**: src/screens/Chatscreen1.tsx handleEmojiSelect & renderMessageContent
+- **Impact**: Better UX - users can compose messages with multiple emojis before sending
+
 **October 3, 2025** - Standardized gift earning distribution:
 - **Change**: Public room gift earnings aligned with private chat earnings
 - **Previous**: Private 30%/70%, Public 70%/30% (user/system split)
