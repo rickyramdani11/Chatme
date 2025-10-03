@@ -3470,13 +3470,11 @@ export default function ChatScreen() {
                 ]}>
                   {item.sender}
                 </Text>
-                <ImageBackground 
-                  source={require('../../assets/icon/lvl_ic.png')} 
-                  style={styles.levelBadgeImage}
+                <Image 
+                  source={getLevelIcon(item.level || 1)} 
+                  style={styles.levelBadgeIconInMessage}
                   resizeMode="contain"
-                >
-                  <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-                </ImageBackground>
+                />
                 <Text style={[styles.giftMessageInline, { flex: 1 }]}>
                   {renderMessageContent(item.content)}
                 </Text>
