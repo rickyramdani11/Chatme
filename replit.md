@@ -77,13 +77,11 @@ Preferred communication style: Simple, everyday language.
 - **Solution**: Reduced textInput fontSize from 16 to 14
 - **Result**: Emoji dalam input field sekarang sama ukurannya dengan emoji default
 
-**October 3, 2025** - Enlarged gift emoji display size with smart detection:
-- **Issue fixed**: Gift emojis (🧜‍♀️ dll) terlalu kecil saat ditampilkan di room chat
-- **Smart detection**: Auto-detects standalone gift images vs inline text emojis using regex `/^<(img|localimg):[^>]+>$/`
-- **Solution**: 
-  - Standalone gifts: 50x50 pixels (standaloneGiftImage style)
-  - Inline text emojis: 18x18 pixels (inlineEmojiImage style)
-- **Result**: Gift images clearly visible at 50x50 without breaking inline emoji layout
+**October 3, 2025** - Standardized emoji size to 16x16:
+- **Issue fixed**: Gift/local emojis terlalu besar di chat messages
+- **User preference**: Semua emoji harus sama ukuran dengan emoticon default
+- **Solution**: Set all inlineEmojiImage to 16x16 pixels (matching default emoticon size)
+- **Result**: Consistent emoji sizing across all message types at 16x16
 
 **October 3, 2025** - Join/leave message font size consistency:
 - **Issue fixed**: "Jakarta developer has entered" had inconsistent font sizes (Jakarta=13, developer=13, has entered=15)
