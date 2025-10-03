@@ -30,7 +30,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import { GiftVideo } from '../components'; // Import the GiftVideo component
 import IncomingCallModal from '../components/IncomingCallModal';
-import SimpleCallModal from '../components/SimpleCallModal';
+import DailyCallModal from '../components/DailyCallModal';
 
 const { width } = Dimensions.get('window');
 
@@ -76,6 +76,7 @@ export default function PrivateChatScreen() {
   const [callTimer, setCallTimer] = useState(0);
   const [callCost, setCallCost] = useState(0);
   const [totalDeducted, setTotalDeducted] = useState(0);
+  const [dailyRoomUrl, setDailyRoomUrl] = useState<string | null>(null);
   const callIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
@@ -267,17 +268,26 @@ export default function PrivateChatScreen() {
 
       // Listen for incoming calls
       socketInstance.on('incoming-call', (callData) => {
-        console.log('Received incoming call:', callData);
+        console.log('📞 Received incoming call:', callData);
         setIncomingCallData(callData);
+        // Store Daily.co room URL
+        if (callData.roomUrl) {
+          setDailyRoomUrl(callData.roomUrl);
+        }
         setShowIncomingCallModal(true);
       });
 
       // Listen for call responses
       socketInstance.on('call-response-received', (responseData) => {
-        console.log('Call response received:', responseData);
+        console.log('📞 Call response received:', responseData);
         setCallRinging(false);
 
         if (responseData.response === 'accept') {
+          // Store room URL for Daily.co
+          if (responseData.roomUrl) {
+            setDailyRoomUrl(responseData.roomUrl);
+          }
+          
           Alert.alert(
             'Call Accepted',
             `${responseData.responderName} accepted your call`,
@@ -286,7 +296,7 @@ export default function PrivateChatScreen() {
                 text: 'Start Call',
                 onPress: () => {
                   setShowCallModal(true);
-                  startCallTimer(incomingCallData?.callType || 'video');
+                  startCallTimer(responseData.callType || incomingCallData?.callType || 'video');
                 }
               }
             ]
@@ -521,15 +531,46 @@ export default function PrivateChatScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Start Call',
-          onPress: () => {
+          onPress: async () => {
             if (socket && user) {
               setCallRinging(true);
-              socket.emit('initiate-call', {
-                targetUsername: targetUser.username,
-                callType: 'video',
-                callerId: user.id,
-                callerName: user.username
-              });
+              
+              // Create Daily.co room
+              try {
+                const response = await fetch(`${API_BASE_URL}/api/daily/create-room`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    roomName: `${user.username}-${targetUser.username}`,
+                    callType: 'video'
+                  })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.roomUrl) {
+                  console.log('📹 Daily.co room created:', data.roomUrl);
+                  
+                  // Send call invitation with room URL
+                  socket.emit('initiate-call', {
+                    targetUsername: targetUser.username,
+                    callType: 'video',
+                    callerId: user.id,
+                    callerName: user.username,
+                    roomUrl: data.roomUrl
+                  });
+                } else {
+                  setCallRinging(false);
+                  Alert.alert('Call Error', data.error || 'Failed to create video call');
+                }
+              } catch (error) {
+                setCallRinging(false);
+                console.error('Failed to create Daily.co room:', error);
+                Alert.alert('Call Error', 'Failed to initiate call. Please try again.');
+              }
             }
           }
         }
@@ -556,15 +597,46 @@ export default function PrivateChatScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Start Call',
-          onPress: () => {
+          onPress: async () => {
             if (socket && user) {
               setCallRinging(true);
-              socket.emit('initiate-call', {
-                targetUsername: targetUser.username,
-                callType: 'audio',
-                callerId: user.id,
-                callerName: user.username
-              });
+              
+              // Create Daily.co room
+              try {
+                const response = await fetch(`${API_BASE_URL}/api/daily/create-room`, {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    roomName: `${user.username}-${targetUser.username}`,
+                    callType: 'audio'
+                  })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.roomUrl) {
+                  console.log('📞 Daily.co room created:', data.roomUrl);
+                  
+                  // Send call invitation with room URL
+                  socket.emit('initiate-call', {
+                    targetUsername: targetUser.username,
+                    callType: 'audio',
+                    callerId: user.id,
+                    callerName: user.username,
+                    roomUrl: data.roomUrl
+                  });
+                } else {
+                  setCallRinging(false);
+                  Alert.alert('Call Error', data.error || 'Failed to create audio call');
+                }
+              } catch (error) {
+                setCallRinging(false);
+                console.error('Failed to create Daily.co room:', error);
+                Alert.alert('Call Error', 'Failed to initiate call. Please try again.');
+              }
             }
           }
         }
@@ -715,7 +787,9 @@ export default function PrivateChatScreen() {
       socket.emit('call-response', {
         callerId: incomingCallData.callerId,
         response: 'accept',
-        responderName: user.username
+        responderName: user.username,
+        roomUrl: dailyRoomUrl,
+        callType: incomingCallData.callType
       });
     }
 
@@ -731,7 +805,9 @@ export default function PrivateChatScreen() {
       socket.emit('call-response', {
         callerId: incomingCallData.callerId,
         response: 'decline',
-        responderName: user.username
+        responderName: user.username,
+        roomUrl: dailyRoomUrl,
+        callType: incomingCallData.callType
       });
     }
 
@@ -1685,13 +1761,15 @@ export default function PrivateChatScreen() {
       />
 
       {/* Active Call Modal */}
-      <SimpleCallModal
+      <DailyCallModal
         visible={showCallModal}
         callType={callType || 'video'}
         targetUser={targetUser}
         callTimer={callTimer}
         callCost={callCost}
         totalDeducted={totalDeducted}
+        roomUrl={dailyRoomUrl || undefined}
+        token={token || ''}
         onEndCall={() => {
           endCall();
           if (socket && targetUser) {

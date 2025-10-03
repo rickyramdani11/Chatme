@@ -6059,6 +6059,65 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
   }
 });
 
+// Create Daily.co room for video call
+app.post('/api/daily/create-room', authenticateToken, async (req, res) => {
+  try {
+    const { roomName, callType } = req.body;
+    const DAILY_API_KEY = process.env.DAILY_API_KEY;
+    const DAILY_DOMAIN = process.env.DAILY_DOMAIN;
+
+    if (!DAILY_API_KEY || !DAILY_DOMAIN) {
+      console.error('❌ Daily.co credentials missing');
+      return res.status(500).json({ error: 'Daily.co not configured' });
+    }
+
+    // Create room name with timestamp to avoid conflicts
+    const uniqueRoomName = `${roomName}-${Date.now()}`;
+
+    console.log(`📹 Creating Daily.co room: ${uniqueRoomName} for ${callType} call`);
+
+    // Create room via Daily.co API
+    const response = await fetch('https://api.daily.co/v1/rooms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DAILY_API_KEY}`
+      },
+      body: JSON.stringify({
+        name: uniqueRoomName,
+        properties: {
+          enable_screenshare: callType === 'video',
+          enable_chat: false,
+          enable_knocking: false,
+          start_video_off: callType === 'audio',
+          start_audio_off: false,
+          exp: Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
+          eject_at_room_exp: true
+        }
+      })
+    });
+
+    const roomData = await response.json();
+
+    if (!response.ok) {
+      console.error('❌ Daily.co API error:', roomData);
+      return res.status(500).json({ error: roomData.error || 'Failed to create room' });
+    }
+
+    console.log(`✅ Daily.co room created: ${roomData.url}`);
+
+    res.json({
+      success: true,
+      roomUrl: roomData.url,
+      roomName: roomData.name
+    });
+
+  } catch (error) {
+    console.error('Error creating Daily.co room:', error);
+    res.status(500).json({ error: 'Failed to create video room' });
+  }
+});
+
 // Route for creating private chats
 // Create private chat
 app.post('/api/chat/private', authenticateToken, async (req, res) => {

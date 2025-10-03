@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Maintains user connection to chat rooms across app states with inactivity cleanup and intelligent socket reconnection.
-- **Video Call System**: Private video/audio calls with SimpleCallModal UI, incoming call notifications, call stats tracking, and socket-based signaling.
+- **Video Call System**: Private video/audio calls with Daily.co integration (DailyCallModal UI), real-time video/audio streaming, incoming call notifications, call stats tracking, and socket-based signaling with room URL sharing.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
@@ -71,6 +71,17 @@ Preferred communication style: Simple, everyday language.
 - **Payment Gateway**: Xendit Payout API for withdrawal system.
 
 # Recent Changes
+
+**October 3, 2025** - Implemented Daily.co video/audio call integration:
+- **Backend**: Created `/api/daily/create-room` endpoint to generate unique Daily.co rooms for each call
+- **Frontend**: Replaced SimpleCallModal with DailyCallModal using @daily-co/react-native-daily-js
+- **Call Flow**: 
+  1. Caller initiates call → Backend creates Daily.co room → Room URL sent via socket
+  2. Receiver accepts → Both users join same Daily.co room with real video/audio streaming
+  3. Call timer tracks duration → Coins deducted every 20 seconds (70% to recipient balance, 30% to withdraw)
+- **Features**: Real-time video/audio, mute/unmute, camera on/off, call stats display
+- **API Keys**: DAILY_API_KEY and DAILY_DOMAIN stored securely in environment variables
+- **Coin Deduction Fix**: Fixed endpoint from `/user/deduct-coins` to `/api/user/deduct-coins` with logging
 
 **October 3, 2025** - Enhanced Chatscreen1 UI with gradient level badges and optimized spacing:
 - **Level badge redesign**: Replaced text-based "(Lv.X)" with gradient View component with heart icon
