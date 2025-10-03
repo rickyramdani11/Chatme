@@ -467,12 +467,31 @@ export default function ChatScreen() {
     setIncomingCallData(null);
   };
 
-  // Static Level Badge Component (no blinking)
+  // Helper function to get level icon based on user level
+  const getLevelIcon = (level: number) => {
+    const iconLevel = Math.min(Math.max(1, Math.floor(level)), 9); // Clamp between 1-9
+    const iconMap: { [key: number]: any } = {
+      1: require('../../assets/icon/lvl_1.png'),
+      2: require('../../assets/icon/lvl_2.png'),
+      3: require('../../assets/icon/lvl_3.png'),
+      4: require('../../assets/icon/lvl_4.png'),
+      5: require('../../assets/icon/lvl_5.png'),
+      6: require('../../assets/icon/lvl_6.png'),
+      7: require('../../assets/icon/lvl_7.png'),
+      8: require('../../assets/icon/lvl_8.png'),
+      9: require('../../assets/icon/lvl_9.png'),
+    };
+    return iconMap[iconLevel] || iconMap[1];
+  };
+
+  // Level Badge Component using icons
   const LevelBadge = ({ level }: { level: number }) => {
     return (
-      <View style={styles.levelBadgeContainer}>
-        <Text style={styles.levelBadgeText}>Lv.{level}</Text>
-      </View>
+      <Image 
+        source={getLevelIcon(level || 1)} 
+        style={styles.levelBadgeIcon}
+        resizeMode="contain"
+      />
     );
   };
 
@@ -3255,13 +3274,11 @@ export default function ChatScreen() {
               ]}>
                 {item.sender}
               </Text>
-              <ImageBackground 
-                source={require('../../assets/icon/lvl_ic.png')} 
-                style={styles.levelBadgeImage}
+              <Image 
+                source={getLevelIcon(item.level || 1)} 
+                style={styles.levelBadgeIconInMessage}
                 resizeMode="contain"
-              >
-                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-              </ImageBackground>
+              />
               <Text style={[
                 styles.senderName,
                 { 
@@ -3302,13 +3319,11 @@ export default function ChatScreen() {
               ]}>
                 {item.sender}
               </Text>
-              <ImageBackground 
-                source={require('../../assets/icon/lvl_ic.png')} 
-                style={styles.levelBadgeImage}
+              <Image 
+                source={getLevelIcon(item.level || 1)} 
+                style={styles.levelBadgeIconInMessage}
                 resizeMode="contain"
-              >
-                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-              </ImageBackground>
+              />
               <Text style={[
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
@@ -3356,13 +3371,11 @@ export default function ChatScreen() {
         >
           {item.type === 'me' ? (
             <View style={[styles.commandMessageRow, { flexDirection: 'row', alignItems: 'center' }]}>
-              <ImageBackground 
-                source={require('../../assets/icon/lvl_ic.png')} 
-                style={styles.levelBadgeImage}
+              <Image 
+                source={getLevelIcon(item.level || 1)} 
+                style={styles.levelBadgeIconInMessage}
                 resizeMode="contain"
-              >
-                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-              </ImageBackground>
+              />
               <Text style={[
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
@@ -3494,7 +3507,7 @@ export default function ChatScreen() {
                     {item.sender} {senderIsAdmin && '(Admin)'}
                   </Text>
                   <Text style={styles.levelBadgeInline}>
-                    ({item.level || 1})
+                    (Lv.{item.level || 1})
                   </Text>
                   <Text style={[styles.senderName, { color: senderColor }]}>
                     :{' '}
@@ -3529,7 +3542,7 @@ export default function ChatScreen() {
                 {item.sender}
               </Text>
               <Text style={styles.levelBadgeInline}>
-                ({item.level || 1})
+                (Lv.{item.level || 1})
               </Text>
               <Text style={[styles.senderName, { color: userColor }]}>
                 :{' '}
@@ -5678,39 +5691,18 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginLeft: 6,
   },
-  levelBadgeContainer: {
-    backgroundColor: '#229c93',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginTop: 1,
-  },
-  levelBadgeText: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
-  levelBadgeImage: {
-    width: 22,
+  levelBadgeIcon: {
+    width: 24,
     height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginRight: 4,
+  },
+  levelBadgeIconInMessage: {
+    width: 20,
+    height: 20,
     marginHorizontal: 3,
   },
-  levelBadgeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
   levelBadgeInline: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#00BCD4',
     marginHorizontal: 2,
