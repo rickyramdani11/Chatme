@@ -3520,28 +3520,32 @@ export default function ChatScreen() {
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
           <View style={[styles.messageContentRow, { flexDirection: 'column', flex: 1 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-              <Text style={[
-                styles.senderName,
-                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-              ]}>
-                {item.sender}
-              </Text>
-              <ImageBackground 
-                source={require('../../assets/icon/lvl_ic.png')} 
-                style={styles.levelBadgeImage}
-                resizeMode="contain"
-              >
-                <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-              </ImageBackground>
-              <Text style={[
-                styles.senderName,
-                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-              ]}>:
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
+              {/* Username, badge, and colon - fixed width container */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
+                <Text style={[
+                  styles.senderName,
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>
+                  {item.sender}
+                </Text>
+                <ImageBackground 
+                  source={require('../../assets/icon/lvl_ic.png')} 
+                  style={styles.levelBadgeImage}
+                  resizeMode="contain"
+                >
+                  <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+                </ImageBackground>
+                <Text style={[
+                  styles.senderName,
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>: 
+                </Text>
+              </View>
+              {/* Message content - wraps and aligns with username */}
               <Text style={[
                 styles.messageContent,
-                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333', flex: 1 }
+                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333', flex: 1, flexWrap: 'wrap' }
               ]}>
                 {renderMessageContent(item.content)}
               </Text>

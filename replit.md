@@ -72,6 +72,15 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Fixed text wrapping alignment in chat messages:
+- **Issue fixed**: Pesan panjang yang wrap ke baris kedua tidak sejajar dengan username
+- **Solution**: 
+  - Separated username+badge+colon into fixed-width container (flexShrink: 0)
+  - Message content in flex: 1 Text component with flexWrap: 'wrap'
+  - Changed alignItems from 'center' to 'flex-start' for proper top alignment
+- **Result**: Multi-line messages now wrap and align perfectly with username position
+- **Format**: `chatme(badge): halo apa kabar saya tes\n               pesan ini menyambung`
+
 **October 3, 2025** - Hybrid emoji composer with preview queue:
 - **Change**: Implemented two-path emoji system - text emojis to TextInput, image emojis to preview queue
 - **Preview area**: Horizontal scrollable strip shows queued image emojis (32x32) with X remove buttons
