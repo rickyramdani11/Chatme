@@ -1617,7 +1617,7 @@ export default function ChatScreen() {
   // Helper function to get level badge color (gradient green to blue)
   const getLevelBadgeColor = (level: number) => {
     if (level >= 10) {
-      return { bg: '#E3F2FD', text: '#2196F3' }; // Full blue at level 10+
+      return '#2196F3'; // Full blue at level 10+
     }
     // Gradient from green to blue (levels 1-9)
     const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
@@ -1625,10 +1625,7 @@ export default function ChatScreen() {
     const greenValue = Math.round(175 + ratio * 68); // 175 to 243
     const blueValue = Math.round(80 + ratio * 27); // 80 to 107
     
-    const textColor = `rgb(${redValue}, ${greenValue}, ${blueValue})`;
-    const bgColor = level <= 3 ? '#F0FFF4' : level <= 6 ? '#E8F5E9' : '#E1F5FE';
-    
-    return { bg: bgColor, text: textColor };
+    return `rgb(${redValue}, ${greenValue}, ${blueValue})`;
   };
 
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
@@ -3518,9 +3515,10 @@ export default function ChatScreen() {
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
               <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
-                {/* Level badge - gradient style */}
-                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1).bg }]}>
-                  <Text style={[styles.levelBadgeTextInChat, { color: getLevelBadgeColor(item.level || 1).text }]}>
+                {/* Level badge - gradient style with heart icon */}
+                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                  <Ionicons name="heart" size={8} color="#fff" style={{ marginRight: 2 }} />
+                  <Text style={styles.levelBadgeTextInChat}>
                     Lv.{item.level || 1}
                   </Text>
                 </View>
@@ -3554,9 +3552,10 @@ export default function ChatScreen() {
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
           <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
-            {/* Level badge - gradient style */}
-            <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1).bg }]}>
-              <Text style={[styles.levelBadgeTextInChat, { color: getLevelBadgeColor(item.level || 1).text }]}>
+            {/* Level badge - gradient style with heart icon */}
+            <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+              <Ionicons name="heart" size={8} color="#fff" style={{ marginRight: 2 }} />
+              <Text style={styles.levelBadgeTextInChat}>
                 Lv.{item.level || 1}
               </Text>
             </View>
@@ -5669,15 +5668,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   levelBadgeInChat: {
-    borderRadius: 6,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     marginRight: 4,
     alignSelf: 'flex-start',
   },
   levelBadgeTextInChat: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 'bold',
+    color: '#fff',
   },
   supportMessageContainer: {
     marginBottom: 6,
