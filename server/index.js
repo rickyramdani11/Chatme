@@ -3170,8 +3170,8 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
         // Note: More comprehensive membership checks could be added here if needed
       }
       
-      // Private chats: 30% to recipient, Public rooms: 70% to recipient  
-      const recipientPercentage = isPrivateChat ? 0.3 : 0.7;
+      // All gifts: 30% to recipient, 70% to system (both private and public)
+      const recipientPercentage = 0.3;
       const earnings = Math.floor(giftPrice * recipientPercentage);
       
       console.log(`💰 Gift distribution: ${isPrivateChat ? 'Private' : 'Public'} chat (${roomId}), ${Math.round(recipientPercentage * 100)}% to recipient`);

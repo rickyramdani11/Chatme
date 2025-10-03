@@ -72,6 +72,13 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Standardized gift earning distribution:
+- **Change**: Public room gift earnings aligned with private chat earnings
+- **Previous**: Private 30%/70%, Public 70%/30% (user/system split)
+- **New**: All gifts 30% to user, 70% to system (consistent across private and public)
+- **Location**: server/index.js gift purchase endpoint
+- **Reason**: Business decision to standardize revenue split
+
 **October 3, 2025** - Enlarged gift item display size:
 - **Issue fixed**: Gift items dari assets/gift/image terlalu kecil saat ditampilkan di room
 - **User clarification**: Ini bukan emoji picker, tapi gift items (Little Mermaid, Dolphin, dll)
