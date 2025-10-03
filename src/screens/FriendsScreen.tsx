@@ -21,6 +21,7 @@ import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
+type StatusFilterType = 'all' | StatusType;
 
 interface Friend {
   id: string;
@@ -41,6 +42,7 @@ export default function FriendsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showFriendMenu, setShowFriendMenu] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
 
   const getStatusColor = (status: StatusType): string => {
     switch (status) {
@@ -417,6 +419,12 @@ export default function FriendsScreen() {
     return () => clearTimeout(timeoutId);
   }, [searchText]);
 
+  // Filter friends based on selected status
+  const filteredFriends = friends.filter(friend => {
+    if (statusFilter === 'all') return true;
+    return friend.status === statusFilter;
+  });
+
   const renderFriend = (friend: Friend) => (
     <View key={friend.id} style={styles.friendCard}>
       <TouchableOpacity 
@@ -485,6 +493,63 @@ export default function FriendsScreen() {
           <Text style={styles.headerTitle}>Friends</Text>
           <Text style={styles.headerSubtitle}>Connect with your friends</Text>
         </View>
+        
+        {/* Status Filter Tabs */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.statusFilterContainer}
+          contentContainerStyle={styles.statusFilterContent}
+        >
+          <TouchableOpacity
+            style={[styles.statusFilterTab, statusFilter === 'all' && styles.statusFilterTabActive]}
+            onPress={() => setStatusFilter('all')}
+          >
+            <Text style={[styles.statusFilterText, statusFilter === 'all' && styles.statusFilterTextActive]}>
+              All
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.statusFilterTab, statusFilter === 'online' && styles.statusFilterTabActive]}
+            onPress={() => setStatusFilter('online')}
+          >
+            <View style={[styles.statusFilterDot, { backgroundColor: '#4CAF50' }]} />
+            <Text style={[styles.statusFilterText, statusFilter === 'online' && styles.statusFilterTextActive]}>
+              Online
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.statusFilterTab, statusFilter === 'offline' && styles.statusFilterTabActive]}
+            onPress={() => setStatusFilter('offline')}
+          >
+            <View style={[styles.statusFilterDot, { backgroundColor: '#9E9E9E' }]} />
+            <Text style={[styles.statusFilterText, statusFilter === 'offline' && styles.statusFilterTextActive]}>
+              Offline
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.statusFilterTab, statusFilter === 'away' && styles.statusFilterTabActive]}
+            onPress={() => setStatusFilter('away')}
+          >
+            <View style={[styles.statusFilterDot, { backgroundColor: '#FF9800' }]} />
+            <Text style={[styles.statusFilterText, statusFilter === 'away' && styles.statusFilterTextActive]}>
+              Away
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.statusFilterTab, statusFilter === 'busy' && styles.statusFilterTabActive]}
+            onPress={() => setStatusFilter('busy')}
+          >
+            <View style={[styles.statusFilterDot, { backgroundColor: '#F44336' }]} />
+            <Text style={[styles.statusFilterText, statusFilter === 'busy' && styles.statusFilterTextActive]}>
+              Busy
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </LinearGradient>
 
       {/* Search */}
@@ -516,22 +581,24 @@ export default function FriendsScreen() {
             <ActivityIndicator size="large" color="#667eea" />
             <Text style={styles.loadingText}>Loading friends...</Text>
           </View>
-        ) : friends.length === 0 ? (
+        ) : filteredFriends.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={60} color="#ccc" />
             <Text style={styles.emptyTitle}>
-              {searchText.length >= 2 ? 'No Users Found' : 'No Friends Found'}
+              {searchText.length >= 2 ? 'No Users Found' : statusFilter !== 'all' ? `No ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Friends` : 'No Friends Found'}
             </Text>
             <Text style={styles.emptySubtitle}>
               {searchText.length >= 2
                 ? 'No users match your search term'
                 : searchText.length === 1
                 ? 'Type at least 2 characters to search users'
+                : statusFilter !== 'all'
+                ? `No friends are currently ${statusFilter}`
                 : 'Start adding friends to see them here'}
             </Text>
           </View>
         ) : (
-          friends.map(renderFriend)
+          filteredFriends.map(renderFriend)
         )}
       </ScrollView>
 
@@ -630,6 +697,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     opacity: 0.9,
+  },
+  statusFilterContainer: {
+    marginTop: 15,
+  },
+  statusFilterContent: {
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  statusFilterTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginRight: 10,
+  },
+  statusFilterTabActive: {
+    backgroundColor: '#fff',
+  },
+  statusFilterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusFilterText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  statusFilterTextActive: {
+    color: '#667eea',
+    fontWeight: '600',
   },
   searchContainer: {
     flexDirection: 'row',
