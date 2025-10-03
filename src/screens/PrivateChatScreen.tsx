@@ -594,7 +594,9 @@ export default function PrivateChatScreen() {
 
   const deductCoins = async (amount: number, type: string, description: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/user/deduct-coins`, {
+      console.log(`💰 Deducting ${amount} coins for ${type} call to ${targetUser?.username}`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -608,9 +610,21 @@ export default function PrivateChatScreen() {
         }),
       });
 
-      return response.ok;
+      const result = await response.json();
+      console.log('💰 Deduct response:', result);
+
+      if (response.ok) {
+        console.log(`✅ Successfully deducted ${amount} coins. New balance: ${result.newBalance}`);
+        console.log(`📊 Split: ${result.recipientBalanceShare} to balance, ${result.recipientWithdrawShare} to withdraw`);
+        return true;
+      } else {
+        console.error('❌ Deduct failed:', result.error);
+        Alert.alert('Payment Error', result.error || 'Failed to deduct coins');
+        return false;
+      }
     } catch (error) {
       console.error('Error deducting coins:', error);
+      Alert.alert('Network Error', 'Failed to process payment. Please check your connection.');
       return false;
     }
   };
