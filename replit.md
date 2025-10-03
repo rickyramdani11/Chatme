@@ -72,6 +72,14 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Enlarged gift emoji display size with smart detection:
+- **Issue fixed**: Gift emojis (🧜‍♀️ dll) terlalu kecil saat ditampilkan di room chat
+- **Smart detection**: Auto-detects standalone gift images vs inline text emojis using regex `/^<(img|localimg):[^>]+>$/`
+- **Solution**: 
+  - Standalone gifts: 50x50 pixels (standaloneGiftImage style)
+  - Inline text emojis: 18x18 pixels (inlineEmojiImage style)
+- **Result**: Gift images clearly visible at 50x50 without breaking inline emoji layout
+
 **October 3, 2025** - Join/leave message font size consistency:
 - **Issue fixed**: "Jakarta developer has entered" had inconsistent font sizes (Jakarta=13, developer=13, has entered=15)
 - **Solution**: Increased roomNameText and usernameText fontSize from 13 to 15

@@ -3216,6 +3216,9 @@ export default function ChatScreen() {
   const renderMessageContent = (content: string) => {
     // Split content by @ mentions and style them
     const parts = content.split(/(@\w+)/g);
+    
+    // Detect if content is ONLY an image tag (standalone gift/emoji)
+    const isStandaloneImage = /^<(img|localimg):[^>]+>$/.test(content.trim());
 
     return parts.map((part, index) => {
       if (part.startsWith('@')) {
@@ -3232,7 +3235,7 @@ export default function ChatScreen() {
           <Text key={index}>
             <Image
               source={{ uri: `${API_BASE_URL}${imageUrl}` }}
-              style={styles.inlineEmojiImage}
+              style={isStandaloneImage ? styles.standaloneGiftImage : styles.inlineEmojiImage}
               resizeMode="contain"
             />
           </Text>
@@ -3246,7 +3249,7 @@ export default function ChatScreen() {
             <Text key={index}>
               <Image
                 source={localImageSource}
-                style={styles.inlineEmojiImage}
+                style={isStandaloneImage ? styles.standaloneGiftImage : styles.inlineEmojiImage}
                 resizeMode="contain"
               />
             </Text>
@@ -5782,6 +5785,11 @@ const styles = StyleSheet.create({
   inlineEmojiImage: {
     width: 18,
     height: 18,
+    resizeMode: 'contain',
+  },
+  standaloneGiftImage: {
+    width: 50,
+    height: 50,
     resizeMode: 'contain',
   },
   botMessageWithCard: {
