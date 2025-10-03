@@ -3487,20 +3487,24 @@ export default function ChatScreen() {
         >
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
-                <Text style={[styles.senderName, { color: senderColor }]}>
-                  {item.sender} {senderIsAdmin && '(Admin)'}
-                </Text>
-                <ImageBackground 
-                  source={require('../../assets/icon/lvl_ic.png')} 
-                  style={styles.levelBadgeImage}
-                  resizeMode="contain"
-                >
-                  <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-                </ImageBackground>
-                <Text style={[styles.senderName, { color: senderColor }]}>: 
-                </Text>
-                <Text style={[styles.messageContent, { color: '#333', flex: 1 }]}>
+              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+                {/* Username, badge, and colon - fixed width container */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
+                  <Text style={[styles.senderName, { color: senderColor }]}>
+                    {item.sender} {senderIsAdmin && '(Admin)'}
+                  </Text>
+                  <ImageBackground 
+                    source={require('../../assets/icon/lvl_ic.png')} 
+                    style={styles.levelBadgeImage}
+                    resizeMode="contain"
+                  >
+                    <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
+                  </ImageBackground>
+                  <Text style={[styles.senderName, { color: senderColor }]}>: 
+                  </Text>
+                </View>
+                {/* Message content - wraps and aligns with username */}
+                <Text style={[styles.messageContent, { color: '#333', flex: 1, flexWrap: 'wrap' }]}>
                   {renderMessageContent(item.content)}
                 </Text>
               </View>
