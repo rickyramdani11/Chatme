@@ -3251,38 +3251,35 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
+              {/* Username (no colon) */}
               <Text style={[
                 styles.senderName,
                 { 
                   color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                 }
               ]}>
-                {item.sender}:{' '}
+                {item.sender}{' '}
               </Text>
-              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+              
+              {/* Level badge */}
+              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
                 <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
                 <Text style={styles.levelBadgeTextInChat}>
                   Lv.{item.level || 1}
                 </Text>
               </View>
-              <Text style={[
-                styles.senderName,
-                { 
-                  color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
-                }
-              ]}> : 
-              </Text>
+              
+              {/* Colon and content */}
               <Text style={[
                 styles.messageContent, 
                 { 
                   color: isBotCommand ? '#0f23bd' : '#8B4513', 
                   fontWeight: 'bold',
-                  fontStyle: isBotCommand ? 'italic' : 'normal',
-                  flex: 1
+                  fontStyle: isBotCommand ? 'italic' : 'normal'
                 }
               ]}>
-                {item.content}
+                {' '}: {item.content}
               </Text>
             </View>
           </View>
@@ -3298,26 +3295,26 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
+              {/* Username (no colon) */}
               <Text style={[
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
               ]}>
-                {item.sender}:{' '}
+                {item.sender}{' '}
               </Text>
-              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+              
+              {/* Level badge */}
+              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
                 <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
                 <Text style={styles.levelBadgeTextInChat}>
                   Lv.{item.level || 1}
                 </Text>
               </View>
-              <Text style={[
-                styles.senderName,
-                { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-              ]}> : 
-              </Text>
-              <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold', flex: 1 }]}>
-                {item.content}
+              
+              {/* Colon and content */}
+              <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
+                {' '}: {item.content}
               </Text>
             </View>
           </View>
@@ -3448,20 +3445,25 @@ export default function ChatScreen() {
         >
           <View style={styles.giftMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
+                {/* Username (no colon) */}
                 <Text style={[
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}:{' '}
+                  {item.sender}{' '}
                 </Text>
-                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                
+                {/* Level badge */}
+                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
                   <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
                   <Text style={styles.levelBadgeTextInChat}>
                     Lv.{item.level || 1}
                   </Text>
                 </View>
-                <Text style={[styles.giftMessageInline, { flex: 1 }]}>
+                
+                {/* Colon and content */}
+                <Text style={styles.giftMessageInline}>
                   {' '}: {renderMessageContent(item.content)}
                 </Text>
               </View>
@@ -3483,27 +3485,23 @@ export default function ChatScreen() {
         >
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
-                {/* Username */}
-                <Text style={{ flexShrink: 0 }}>
-                  <Text style={[styles.senderName, { color: senderColor }]}>
-                    {item.sender} {senderIsAdmin && '(Admin)'}:{' '}
-                  </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
+                {/* Username (no colon) */}
+                <Text style={[styles.senderName, { color: senderColor }]}>
+                  {item.sender} {senderIsAdmin && '(Admin)'}{' '}
                 </Text>
                 
-                {/* Level badge - gradient style with heart icon */}
-                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                {/* Level badge */}
+                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
                   <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
                   <Text style={styles.levelBadgeTextInChat}>
                     Lv.{item.level || 1}
                   </Text>
                 </View>
                 
-                {/* Message content */}
-                <Text style={{ flex: 1 }}>
-                  <Text style={[styles.messageContent, { color: '#333' }]}>
-                    {' '}: {renderMessageContent(item.content)}
-                  </Text>
+                {/* Colon and message content */}
+                <Text style={[styles.messageContent, { color: '#333' }]}>
+                  {' '}: {renderMessageContent(item.content)}
                 </Text>
               </View>
             </View>
@@ -3522,13 +3520,10 @@ export default function ChatScreen() {
         onLongPress={() => handleMessageLongPress(item)}
       >
         <View style={styles.messageRow}>
-          {/* Level badge, username, and message content */}
-          <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
-            {/* Username */}
-            <Text style={{ flexShrink: 0 }}>
-              <Text style={[styles.senderName, { color: userColor }]}>
-                {item.sender}:{' '}
-              </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
+            {/* Username (no colon) */}
+            <Text style={[styles.senderName, { color: userColor }]}>
+              {item.sender}{' '}
             </Text>
             
             {/* Level badge - gradient style with heart icon */}
@@ -3539,11 +3534,9 @@ export default function ChatScreen() {
               </Text>
             </View>
             
-            {/* Message content */}
-            <Text style={{ flex: 1 }}>
-              <Text style={[styles.messageContent, { color: contentColor }]}>
-                {' '}: {renderMessageContent(item.content)}
-              </Text>
+            {/* Colon and message content */}
+            <Text style={[styles.messageContent, { color: contentColor }]}>
+              {' '}: {renderMessageContent(item.content)}
             </Text>
             
             {/* Display card image if available */}
