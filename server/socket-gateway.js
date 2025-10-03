@@ -500,6 +500,8 @@ const roomParticipants = {}; // { roomId: [ { id, username, role, socketId }, ..
 const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
 // Track recent leave broadcasts to prevent duplicates (key: "userId_roomId", value: timestamp)
 const recentLeaveBroadcasts = new Map();
+// Track announced joins per user per room (key: "userId_roomId", value: timestamp) - GLOBAL tracking
+const announcedJoins = new Map();
 // Removed global joinedRoomsRef - caused join suppression bugs across users
 
 // Socket authentication middleware
@@ -683,11 +685,12 @@ io.on('connection', (socket) => {
         connectedUsers.set(socket.id, userInfo);
       }
 
-      // Check if this user has already joined this room in this session
-      const hasJoinedThisSession = userInfo.announcedRooms?.has(roomId);
+      // Check GLOBAL tracking: has this user EVER announced join for this room (from any connection)?
+      const joinKey = `${socket.userId}_${roomId}`;
+      const hasAnnouncedJoinGlobally = announcedJoins.has(joinKey);
 
       // Log the join attempt with more detail (use authenticated username)
-      if (silent || hasJoinedThisSession) {
+      if (silent || hasAnnouncedJoinGlobally) {
         console.log(`🔄 ${socket.username} reconnecting to room ${roomId} via gateway (silent)`);
       } else {
         console.log(`🚪 ${socket.username} joining room ${roomId} via gateway (new join)`);
@@ -746,35 +749,36 @@ io.on('connection', (socket) => {
       // Only broadcast join message if:
       // 1. Not silent (not a reconnection)
       // 2. User was not already online 
-      // 3. Join hasn't been announced for this socket session
+      // 3. Join hasn't been announced GLOBALLY for this user+room
       // 4. Not a private chat
-      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasJoinedThisSession && !isPrivateChat;
+      const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasAnnouncedJoinGlobally && !isPrivateChat;
 
       if (shouldBroadcastJoin) {
         const joinMessage = {
-          id: `join_${Date.now()}_${username}_${roomId}`,
-          sender: username,
-          content: `${username} joined the room`,
+          id: `join_${Date.now()}_${socket.username}_${roomId}`,
+          sender: socket.username,  // Use authenticated username
+          content: `${socket.username} joined the room`,
           timestamp: new Date().toISOString(),
           roomId: roomId,
           type: 'join',
-          userRole: role
+          userRole: socket.userRole  // Use authenticated role
         };
 
-        console.log(`📢 Broadcasting join message for ${username} in room ${roomId}`);
+        console.log(`📢 Broadcasting join message for ${socket.username} in room ${roomId}`);
         socket.to(roomId).emit('user-joined', joinMessage);
 
-        // Mark room as announced for this socket session
+        // Mark as announced GLOBALLY for this user+room (prevents duplicate across all connections)
+        announcedJoins.set(joinKey, Date.now());
         userInfo.announcedRooms.add(roomId);
       } else {
         if (silent) {
-          console.log(`🔇 Silent join - no broadcast for ${username} in room ${roomId}`);
+          console.log(`🔇 Silent join - no broadcast for ${socket.username} in room ${roomId}`);
         } else if (isPrivateChat) {
-          console.log(`💬 Private chat join - no broadcast for ${username} in room ${roomId}`);
-        } else if (hasJoinedThisSession) {
-          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already announced this session)`);
+          console.log(`💬 Private chat join - no broadcast for ${socket.username} in room ${roomId}`);
+        } else if (hasAnnouncedJoinGlobally) {
+          console.log(`🚫 Skipping duplicate join broadcast for ${socket.username} in room ${roomId} (already announced globally)`);
         } else if (wasAlreadyOnline) {
-          console.log(`🚫 Skipping duplicate join broadcast for ${username} in room ${roomId} (already online)`);
+          console.log(`🚫 Skipping duplicate join broadcast for ${socket.username} in room ${roomId} (already online)`);
         }
       }
 
@@ -2189,10 +2193,23 @@ io.on('connection', (socket) => {
               recentLeaveBroadcasts.set(leaveKey, now);
               console.log(`📢 Broadcasting leave message for ${userInfo.username} in room ${userInfo.roomId}`);
               
+              // Clear announced join tracking when user truly leaves (so they can rejoin fresh)
+              const joinKey = `${userInfo.userId}_${userInfo.roomId}`;
+              announcedJoins.delete(joinKey);
+              console.log(`🧹 Cleared join tracking for ${userInfo.username} in room ${userInfo.roomId}`);
+              
               // Clean up old entries from recentLeaveBroadcasts (older than 10 seconds)
               for (const [key, timestamp] of recentLeaveBroadcasts.entries()) {
                 if (now - timestamp > 10000) {
                   recentLeaveBroadcasts.delete(key);
+                }
+              }
+              
+              // Also clean up old announced joins (older than 1 hour)
+              const ONE_HOUR = 60 * 60 * 1000;
+              for (const [key, timestamp] of announcedJoins.entries()) {
+                if (now - timestamp > ONE_HOUR) {
+                  announcedJoins.delete(key);
                 }
               }
             } else {
