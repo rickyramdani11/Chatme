@@ -863,22 +863,6 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
-  // Helper function to get level icon based on user level
-  const getLevelIcon = (level: number) => {
-    const iconLevel = Math.min(Math.max(1, Math.floor(level)), 9); // Clamp between 1-9
-    const iconMap: { [key: number]: any } = {
-      1: require('../../assets/icon/lvl_1.png'),
-      2: require('../../assets/icon/lvl_2.png'),
-      3: require('../../assets/icon/lvl_3.png'),
-      4: require('../../assets/icon/lvl_4.png'),
-      5: require('../../assets/icon/lvl_5.png'),
-      6: require('../../assets/icon/lvl_6.png'),
-      7: require('../../assets/icon/lvl_7.png'),
-      8: require('../../assets/icon/lvl_8.png'),
-      9: require('../../assets/icon/lvl_9.png'),
-    };
-    return iconMap[iconLevel] || iconMap[1];
-  };
 
   const renderFriend = (friend: Friend) => {
     // Determine avatar display logic
@@ -1010,11 +994,9 @@ const HomeScreen = ({ navigation }: any) => {
               onPress={toggleStatus}
               activeOpacity={0.7}
             >
-              <Image 
-                source={getLevelIcon(user?.level || 1)} 
-                style={styles.levelBadgeIcon}
-                resizeMode="contain"
-              />
+              <View style={styles.levelBadge}>
+                <Text style={styles.levelText}>Lv.{user?.level || 1}</Text>
+              </View>
               <View style={styles.statusContainer}>
                 <View style={[styles.statusDotSmall, { backgroundColor: getStatusColor(userStatus) }]} />
                 <Text style={styles.statusTextSmall}>{getStatusText(userStatus)}</Text>
@@ -1391,10 +1373,17 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginLeft: 8,
   },
-  levelBadgeIcon: {
-    width: 24,
-    height: 24,
+  levelBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     marginRight: 6,
+  },
+  levelText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
   },
   statusContainer: {
     flexDirection: 'row',

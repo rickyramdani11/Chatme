@@ -72,15 +72,12 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
-**October 3, 2025** - Upgraded level badge system to use icon assets:
-- **Change**: Replaced numeric level badges with icon images from assets/icon (lvl_1.png through lvl_9.png)
-- **Screens updated**: Chatscreen1, PrivateChatScreen, HomeScreen, FeedScreen
-- **Implementation**: 
-  - Added `getLevelIcon()` helper function that maps user level (1-9) to corresponding icon
-  - Levels 10+ use lvl_9 icon (clamped with Math.min/Math.max)
-  - Icon sizes: 20-24px depending on context
-- **Chat messages**: Join/leave/gift/command messages use icon images; support/regular inline messages use "(Lv.X)" text (React Native Text limitation)
-- **Result**: Visual level badges now change dynamically based on user level across all screens
+**October 3, 2025** - Reverted level badge system to original text-based badges (except Chatscreen1):
+- **Change**: User requested rollback - only Chatscreen1 (room chat) uses level badge icons, all other screens reverted to text
+- **Screens with TEXT badges**: FeedScreen (heart + "Lv.X"), HomeScreen ("Lv.X"), PrivateChatScreen ("Lv.X")
+- **Screen with ICON badges**: Chatscreen1 (room chat only) - uses lvl_1.png through lvl_9.png for join/leave/gift/command messages
+- **Reason**: User preference to keep original design for Feed, Home, and Private chat; only room chat uses visual icon system
+- **Result**: Hybrid approach - dynamic level icons in room chat, classic text badges everywhere else
 
 **October 3, 2025** - Fixed room info "managed by" field name mismatch:
 - **Issue**: Room info showed "managed by admin" instead of actual room creator

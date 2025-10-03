@@ -1199,22 +1199,6 @@ export default function PrivateChatScreen() {
     }
   };
 
-  // Helper function to get level icon based on user level
-  const getLevelIcon = (level: number) => {
-    const iconLevel = Math.min(Math.max(1, Math.floor(level)), 9); // Clamp between 1-9
-    const iconMap: { [key: number]: any } = {
-      1: require('../../assets/icon/lvl_1.png'),
-      2: require('../../assets/icon/lvl_2.png'),
-      3: require('../../assets/icon/lvl_3.png'),
-      4: require('../../assets/icon/lvl_4.png'),
-      5: require('../../assets/icon/lvl_5.png'),
-      6: require('../../assets/icon/lvl_6.png'),
-      7: require('../../assets/icon/lvl_7.png'),
-      8: require('../../assets/icon/lvl_8.png'),
-      9: require('../../assets/icon/lvl_9.png'),
-    };
-    return iconMap[iconLevel] || iconMap[1];
-  };
 
   const renderMessage = ({ item }: { item: Message }) => {
     // Handle system messages
@@ -1242,11 +1226,9 @@ export default function PrivateChatScreen() {
       >
         <View style={styles.messageRow}>
           <View style={styles.messageContentRow}>
-            <Image 
-              source={getLevelIcon(item.level || 1)} 
-              style={styles.levelBadgeIcon}
-              resizeMode="contain"
-            />
+            <View style={styles.levelBadgeContainer}>
+              <Text style={styles.levelBadgeText}>Lv.{item.level || 1}</Text>
+            </View>
             <View style={styles.messageTextContainer}>
               <Text style={styles.messageText}>
                 <Text style={[
@@ -1807,11 +1789,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  levelBadgeIcon: {
-    width: 20,
-    height: 20,
+  levelBadgeContainer: {
+    backgroundColor: '#FFE5E5',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     marginRight: 6,
     alignSelf: 'flex-start',
+  },
+  levelBadgeText: {
+    fontSize: 10,
+    color: '#FF6B6B',
+    fontWeight: 'bold',
   },
   messageTextContainer: {
     flex: 1,
