@@ -467,34 +467,6 @@ export default function ChatScreen() {
     setIncomingCallData(null);
   };
 
-  // Helper function to get level icon based on user level
-  const getLevelIcon = (level: number) => {
-    const iconLevel = Math.min(Math.max(1, Math.floor(level)), 9); // Clamp between 1-9
-    const iconMap: { [key: number]: any } = {
-      1: require('../../assets/icon/lvl_1.png'),
-      2: require('../../assets/icon/lvl_2.png'),
-      3: require('../../assets/icon/lvl_3.png'),
-      4: require('../../assets/icon/lvl_4.png'),
-      5: require('../../assets/icon/lvl_5.png'),
-      6: require('../../assets/icon/lvl_6.png'),
-      7: require('../../assets/icon/lvl_7.png'),
-      8: require('../../assets/icon/lvl_8.png'),
-      9: require('../../assets/icon/lvl_9.png'),
-    };
-    return iconMap[iconLevel] || iconMap[1];
-  };
-
-  // Level Badge Component using icons
-  const LevelBadge = ({ level }: { level: number }) => {
-    return (
-      <Image 
-        source={getLevelIcon(level || 1)} 
-        style={styles.levelBadgeIcon}
-        resizeMode="contain"
-      />
-    );
-  };
-
   // Function to join a specific room (called when navigating from RoomScreen)
   const joinSpecificRoom = async (roomId: string, roomName: string) => {
     try {
@@ -3286,19 +3258,20 @@ export default function ChatScreen() {
                   color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                 }
               ]}>
-                {item.sender}
+                {item.sender}:{' '}
               </Text>
-              <Image 
-                source={getLevelIcon(item.level || 1)} 
-                style={styles.levelBadgeIconInMessage}
-                resizeMode="contain"
-              />
+              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
+                <Text style={styles.levelBadgeTextInChat}>
+                  Lv.{item.level || 1}
+                </Text>
+              </View>
               <Text style={[
                 styles.senderName,
                 { 
                   color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                 }
-              ]}>: 
+              ]}> : 
               </Text>
               <Text style={[
                 styles.messageContent, 
@@ -3330,17 +3303,18 @@ export default function ChatScreen() {
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
               ]}>
-                {item.sender}
+                {item.sender}:{' '}
               </Text>
-              <Image 
-                source={getLevelIcon(item.level || 1)} 
-                style={styles.levelBadgeIconInMessage}
-                resizeMode="contain"
-              />
+              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
+                <Text style={styles.levelBadgeTextInChat}>
+                  Lv.{item.level || 1}
+                </Text>
+              </View>
               <Text style={[
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-              ]}>: 
+              ]}> : 
               </Text>
               <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold', flex: 1 }]}>
                 {item.content}
@@ -3384,16 +3358,17 @@ export default function ChatScreen() {
         >
           {item.type === 'me' ? (
             <View style={[styles.commandMessageRow, { flexDirection: 'row', alignItems: 'center' }]}>
-              <Image 
-                source={getLevelIcon(item.level || 1)} 
-                style={styles.levelBadgeIconInMessage}
-                resizeMode="contain"
-              />
+              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
+                <Text style={styles.levelBadgeTextInChat}>
+                  Lv.{item.level || 1}
+                </Text>
+              </View>
               <Text style={[
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
               ]}>
-                {item.sender} 
+                {' '}{item.sender} 
               </Text>
               <Text style={[styles.commandContentText, { flex: 1 }]}>{item.content}</Text>
             </View>
@@ -3478,15 +3453,16 @@ export default function ChatScreen() {
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {item.sender}
+                  {item.sender}:{' '}
                 </Text>
-                <Image 
-                  source={getLevelIcon(item.level || 1)} 
-                  style={styles.levelBadgeIconInMessage}
-                  resizeMode="contain"
-                />
+                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                  <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
+                  <Text style={styles.levelBadgeTextInChat}>
+                    Lv.{item.level || 1}
+                  </Text>
+                </View>
                 <Text style={[styles.giftMessageInline, { flex: 1 }]}>
-                  {renderMessageContent(item.content)}
+                  {' '}: {renderMessageContent(item.content)}
                 </Text>
               </View>
             </View>
