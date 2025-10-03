@@ -3312,7 +3312,6 @@ export default function ChatScreen() {
                 {item.content}
               </Text>
             </View>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -3347,7 +3346,6 @@ export default function ChatScreen() {
                 {item.content}
               </Text>
             </View>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -3371,7 +3369,6 @@ export default function ChatScreen() {
                 </Text>
               </Text>
             </View>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -3399,7 +3396,6 @@ export default function ChatScreen() {
                 {item.sender} 
               </Text>
               <Text style={[styles.commandContentText, { flex: 1 }]}>{item.content}</Text>
-              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
           ) : (
             <View style={styles.commandMessageRow}>
@@ -3409,7 +3405,6 @@ export default function ChatScreen() {
               ]}>
                 {item.content}
               </Text>
-              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -3428,7 +3423,6 @@ export default function ChatScreen() {
             <Text style={[styles.systemMessageText, { color: '#8B4513', fontWeight: 'bold' }]}>
               {item.content}
             </Text>
-            <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
       );
@@ -3495,7 +3489,6 @@ export default function ChatScreen() {
                   {renderMessageContent(item.content)}
                 </Text>
               </View>
-              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -3537,7 +3530,6 @@ export default function ChatScreen() {
                   </Text>
                 </Text>
               </View>
-              <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -3587,9 +3579,6 @@ export default function ChatScreen() {
               />
             )}
           </View>
-
-          {/* Time */}
-          <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
         </View>
       </TouchableOpacity>
     );
