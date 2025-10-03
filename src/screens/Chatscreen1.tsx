@@ -5682,7 +5682,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
     paddingVertical: 1,
     marginHorizontal: 3,
-    marginTop: 2,
+    marginTop: 4,
     alignSelf: 'flex-start',
   },
   levelBadgeTextInChat: {
