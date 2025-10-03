@@ -5630,12 +5630,12 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   inlineLevelBadge: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '600',
     color: '#fff',
-    paddingHorizontal: 5,
-    paddingVertical: 0,
-    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   supportMessageContainer: {
