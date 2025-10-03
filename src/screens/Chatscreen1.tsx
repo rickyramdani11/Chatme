@@ -4397,6 +4397,29 @@ export default function ChatScreen() {
             isKeyboardVisible && { paddingBottom: Platform.OS === 'android' ? 8 : 8 }
           ]}
         >
+          {/* Emoji Preview Area */}
+          {selectedImageEmojis.length > 0 && (
+            <View style={styles.emojiPreviewContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiPreviewScroll}>
+                {selectedImageEmojis.map((emoji) => (
+                  <View key={emoji.uniqueId} style={styles.emojiPreviewItem}>
+                    <Image
+                      source={typeof emoji.url === 'number' ? emoji.url : { uri: `${API_BASE_URL}${emoji.url}` }}
+                      style={styles.emojiPreviewImage}
+                      resizeMode="contain"
+                    />
+                    <TouchableOpacity
+                      style={styles.emojiPreviewRemoveButton}
+                      onPress={() => handleRemoveImageEmoji(emoji.uniqueId)}
+                    >
+                      <Ionicons name="close-circle" size={16} color="white" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.emojiButton} onPress={handleEmojiPress}>
               <Ionicons name="happy-outline" size={24} color="white" />
@@ -5799,6 +5822,41 @@ const styles = StyleSheet.create({
   },
   giftButton: {
     marginRight: 12,
+  },
+  emojiPreviewContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    borderRadius: 12,
+    maxHeight: 60,
+  },
+  emojiPreviewScroll: {
+    flexDirection: 'row',
+  },
+  emojiPreviewItem: {
+    position: 'relative',
+    marginRight: 8,
+    padding: 4,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  emojiPreviewImage: {
+    width: 32,
+    height: 32,
+  },
+  emojiPreviewRemoveButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF5252',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   textInput: {
     flex: 1,
