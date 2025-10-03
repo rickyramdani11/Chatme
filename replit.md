@@ -72,6 +72,13 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Fixed room info "managed by" field name mismatch:
+- **Issue**: Room info showed "managed by admin" instead of actual room creator
+- **Root cause**: Code used camelCase (`managedBy`, `createdBy`) but API sends snake_case (`managed_by`, `created_by`)
+- **Fix**: Changed `roomData?.managedBy` to `roomData?.managed_by` and `createdBy` to `created_by`
+- **Location**: src/screens/Chatscreen1.tsx lines 594, 624
+- **Result**: Room info now correctly displays "This room is managed by chatme" for Jakarta room
+
 **October 3, 2025** - Fixed text wrapping alignment in chat messages:
 - **Issue fixed**: Pesan panjang yang wrap ke baris kedua tidak sejajar dengan username
 - **Solution**: 
