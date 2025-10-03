@@ -3155,9 +3155,6 @@ export default function ChatScreen() {
   const renderMessageContent = (content: string) => {
     // Split content by @ mentions and style them
     const parts = content.split(/(@\w+)/g);
-    
-    // Detect if content is ONLY an image tag (standalone gift)
-    const isStandaloneImage = /^<(img|localimg):[^>]+>$/.test(content.trim());
 
     return parts.map((part, index) => {
       if (part.startsWith('@')) {
@@ -3174,7 +3171,7 @@ export default function ChatScreen() {
           <Text key={index}>
             <Image
               source={{ uri: `${API_BASE_URL}${imageUrl}` }}
-              style={isStandaloneImage ? styles.giftImageInChat : styles.inlineEmojiImage}
+              style={styles.inlineEmojiImage}
               resizeMode="contain"
             />
           </Text>
@@ -3188,19 +3185,20 @@ export default function ChatScreen() {
             <Text key={index}>
               <Image
                 source={localImageSource}
-                style={isStandaloneImage ? styles.giftImageInChat : styles.inlineEmojiImage}
+                style={styles.inlineEmojiImage}
                 resizeMode="contain"
               />
             </Text>
           );
         }
-      } else if (part.startsWith('<card:') && part.endsWith('>')) { // Handle card images
-        const cardImageUrl = part.slice(6, -1); // Extract URL after '<card:'
+      } else if (part.startsWith('<card:') && part.endsWith('>')) {
+        // Handle card images - keep card size unchanged
+        const cardImageUrl = part.slice(6, -1);
         return (
           <Image
             key={index}
             source={{ uri: `${API_BASE_URL}${cardImageUrl}` }}
-            style={styles.cardImage} // Apply the new card image style
+            style={styles.cardImage}
             resizeMode="contain"
           />
         );
