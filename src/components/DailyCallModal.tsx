@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import DailyIframe from '@daily-co/react-native-daily-js';
+import Daily from '@daily-co/react-native-daily-js';
+
+const DailyMediaView = (Daily as any).DailyMediaView || ((props: any) => null);
 
 interface DailyCallModalProps {
   visible: boolean;
@@ -25,6 +27,35 @@ interface DailyCallModalProps {
   onEndCall: () => void;
 }
 
+const ParticipantView = ({ participant, callObject }: { participant: any; callObject: any }) => {
+  const isLocal = participant?.local;
+
+  if (!DailyMediaView || !callObject) {
+    return null;
+  }
+
+  return (
+    <View 
+      style={[
+        styles.participantVideo,
+        isLocal ? styles.localVideo : styles.remoteVideo
+      ]}
+    >
+      <DailyMediaView
+        callObject={callObject}
+        sessionId={participant.session_id}
+        mirror={isLocal}
+        zOrder={isLocal ? 1 : 0}
+        objectFit="cover"
+        style={styles.mediaView}
+      />
+      <Text style={styles.participantLabel}>
+        {isLocal ? 'You' : (participant.user_name || 'Guest')}
+      </Text>
+    </View>
+  );
+};
+
 export default function DailyCallModal({
   visible,
   callType,
@@ -37,10 +68,12 @@ export default function DailyCallModal({
   onEndCall,
 }: DailyCallModalProps) {
   const callObject = useRef<any>(null);
+  const updateParticipantsRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(callType === 'audio');
   const [error, setError] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<any>({});
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -59,7 +92,18 @@ export default function DailyCallModal({
         console.log('📹 Initializing Daily.co call:', roomUrl);
         
         // Create call object
-        callObject.current = DailyIframe.createCallObject();
+        callObject.current = Daily.createCallObject();
+        
+        // Listen for participant events - store handler in ref for cleanup
+        updateParticipantsRef.current = () => {
+          if (callObject.current) {
+            setParticipants(callObject.current.participants());
+          }
+        };
+
+        callObject.current.on('participant-joined', updateParticipantsRef.current);
+        callObject.current.on('participant-updated', updateParticipantsRef.current);
+        callObject.current.on('participant-left', updateParticipantsRef.current);
         
         // Join room
         await callObject.current.join({ url: roomUrl });
@@ -70,6 +114,9 @@ export default function DailyCallModal({
         if (callType === 'audio') {
           await callObject.current.setLocalVideo(false);
         }
+        
+        // Get initial participants
+        updateParticipantsRef.current();
         
         setIsLoading(false);
       } catch (err: any) {
@@ -83,7 +130,10 @@ export default function DailyCallModal({
     initCall();
 
     return () => {
-      if (callObject.current) {
+      if (callObject.current && updateParticipantsRef.current) {
+        callObject.current.off('participant-joined', updateParticipantsRef.current);
+        callObject.current.off('participant-updated', updateParticipantsRef.current);
+        callObject.current.off('participant-left', updateParticipantsRef.current);
         callObject.current.leave().catch(console.error);
         callObject.current.destroy().catch(console.error);
       }
@@ -160,8 +210,17 @@ export default function DailyCallModal({
           </View>
         ) : (
           <View style={styles.videoContainer}>
+            {/* Render participant videos */}
+            {Object.values(participants).map((participant: any) => (
+              <ParticipantView 
+                key={participant.session_id} 
+                participant={participant}
+                callObject={callObject.current}
+              />
+            ))}
+
             {/* User Info Overlay for Audio Calls */}
-            {callType === 'audio' && (
+            {callType === 'audio' && Object.keys(participants).length === 0 && (
               <View style={styles.audioOverlay}>
                 {targetUser?.avatar ? (
                   <Image
@@ -298,6 +357,37 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 12,
     overflow: 'hidden',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  participantVideo: {
+    position: 'relative',
+    borderWidth: 2,
+    borderColor: '#FF9800',
+  },
+  localVideo: {
+    width: '100%',
+    height: '50%',
+  },
+  remoteVideo: {
+    width: '100%',
+    height: '50%',
+  },
+  mediaView: {
+    width: '100%',
+    height: '100%',
+  },
+  participantLabel: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    color: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    fontSize: 12,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
