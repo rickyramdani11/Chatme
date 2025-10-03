@@ -74,9 +74,9 @@ Preferred communication style: Simple, everyday language.
 
 **October 3, 2025** - Enhanced Chatscreen1 UI with gradient level badges and optimized spacing:
 - **Level badge redesign**: Replaced text-based "(Lv.X)" with gradient View component with heart icon
-  - Format: Heart icon (♥) + "Lv.X" dengan text putih
+  - Format: `[♥ Lv.X] chatme: message` - badge positioned before username
   - Green to blue solid gradient background (Level 1 → Level 10+)
-  - Compact size: fontSize 8, borderRadius 8, heart icon size 8
+  - Ultra-compact size: fontSize 7, borderRadius 6, heart icon size 6
   - Applied to: Regular messages, support messages
 - **Room info text wrapping**: Fixed alignment - text now wraps inline with room name (sejajar)
 - **Message spacing optimization**: Reduced marginBottom from 4px to 2px for tighter conversation flow

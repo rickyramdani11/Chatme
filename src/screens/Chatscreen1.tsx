@@ -3517,13 +3517,13 @@ export default function ChatScreen() {
               <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
                 {/* Level badge - gradient style with heart icon */}
                 <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                  <Ionicons name="heart" size={8} color="#fff" style={{ marginRight: 2 }} />
+                  <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
                   <Text style={styles.levelBadgeTextInChat}>
                     Lv.{item.level || 1}
                   </Text>
                 </View>
                 
-                {/* Single Text component for inline layout - wrapped lines align with username */}
+                {/* Username and message */}
                 <Text style={{ flex: 1 }}>
                   <Text style={[styles.senderName, { color: senderColor }]}>
                     {item.sender} {senderIsAdmin && '(Admin)'}:{' '}
@@ -3554,7 +3554,7 @@ export default function ChatScreen() {
           <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
             {/* Level badge - gradient style with heart icon */}
             <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-              <Ionicons name="heart" size={8} color="#fff" style={{ marginRight: 2 }} />
+              <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
               <Text style={styles.levelBadgeTextInChat}>
                 Lv.{item.level || 1}
               </Text>
@@ -5670,14 +5670,14 @@ const styles = StyleSheet.create({
   levelBadgeInChat: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    marginRight: 4,
+    borderRadius: 6,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    marginHorizontal: 3,
     alignSelf: 'flex-start',
   },
   levelBadgeTextInChat: {
-    fontSize: 8,
+    fontSize: 7,
     fontWeight: 'bold',
     color: '#fff',
   },
