@@ -3251,8 +3251,8 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
-              {/* Username (no colon) */}
+            <Text style={styles.messageContent}>
+              {/* Username */}
               <Text style={[
                 styles.senderName,
                 { 
@@ -3262,26 +3262,20 @@ export default function ChatScreen() {
                 {item.sender}{' '}
               </Text>
               
-              {/* Level badge */}
-              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
-                <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
-                <Text style={styles.levelBadgeTextInChat}>
-                  Lv.{item.level || 1}
-                </Text>
-              </View>
+              {/* Level badge - inline */}
+              <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                ♥Lv.{item.level || 1}
+              </Text>
               
               {/* Colon and content */}
-              <Text style={[
-                styles.messageContent, 
-                { 
-                  color: isBotCommand ? '#0f23bd' : '#8B4513', 
-                  fontWeight: 'bold',
-                  fontStyle: isBotCommand ? 'italic' : 'normal'
-                }
-              ]}>
+              <Text style={{ 
+                color: isBotCommand ? '#0f23bd' : '#8B4513', 
+                fontWeight: 'bold',
+                fontStyle: isBotCommand ? 'italic' : 'normal'
+              }}>
                 {' '}: {item.content}
               </Text>
-            </View>
+            </Text>
           </View>
         </TouchableOpacity>
       );
@@ -3295,8 +3289,8 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
-              {/* Username (no colon) */}
+            <Text style={styles.messageContent}>
+              {/* Username */}
               <Text style={[
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
@@ -3304,19 +3298,16 @@ export default function ChatScreen() {
                 {item.sender}{' '}
               </Text>
               
-              {/* Level badge */}
-              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
-                <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
-                <Text style={styles.levelBadgeTextInChat}>
-                  Lv.{item.level || 1}
-                </Text>
-              </View>
+              {/* Level badge - inline */}
+              <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                ♥Lv.{item.level || 1}
+              </Text>
               
               {/* Colon and content */}
-              <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
+              <Text style={{ color: '#8B4513', fontWeight: 'bold' }}>
                 {' '}: {item.content}
               </Text>
-            </View>
+            </Text>
           </View>
         </TouchableOpacity>
       );
@@ -3354,20 +3345,19 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           {item.type === 'me' ? (
-            <View style={[styles.commandMessageRow, { flexDirection: 'row', alignItems: 'center' }]}>
-              <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
-                <Text style={styles.levelBadgeTextInChat}>
-                  Lv.{item.level || 1}
+            <View style={styles.commandMessageRow}>
+              <Text style={styles.commandContentText}>
+                <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                  ♥Lv.{item.level || 1}
                 </Text>
-              </View>
-              <Text style={[
-                styles.senderName,
-                { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-              ]}>
-                {' '}{item.sender} 
+                <Text style={[
+                  styles.senderName,
+                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                ]}>
+                  {' '}{item.sender} 
+                </Text>
+                <Text>{item.content}</Text>
               </Text>
-              <Text style={[styles.commandContentText, { flex: 1 }]}>{item.content}</Text>
             </View>
           ) : (
             <View style={styles.commandMessageRow}>
@@ -3445,8 +3435,8 @@ export default function ChatScreen() {
         >
           <View style={styles.giftMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
-                {/* Username (no colon) */}
+              <Text style={styles.giftMessageInline}>
+                {/* Username */}
                 <Text style={[
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
@@ -3454,19 +3444,16 @@ export default function ChatScreen() {
                   {item.sender}{' '}
                 </Text>
                 
-                {/* Level badge */}
-                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
-                  <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
-                  <Text style={styles.levelBadgeTextInChat}>
-                    Lv.{item.level || 1}
-                  </Text>
-                </View>
+                {/* Level badge - inline */}
+                <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                  ♥Lv.{item.level || 1}
+                </Text>
                 
                 {/* Colon and content */}
-                <Text style={styles.giftMessageInline}>
+                <Text>
                   {' '}: {renderMessageContent(item.content)}
                 </Text>
-              </View>
+              </Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -3485,25 +3472,22 @@ export default function ChatScreen() {
         >
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
-                {/* Username (no colon) */}
+              <Text style={styles.messageContent}>
+                {/* Username */}
                 <Text style={[styles.senderName, { color: senderColor }]}>
                   {item.sender} {senderIsAdmin && '(Admin)'}{' '}
                 </Text>
                 
-                {/* Level badge */}
-                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
-                  <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
-                  <Text style={styles.levelBadgeTextInChat}>
-                    Lv.{item.level || 1}
-                  </Text>
-                </View>
+                {/* Level badge - inline */}
+                <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                  ♥Lv.{item.level || 1}
+                </Text>
                 
                 {/* Colon and message content */}
-                <Text style={[styles.messageContent, { color: '#333' }]}>
+                <Text style={{ color: '#333' }}>
                   {' '}: {renderMessageContent(item.content)}
                 </Text>
-              </View>
+              </Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -3520,34 +3504,31 @@ export default function ChatScreen() {
         onLongPress={() => handleMessageLongPress(item)}
       >
         <View style={styles.messageRow}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', flex: 1 }}>
-            {/* Username (no colon) */}
+          <Text style={styles.messageContent}>
+            {/* Username */}
             <Text style={[styles.senderName, { color: userColor }]}>
               {item.sender}{' '}
             </Text>
             
-            {/* Level badge - gradient style with heart icon */}
-            <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
-              <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
-              <Text style={styles.levelBadgeTextInChat}>
-                Lv.{item.level || 1}
-              </Text>
-            </View>
-            
-            {/* Colon and message content */}
-            <Text style={[styles.messageContent, { color: contentColor }]}>
-              {' '}: {renderMessageContent(item.content)}
+            {/* Level badge - inline text with background */}
+            <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+              ♥Lv.{item.level || 1}
             </Text>
             
-            {/* Display card image if available */}
-            {item.image && (
-              <Image
-                source={{ uri: `${API_BASE_URL}${item.image}` }}
-                style={styles.cardMessageImage}
-                resizeMode="contain"
-              />
-            )}
-          </View>
+            {/* Colon and message content */}
+            <Text style={{ color: contentColor }}>
+              {' '}: {renderMessageContent(item.content)}
+            </Text>
+          </Text>
+          
+          {/* Display card image if available */}
+          {item.image && (
+            <Image
+              source={{ uri: `${API_BASE_URL}${item.image}` }}
+              style={styles.cardMessageImage}
+              resizeMode="contain"
+            />
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -5647,6 +5628,15 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  inlineLevelBadge: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#fff',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   supportMessageContainer: {
     marginBottom: 6,
