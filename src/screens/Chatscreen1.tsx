@@ -3514,7 +3514,7 @@ export default function ChatScreen() {
         >
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
                 {/* Username */}
                 <Text style={{ flexShrink: 0 }}>
                   <Text style={[styles.senderName, { color: senderColor }]}>
@@ -3555,7 +3555,7 @@ export default function ChatScreen() {
       >
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
-          <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+          <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
             {/* Username */}
             <Text style={{ flexShrink: 0 }}>
               <Text style={[styles.senderName, { color: userColor }]}>
