@@ -1614,6 +1614,23 @@ export default function ChatScreen() {
     }, 300);
   };
 
+  // Helper function to get level badge color (gradient green to blue)
+  const getLevelBadgeColor = (level: number) => {
+    if (level >= 10) {
+      return { bg: '#E3F2FD', text: '#2196F3' }; // Full blue at level 10+
+    }
+    // Gradient from green to blue (levels 1-9)
+    const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
+    const redValue = Math.round(76 + ratio * (-43)); // 76 to 33
+    const greenValue = Math.round(175 + ratio * 68); // 175 to 243
+    const blueValue = Math.round(80 + ratio * 27); // 80 to 107
+    
+    const textColor = `rgb(${redValue}, ${greenValue}, ${blueValue})`;
+    const bgColor = level <= 3 ? '#F0FFF4' : level <= 6 ? '#E8F5E9' : '#E1F5FE';
+    
+    return { bg: bgColor, text: textColor };
+  };
+
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
     if (role === 'admin') return '#FF6B35'; // Orange Red for admin
@@ -3347,12 +3364,14 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
-              <Text style={[styles.senderName, { color: '#d2691e' }]}>
-                {item.sender}:
-              </Text>
-              <Text style={[styles.messageContent, { color: '#333', flex: 1 }]}>
-                {' '}{item.content}
+            <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+              <Text style={{ flex: 1 }}>
+                <Text style={[styles.senderName, { color: '#d2691e' }]}>
+                  {item.sender}:{' '}
+                </Text>
+                <Text style={[styles.messageContent, { color: '#333' }]}>
+                  {item.content}
+                </Text>
               </Text>
             </View>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
@@ -3498,17 +3517,18 @@ export default function ChatScreen() {
         >
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={[styles.messageContentRow, { flex: 1 }]}>
+              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+                {/* Level badge - gradient style */}
+                <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1).bg }]}>
+                  <Text style={[styles.levelBadgeTextInChat, { color: getLevelBadgeColor(item.level || 1).text }]}>
+                    Lv.{item.level || 1}
+                  </Text>
+                </View>
+                
                 {/* Single Text component for inline layout - wrapped lines align with username */}
                 <Text style={{ flex: 1 }}>
                   <Text style={[styles.senderName, { color: senderColor }]}>
-                    {item.sender} {senderIsAdmin && '(Admin)'}
-                  </Text>
-                  <Text style={styles.levelBadgeInline}>
-                    (Lv.{item.level || 1})
-                  </Text>
-                  <Text style={[styles.senderName, { color: senderColor }]}>
-                    :{' '}
+                    {item.sender} {senderIsAdmin && '(Admin)'}:{' '}
                   </Text>
                   <Text style={[styles.messageContent, { color: '#333' }]}>
                     {renderMessageContent(item.content)}
@@ -3533,17 +3553,18 @@ export default function ChatScreen() {
       >
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
-          <View style={[styles.messageContentRow, { flexDirection: 'column', flex: 1 }]}>
-            {/* Single Text component for inline layout - wrapped lines align with username */}
+          <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+            {/* Level badge - gradient style */}
+            <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1).bg }]}>
+              <Text style={[styles.levelBadgeTextInChat, { color: getLevelBadgeColor(item.level || 1).text }]}>
+                Lv.{item.level || 1}
+              </Text>
+            </View>
+            
+            {/* Username and message in flex Text */}
             <Text style={{ flex: 1 }}>
               <Text style={[styles.senderName, { color: userColor }]}>
-                {item.sender}
-              </Text>
-              <Text style={styles.levelBadgeInline}>
-                (Lv.{item.level || 1})
-              </Text>
-              <Text style={[styles.senderName, { color: userColor }]}>
-                :{' '}
+                {item.sender}:{' '}
               </Text>
               <Text style={[styles.messageContent, { color: contentColor }]}>
                 {renderMessageContent(item.content)}
@@ -5644,8 +5665,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   messageContainer: {
-    marginBottom: 4,
+    marginBottom: 2,
     paddingHorizontal: 0,
+  },
+  levelBadgeInChat: {
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginRight: 4,
+    alignSelf: 'flex-start',
+  },
+  levelBadgeTextInChat: {
+    fontSize: 9,
+    fontWeight: 'bold',
   },
   supportMessageContainer: {
     marginBottom: 6,

@@ -72,6 +72,16 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Enhanced Chatscreen1 UI with gradient level badges and optimized spacing:
+- **Level badge redesign**: Replaced text-based "(Lv.X)" with gradient View component matching FeedScreen style
+  - Green to blue gradient progression (Level 1 → Level 10+)
+  - Compact size: fontSize 9, borderRadius 6, optimized padding
+  - Applied to: Regular messages, support messages
+- **Room info text wrapping**: Fixed alignment - text now wraps inline with room name (sejajar)
+- **Message spacing optimization**: Reduced marginBottom from 4px to 2px for tighter conversation flow
+- **Consistent badge UX**: All screens now use same gradient color logic for visual progression
+- **Result**: Cleaner chat interface with better visual hierarchy and reduced whitespace
+
 **October 3, 2025** - Implemented green-to-blue gradient for level badges:
 - **Change**: Level badge colors now dynamically change from green (Level 1) to blue (Level 10+) to show progression
 - **Color logic**: 
