@@ -74,7 +74,7 @@ Preferred communication style: Simple, everyday language.
 
 **October 3, 2025** - Enhanced Chatscreen1 UI with gradient level badges and optimized spacing:
 - **Level badge redesign**: Replaced text-based "(Lv.X)" with gradient View component with heart icon
-  - Format: `[♥ Lv.X] chatme: message` - badge positioned before username
+  - Format: `chatme: [♥ Lv.X] : message` - badge positioned between username and message
   - Green to blue solid gradient background (Level 1 → Level 10+)
   - Ultra-compact size: fontSize 7, borderRadius 6, heart icon size 6
   - Applied to: Regular messages, support messages

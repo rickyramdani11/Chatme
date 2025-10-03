@@ -3515,6 +3515,13 @@ export default function ChatScreen() {
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
               <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+                {/* Username */}
+                <Text style={{ flexShrink: 0 }}>
+                  <Text style={[styles.senderName, { color: senderColor }]}>
+                    {item.sender} {senderIsAdmin && '(Admin)'}:{' '}
+                  </Text>
+                </Text>
+                
                 {/* Level badge - gradient style with heart icon */}
                 <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
                   <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
@@ -3523,13 +3530,10 @@ export default function ChatScreen() {
                   </Text>
                 </View>
                 
-                {/* Username and message */}
+                {/* Message content */}
                 <Text style={{ flex: 1 }}>
-                  <Text style={[styles.senderName, { color: senderColor }]}>
-                    {item.sender} {senderIsAdmin && '(Admin)'}:{' '}
-                  </Text>
                   <Text style={[styles.messageContent, { color: '#333' }]}>
-                    {renderMessageContent(item.content)}
+                    {' '}: {renderMessageContent(item.content)}
                   </Text>
                 </Text>
               </View>
@@ -3552,6 +3556,13 @@ export default function ChatScreen() {
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
           <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
+            {/* Username */}
+            <Text style={{ flexShrink: 0 }}>
+              <Text style={[styles.senderName, { color: userColor }]}>
+                {item.sender}:{' '}
+              </Text>
+            </Text>
+            
             {/* Level badge - gradient style with heart icon */}
             <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
               <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
@@ -3560,13 +3571,10 @@ export default function ChatScreen() {
               </Text>
             </View>
             
-            {/* Username and message in flex Text */}
+            {/* Message content */}
             <Text style={{ flex: 1 }}>
-              <Text style={[styles.senderName, { color: userColor }]}>
-                {item.sender}:{' '}
-              </Text>
               <Text style={[styles.messageContent, { color: contentColor }]}>
-                {renderMessageContent(item.content)}
+                {' '}: {renderMessageContent(item.content)}
               </Text>
             </Text>
             
