@@ -72,12 +72,15 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
-**October 3, 2025** - Emoji behavior unified: All emojis 16x16 and go to input field:
-- **Change**: All emojis (text & image) now insert into input field for composition
-- **Previous**: Image emojis auto-sent (64x64 standalone, 16x16 inline), text emojis to input
-- **New**: All emojis 16x16, inserted into input field, user sends manually
-- **Location**: src/screens/Chatscreen1.tsx handleEmojiSelect & renderMessageContent
-- **Impact**: Better UX - users can compose messages with multiple emojis before sending
+**October 3, 2025** - Hybrid emoji composer with preview queue:
+- **Change**: Implemented two-path emoji system - text emojis to TextInput, image emojis to preview queue
+- **Preview area**: Horizontal scrollable strip shows queued image emojis (32x32) with X remove buttons
+- **Composition**: Users can type text emojis directly, add image emojis to queue, then send combined message
+- **Merging logic**: handleSendMessage merges text input + queued emoji tags (space-separated)
+- **All emojis**: Render consistently at 16x16 in chat messages via inlineEmojiImage style
+- **UX improvement**: Solves React Native TextInput limitation (can't display inline images) with hybrid approach
+- **Location**: src/screens/Chatscreen1.tsx - selectedImageEmojis state, handleEmojiSelect routing, preview UI
+- **Verified working**: Gateway logs show successful text+image emoji combinations like "😚 <localimg:Very Happy>"
 
 **October 3, 2025** - Standardized gift earning distribution:
 - **Change**: Public room gift earnings aligned with private chat earnings
