@@ -1586,19 +1586,6 @@ export default function ChatScreen() {
     }, 300);
   };
 
-  // Helper function to get level badge color (gradient green to blue)
-  const getLevelBadgeColor = (level: number) => {
-    if (level >= 10) {
-      return '#2196F3'; // Full blue at level 10+
-    }
-    // Gradient from green to blue (levels 1-9)
-    const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
-    const redValue = Math.round(76 + ratio * (-43)); // 76 to 33
-    const greenValue = Math.round(175 + ratio * 68); // 175 to 243
-    const blueValue = Math.round(80 + ratio * 27); // 80 to 107
-    
-    return `rgb(${redValue}, ${greenValue}, ${blueValue})`;
-  };
 
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
@@ -3259,12 +3246,7 @@ export default function ChatScreen() {
                   color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                 }
               ]}>
-                {item.sender}{' '}
-              </Text>
-              
-              {/* Level badge - inline */}
-              <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                ♥Lv.{item.level || 1}
+                {item.sender}
               </Text>
               
               {/* Colon and content */}
@@ -3273,7 +3255,7 @@ export default function ChatScreen() {
                 fontWeight: 'bold',
                 fontStyle: isBotCommand ? 'italic' : 'normal'
               }}>
-                {' '}: {item.content}
+                : {item.content}
               </Text>
             </Text>
           </View>
@@ -3295,17 +3277,12 @@ export default function ChatScreen() {
                 styles.senderName,
                 { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
               ]}>
-                {item.sender}{' '}
-              </Text>
-              
-              {/* Level badge - inline */}
-              <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                ♥Lv.{item.level || 1}
+                {item.sender}
               </Text>
               
               {/* Colon and content */}
               <Text style={{ color: '#8B4513', fontWeight: 'bold' }}>
-                {' '}: {item.content}
+                : {item.content}
               </Text>
             </Text>
           </View>
@@ -3347,14 +3324,11 @@ export default function ChatScreen() {
           {item.type === 'me' ? (
             <View style={styles.commandMessageRow}>
               <Text style={styles.commandContentText}>
-                <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                  ♥Lv.{item.level || 1}
-                </Text>
                 <Text style={[
                   styles.senderName,
                   { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
-                  {' '}{item.sender} 
+                  {item.sender} 
                 </Text>
                 <Text>{item.content}</Text>
               </Text>
@@ -3475,17 +3449,12 @@ export default function ChatScreen() {
               <Text style={styles.messageContent}>
                 {/* Username */}
                 <Text style={[styles.senderName, { color: senderColor }]}>
-                  {item.sender} {senderIsAdmin && '(Admin)'}{' '}
-                </Text>
-                
-                {/* Level badge - inline */}
-                <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                  ♥Lv.{item.level || 1}
+                  {item.sender} {senderIsAdmin && '(Admin)'}
                 </Text>
                 
                 {/* Colon and message content */}
                 <Text style={{ color: '#333' }}>
-                  {' '}: {renderMessageContent(item.content)}
+                  : {renderMessageContent(item.content)}
                 </Text>
               </Text>
             </View>
@@ -3507,17 +3476,12 @@ export default function ChatScreen() {
           <Text style={styles.messageContent}>
             {/* Username */}
             <Text style={[styles.senderName, { color: userColor }]}>
-              {item.sender}{' '}
-            </Text>
-            
-            {/* Level badge - inline text with background */}
-            <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-              ♥Lv.{item.level || 1}
+              {item.sender}
             </Text>
             
             {/* Colon and message content */}
             <Text style={{ color: contentColor }}>
-              {' '}: {renderMessageContent(item.content)}
+              : {renderMessageContent(item.content)}
             </Text>
           </Text>
           
@@ -5614,31 +5578,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     paddingHorizontal: 0,
   },
-  levelBadgeInChat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 6,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    marginHorizontal: 3,
-    marginTop: 4,
-    alignSelf: 'flex-start',
-  },
-  levelBadgeTextInChat: {
-    fontSize: 7,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  inlineLevelBadge: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#fff',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 15,
-    overflow: 'hidden',
-    lineHeight: 14,
-  },
   supportMessageContainer: {
     marginBottom: 6,
     paddingHorizontal: 0,
@@ -5680,34 +5619,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlignVertical: 'top',
     marginLeft: 6,
-  },
-  levelBadgeIcon: {
-    width: 24,
-    height: 24,
-    marginRight: 4,
-  },
-  levelBadgeIconInMessage: {
-    width: 20,
-    height: 20,
-    marginHorizontal: 3,
-  },
-  levelBadgeInline: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#00BCD4',
-    marginHorizontal: 2,
-  },
-  levelBadge: {
-    backgroundColor: '#00BCD4',
-    color: 'white',
-    fontSize: 10,
-    fontWeight: 'bold',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    overflow: 'hidden',
-    textAlign: 'center',
-    textAlignVertical: 'center',
   },
   levelText: {
     fontSize: 10,
