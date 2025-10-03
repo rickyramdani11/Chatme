@@ -167,7 +167,7 @@ export default function FriendsScreen() {
           id: friend.id?.toString() || friend.user_id?.toString(),
           name: friend.name || friend.username,
           username: friend.username,
-          status: friend.status || 'offline',
+          status: (friend.status || 'offline').toLowerCase() as StatusType,
           lastSeen: friend.last_seen || friend.lastSeen || 'Recently',
           avatar: friend.avatar && friend.avatar.startsWith('/api/') ? `${BASE_URL}${friend.avatar}` : 
                   friend.avatar && friend.avatar.startsWith('http') ? friend.avatar : null,
@@ -201,15 +201,16 @@ export default function FriendsScreen() {
 
             if (statusResponse.ok) {
               const statusData = await statusResponse.json();
-              console.log(`Status for ${friend.name}: ${statusData.status}`);
-              return { ...friend, status: statusData.status };
+              const normalizedStatus = (statusData.status || 'offline').toLowerCase() as StatusType;
+              console.log(`Status for ${friend.name}: ${normalizedStatus}`);
+              return { ...friend, status: normalizedStatus };
             } else {
               console.log(`Failed to get status for ${friend.name}`);
-              return { ...friend, status: 'offline' };
+              return { ...friend, status: 'offline' as StatusType };
             }
           } catch (error) {
             console.error(`Error fetching status for friend ${friend.name}:`, error);
-            return { ...friend, status: 'offline' };
+            return { ...friend, status: 'offline' as StatusType };
           }
         })
       );
@@ -243,7 +244,7 @@ export default function FriendsScreen() {
           id: user.id?.toString(),
           name: user.name || user.username,
           username: user.username,
-          status: user.status || 'offline',
+          status: (user.status || 'offline').toLowerCase() as StatusType,
           lastSeen: user.last_seen || 'Recently',
           avatar: user.avatar && user.avatar.startsWith('/api/') ? `${BASE_URL}${user.avatar}` : 
                   user.avatar && user.avatar.startsWith('http') ? user.avatar : null,
