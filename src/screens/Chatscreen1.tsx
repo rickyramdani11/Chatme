@@ -3523,7 +3523,7 @@ export default function ChatScreen() {
       >
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
-          <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'center', flex: 1 }]}>
+          <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
             {/* Username */}
             <Text style={{ flexShrink: 0 }}>
               <Text style={[styles.senderName, { color: userColor }]}>
@@ -3532,7 +3532,7 @@ export default function ChatScreen() {
             </Text>
             
             {/* Level badge - gradient style with heart icon */}
-            <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+            <View style={[styles.levelBadgeInChat, { backgroundColor: getLevelBadgeColor(item.level || 1), marginTop: 4 }]}>
               <Ionicons name="heart" size={6} color="#fff" style={{ marginRight: 1 }} />
               <Text style={styles.levelBadgeTextInChat}>
                 Lv.{item.level || 1}
