@@ -132,6 +132,22 @@ export default function FeedScreen() {
     }
   };
 
+  // Helper function to get level badge color (gradient green to blue)
+  const getLevelBadgeColor = (level: number) => {
+    if (level >= 10) {
+      return { bg: '#E3F2FD', text: '#2196F3', icon: '#2196F3' }; // Full blue at level 10+
+    }
+    // Gradient from green to blue (levels 1-9)
+    const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
+    const greenValue = Math.round(107 - ratio * 74); // 107 (green) to 33 (blue)
+    const blueValue = Math.round(142 + ratio * 101); // 142 (green) to 243 (blue)
+    
+    const textColor = `rgb(${greenValue}, ${blueValue}, 107)`;
+    const bgColor = level <= 3 ? '#F0FFF4' : level <= 6 ? '#E8F5E9' : '#E1F5FE';
+    
+    return { bg: bgColor, text: textColor, icon: textColor };
+  };
+
 
   // Helper function to check if URL is a YouTube URL
   const isYouTubeUrl = (url: string) => {
@@ -716,9 +732,9 @@ export default function FeedScreen() {
                 <View style={[styles.roleBadge, { backgroundColor: getRoleColor(post.role) }]}>
                   <Text style={styles.roleText}>{getRoleBadgeText(post.role)}</Text>
                 </View>
-                <View style={styles.levelBadge}>
-                  <Ionicons name="heart" size={12} color="#FF6B6B" />
-                  <Text style={styles.levelText}>Lv.{post.level}</Text>
+                <View style={[styles.levelBadge, { backgroundColor: getLevelBadgeColor(post.level).bg }]}>
+                  <Ionicons name="heart" size={12} color={getLevelBadgeColor(post.level).icon} />
+                  <Text style={[styles.levelText, { color: getLevelBadgeColor(post.level).text }]}>Lv.{post.level}</Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -1378,7 +1394,6 @@ const styles = StyleSheet.create({
   levelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF0F5',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
@@ -1386,7 +1401,6 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontSize: 11,
-    color: '#FF6B6B',
     fontWeight: 'bold',
     marginLeft: 2,
   },

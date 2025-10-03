@@ -863,6 +863,23 @@ const HomeScreen = ({ navigation }: any) => {
     }
   };
 
+  // Helper function to get level badge color (gradient green to blue)
+  const getLevelBadgeColor = (level: number) => {
+    if (level >= 10) {
+      return { bg: 'rgba(33, 150, 243, 0.25)', text: '#2196F3' }; // Full blue at level 10+
+    }
+    // Gradient from green to blue (levels 1-9)
+    const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
+    const greenValue = Math.round(76 + ratio * (-43)); // 76 to 33
+    const blueValue = Math.round(175 + ratio * 68); // 175 to 243
+    const greenComp = Math.round(107 + ratio * (-107)); // 107 to 0
+    
+    const textColor = `rgb(${greenValue}, ${blueValue}, ${greenComp})`;
+    const bgOpacity = 0.2 + ratio * 0.05; // Slight opacity change
+    
+    return { bg: `rgba(${greenValue}, ${blueValue}, ${greenComp}, ${bgOpacity})`, text: textColor };
+  };
+
 
   const renderFriend = (friend: Friend) => {
     // Determine avatar display logic
@@ -994,8 +1011,8 @@ const HomeScreen = ({ navigation }: any) => {
               onPress={toggleStatus}
               activeOpacity={0.7}
             >
-              <View style={styles.levelBadge}>
-                <Text style={styles.levelText}>Lv.{user?.level || 1}</Text>
+              <View style={[styles.levelBadge, { backgroundColor: getLevelBadgeColor(user?.level || 1).bg }]}>
+                <Text style={[styles.levelText, { color: getLevelBadgeColor(user?.level || 1).text }]}>Lv.{user?.level || 1}</Text>
               </View>
               <View style={styles.statusContainer}>
                 <View style={[styles.statusDotSmall, { backgroundColor: getStatusColor(userStatus) }]} />
@@ -1374,7 +1391,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   levelBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -1382,7 +1398,6 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontSize: 12,
-    color: '#fff',
     fontWeight: 'bold',
   },
   statusContainer: {

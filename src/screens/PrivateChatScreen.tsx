@@ -829,6 +829,23 @@ export default function PrivateChatScreen() {
     }
   };
 
+  // Helper function to get level badge color (gradient green to blue)
+  const getLevelBadgeColor = (level: number) => {
+    if (level >= 10) {
+      return { bg: '#E3F2FD', text: '#2196F3' }; // Full blue at level 10+
+    }
+    // Gradient from green to blue (levels 1-9)
+    const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
+    const redValue = Math.round(76 + ratio * (-43)); // 76 to 33
+    const greenValue = Math.round(175 + ratio * 68); // 175 to 243
+    const blueValue = Math.round(80 + ratio * 27); // 80 to 107
+    
+    const textColor = `rgb(${redValue}, ${greenValue}, ${blueValue})`;
+    const bgColor = level <= 3 ? '#F0FFF4' : level <= 6 ? '#E8F5E9' : '#E1F5FE';
+    
+    return { bg: bgColor, text: textColor };
+  };
+
   const handleMessageLongPress = (message: Message) => {
     setSelectedMessage(message);
     setShowMessageMenu(true);
@@ -1226,8 +1243,8 @@ export default function PrivateChatScreen() {
       >
         <View style={styles.messageRow}>
           <View style={styles.messageContentRow}>
-            <View style={styles.levelBadgeContainer}>
-              <Text style={styles.levelBadgeText}>Lv.{item.level || 1}</Text>
+            <View style={[styles.levelBadgeContainer, { backgroundColor: getLevelBadgeColor(item.level || 1).bg }]}>
+              <Text style={[styles.levelBadgeText, { color: getLevelBadgeColor(item.level || 1).text }]}>Lv.{item.level || 1}</Text>
             </View>
             <View style={styles.messageTextContainer}>
               <Text style={styles.messageText}>
@@ -1790,7 +1807,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   levelBadgeContainer: {
-    backgroundColor: '#FFE5E5',
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -1799,7 +1815,6 @@ const styles = StyleSheet.create({
   },
   levelBadgeText: {
     fontSize: 10,
-    color: '#FF6B6B',
     fontWeight: 'bold',
   },
   messageTextContainer: {
