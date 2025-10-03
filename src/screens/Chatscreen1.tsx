@@ -6229,11 +6229,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   roomNameText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
   },
   usernameText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
   },
   // roleBadgeText is defined above

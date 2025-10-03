@@ -72,6 +72,11 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+**October 3, 2025** - Join/leave message font size consistency:
+- **Issue fixed**: "Jakarta developer has entered" had inconsistent font sizes (Jakarta=13, developer=13, has entered=15)
+- **Solution**: Increased roomNameText and usernameText fontSize from 13 to 15
+- **Result**: All text in join/leave messages now consistent at fontSize 15 (room name, username, action text)
+
 **October 3, 2025** - Image emoji auto-send & local emoticon integration:
 - **Image emoji behavior**: Tap image emoji (dari assets/emoticon) langsung terkirim ke room tanpa muncul di input text
 - **Text emoji behavior**: Tap text emoji (😀😂🥰 dll) masuk ke input text seperti biasa
