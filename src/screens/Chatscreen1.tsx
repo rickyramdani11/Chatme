@@ -3487,25 +3487,21 @@ export default function ChatScreen() {
         >
           <View style={styles.supportMessageBubble}>
             <View style={styles.messageRow}>
-              <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
-                {/* Username, badge, and colon - fixed width container */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
+              <View style={[styles.messageContentRow, { flex: 1 }]}>
+                {/* Single Text component for inline layout - wrapped lines align with username */}
+                <Text style={{ flex: 1 }}>
                   <Text style={[styles.senderName, { color: senderColor }]}>
                     {item.sender} {senderIsAdmin && '(Admin)'}
                   </Text>
-                  <ImageBackground 
-                    source={require('../../assets/icon/lvl_ic.png')} 
-                    style={styles.levelBadgeImage}
-                    resizeMode="contain"
-                  >
-                    <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-                  </ImageBackground>
-                  <Text style={[styles.senderName, { color: senderColor }]}>: 
+                  <Text style={styles.levelBadgeInline}>
+                    ({item.level || 1})
                   </Text>
-                </View>
-                {/* Message content - wraps and aligns with username */}
-                <Text style={[styles.messageContent, { color: '#333', flex: 1, flexWrap: 'wrap' }]}>
-                  {renderMessageContent(item.content)}
+                  <Text style={[styles.senderName, { color: senderColor }]}>
+                    :{' '}
+                  </Text>
+                  <Text style={[styles.messageContent, { color: '#333' }]}>
+                    {renderMessageContent(item.content)}
+                  </Text>
                 </Text>
               </View>
               <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
@@ -3516,6 +3512,9 @@ export default function ChatScreen() {
     }
 
     // Regular message
+    const userColor = (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
+    const contentColor = (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333';
+    
     return (
       <TouchableOpacity 
         style={styles.messageContainer}
@@ -3524,36 +3523,22 @@ export default function ChatScreen() {
         <View style={styles.messageRow}>
           {/* Level badge, username, and message content */}
           <View style={[styles.messageContentRow, { flexDirection: 'column', flex: 1 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
-              {/* Username, badge, and colon - fixed width container */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
-                <Text style={[
-                  styles.senderName,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>
-                  {item.sender}
-                </Text>
-                <ImageBackground 
-                  source={require('../../assets/icon/lvl_ic.png')} 
-                  style={styles.levelBadgeImage}
-                  resizeMode="contain"
-                >
-                  <Text style={styles.levelBadgeText}>{item.level || 1}</Text>
-                </ImageBackground>
-                <Text style={[
-                  styles.senderName,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>: 
-                </Text>
-              </View>
-              {/* Message content - wraps and aligns with username */}
-              <Text style={[
-                styles.messageContent,
-                { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333', flex: 1, flexWrap: 'wrap' }
-              ]}>
+            {/* Single Text component for inline layout - wrapped lines align with username */}
+            <Text style={{ flex: 1 }}>
+              <Text style={[styles.senderName, { color: userColor }]}>
+                {item.sender}
+              </Text>
+              <Text style={styles.levelBadgeInline}>
+                ({item.level || 1})
+              </Text>
+              <Text style={[styles.senderName, { color: userColor }]}>
+                :{' '}
+              </Text>
+              <Text style={[styles.messageContent, { color: contentColor }]}>
                 {renderMessageContent(item.content)}
               </Text>
-            </View>
+            </Text>
+            
             {/* Display card image if available */}
             {item.image && (
               <Image
@@ -5723,6 +5708,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: 'white',
     textAlign: 'center',
+  },
+  levelBadgeInline: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#00BCD4',
+    marginHorizontal: 2,
   },
   levelBadge: {
     backgroundColor: '#00BCD4',
