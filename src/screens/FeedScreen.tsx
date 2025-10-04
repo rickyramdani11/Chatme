@@ -522,7 +522,7 @@ export default function FeedScreen() {
   const shareToSocialMedia = async (platform: string) => {
     if (!selectedPostForShare) return;
 
-    const shareMessage = `${selectedPostForShare.content}\n\n- Shared from ChatMe`;
+    const shareMessage = `${selectedPostForShare.content}\n\n- Shared from ChatMe\n@${selectedPostForShare.username}`;
 
     try {
       setShowShareMenu(false);
