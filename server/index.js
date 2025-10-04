@@ -6061,10 +6061,14 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
 
 // Create Daily.co room for video call
 app.post('/api/daily/create-room', authenticateToken, async (req, res) => {
+  console.log('🔔 DAILY.CO ENDPOINT HIT - User:', req.user?.username, 'Body:', req.body);
+  
   try {
     const { roomName, callType } = req.body;
     const DAILY_API_KEY = process.env.DAILY_API_KEY;
     const DAILY_DOMAIN = process.env.DAILY_DOMAIN;
+
+    console.log('🔑 Daily.co credentials check - API_KEY exists:', !!DAILY_API_KEY, 'DOMAIN exists:', !!DAILY_DOMAIN);
 
     if (!DAILY_API_KEY || !DAILY_DOMAIN) {
       console.error('❌ Daily.co credentials missing');
