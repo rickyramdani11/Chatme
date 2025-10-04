@@ -28,7 +28,11 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 - Fixed critical bug: Added missing `getLevelBadgeColor` helper function to Chatscreen1.tsx (was causing gift message display crashes)
 - Verified ParticipantsList fix working correctly with socket gateway architecture
 - Removed duplicate private chat endpoints (lines 6033-6279 in server/index.js) to prevent routing conflicts
-- **INVESTIGATION**: Duplicate join/leave messages issue requires further analysis - initial fix attempt reverted due to breaking legitimate rejoin broadcasts
+- **Duplicate Join/Leave Messages Fix**: Implemented debounce system to prevent spam from rapid reconnects
+  - Added 2-second delay before broadcasting join/leave messages
+  - Opposite broadcasts cancel each other (join cancels pending leave, leave cancels pending join)
+  - User reconnections within 2 seconds no longer trigger duplicate broadcasts
+  - Prevents spam from app backgrounding, network reconnects, or tab switches
 
 # User Preferences
 

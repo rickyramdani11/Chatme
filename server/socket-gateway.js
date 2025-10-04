@@ -516,6 +516,67 @@ const recentLeaveBroadcasts = new Map();
 const announcedJoins = new Map();
 // Removed global joinedRoomsRef - caused join suppression bugs across users
 
+// Debounce system for join/leave broadcasts to prevent spam
+const pendingBroadcasts = new Map(); // key: "userId_roomId", value: { type: 'join'|'leave', timeout: timeoutId, data: {...} }
+
+// Helper function to schedule debounced join/leave broadcast
+function scheduleBroadcast(io, type, userId, roomId, username, role, socket) {
+  const key = `${userId}_${roomId}`;
+  const DEBOUNCE_DELAY = 2000; // 2 seconds delay
+  
+  // If there's a pending broadcast of opposite type, cancel it
+  const pending = pendingBroadcasts.get(key);
+  if (pending) {
+    if (pending.type !== type) {
+      // Cancel opposite broadcast (e.g., join cancels leave, leave cancels join)
+      clearTimeout(pending.timeout);
+      pendingBroadcasts.delete(key);
+      console.log(`🚫 Cancelled pending ${pending.type} broadcast for ${username} in room ${roomId} (replaced by ${type})`);
+      
+      // If this is a join after a pending leave, don't broadcast anything (user just reconnected)
+      if (type === 'join' && pending.type === 'leave') {
+        console.log(`↩️ User ${username} reconnected to room ${roomId} - no broadcast needed`);
+        return;
+      }
+      // If this is a leave after a pending join, don't broadcast anything (user left immediately)
+      if (type === 'leave' && pending.type === 'join') {
+        console.log(`⚡ User ${username} left room ${roomId} immediately - no broadcast needed`);
+        return;
+      }
+    } else {
+      // Same type already pending, just reset the timer
+      clearTimeout(pending.timeout);
+      console.log(`🔄 Resetting ${type} broadcast timer for ${username} in room ${roomId}`);
+    }
+  }
+  
+  // Schedule new broadcast
+  const timeout = setTimeout(() => {
+    const message = {
+      id: `${type}_${Date.now()}_${username}_${roomId}`,
+      sender: username,
+      content: `${username} ${type === 'join' ? 'joined' : 'left'} the room`,
+      timestamp: new Date().toISOString(),
+      roomId: roomId,
+      type: type,
+      userRole: role
+    };
+    
+    if (type === 'join') {
+      socket.to(roomId).emit('user-joined', message);
+      console.log(`✅ Broadcasting JOIN for ${username} in room ${roomId}`);
+    } else {
+      io.to(roomId).emit('user-left', message);
+      console.log(`✅ Broadcasting LEAVE for ${username} in room ${roomId}`);
+    }
+    
+    pendingBroadcasts.delete(key);
+  }, DEBOUNCE_DELAY);
+  
+  pendingBroadcasts.set(key, { type, timeout, username, roomId });
+  console.log(`⏳ Scheduled ${type} broadcast for ${username} in room ${roomId} (${DEBOUNCE_DELAY}ms delay)`);
+}
+
 // Socket authentication middleware
 const authenticateSocket = async (socket, next) => {
   const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
@@ -766,19 +827,9 @@ io.on('connection', (socket) => {
       const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasAnnouncedJoinGlobally && !isPrivateChat;
 
       if (shouldBroadcastJoin) {
-        const joinMessage = {
-          id: `join_${Date.now()}_${socket.username}_${roomId}`,
-          sender: socket.username,  // Use authenticated username
-          content: `${socket.username} joined the room`,
-          timestamp: new Date().toISOString(),
-          roomId: roomId,
-          type: 'join',
-          userRole: socket.userRole  // Use authenticated role
-        };
-
-        console.log(`📢 Broadcasting join message for ${socket.username} in room ${roomId}`);
-        socket.to(roomId).emit('user-joined', joinMessage);
-
+        // Use debounced broadcast to prevent spam from rapid reconnects
+        scheduleBroadcast(io, 'join', socket.userId, roomId, socket.username, socket.userRole, socket);
+        
         // Mark as announced GLOBALLY for this user+room (prevents duplicate across all connections)
         announcedJoins.set(joinKey, Date.now());
         userInfo.announcedRooms.add(roomId);
@@ -836,21 +887,10 @@ io.on('connection', (socket) => {
     // Check if this is a private chat room
     const isPrivateChat = roomId.startsWith('private_');
 
-    // IMPORTANT: Emit leave message BEFORE socket.leave() so sender receives it too
+    // IMPORTANT: Use debounced broadcast to prevent spam from rapid reconnects
     if (!isPrivateChat) {
-      const leaveMessage = {
-        id: Date.now().toString(),
-        sender: socket.username,     // Use authenticated username
-        content: `${socket.username} left the room`,
-        timestamp: new Date().toISOString(),
-        roomId: roomId,
-        type: 'leave',
-        userRole: socket.userRole    // Use authenticated role
-      };
-
-      // Emit to ALL users in room INCLUDING the one leaving (so they see "has left" message)
-      io.to(roomId).emit('user-left', leaveMessage);
-      console.log(`📢 Broadcasting leave message for ${socket.username} in room ${roomId} (including sender)`);
+      // Use debounced broadcast to prevent spam
+      scheduleBroadcast(io, 'leave', socket.userId, roomId, socket.username, socket.userRole, socket);
     } else {
       console.log(`💬 Private chat leave - no broadcast for ${socket.username} in room ${roomId}`);
     }
@@ -2189,19 +2229,10 @@ io.on('connection', (socket) => {
             const LEAVE_BROADCAST_COOLDOWN = 5000; // 5 seconds
             
             if (!lastBroadcastTime || (now - lastBroadcastTime) > LEAVE_BROADCAST_COOLDOWN) {
-              const leaveMessage = {
-                id: `leave_${Date.now()}_${userInfo.username}_${userInfo.roomId}`,
-                sender: userInfo.username,
-                content: `${userInfo.username} left the room`,
-                timestamp: new Date().toISOString(),
-                roomId: userInfo.roomId,
-                type: 'leave',
-                userRole: userInfo.role || 'user'
-              };
-
-              socket.to(userInfo.roomId).emit('user-left', leaveMessage);
+              // Use debounced broadcast to prevent spam from rapid reconnects
+              scheduleBroadcast(io, 'leave', userInfo.userId, userInfo.roomId, userInfo.username, userInfo.role || 'user', socket);
+              
               recentLeaveBroadcasts.set(leaveKey, now);
-              console.log(`📢 Broadcasting leave message for ${userInfo.username} in room ${userInfo.roomId}`);
               
               // Clear announced join tracking when user truly leaves (so they can rejoin fresh)
               const joinKey = `${userInfo.userId}_${userInfo.roomId}`;
