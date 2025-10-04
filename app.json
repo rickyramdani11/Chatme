@@ -52,23 +52,13 @@
     },
     "plugins": [
       "expo-router",
+      "@videosdk.live/expo-config-plugin",
       [
         "expo-build-properties",
         {
           "android": {
             "minifyEnabled": true,
-            "shrinkResources": true,
-            "packagingOptions": {
-              "exclude": [
-                "lib/**/libagora_ai_denoise_extension.so",
-                "lib/**/libagora_spatial_audio_extension.so",
-                "lib/**/libagora_super_resolution_extension.so",
-                "lib/**/libagora_video_quality_analyzer_extension.so",
-                "lib/**/libagora_content_inspect_extension.so",
-                "lib/**/libagora_video_segmentation_extension.so",
-                "lib/**/libagora_full_audio_format_extension.so"
-              ]
-            }
+            "shrinkResources": true
           }
         }
       ]
