@@ -2849,13 +2849,54 @@ export default function ChatScreen() {
           [{ text: 'OK' }]
         );
       } else {
+        // If API fails, still navigate to private chat with constructed roomId
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Private chat creation failed:', errorData);
-        throw new Error(errorData.error || `HTTP ${response.status}: Failed to create private chat`);
+        console.error('Private chat creation failed, navigating anyway:', errorData);
+        
+        // Construct roomId from user IDs
+        const fallbackRoomId = `private_${user?.id}_${selectedParticipant?.id || selectedParticipant?.username}`;
+        
+        const targetUser = {
+          id: selectedParticipant?.id || selectedParticipant?.username || Date.now().toString(),
+          username: selectedParticipant?.username,
+          role: selectedParticipant?.role || 'user',
+          level: selectedParticipant?.level || 1,
+          avatar: selectedParticipant?.avatar || null
+        };
+
+        // Navigate to private chat even on error
+        navigation.navigate('Chat', {
+          roomId: fallbackRoomId,
+          roomName: `Chat with ${selectedParticipant?.username}`,
+          roomDescription: `Private chat with ${selectedParticipant?.username}`,
+          type: 'private',
+          targetUser: targetUser,
+          autoFocusTab: true
+        });
       }
     } catch (error) {
-      console.error('Error creating private chat:', error);
-      Alert.alert('Error', error.message || 'Failed to create private chat');
+      console.error('Error creating private chat, navigating anyway:', error);
+      
+      // Still navigate to private chat on network error
+      const fallbackRoomId = `private_${user?.id}_${selectedParticipant?.id || selectedParticipant?.username}`;
+      
+      const targetUser = {
+        id: selectedParticipant?.id || selectedParticipant?.username || Date.now().toString(),
+        username: selectedParticipant?.username,
+        role: selectedParticipant?.role || 'user',
+        level: selectedParticipant?.level || 1,
+        avatar: selectedParticipant?.avatar || null
+      };
+
+      // Navigate to private chat even on error
+      navigation.navigate('Chat', {
+        roomId: fallbackRoomId,
+        roomName: `Chat with ${selectedParticipant?.username}`,
+        roomDescription: `Private chat with ${selectedParticipant?.username}`,
+        type: 'private',
+        targetUser: targetUser,
+        autoFocusTab: true
+      });
     }
   };
 

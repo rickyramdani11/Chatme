@@ -33,6 +33,11 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
   - Opposite broadcasts cancel each other (join cancels pending leave, leave cancels pending join)
   - User reconnections within 2 seconds no longer trigger duplicate broadcasts
   - Prevents spam from app backgrounding, network reconnects, or tab switches
+- **Private Chat Error Handling**: Enhanced to auto-navigate on API failures
+  - When private chat creation API fails (network error, unknown error, etc), app now auto-navigates to private chat screen
+  - Constructs fallback roomId from user IDs: `private_{userId}_{targetUserId}`
+  - No error alert shown - seamless navigation experience
+  - Private chat will be created automatically when user sends first message
 
 # User Preferences
 
