@@ -56,7 +56,18 @@ export const GlobalIncomingCallManager: React.FC = () => {
             text: 'Accept',
             onPress: async () => {
               try {
-                // Create private chat room first
+                // First, send accept response to caller
+                socketInstance.emit('call-response', {
+                  callerId: callData.callerId,
+                  response: 'accept',
+                  responderName: user.username,
+                  roomUrl: callData.roomUrl,
+                  callType: callData.callType
+                });
+                
+                console.log('📞 Sent accept response to caller');
+                
+                // Create private chat room
                 const response = await fetch(`${API_BASE_URL}/chat/private`, {
                   method: 'POST',
                   headers: {

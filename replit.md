@@ -37,7 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
-- **Video Call System**: Private video/audio calls with Daily.co integration, real-time streaming, incoming call notifications, call stats tracking, and socket-based signaling.
+- **Video Call System**: Private video/audio calls with Daily.co integration, real-time streaming, global incoming call notifications (works from any screen), call stats tracking, and socket-based signaling with proper accept/decline response handling.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
