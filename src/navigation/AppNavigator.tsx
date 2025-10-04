@@ -46,6 +46,8 @@ import CreateFamilyScreen from '../screens/CreateFamilyScreen';
 import FamilyDetailScreen from '../screens/FamilyDetailScreen';
 // Import ChatHistoryScreen
 import ChatHistoryScreen from '../screens/ChatHistoryScreen';
+// Import GlobalIncomingCallManager
+import { GlobalIncomingCallManager } from '../components/GlobalIncomingCallManager';
 
 import { useAuth } from '../hooks';
 
@@ -117,10 +119,11 @@ export default function AppNavigator() {
   const { user } = useAuth();
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {user ? (
-        <>
-          <Stack.Screen name="Main" component={MainTabs} />
+    <>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen
             name="EditProfile"
             component={EditProfileScreen}
@@ -239,6 +242,10 @@ export default function AppNavigator() {
       ) : (
         <Stack.Screen name="Auth" component={AuthScreen} />
       )}
-    </Stack.Navigator>
+      </Stack.Navigator>
+      
+      {/* Global Incoming Call Manager - Always active when user is logged in */}
+      {user && <GlobalIncomingCallManager />}
+    </>
   );
 }

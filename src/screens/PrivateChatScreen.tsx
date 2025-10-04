@@ -106,6 +106,23 @@ export default function PrivateChatScreen() {
     loadEmojis();
   }, []);
 
+  // Handle incoming call from navigation params
+  useEffect(() => {
+    if (routeParams.incomingCall) {
+      const callData = routeParams.incomingCall;
+      console.log('📞 Received incoming call from navigation params:', callData);
+      
+      setIncomingCallData(callData);
+      if (callData.roomUrl) {
+        setDailyRoomUrl(callData.roomUrl);
+      }
+      setShowIncomingCallModal(true);
+      
+      // Clear the param to prevent re-triggering
+      navigation.setParams({ incomingCall: undefined });
+    }
+  }, [routeParams.incomingCall]);
+
   // Keyboard listeners
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(

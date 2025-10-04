@@ -315,6 +315,8 @@ const HomeScreen = ({ navigation }: any) => {
         );
       });
 
+      // Note: Incoming call handling is now managed globally by GlobalIncomingCallManager
+      
       socketInstance.on('disconnect', () => {
         console.log('Disconnected from socket');
         setSocket(null);
