@@ -1609,6 +1609,20 @@ export default function ChatScreen() {
     }
   };
 
+  // Helper function to get level badge color (gradient green to blue)
+  const getLevelBadgeColor = (level: number) => {
+    if (level >= 10) {
+      return '#2196F3'; // Full blue at level 10+
+    }
+    // Gradient from green to blue (levels 1-9)
+    const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
+    const redValue = Math.round(76 + ratio * (-43)); // 76 to 33
+    const greenValue = Math.round(175 + ratio * 68); // 175 to 243
+    const blueValue = Math.round(80 + ratio * 27); // 80 to 107
+    
+    return `rgb(${redValue}, ${greenValue}, ${blueValue})`;
+  };
+
   const getRoleBackgroundColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
     if (role === 'admin') return '#FFEBEE'; // Light red background for admin

@@ -553,7 +553,7 @@ app.use('/api/credits', creditsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/feed', feedRouter);
 app.use('/api/rooms', roomsRouter);
-app.use('/api', withdrawRouter);
+app.use('/api/withdraw', withdrawRouter); // Mount withdrawal routes at /api/withdraw to avoid conflicts
 app.use('/api/support', supportRouter); // Mount support routes
 
 // JWT authentication middleware is now imported from auth module
@@ -6028,8 +6028,12 @@ app.get('/api/user/balance', authenticateToken, async (req, res) => {
 // Note: Agora video calling is now handled client-side with channel names
 // No server-side room creation needed as Agora uses channel-based architecture
 
-// Route for creating private chats
-// Create private chat
+// Private chat routes are handled by the chat router at /api/chat
+// See server/routes/chat.js for all private chat endpoints
+// Old duplicate endpoints removed to prevent routing conflicts (lines 6033-6279)
+
+/*
+// REMOVED: Duplicate private chat endpoints that were conflicting with chat router
 app.post('/api/chat/private', authenticateToken, async (req, res) => {
   console.log('POST /chat/private -', new Date().toISOString());
   console.log('=== AUTH TOKEN MIDDLEWARE ===');
@@ -6277,6 +6281,8 @@ app.delete('/api/chat/private/:chatId/messages', authenticateToken, async (req, 
     res.status(500).json({ error: 'Failed to clear private chat messages' });
   }
 });
+*/
+// END OF REMOVED DUPLICATE ENDPOINTS
 
 // Get message history with pagination
 app.get('/api/rooms/:roomId/messages/history', async (req, res) => {

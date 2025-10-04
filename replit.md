@@ -2,6 +2,18 @@
 
 ChatMe is a cross-platform React Native chat application built with Expo, offering a comprehensive social messaging platform. It facilitates real-time chat rooms, private messaging, user authentication, a credit system, friend management, media sharing, and gaming features. The application supports iOS, Android, and web, integrating advanced functionalities like AI bot integration, ranking systems, and administrative tools to create a dynamic and engaging social experience.
 
+# Recent Changes
+
+**October 4, 2025**
+- **CRITICAL FIX**: Resolved private chat 404 error caused by router mounting conflict
+  - Problem: withdrawRouter was mounted too broadly at `/api`, intercepting all API routes including `/api/chat/private`
+  - Solution: Remounted withdrawRouter at `/api/withdraw` to scope all withdrawal-related endpoints properly
+  - Updated WithdrawScreen.tsx to use new withdrawal endpoint paths: `/api/withdraw/exchange-rate`, `/api/withdraw/user/*`
+  - Private chat creation at `/api/chat/private` now working correctly
+- Fixed critical bug: Added missing `getLevelBadgeColor` helper function to Chatscreen1.tsx (was causing gift message display crashes)
+- Verified ParticipantsList fix working correctly with socket gateway architecture
+- Removed duplicate private chat endpoints (lines 6033-6279 in server/index.js) to prevent routing conflicts
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
