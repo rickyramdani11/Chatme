@@ -47,6 +47,8 @@ export default function EditProfileScreen({ navigation }: any) {
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [showPhotoMenu, setShowPhotoMenu] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<AlbumPhoto | null>(null);
 
   useEffect(() => {
     fetchAlbumPhotos();
@@ -192,6 +194,89 @@ export default function EditProfileScreen({ navigation }: any) {
     }
   };
 
+  const handleDeletePhoto = async () => {
+    if (!selectedPhoto) return;
+
+    Alert.alert(
+      'Hapus Foto',
+      'Apakah Anda yakin ingin menghapus foto ini?',
+      [
+        {
+          text: 'Batal',
+          style: 'cancel',
+          onPress: () => setShowPhotoMenu(false)
+        },
+        {
+          text: 'Hapus',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setShowPhotoMenu(false);
+              
+              const response = await fetch(
+                `${API_BASE_URL}/users/${user?.id}/album/${selectedPhoto.id}`,
+                {
+                  method: 'DELETE',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : '',
+                  },
+                }
+              );
+
+              if (response.ok) {
+                // Remove photo from local state
+                setAlbumPhotos(prev => prev.filter(photo => photo.id !== selectedPhoto.id));
+                setSelectedPhoto(null);
+                Alert.alert('Success', 'Foto berhasil dihapus!');
+              } else {
+                const errorData = await response.json();
+                Alert.alert('Error', errorData.error || 'Gagal menghapus foto');
+              }
+            } catch (error) {
+              console.error('Error deleting photo:', error);
+              Alert.alert('Error', 'Gagal menghapus foto');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSaveAsBackground = async () => {
+    if (!selectedPhoto) return;
+
+    try {
+      setShowPhotoMenu(false);
+
+      const response = await fetch(
+        `${API_BASE_URL}/users/${user?.id}/profile-background`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify({
+            backgroundUrl: selectedPhoto.image_url
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        setSelectedPhoto(null);
+        Alert.alert('Success', 'Foto berhasil disimpan sebagai background profile!');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Gagal menyimpan background');
+      }
+    } catch (error) {
+      console.error('Error saving background:', error);
+      Alert.alert('Error', 'Gagal menyimpan background');
+    }
+  };
+
   const handleSave = async () => {
     try {
       // Prepare data with proper null handling for dates
@@ -289,9 +374,16 @@ export default function EditProfileScreen({ navigation }: any) {
             </TouchableOpacity>
             
             {albumPhotos.map((photo) => (
-              <View key={photo.id} style={styles.albumPhotoContainer}>
+              <TouchableOpacity 
+                key={photo.id} 
+                style={styles.albumPhotoContainer}
+                onPress={() => {
+                  setSelectedPhoto(photo);
+                  setShowPhotoMenu(true);
+                }}
+              >
                 <Image source={{ uri: `${BASE_URL}${photo.image_url}` }} style={styles.albumPhoto} />
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
           
@@ -537,6 +629,44 @@ export default function EditProfileScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* Photo Menu Modal */}
+      <Modal
+        visible={showPhotoMenu}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowPhotoMenu(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Opsi Foto</Text>
+            <Text style={styles.modalSubtitle}>Pilih tindakan untuk foto ini</Text>
+            
+            <TouchableOpacity 
+              style={styles.modalButton} 
+              onPress={handleSaveAsBackground}
+            >
+              <Ionicons name="image" size={24} color="#007AFF" />
+              <Text style={styles.modalButtonText}>Save Background</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.deleteButton]} 
+              onPress={handleDeletePhoto}
+            >
+              <Ionicons name="trash" size={24} color="#FF3B30" />
+              <Text style={styles.deleteButtonText}>Delete Photo</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.cancelButton]} 
+              onPress={() => setShowPhotoMenu(false)}
+            >
+              <Text style={styles.cancelButtonText}>Batal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -761,5 +891,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     width: '100%',
+  },
+  deleteButton: {
+    backgroundColor: '#FFEBEE',
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    marginLeft: 15,
+    fontWeight: '500',
   },
 });

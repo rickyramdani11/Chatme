@@ -5257,6 +5257,45 @@ app.post('/api/users/:userId/album', async (req, res) => {
   }
 });
 
+// Delete album photo
+app.delete('/api/users/:userId/album/:photoId', authenticateToken, async (req, res) => {
+  try {
+    const { userId, photoId } = req.params;
+
+    console.log(`=== DELETE ALBUM PHOTO REQUEST ===`);
+    console.log(`User ID: ${userId}, Photo ID: ${photoId}`);
+
+    // Verify user can only delete their own photos
+    if (parseInt(userId) !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to delete this photo' });
+    }
+
+    // Check if photo exists and belongs to user
+    const photoResult = await pool.query(
+      'SELECT * FROM user_album WHERE id = $1 AND user_id = $2',
+      [photoId, userId]
+    );
+
+    if (photoResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Photo not found or does not belong to user' });
+    }
+
+    // Delete the photo from database
+    await pool.query('DELETE FROM user_album WHERE id = $1', [photoId]);
+
+    console.log(`Album photo deleted successfully: ${photoId}`);
+    
+    res.json({
+      success: true,
+      message: 'Photo deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting album photo:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Serve album photos
 app.get('/api/users/album/:photoId', async (req, res) => {
   try {
