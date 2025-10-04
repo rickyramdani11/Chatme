@@ -30,7 +30,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import { GiftVideo } from '../components'; // Import the GiftVideo component
 import IncomingCallModal from '../components/IncomingCallModal';
-import AgoraCallModal from '../components/AgoraCallModal';
+import VideoSDKCallModal from '../components/VideoSDKCallModal';
 
 const { width } = Dimensions.get('window');
 
@@ -1762,7 +1762,7 @@ export default function PrivateChatScreen() {
       />
 
       {/* Active Call Modal */}
-      <AgoraCallModal
+      <VideoSDKCallModal
         visible={showCallModal}
         callType={callType || 'video'}
         targetUser={targetUser}
