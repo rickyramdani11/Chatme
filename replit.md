@@ -5,6 +5,13 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 # Recent Changes
 
 **October 4, 2025**
+- **Video Call Migration to VideoSDK**: Migrated from Agora SDK to VideoSDK for 1v1 video/audio calls
+  - Replaced Agora RTC SDK (react-native-agora) with VideoSDK React Native SDK
+  - Created VideoSDKCallModal component to handle video/audio calling with same interface as AgoraCallModal
+  - Added VideoSDK Expo config plugin and metro.config.js for event-target-shim compatibility
+  - Benefits: Smaller APK footprint (~30-40MB vs Agora's bulk), free tier (10,000 minutes/month), easier integration
+  - Removed Agora-specific packaging exclusions from app.json
+  - Uninstalled react-native-agora package to reduce dependencies
 - **LowCard Game Persistence**: Implemented database persistence system to prevent coin loss on server crashes
   - Added `lowcard_games` table to track game state (bet, status, winner, timestamps)
   - Added `lowcard_game_players` table to track player participation and refunds
@@ -81,7 +88,7 @@ Preferred communication style: Simple, everyday language.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
-- **Video Call System**: Private video/audio calls with Agora RTC SDK integration, real-time streaming, global incoming call notifications (works from any screen), call stats tracking, and socket-based signaling with proper accept/decline response handling.
+- **Video Call System**: Private video/audio calls with VideoSDK integration (migrated from Agora), real-time streaming, global incoming call notifications (works from any screen), call stats tracking, socket-based signaling with proper accept/decline response handling, and 10,000 free minutes per month.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
@@ -116,5 +123,5 @@ Preferred communication style: Simple, everyday language.
 - **Networking**: HTTP/HTTPS, WebSockets.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.
-- **Video Calls**: Agora RTC SDK (react-native-agora).
+- **Video Calls**: VideoSDK (@videosdk.live/react-native-sdk, @videosdk.live/react-native-webrtc, @videosdk.live/react-native-incallmanager, @videosdk.live/expo-config-plugin).
 - **Payment Gateway**: Xendit Payout API for withdrawal system.

@@ -6,7 +6,7 @@ const config = getDefaultConfig(__dirname);
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName.startsWith('event-target-shim')) {
     const eventTargetShimPath = resolveFrom(
-      context.resolveRequest,
+      __dirname,
       'event-target-shim'
     );
     return {

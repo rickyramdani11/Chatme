@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -53,6 +53,13 @@ function CallContent({
   totalDeducted,
   onEndCall,
 }: Omit<VideoSDKCallModalProps, 'visible' | 'channelName' | 'token'>) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isJoined, setIsJoined] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(callType === 'audio');
+  const isLeavingRef = useRef(false);
+
   const { join, leave, toggleMic, toggleWebcam, participants, localMicOn, localWebcamOn } = useMeeting({
     onMeetingJoined: () => {
       console.log('✅ Successfully joined VideoSDK meeting');
@@ -61,7 +68,10 @@ function CallContent({
     },
     onMeetingLeft: () => {
       console.log('👋 Left VideoSDK meeting');
-      handleEndCall();
+      if (!isLeavingRef.current) {
+        isLeavingRef.current = true;
+        onEndCall();
+      }
     },
     onParticipantJoined: (participant: any) => {
       console.log('👤 Participant joined:', participant.displayName);
@@ -72,23 +82,14 @@ function CallContent({
     onError: (error: any) => {
       console.error('❌ VideoSDK error:', error);
       setError(error.message || 'Call error occurred');
+      setIsLoading(false);
     },
   });
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isJoined, setIsJoined] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(callType === 'audio');
 
   const participantsArray = [...participants.keys()];
   const remoteParticipants = participantsArray.filter((p) => p !== 'local');
 
   useEffect(() => {
-    if (callType === 'audio') {
-      toggleWebcam();
-    }
-    
     const timer = setTimeout(() => {
       join();
     }, 500);
@@ -113,6 +114,9 @@ function CallContent({
   };
 
   const handleEndCall = async () => {
+    if (isLeavingRef.current) return;
+    
+    isLeavingRef.current = true;
     try {
       await leave();
     } catch (err) {
