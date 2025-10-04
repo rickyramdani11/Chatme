@@ -585,6 +585,44 @@ function sendPrivateBotMessage(socket, room, content, media = null, image = null
   }
 }
 
+// Helper function to send private bot messages to user by userId
+function sendPrivateBotMessageToUser(io, userId, room, content, media = null, image = null) {
+  // If an image is provided, embed it in the content with <card:> tag
+  let finalContent = content;
+  if (image) {
+    finalContent = `${content} <card:${image}>`;
+  }
+
+  const botMessage = {
+    id: `${Date.now()}_lowcardbot_private_${Math.random().toString(36).substr(2, 9)}`,
+    sender: 'LowCardBot',
+    content: finalContent,
+    timestamp: new Date().toISOString(),
+    roomId: room,
+    role: 'bot',
+    level: 999,
+    type: 'message',
+    media: media,
+    image: image
+  };
+
+  console.log(`LowCardBot sending PRIVATE message to user ${userId}:`, finalContent);
+
+  // Send only to this specific user's notification room
+  io.to(`user_${userId}`).emit('new-message', botMessage);
+  io.to(`user_${userId}`).emit('sendMessage', {
+    roomId: room,
+    sender: 'LowCardBot',
+    content: finalContent,
+    role: 'bot',
+    level: 1,
+    type: 'message',
+    media: media,
+    image: image,
+    timestamp: new Date().toISOString()
+  });
+}
+
 async function processLowCardCommand(io, room, msg, userId, username) {
   console.log('Processing LowCard command directly:', msg, 'in room:', room, 'for user:', username);
 
@@ -712,11 +750,11 @@ async function processLowCardCommand(io, room, msg, userId, username) {
 
   const [command, ...args] = trimmedMsg.split(' ');
 
-  handleLowCardCommand(io, room, command, args, userId, username, null);
+  handleLowCardCommand(io, room, command, args, userId, username, null, userId);
 }
 
-// Separate command handling logic
-async function handleLowCardCommand(io, room, command, args, userId, username, socket = null) {
+// Separate command handling logic  
+async function handleLowCardCommand(io, room, command, args, userId, username, socket = null, userIdForPrivate = null) {
   console.log(`[LowCard] Processing command: ${command} with args: [${args.join(', ')}] from user: ${username} in room: ${room}`);
 
   switch (command) {
@@ -725,7 +763,13 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
 
       if (rooms[room]) {
         console.log(`[LowCard] Game already in progress in room ${room}`);
-        sendBotMessage(io, room, `Game already in progress!`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `Game already in progress!`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `Game already in progress!`);
+        } else {
+          sendBotMessage(io, room, `Game already in progress!`);
+        }
         return;
       }
 
@@ -734,19 +778,37 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
 
       if (bet < 500) {
         console.log(`[LowCard] Bet too low: ${bet}`);
-        sendBotMessage(io, room, `Minimum bet is 500 COIN!`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `Minimum bet is 500 COIN!`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `Minimum bet is 500 COIN!`);
+        } else {
+          sendBotMessage(io, room, `Minimum bet is 500 COIN!`);
+        }
         return;
       }
 
       if (bet > 10000) {
         console.log(`[LowCard] Bet too high: ${bet}`);
-        sendBotMessage(io, room, `Bet too high! Maximum bet is 10,000 COIN.`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `Bet too high! Maximum bet is 10,000 COIN.`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `Bet too high! Maximum bet is 10,000 COIN.`);
+        } else {
+          sendBotMessage(io, room, `Bet too high! Maximum bet is 10,000 COIN.`);
+        }
         return;
       }
 
       // Check if starter has enough coins and deduct immediately
       if (!(await potongCoin(userId, bet))) {
-        sendBotMessage(io, room, `${username} doesn't have enough COIN to start the game.`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `You don't have enough COIN to start the game.`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `You don't have enough COIN to start the game.`);
+        } else {
+          sendBotMessage(io, room, `${username} doesn't have enough COIN to start the game.`);
+        }
         return;
       }
 
@@ -854,12 +916,24 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
     case '!d': {
       const data = rooms[room];
       if (!data) {
-        sendBotMessage(io, room, `No game in progress.`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `No game in progress.`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `No game in progress.`);
+        } else {
+          sendBotMessage(io, room, `No game in progress.`);
+        }
         return;
       }
 
       if (!data.isRunning) {
-        sendBotMessage(io, room, `Game has not started yet`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `Game has not started yet`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `Game has not started yet`);
+        } else {
+          sendBotMessage(io, room, `Game has not started yet`);
+        }
         return;
       }
 
@@ -867,6 +941,8 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
       if (!player) {
         if (socket) {
           sendPrivateBotMessage(socket, room, `You are not in this round`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `You are not in this round`);
         } else {
           sendBotMessage(io, room, `${username} is not in this round`);
         }
@@ -876,6 +952,8 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
       if (player.card) {
         if (socket) {
           sendPrivateBotMessage(socket, room, `You already drew a card`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `You already drew a card`);
         } else {
           sendBotMessage(io, room, `${username} already drew a card`);
         }
