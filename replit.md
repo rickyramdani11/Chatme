@@ -5,6 +5,9 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 # Recent Changes
 
 **October 4, 2025**
+- **UI Enhancement**: Redesigned gift message level badge from inline text to small circular badge (18x18) 
+  - Changed from `<Text>♥Lv.X</Text>` to circular `<View style={giftLevelCircle}><Text>X</Text></View>` format
+  - Added `giftLevelCircle` and `giftLevelText` styles for clean, compact level display
 - **CRITICAL FIX**: Resolved private chat 404 error caused by router mounting conflict
   - Problem: withdrawRouter was mounted too broadly at `/api`, intercepting all API routes including `/api/chat/private`
   - Solution: Remounted withdrawRouter at `/api/withdraw` to scope all withdrawal-related endpoints properly
@@ -13,6 +16,7 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 - Fixed critical bug: Added missing `getLevelBadgeColor` helper function to Chatscreen1.tsx (was causing gift message display crashes)
 - Verified ParticipantsList fix working correctly with socket gateway architecture
 - Removed duplicate private chat endpoints (lines 6033-6279 in server/index.js) to prevent routing conflicts
+- **INVESTIGATION**: Duplicate join/leave messages issue requires further analysis - initial fix attempt reverted due to breaking legitimate rejoin broadcasts
 
 # User Preferences
 
