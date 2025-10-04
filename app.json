@@ -56,9 +56,8 @@
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
-            "useLegacyPackaging": true,
+            "minifyEnabled": true,
+            "shrinkResources": true,
             "packagingOptions": {
               "exclude": [
                 "lib/**/libagora_ai_denoise_extension.so",
