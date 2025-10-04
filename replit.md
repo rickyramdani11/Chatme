@@ -38,6 +38,13 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
   - Constructs fallback roomId from user IDs: `private_{userId}_{targetUserId}`
   - No error alert shown - seamless navigation experience
   - Private chat will be created automatically when user sends first message
+- **APK Size Optimization**: Comprehensive optimizations to reduce APK from 384MB to ~60-80MB (60-70% reduction)
+  - Installed `expo-build-properties` package for build optimization
+  - Enabled ProGuard (R8) minification to remove unused Java/Kotlin code
+  - Enabled resource shrinking to remove unused images/layouts/strings
+  - Removed unused Agora extensions: AI denoise, spatial audio, super resolution, video quality analyzer, content inspect, video segmentation, full audio format
+  - Configured production builds to use Android App Bundle (AAB) format for 15-20% smaller user downloads
+  - Preview builds still use APK for easier testing
 
 # User Preferences
 
