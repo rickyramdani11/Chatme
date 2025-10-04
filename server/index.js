@@ -34,6 +34,7 @@ try {
 
 const app = express();
 const server = http.createServer(app);
+const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
 
 // Socket.IO Proxy to Gateway (port 8000) - MUST BE FIRST BEFORE OTHER MIDDLEWARE
 // This allows external clients to connect to Socket Gateway through the main API server
@@ -491,10 +492,7 @@ pool.connect(async (err, client, release) => {
 
       console.log(`Loaded ${rooms.length} rooms from database`);
 
-      // Initialize room participants for each room
-      rooms.forEach(room => {
-        roomParticipants[room.id] = [];
-      });
+      // Room participants now managed by socket gateway
 
     } catch (loadError) {
       console.error('Error loading rooms from database:', loadError);
@@ -564,7 +562,7 @@ app.use('/api/support', supportRouter); // Mount support routes
 let posts = [];
 
 // Room participants tracking
-let roomParticipants = {};
+// roomParticipants removed - now fetched from socket gateway
 
 // Function to generate room description
 const generateRoomDescription = (roomName, creatorUsername) => {
@@ -3852,8 +3850,7 @@ app.delete('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
       rooms.splice(roomIndex, 1);
     }
 
-    // Clean up participants for the deleted room
-    delete roomParticipants[roomId];
+    // Participants cleanup handled by socket gateway
 
     console.log(`Room ${roomName} (ID: ${roomId}) deleted by admin ${req.user.username}`);
     res.json({ 
@@ -4141,8 +4138,7 @@ app.delete('/api/rooms/:roomId', (req, res) => {
     const deletedRoom = rooms.splice(roomIndex, 1)[0];
     console.log('Room deleted:', deletedRoom.name);
 
-    // Clean up participants for the deleted room
-    delete roomParticipants[roomId];
+    // Participants cleanup handled by socket gateway
 
     res.json({ message: 'Room deleted successfully' });
   } catch (error) {
@@ -4151,76 +4147,7 @@ app.delete('/api/rooms/:roomId', (req, res) => {
   }
 });
 
-// Add participant to room
-app.post('/api/rooms/:roomId/participants', (req, res) => {
-  try {
-    const { roomId } = req.params;
-    const { username, role = 'user' } = req.body;
-
-    console.log('=== ADD PARTICIPANT TO ROOM REQUEST ===');
-    console.log('Room ID:', roomId);
-    console.log('Username:', username);
-    console.log('Role:', role);
-
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required' });
-    }
-
-    // Initialize participants array for room if not exists
-    if (!roomParticipants[roomId]) {
-      roomParticipants[roomId] = [];
-    }
-
-    // Check if user is already a participant
-    let participant = roomParticipants[roomId].find(p => p.username === username);
-    if (participant) {
-      // Update existing participant
-      participant.role = role;
-      participant.isOnline = true;
-      participant.lastSeen = new Date().toISOString();
-      console.log('Updated existing participant:', username);
-    } else {
-      // Add new participant
-      participant = {
-        id: Date.now().toString(),
-        username,
-        role,
-        isOnline: true,
-        joinedAt: new Date().toISOString(),
-        lastSeen: new Date().toISOString()
-      };
-      roomParticipants[roomId].push(participant);
-      console.log('Added new participant:', username);
-
-      // Update room member count
-      const roomIndex = rooms.findIndex(r => r.id === roomId);
-      if (roomIndex !== -1) {
-        rooms[roomIndex].members = roomParticipants[roomId].length;
-      }
-    }
-
-    res.status(201).json(participant);
-  } catch (error) {
-    console.error('Error adding participant to room:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get room participants
-app.get('/api/rooms/:roomId/participants', (req, res) => {
-  try {
-    const { roomId } = req.params;
-    console.log('=== GET ROOM PARTICIPANTS REQUEST ===');
-    console.log('Room ID:', roomId);
-
-    // Return participants from the roomParticipants structure
-    const participants = roomParticipants[roomId] || [];
-    res.json(participants);
-  } catch (error) {
-    console.error('Error fetching room participants:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Participants endpoints moved to /api/rooms router (server/routes/rooms.js)
 
 // Friends API endpoints
 // Add friend endpoint

@@ -273,19 +273,33 @@ router.post('/:roomId/participants', (req, res) => {
   }
 });
 
-// Get room participants
-router.get('/:roomId/participants', (req, res) => {
+// Get room participants (fetch from socket gateway)
+router.get('/:roomId/participants', async (req, res) => {
   try {
     const { roomId } = req.params;
-    console.log('=== GET ROOM PARTICIPANTS REQUEST ===');
+    console.log('=== GET ROOM PARTICIPANTS REQUEST (from rooms router) ===');
     console.log('Room ID:', roomId);
 
-    // Return participants from the roomParticipants structure
-    const participants = roomParticipants[roomId] || [];
+    // Fetch participants from socket gateway
+    const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
+    const gatewayUrl = `http://localhost:${GATEWAY_PORT}/gateway/rooms/${roomId}/participants`;
+    console.log('Fetching from gateway URL:', gatewayUrl);
+    
+    const response = await fetch(gatewayUrl);
+    console.log('Gateway response status:', response.status);
+    
+    if (!response.ok) {
+      console.error('Gateway response not OK:', response.status, response.statusText);
+      return res.json([]); // Return empty array instead of error for compatibility
+    }
+    
+    const participants = await response.json();
+    console.log(`✅ Fetched ${participants.length} participants from gateway for room ${roomId}`);
     res.json(participants);
   } catch (error) {
-    console.error('Error fetching room participants:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Error fetching room participants:', error);
+    console.error('Error stack:', error.stack);
+    res.json([]); // Return empty array on error for compatibility
   }
 });
 

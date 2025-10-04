@@ -495,6 +495,18 @@ app.post('/emit-notification', express.json(), (req, res) => {
   }
 });
 
+// HTTP endpoint to get room participants for API server
+app.get('/gateway/rooms/:roomId/participants', (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const participants = roomParticipants[roomId] || [];
+    res.json(participants);
+  } catch (error) {
+    console.error('Error fetching room participants:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // In-memory storage for active rooms and participants
 const roomParticipants = {}; // { roomId: [ { id, username, role, socketId }, ... ] }
 const connectedUsers = new Map(); // socketId -> { userId, username, roomId }
@@ -2343,3 +2355,5 @@ server.listen(GATEWAY_PORT, '0.0.0.0', () => {
     process.exit(1);
   }
 });
+
+// roomParticipants accessible via HTTP endpoint /gateway/rooms/:roomId/participants
