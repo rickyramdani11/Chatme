@@ -305,10 +305,16 @@ function getBotStatus(roomId) {
 
 // Helper function to send bot messages
 function sendBotMessage(io, room, content, media = null, image = null) {
+  // If an image is provided, embed it in the content with <card:> tag
+  let finalContent = content;
+  if (image) {
+    finalContent = `${content} <card:${image}>`;
+  }
+
   const botMessage = {
     id: `${Date.now()}_lowcardbot_${Math.random().toString(36).substr(2, 9)}`,
     sender: 'LowCardBot',
-    content: content,
+    content: finalContent,
     timestamp: new Date().toISOString(),
     roomId: room,
     role: 'bot',
@@ -318,7 +324,7 @@ function sendBotMessage(io, room, content, media = null, image = null) {
     image: image
   };
 
-  console.log(`LowCardBot sending message to room ${room}:`, content);
+  console.log(`LowCardBot sending message to room ${room}:`, finalContent);
 
   // Send to all clients in the room
   io.to(room).emit('new-message', botMessage);
@@ -327,7 +333,7 @@ function sendBotMessage(io, room, content, media = null, image = null) {
   io.to(room).emit('sendMessage', {
     roomId: room,
     sender: 'LowCardBot',
-    content: content,
+    content: finalContent,
     role: 'bot',
     level: 1,
     type: 'message',
@@ -340,6 +346,46 @@ function sendBotMessage(io, room, content, media = null, image = null) {
   setTimeout(() => {
     io.to(room).emit('new-message', { ...botMessage, id: botMessage.id + '_retry' });
   }, 100);
+}
+
+// Helper function to send private bot messages (only to specific user)
+function sendPrivateBotMessage(socket, room, content, media = null, image = null) {
+  // If an image is provided, embed it in the content with <card:> tag
+  let finalContent = content;
+  if (image) {
+    finalContent = `${content} <card:${image}>`;
+  }
+
+  const botMessage = {
+    id: `${Date.now()}_lowcardbot_private_${Math.random().toString(36).substr(2, 9)}`,
+    sender: 'LowCardBot',
+    content: finalContent,
+    timestamp: new Date().toISOString(),
+    roomId: room,
+    role: 'bot',
+    level: 999,
+    type: 'message',
+    media: media,
+    image: image
+  };
+
+  console.log(`LowCardBot sending PRIVATE message to user:`, finalContent);
+
+  // Send only to this specific socket
+  if (socket && socket.id) {
+    socket.emit('new-message', botMessage);
+    socket.emit('sendMessage', {
+      roomId: room,
+      sender: 'LowCardBot',
+      content: finalContent,
+      role: 'bot',
+      level: 1,
+      type: 'message',
+      media: media,
+      image: image,
+      timestamp: new Date().toISOString()
+    });
+  }
 }
 
 async function processLowCardCommand(io, room, msg, userId, username) {
@@ -469,11 +515,11 @@ async function processLowCardCommand(io, room, msg, userId, username) {
 
   const [command, ...args] = trimmedMsg.split(' ');
 
-  handleLowCardCommand(io, room, command, args, userId, username);
+  handleLowCardCommand(io, room, command, args, userId, username, null);
 }
 
 // Separate command handling logic
-async function handleLowCardCommand(io, room, command, args, userId, username) {
+async function handleLowCardCommand(io, room, command, args, userId, username, socket = null) {
   console.log(`[LowCard] Processing command: ${command} with args: [${args.join(', ')}] from user: ${username} in room: ${room}`);
 
   switch (command) {
@@ -544,12 +590,20 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
       }
 
       if (data.isRunning) {
-        sendBotMessage(io, room, `Game already started! Wait for next game.`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `Game already started! Wait for next game.`);
+        } else {
+          sendBotMessage(io, room, `Game already started! Wait for next game.`);
+        }
         return;
       }
 
       if (data.players.find(p => p.username === username)) {
-        sendBotMessage(io, room, `${username} already joined!`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `You already joined!`);
+        } else {
+          sendBotMessage(io, room, `${username} already joined!`);
+        }
         return;
       }
 
@@ -560,7 +614,12 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
 
       // Check if user has enough coins
       if (!(await potongCoin(userId, data.bet))) {
-        sendBotMessage(io, room, `${username} doesn't have enough COIN to join.`);
+        // Send private error message to user only
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `You don't have enough COIN to join. Need ${data.bet} COIN.`);
+        } else {
+          sendBotMessage(io, room, `${username} doesn't have enough COIN to join.`);
+        }
         return;
       }
 
@@ -592,12 +651,20 @@ async function handleLowCardCommand(io, room, command, args, userId, username) {
 
       const player = data.activePlayers.find(p => p.username === username);
       if (!player) {
-        sendBotMessage(io, room, `${username} is not in this round`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `You are not in this round`);
+        } else {
+          sendBotMessage(io, room, `${username} is not in this round`);
+        }
         return;
       }
 
       if (player.card) {
-        sendBotMessage(io, room, `${username} already drew a card`);
+        if (socket) {
+          sendPrivateBotMessage(socket, room, `You already drew a card`);
+        } else {
+          sendBotMessage(io, room, `${username} already drew a card`);
+        }
         return;
       }
 
@@ -729,7 +796,7 @@ function handleLowCardBot(io, socket) {
       }
     }
 
-    handleLowCardCommand(io, room, command, args, userId, username);
+    handleLowCardCommand(io, room, command, args, userId, username, socket);
   });
 
   socket.on('disconnecting', async () => {
