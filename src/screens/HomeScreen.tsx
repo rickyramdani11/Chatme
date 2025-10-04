@@ -958,7 +958,12 @@ const HomeScreen = ({ navigation }: any) => {
               </TouchableOpacity>
             </>
           ) : (
-            <View style={[styles.statusDot, { backgroundColor: getStatusColor(friend.status) }]} />
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => startChat(friend.id, friend.name)}
+            >
+              <Ionicons name="chatbubble" size={20} color="#2196F3" />
+            </TouchableOpacity>
           )}
         </View>
       </View>
