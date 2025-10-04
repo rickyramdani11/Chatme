@@ -537,7 +537,7 @@ export default function PrivateChatScreen() {
               
               // Create Daily.co room
               try {
-                const response = await fetch(`${API_BASE_URL}/api/daily/create-room`, {
+                const response = await fetch(`${API_BASE_URL}/daily/create-room`, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${token}`,
@@ -603,7 +603,7 @@ export default function PrivateChatScreen() {
               
               // Create Daily.co room
               try {
-                const response = await fetch(`${API_BASE_URL}/api/daily/create-room`, {
+                const response = await fetch(`${API_BASE_URL}/daily/create-room`, {
                   method: 'POST',
                   headers: {
                     'Authorization': `Bearer ${token}`,
