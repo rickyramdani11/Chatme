@@ -51,15 +51,7 @@
       "package": "com.chatme.app"
     },
     "plugins": [
-      "expo-router",
-      [
-        "@daily-co/config-plugin-rn-daily-js",
-        {
-          "enableCamera": true,
-          "enableMicrophone": true,
-          "enableScreenShare": false
-        }
-      ]
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
