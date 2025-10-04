@@ -100,6 +100,186 @@ async function tambahCoin(userId, amount, isRefund = false) {
   }
 }
 
+// Database persistence functions
+async function initializeLowCardTables() {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+
+  try {
+    // Create lowcard_games table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lowcard_games (
+        id SERIAL PRIMARY KEY,
+        room_id VARCHAR(255) NOT NULL,
+        bet_amount INTEGER NOT NULL,
+        total_pot INTEGER DEFAULT 0,
+        started_by VARCHAR(255) NOT NULL,
+        started_by_id INTEGER NOT NULL,
+        status VARCHAR(50) DEFAULT 'joining',
+        current_round INTEGER DEFAULT 0,
+        total_rounds INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at TIMESTAMP,
+        winner_id INTEGER,
+        winner_username VARCHAR(255)
+      )
+    `);
+
+    // Create lowcard_game_players table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS lowcard_game_players (
+        id SERIAL PRIMARY KEY,
+        game_id INTEGER REFERENCES lowcard_games(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL,
+        username VARCHAR(255) NOT NULL,
+        bet_amount INTEGER NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        card_value VARCHAR(10),
+        card_suit VARCHAR(10),
+        eliminated_round INTEGER,
+        refunded BOOLEAN DEFAULT false,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log('✅ LowCard persistence tables initialized');
+    
+    // Run auto-refund for incomplete games
+    await autoRefundIncompleteGames();
+  } catch (error) {
+    console.error('Error initializing LowCard tables:', error);
+  }
+}
+
+async function autoRefundIncompleteGames() {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+
+  try {
+    // Find all incomplete games (not finished and not already processed)
+    const incompleteGamesResult = await pool.query(`
+      SELECT DISTINCT g.id, g.room_id, g.bet_amount
+      FROM lowcard_games g
+      WHERE g.status IN ('joining', 'running', 'drawing')
+      AND g.finished_at IS NULL
+    `);
+
+    if (incompleteGamesResult.rows.length === 0) {
+      console.log('✅ No incomplete LowCard games found - no refunds needed');
+      return;
+    }
+
+    console.log(`🔄 Found ${incompleteGamesResult.rows.length} incomplete LowCard game(s) - processing refunds...`);
+
+    for (const game of incompleteGamesResult.rows) {
+      // Get all players in this game who haven't been refunded
+      const playersResult = await pool.query(`
+        SELECT user_id, username, bet_amount
+        FROM lowcard_game_players
+        WHERE game_id = $1 AND refunded = false
+      `, [game.id]);
+
+      console.log(`💰 Refunding ${playersResult.rows.length} player(s) from game ${game.id} in room ${game.room_id}`);
+
+      // Refund each player
+      for (const player of playersResult.rows) {
+        await tambahCoin(player.user_id, player.bet_amount, true);
+        console.log(`   ✅ Refunded ${player.bet_amount} COIN to ${player.username} (ID: ${player.user_id})`);
+      }
+
+      // Mark all players as refunded
+      await pool.query(`
+        UPDATE lowcard_game_players
+        SET refunded = true
+        WHERE game_id = $1
+      `, [game.id]);
+
+      // Mark game as refunded
+      await pool.query(`
+        UPDATE lowcard_games
+        SET status = 'refunded', finished_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+      `, [game.id]);
+
+      console.log(`✅ Game ${game.id} marked as refunded`);
+    }
+
+    console.log('✅ All incomplete games have been refunded');
+  } catch (error) {
+    console.error('❌ Error in auto-refund process:', error);
+  }
+}
+
+async function createGameInDB(roomId, betAmount, startedBy, startedById) {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+
+  try {
+    const result = await pool.query(`
+      INSERT INTO lowcard_games (room_id, bet_amount, started_by, started_by_id, status)
+      VALUES ($1, $2, $3, $4, 'joining')
+      RETURNING id
+    `, [roomId, betAmount, startedBy, startedById]);
+
+    return result.rows[0].id;
+  } catch (error) {
+    console.error('Error creating game in DB:', error);
+    return null;
+  }
+}
+
+async function addPlayerToDB(gameId, userId, username, betAmount) {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+
+  try {
+    await pool.query(`
+      INSERT INTO lowcard_game_players (game_id, user_id, username, bet_amount)
+      VALUES ($1, $2, $3, $4)
+    `, [gameId, userId, username, betAmount]);
+  } catch (error) {
+    console.error('Error adding player to DB:', error);
+  }
+}
+
+async function updateGameStatus(gameId, status, winnerId = null, winnerUsername = null) {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+  });
+
+  try {
+    if (status === 'finished') {
+      await pool.query(`
+        UPDATE lowcard_games
+        SET status = $1, finished_at = CURRENT_TIMESTAMP, winner_id = $2, winner_username = $3
+        WHERE id = $4
+      `, [status, winnerId, winnerUsername, gameId]);
+    } else {
+      await pool.query(`
+        UPDATE lowcard_games
+        SET status = $1
+        WHERE id = $2
+      `, [status, gameId]);
+    }
+  } catch (error) {
+    console.error('Error updating game status:', error);
+  }
+}
+
 // Initialize bot presence in a room
 function ensureBotPresence(io, roomId) {
   if (!botPresence[roomId]) {
@@ -162,6 +342,13 @@ function startRound(io, room) {
   }
 
   data.isRunning = true;
+  
+  // Update game status to 'running' in DB on first round
+  if (data.currentRound === 1 && data.gameId) {
+    updateGameStatus(data.gameId, 'running').catch(err => {
+      console.error('Failed to update game status to running:', err);
+    });
+  }
 
   // Reset cards for all active players
   data.activePlayers.forEach(player => {
@@ -259,9 +446,19 @@ async function finishGame(io, room) {
     await tambahCoin(winner.id, winAmount);
 
     sendBotMessage(io, room, `LowCard game over! ${winner.username} WINS ${winAmount.toFixed(1)} COIN! CONGRATS!`);
+    
+    // Mark game as finished in DB
+    if (data.gameId) {
+      await updateGameStatus(data.gameId, 'finished', winner.id, winner.username);
+    }
   } else {
     // This shouldn't happen, but handle it just in case
     sendBotMessage(io, room, `Game ended with no clear winner.`);
+    
+    // Mark game as finished anyway
+    if (data.gameId) {
+      await updateGameStatus(data.gameId, 'finished');
+    }
   }
 
   // Show final standings
@@ -554,7 +751,12 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
       }
 
       console.log(`[LowCard] Creating new game in room ${room} with bet ${bet}`);
+      
+      // Create game in database
+      const gameId = await createGameInDB(room, bet, username, userId);
+      
       rooms[room] = {
+        gameId, // Store DB game ID
         players: [],
         activePlayers: [],
         bet,
@@ -575,6 +777,12 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
       };
 
       rooms[room].players.push(starterPlayer);
+      
+      // Add starter to DB
+      if (gameId) {
+        await addPlayerToDB(gameId, userId, username, bet);
+      }
+      
       sendBotMessage(io, room, `${username} started the game and joined automatically.`);
 
       console.log(`[LowCard] Starting join phase for room ${room}`);
@@ -633,6 +841,12 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
       };
 
       data.players.push(player);
+      
+      // Add player to DB
+      if (data.gameId) {
+        await addPlayerToDB(data.gameId, userId, username, data.bet);
+      }
+      
       sendBotMessage(io, room, `${username} joined the game.`);
       break;
     }
@@ -855,5 +1069,6 @@ module.exports = {
   processLowCardCommand,
   handleLowCardBot,
   isBotActiveInRoom,
-  getBotStatus
+  getBotStatus,
+  initializeLowCardTables
 };

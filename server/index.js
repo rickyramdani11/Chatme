@@ -27,6 +27,13 @@ try {
   // Load JavaScript version to resolve TypeScript syntax error
   lowCardBot = require('./games/lowcard.js');
   console.log('LowCard bot loaded successfully from JavaScript');
+  
+  // Initialize LowCard persistence tables and auto-refund system
+  if (lowCardBot && lowCardBot.initializeLowCardTables) {
+    lowCardBot.initializeLowCardTables().catch(err => {
+      console.error('Failed to initialize LowCard tables:', err);
+    });
+  }
 } catch (error) {
   console.error('Failed to load LowCard bot from JavaScript:', error);
   console.error('Error details:', error.message);
