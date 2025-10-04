@@ -1337,10 +1337,8 @@ io.on('connection', (socket) => {
           console.error('User info not found for socket:', socket.id);
         }
 
-        // Don't broadcast bot commands as regular messages
-        if (trimmedContent.startsWith('/bot') || trimmedContent.startsWith('/init_bot')) {
-          return;
-        }
+        // Don't broadcast bot commands as regular messages - make them all private
+        return;
       }
 
       // Create message with unique ID

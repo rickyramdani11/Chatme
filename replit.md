@@ -11,10 +11,12 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
   - Auto-refund system runs on server startup: detects incomplete games and refunds all players automatically
   - Game state persisted throughout lifecycle: creation → joining → running → finished
   - Coin safety guaranteed: no more coin loss when server restarts during active games
-- **LowCard Private Commands**: Made `!start` and `!d` commands private - only visible to command sender
-  - Error messages (insufficient balance, game already in progress, etc.) now sent as private messages
-  - Prevents spam and keeps user errors confidential
+- **LowCard Private Commands**: Made `!start`, `!j`, and `!d` commands completely private - invisible to other users
+  - Command text is not broadcast to room - only the sender sees their own command
+  - Error messages (insufficient balance, game already in progress, etc.) sent as private messages
+  - Prevents spam and keeps user commands/errors confidential
   - Uses `user_{userId}` notification room for private message delivery
+  - All bot commands starting with `!` are now hidden from public chat
 - **UI Enhancement**: Redesigned gift message level badge from inline text to small circular badge (18x18) 
   - Changed from `<Text>♥Lv.X</Text>` to circular `<View style={giftLevelCircle}><Text>X</Text></View>` format
   - Added `giftLevelCircle` and `giftLevelText` styles for clean, compact level display
