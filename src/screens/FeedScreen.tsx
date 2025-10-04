@@ -11,7 +11,8 @@ import {
   RefreshControl,
   Modal,
   Platform,
-  Dimensions
+  Dimensions,
+  Share
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -93,6 +94,8 @@ export default function FeedScreen() {
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [showPostMenu, setShowPostMenu] = useState<string | null>(null);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [selectedPostForShare, setSelectedPostForShare] = useState<FeedPost | null>(null);
   
   const videoRef = useRef<Video>(null);
 
@@ -509,30 +512,80 @@ export default function FeedScreen() {
     }
   };
 
-  // Handle share
-  const handleShare = async (postId: string) => {
+  // Handle share - show share menu
+  const handleShare = async (post: FeedPost) => {
+    setSelectedPostForShare(post);
+    setShowShareMenu(true);
+  };
+
+  // Share to specific platform
+  const shareToSocialMedia = async (platform: string) => {
+    if (!selectedPostForShare) return;
+
+    const shareMessage = `${selectedPostForShare.content}\n\n- Shared from ChatMe`;
+
     try {
-      const response = await fetch(`${API_BASE_URL}/feed/posts/${postId}/share`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      setShowShareMenu(false);
+      let shareSuccessful = false;
 
-      if (response.ok) {
-        const result = await response.json();
+      // Get platform-specific title
+      let shareTitle = 'Share Post';
+      switch (platform) {
+        case 'whatsapp':
+          shareTitle = 'Share to WhatsApp';
+          break;
+        case 'facebook':
+          shareTitle = 'Share to Facebook';
+          break;
+        case 'instagram':
+          shareTitle = 'Share to Instagram';
+          break;
+        case 'tiktok':
+          shareTitle = 'Share to TikTok';
+          break;
+        default:
+          shareTitle = 'Share Post';
+      }
 
-        // Update local state
-        setFeedPosts(prev => prev.map(post => 
-          post.id === postId ? { ...post, shares: result.shares } : post
-        ));
+      // Use native share sheet for all platforms (most reliable way to detect successful share)
+      try {
+        const result = await Share.share(
+          {
+            message: shareMessage,
+          },
+          {
+            dialogTitle: shareTitle,
+            subject: shareTitle,
+          }
+        );
+        
+        // Only mark as successful if user actually shared (not dismissed/cancelled)
+        if (result.action === Share.sharedAction) {
+          shareSuccessful = true;
+        }
+      } catch (error) {
+        console.error(`Error sharing to ${platform}:`, error);
+        Alert.alert('Share Error', 'Failed to open share menu. Please try again.');
+      }
 
-        Alert.alert('Success', 'Post shared successfully!');
-      } else {
-        throw new Error('Failed to share post');
+      // Only update share count if sharing was successful
+      if (shareSuccessful) {
+        const response = await fetch(`${API_BASE_URL}/feed/posts/${selectedPostForShare.id}/share`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setFeedPosts(prev => prev.map(post => 
+            post.id === selectedPostForShare.id ? { ...post, shares: result.shares } : post
+          ));
+        }
       }
     } catch (error) {
-      console.error('Error sharing post:', error);
+      console.error('Error sharing to social media:', error);
       Alert.alert('Error', 'Failed to share post');
     }
   };
@@ -961,7 +1014,7 @@ export default function FeedScreen() {
 
         <TouchableOpacity 
           style={styles.actionButton}
-          onPress={() => handleShare(post.id)}
+          onPress={() => handleShare(post)}
         >
           <Ionicons name="share-outline" size={20} color="#666" />
           <Text style={styles.actionText}>{post.shares} Share</Text>
@@ -1251,6 +1304,86 @@ export default function FeedScreen() {
             ) : null}
           </View>
         </View>
+      </Modal>
+
+      {/* Share Menu Modal */}
+      <Modal
+        visible={showShareMenu}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowShareMenu(false)}
+      >
+        <TouchableOpacity 
+          style={styles.shareModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowShareMenu(false)}
+        >
+          <View style={styles.shareMenuContainer}>
+            <View style={styles.shareMenuHeader}>
+              <Text style={styles.shareMenuTitle}>Share to</Text>
+              <TouchableOpacity onPress={() => setShowShareMenu(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.shareOptionsContainer}>
+              {/* WhatsApp */}
+              <TouchableOpacity 
+                style={styles.shareOption}
+                onPress={() => shareToSocialMedia('whatsapp')}
+              >
+                <View style={[styles.shareIconContainer, { backgroundColor: '#25D366' }]}>
+                  <Ionicons name="logo-whatsapp" size={32} color="#fff" />
+                </View>
+                <Text style={styles.shareOptionText}>WhatsApp</Text>
+              </TouchableOpacity>
+
+              {/* Facebook */}
+              <TouchableOpacity 
+                style={styles.shareOption}
+                onPress={() => shareToSocialMedia('facebook')}
+              >
+                <View style={[styles.shareIconContainer, { backgroundColor: '#1877F2' }]}>
+                  <Ionicons name="logo-facebook" size={32} color="#fff" />
+                </View>
+                <Text style={styles.shareOptionText}>Facebook</Text>
+              </TouchableOpacity>
+
+              {/* Instagram */}
+              <TouchableOpacity 
+                style={styles.shareOption}
+                onPress={() => shareToSocialMedia('instagram')}
+              >
+                <View style={[styles.shareIconContainer, { backgroundColor: '#E4405F' }]}>
+                  <Ionicons name="logo-instagram" size={32} color="#fff" />
+                </View>
+                <Text style={styles.shareOptionText}>Instagram</Text>
+              </TouchableOpacity>
+
+              {/* TikTok */}
+              <TouchableOpacity 
+                style={styles.shareOption}
+                onPress={() => shareToSocialMedia('tiktok')}
+              >
+                <View style={[styles.shareIconContainer, { backgroundColor: '#000' }]}>
+                  <Ionicons name="logo-tiktok" size={32} color="#fff" />
+                </View>
+                <Text style={styles.shareOptionText}>TikTok</Text>
+              </TouchableOpacity>
+
+              {/* More Options */}
+              <TouchableOpacity 
+                style={styles.shareOption}
+                onPress={() => shareToSocialMedia('more')}
+              >
+                <View style={[styles.shareIconContainer, { backgroundColor: '#666' }]}>
+                  <Ionicons name="share-social" size={32} color="#fff" />
+                </View>
+                <Text style={styles.shareOptionText}>More</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -1639,12 +1772,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  videoPlayText: {
-    color: 'white',
-    fontSize: 14,
-    marginTop: 8,
-    fontWeight: '500',
-  },
   videoLinkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1761,5 +1888,53 @@ const styles = StyleSheet.create({
   postMenuText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  shareMenuContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  shareMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  shareMenuTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  shareOptionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 20,
+    justifyContent: 'space-around',
+  },
+  shareOption: {
+    alignItems: 'center',
+    width: '20%',
+    marginVertical: 10,
+  },
+  shareIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  shareOptionText: {
+    fontSize: 12,
+    color: '#333',
+    textAlign: 'center',
   },
 });
