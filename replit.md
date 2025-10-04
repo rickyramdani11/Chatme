@@ -5,6 +5,12 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 # Recent Changes
 
 **October 4, 2025**
+- **LowCard Game Persistence**: Implemented database persistence system to prevent coin loss on server crashes
+  - Added `lowcard_games` table to track game state (bet, status, winner, timestamps)
+  - Added `lowcard_game_players` table to track player participation and refunds
+  - Auto-refund system runs on server startup: detects incomplete games and refunds all players automatically
+  - Game state persisted throughout lifecycle: creation → joining → running → finished
+  - Coin safety guaranteed: no more coin loss when server restarts during active games
 - **UI Enhancement**: Redesigned gift message level badge from inline text to small circular badge (18x18) 
   - Changed from `<Text>♥Lv.X</Text>` to circular `<View style={giftLevelCircle}><Text>X</Text></View>` format
   - Added `giftLevelCircle` and `giftLevelText` styles for clean, compact level display
@@ -43,7 +49,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Features
 - **Chat System**: Multi-room chat (real-time only), private messaging (persisted), emoji support, media sharing. Includes chat history notifications and a hybrid emoji composer with a preview queue.
 - **Gift System**: Virtual gifts with real-time display, including video gifts, atomic send prevention, duplicate message filtering, and batched state updates. Gift earnings are standardized to 30% user / 70% system.
-- **Gaming Integration**: Includes a LowCard bot game.
+- **Gaming Integration**: Includes a LowCard bot game with database persistence and automatic refund system to prevent coin loss on server crashes.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat with rate limiting and conversation history.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, and activity feeds.
