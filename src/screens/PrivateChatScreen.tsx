@@ -284,8 +284,12 @@ export default function PrivateChatScreen() {
 
         if (responseData.response === 'accept') {
           // Store room URL for Daily.co
-          if (responseData.roomUrl) {
-            setDailyRoomUrl(responseData.roomUrl);
+          const roomUrl = responseData.roomUrl;
+          
+          console.log('📞 Call accepted with room URL:', roomUrl);
+          
+          if (roomUrl) {
+            setDailyRoomUrl(roomUrl);
           }
           
           Alert.alert(
@@ -295,8 +299,12 @@ export default function PrivateChatScreen() {
               {
                 text: 'Start Call',
                 onPress: () => {
-                  setShowCallModal(true);
-                  startCallTimer(responseData.callType || incomingCallData?.callType || 'video');
+                  // Use setTimeout to ensure state is updated
+                  setTimeout(() => {
+                    console.log('✅ Starting accepted call with room URL:', roomUrl);
+                    setShowCallModal(true);
+                    startCallTimer(responseData.callType || incomingCallData?.callType || 'video');
+                  }, 100);
                 }
               }
             ]
@@ -783,19 +791,39 @@ export default function PrivateChatScreen() {
       return;
     }
 
+    // Use roomUrl directly from incoming call data
+    const roomUrl = incomingCallData.roomUrl || dailyRoomUrl;
+    
+    console.log('📞 Accepting call with room URL:', roomUrl);
+    
+    if (!roomUrl) {
+      console.error('❌ No room URL available for call');
+      Alert.alert('Call Error', 'Invalid call data. Please try again.');
+      handleDeclineCall();
+      return;
+    }
+
+    // Set room URL synchronously before proceeding
+    setDailyRoomUrl(roomUrl);
+
     if (socket && user) {
       socket.emit('call-response', {
         callerId: incomingCallData.callerId,
         response: 'accept',
         responderName: user.username,
-        roomUrl: dailyRoomUrl,
+        roomUrl: roomUrl,
         callType: incomingCallData.callType
       });
     }
 
     setShowIncomingCallModal(false);
-    setShowCallModal(true);
-    startCallTimer(incomingCallData.callType);
+    
+    // Use setTimeout to ensure state is updated before showing call modal
+    setTimeout(() => {
+      console.log('✅ Opening call modal with room URL:', roomUrl);
+      setShowCallModal(true);
+      startCallTimer(incomingCallData.callType);
+    }, 100);
   };
 
   const handleDeclineCall = () => {
