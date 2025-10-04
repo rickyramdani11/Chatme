@@ -1926,7 +1926,7 @@ io.on('connection', (socket) => {
   // Call notification events
   socket.on('initiate-call', (callData) => {
     try {
-      const { targetUsername, callType, callerId, callerName, roomUrl } = callData;
+      const { targetUsername, callType, callerId, callerName, channelName } = callData;
 
       if (!targetUsername || !callType || !callerId || !callerName) {
         console.log('❌ Invalid call data:', callData);
@@ -1935,7 +1935,7 @@ io.on('connection', (socket) => {
       }
 
       console.log(`📞 ${callerName} initiating ${callType} call to ${targetUsername}`);
-      console.log(`📹 Daily.co room URL: ${roomUrl}`);
+      console.log(`📹 Agora channel: ${channelName}`);
 
       // Find target user's socket
       const targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
@@ -1945,12 +1945,12 @@ io.on('connection', (socket) => {
       if (targetSocket) {
         const [targetSocketId] = targetSocket;
 
-        // Send incoming call notification to target user with room URL
+        // Send incoming call notification to target user with channel name
         io.to(targetSocketId).emit('incoming-call', {
           callerId,
           callerName,
           callType,
-          roomUrl,
+          channelName,
           timestamp: new Date().toISOString()
         });
 
@@ -1958,7 +1958,7 @@ io.on('connection', (socket) => {
         socket.emit('call-initiated', {
           targetUsername,
           callType,
-          roomUrl,
+          channelName,
           status: 'ringing'
         });
 
@@ -1983,7 +1983,7 @@ io.on('connection', (socket) => {
   // Call response events
   socket.on('call-response', (responseData) => {
     try {
-      const { callerId, response, responderName, roomUrl, callType } = responseData; // response: 'accept' or 'decline'
+      const { callerId, response, responderName, channelName, callType } = responseData; // response: 'accept' or 'decline'
 
       if (!callerId || !response || !responderName) {
         console.log('❌ Invalid call response data:', responseData);
@@ -2000,11 +2000,11 @@ io.on('connection', (socket) => {
       if (callerSocket) {
         const [callerSocketId] = callerSocket;
 
-        // Send call response to caller with room URL
+        // Send call response to caller with channel name
         io.to(callerSocketId).emit('call-response-received', {
           response,
           responderName,
-          roomUrl,
+          channelName,
           callType,
           timestamp: new Date().toISOString()
         });

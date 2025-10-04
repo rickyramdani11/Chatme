@@ -37,7 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
-- **Video Call System**: Private video/audio calls with Daily.co integration, real-time streaming, global incoming call notifications (works from any screen), call stats tracking, and socket-based signaling with proper accept/decline response handling.
+- **Video Call System**: Private video/audio calls with Agora RTC SDK integration, real-time streaming, global incoming call notifications (works from any screen), call stats tracking, and socket-based signaling with proper accept/decline response handling.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
@@ -72,5 +72,5 @@ Preferred communication style: Simple, everyday language.
 - **Networking**: HTTP/HTTPS, WebSockets.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.
-- **Video Calls**: Daily.co (@daily-co/react-native-daily-js).
+- **Video Calls**: Agora RTC SDK (react-native-agora).
 - **Payment Gateway**: Xendit Payout API for withdrawal system.

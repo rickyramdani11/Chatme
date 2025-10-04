@@ -47,7 +47,7 @@ export const GlobalIncomingCallManager: React.FC = () => {
                 callerId: callData.callerId,
                 response: 'decline',
                 responderName: user.username,
-                roomUrl: callData.roomUrl,
+                channelName: callData.channelName,
                 callType: callData.callType
               });
             }
@@ -61,7 +61,7 @@ export const GlobalIncomingCallManager: React.FC = () => {
                   callerId: callData.callerId,
                   response: 'accept',
                   responderName: user.username,
-                  roomUrl: callData.roomUrl,
+                  channelName: callData.channelName,
                   callType: callData.callType
                 });
                 

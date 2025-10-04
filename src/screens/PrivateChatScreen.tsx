@@ -30,7 +30,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import { GiftVideo } from '../components'; // Import the GiftVideo component
 import IncomingCallModal from '../components/IncomingCallModal';
-import DailyCallModal from '../components/DailyCallModal';
+import AgoraCallModal from '../components/AgoraCallModal';
 
 const { width } = Dimensions.get('window');
 
@@ -76,7 +76,7 @@ export default function PrivateChatScreen() {
   const [callTimer, setCallTimer] = useState(0);
   const [callCost, setCallCost] = useState(0);
   const [totalDeducted, setTotalDeducted] = useState(0);
-  const [dailyRoomUrl, setDailyRoomUrl] = useState<string | null>(null);
+  const [agoraChannelName, setAgoraChannelName] = useState<string | null>(null);
   const callIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
@@ -113,8 +113,8 @@ export default function PrivateChatScreen() {
       console.log('📞 Received incoming call from navigation params:', callData);
       
       setIncomingCallData(callData);
-      if (callData.roomUrl) {
-        setDailyRoomUrl(callData.roomUrl);
+      if (callData.channelName) {
+        setAgoraChannelName(callData.channelName);
       }
       setShowIncomingCallModal(true);
       
@@ -287,9 +287,9 @@ export default function PrivateChatScreen() {
       socketInstance.on('incoming-call', (callData) => {
         console.log('📞 Received incoming call:', callData);
         setIncomingCallData(callData);
-        // Store Daily.co room URL
-        if (callData.roomUrl) {
-          setDailyRoomUrl(callData.roomUrl);
+        // Store Agora channel name
+        if (callData.channelName) {
+          setAgoraChannelName(callData.channelName);
         }
         setShowIncomingCallModal(true);
       });
@@ -300,13 +300,13 @@ export default function PrivateChatScreen() {
         setCallRinging(false);
 
         if (responseData.response === 'accept') {
-          // Store room URL for Daily.co
-          const roomUrl = responseData.roomUrl;
+          // Store channel name for Agora
+          const channelName = responseData.channelName;
           
-          console.log('📞 Call accepted with room URL:', roomUrl);
+          console.log('📞 Call accepted with channel:', channelName);
           
-          if (roomUrl) {
-            setDailyRoomUrl(roomUrl);
+          if (channelName) {
+            setAgoraChannelName(channelName);
           }
           
           Alert.alert(
@@ -318,7 +318,7 @@ export default function PrivateChatScreen() {
                 onPress: () => {
                   // Use setTimeout to ensure state is updated
                   setTimeout(() => {
-                    console.log('✅ Starting accepted call with room URL:', roomUrl);
+                    console.log('✅ Starting accepted call with channel:', channelName);
                     setShowCallModal(true);
                     startCallTimer(responseData.callType || incomingCallData?.callType || 'video');
                   }, 100);
@@ -560,42 +560,20 @@ export default function PrivateChatScreen() {
             if (socket && user) {
               setCallRinging(true);
               
-              // Create Daily.co room
-              try {
-                const response = await fetch(`${API_BASE_URL}/daily/create-room`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    roomName: `${user.username}-${targetUser.username}`,
-                    callType: 'video'
-                  })
-                });
-
-                const data = await response.json();
-                
-                if (response.ok && data.roomUrl) {
-                  console.log('📹 Daily.co room created:', data.roomUrl);
-                  
-                  // Send call invitation with room URL
-                  socket.emit('initiate-call', {
-                    targetUsername: targetUser.username,
-                    callType: 'video',
-                    callerId: user.id,
-                    callerName: user.username,
-                    roomUrl: data.roomUrl
-                  });
-                } else {
-                  setCallRinging(false);
-                  Alert.alert('Call Error', data.error || 'Failed to create video call');
-                }
-              } catch (error) {
-                setCallRinging(false);
-                console.error('Failed to create Daily.co room:', error);
-                Alert.alert('Call Error', 'Failed to initiate call. Please try again.');
-              }
+              // Create Agora channel name
+              const channelName = `${user.id}_${targetUser.id}_${Date.now()}`;
+              console.log('📹 Creating Agora video call with channel:', channelName);
+              
+              setAgoraChannelName(channelName);
+              
+              // Send call invitation with channel name
+              socket.emit('initiate-call', {
+                targetUsername: targetUser.username,
+                callType: 'video',
+                callerId: user.id,
+                callerName: user.username,
+                channelName: channelName
+              });
             }
           }
         }
@@ -626,42 +604,20 @@ export default function PrivateChatScreen() {
             if (socket && user) {
               setCallRinging(true);
               
-              // Create Daily.co room
-              try {
-                const response = await fetch(`${API_BASE_URL}/daily/create-room`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    roomName: `${user.username}-${targetUser.username}`,
-                    callType: 'audio'
-                  })
-                });
-
-                const data = await response.json();
-                
-                if (response.ok && data.roomUrl) {
-                  console.log('📞 Daily.co room created:', data.roomUrl);
-                  
-                  // Send call invitation with room URL
-                  socket.emit('initiate-call', {
-                    targetUsername: targetUser.username,
-                    callType: 'audio',
-                    callerId: user.id,
-                    callerName: user.username,
-                    roomUrl: data.roomUrl
-                  });
-                } else {
-                  setCallRinging(false);
-                  Alert.alert('Call Error', data.error || 'Failed to create audio call');
-                }
-              } catch (error) {
-                setCallRinging(false);
-                console.error('Failed to create Daily.co room:', error);
-                Alert.alert('Call Error', 'Failed to initiate call. Please try again.');
-              }
+              // Create Agora channel name
+              const channelName = `${user.id}_${targetUser.id}_${Date.now()}`;
+              console.log('📞 Creating Agora audio call with channel:', channelName);
+              
+              setAgoraChannelName(channelName);
+              
+              // Send call invitation with channel name
+              socket.emit('initiate-call', {
+                targetUsername: targetUser.username,
+                callType: 'audio',
+                callerId: user.id,
+                callerName: user.username,
+                channelName: channelName
+              });
             }
           }
         }
@@ -808,27 +764,27 @@ export default function PrivateChatScreen() {
       return;
     }
 
-    // Use roomUrl directly from incoming call data
-    const roomUrl = incomingCallData.roomUrl || dailyRoomUrl;
+    // Use channelName directly from incoming call data
+    const channelName = incomingCallData.channelName || agoraChannelName;
     
-    console.log('📞 Accepting call with room URL:', roomUrl);
+    console.log('📞 Accepting call with channel:', channelName);
     
-    if (!roomUrl) {
-      console.error('❌ No room URL available for call');
+    if (!channelName) {
+      console.error('❌ No channel name available for call');
       Alert.alert('Call Error', 'Invalid call data. Please try again.');
       handleDeclineCall();
       return;
     }
 
-    // Set room URL synchronously before proceeding
-    setDailyRoomUrl(roomUrl);
+    // Set channel name synchronously before proceeding
+    setAgoraChannelName(channelName);
 
     if (socket && user) {
       socket.emit('call-response', {
         callerId: incomingCallData.callerId,
         response: 'accept',
         responderName: user.username,
-        roomUrl: roomUrl,
+        channelName: channelName,
         callType: incomingCallData.callType
       });
     }
@@ -837,7 +793,7 @@ export default function PrivateChatScreen() {
     
     // Use setTimeout to ensure state is updated before showing call modal
     setTimeout(() => {
-      console.log('✅ Opening call modal with room URL:', roomUrl);
+      console.log('✅ Opening call modal with channel:', channelName);
       setShowCallModal(true);
       startCallTimer(incomingCallData.callType);
     }, 100);
@@ -851,7 +807,7 @@ export default function PrivateChatScreen() {
         callerId: incomingCallData.callerId,
         response: 'decline',
         responderName: user.username,
-        roomUrl: dailyRoomUrl,
+        channelName: agoraChannelName,
         callType: incomingCallData.callType
       });
     }
@@ -1806,14 +1762,14 @@ export default function PrivateChatScreen() {
       />
 
       {/* Active Call Modal */}
-      <DailyCallModal
+      <AgoraCallModal
         visible={showCallModal}
         callType={callType || 'video'}
         targetUser={targetUser}
         callTimer={callTimer}
         callCost={callCost}
         totalDeducted={totalDeducted}
-        roomUrl={dailyRoomUrl || undefined}
+        channelName={agoraChannelName || ''}
         token={token || ''}
         onEndCall={() => {
           endCall();
