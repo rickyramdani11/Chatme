@@ -3432,10 +3432,10 @@ export default function ChatScreen() {
                   {item.sender}{' '}
                 </Text>
                 
-                {/* Level badge - inline */}
-                <Text style={[styles.inlineLevelBadge, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                  ♥Lv.{item.level || 1}
-                </Text>
+                {/* Level badge - small circle */}
+                <View style={[styles.giftLevelCircle, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
+                  <Text style={styles.giftLevelText}>{item.level || 1}</Text>
+                </View>
                 
                 {/* Colon and content */}
                 <Text>
@@ -7026,6 +7026,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     fontWeight: '500',
+  },
+  giftLevelCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  giftLevelText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: 'bold',
   },
   // Room Info Message Styles
   roomInfoMessageContainer: {
