@@ -10,6 +10,11 @@ const pool = new Pool({
 
 // Create private chat
 router.post('/private', authenticateToken, async (req, res) => {
+  console.log('=== CREATE PRIVATE CHAT (CHAT ROUTER) ===');
+  console.log('Request body:', req.body);
+  console.log('Authenticated user:', req.user);
+  console.log('User ID:', req.user.id, 'User userId:', req.user.userId);
+  
   try {
     const { participants } = req.body;
     const currentUserId = req.user.userId;
