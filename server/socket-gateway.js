@@ -40,6 +40,50 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
 })();
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://0.0.0.0:5000';
 
+// Daily.co configuration
+const DAILY_API_KEY = process.env.DAILY_API_KEY || '';
+const DAILY_DOMAIN = process.env.DAILY_DOMAIN || '';
+
+// Function to create Daily.co room
+async function createDailyRoom(roomName) {
+  if (!DAILY_API_KEY) {
+    console.error('❌ DAILY_API_KEY not configured');
+    throw new Error('Daily.co API key not configured');
+  }
+
+  try {
+    const response = await fetch('https://api.daily.co/v1/rooms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DAILY_API_KEY}`
+      },
+      body: JSON.stringify({
+        name: roomName,
+        properties: {
+          exp: Math.floor(Date.now() / 1000) + 86400, // Expires in 24 hours
+          max_participants: 2, // 1v1 calls only
+          enable_chat: false,
+          enable_screenshare: false
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('❌ Failed to create Daily.co room:', error);
+      throw new Error(`Failed to create Daily.co room: ${error.error || 'Unknown error'}`);
+    }
+
+    const room = await response.json();
+    console.log('✅ Created Daily.co room:', room.url);
+    return room;
+  } catch (error) {
+    console.error('❌ Error creating Daily.co room:', error);
+    throw error;
+  }
+}
+
 // Database configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -1974,7 +2018,7 @@ io.on('connection', (socket) => {
   });
 
   // Call notification events
-  socket.on('initiate-call', (callData) => {
+  socket.on('initiate-call', async (callData) => {
     try {
       const { targetUsername, callType, callerId, callerName, channelName } = callData;
 
@@ -1985,7 +2029,22 @@ io.on('connection', (socket) => {
       }
 
       console.log(`📞 ${callerName} initiating ${callType} call to ${targetUsername}`);
-      console.log(`📹 Agora channel: ${channelName}`);
+
+      // Create Daily.co room for the call
+      let dailyRoomName = channelName || `call-${callerId}-${Date.now()}`;
+      let dailyRoom;
+      
+      try {
+        dailyRoom = await createDailyRoom(dailyRoomName);
+        console.log(`✅ Created Daily.co room: ${dailyRoom.name}`);
+      } catch (roomError) {
+        console.error('❌ Failed to create Daily.co room:', roomError);
+        socket.emit('call-error', { 
+          error: 'Failed to create video room',
+          reason: 'room_creation_failed'
+        });
+        return;
+      }
 
       // Find target user's socket
       const targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
@@ -1995,12 +2054,13 @@ io.on('connection', (socket) => {
       if (targetSocket) {
         const [targetSocketId] = targetSocket;
 
-        // Send incoming call notification to target user with channel name
+        // Send incoming call notification to target user with Daily.co room URL
         io.to(targetSocketId).emit('incoming-call', {
           callerId,
           callerName,
           callType,
-          channelName,
+          channelName: dailyRoom.name,
+          roomUrl: dailyRoom.url,
           timestamp: new Date().toISOString()
         });
 
@@ -2008,11 +2068,12 @@ io.on('connection', (socket) => {
         socket.emit('call-initiated', {
           targetUsername,
           callType,
-          channelName,
+          channelName: dailyRoom.name,
+          roomUrl: dailyRoom.url,
           status: 'ringing'
         });
 
-        console.log(`📞 Call notification sent to ${targetUsername}`);
+        console.log(`📞 Call notification sent to ${targetUsername} with Daily.co room ${dailyRoom.url}`);
       } else {
         console.log(`📞 Target user ${targetUsername} not found or offline`);
         socket.emit('call-error', { 
@@ -2033,7 +2094,7 @@ io.on('connection', (socket) => {
   // Call response events
   socket.on('call-response', (responseData) => {
     try {
-      const { callerId, response, responderName, channelName, callType } = responseData; // response: 'accept' or 'decline'
+      const { callerId, response, responderName, channelName, roomUrl, callType } = responseData; // response: 'accept' or 'decline'
 
       if (!callerId || !response || !responderName) {
         console.log('❌ Invalid call response data:', responseData);
@@ -2050,11 +2111,12 @@ io.on('connection', (socket) => {
       if (callerSocket) {
         const [callerSocketId] = callerSocket;
 
-        // Send call response to caller with channel name
+        // Send call response to caller with room URL
         io.to(callerSocketId).emit('call-response-received', {
           response,
           responderName,
           channelName,
+          roomUrl,
           callType,
           timestamp: new Date().toISOString()
         });

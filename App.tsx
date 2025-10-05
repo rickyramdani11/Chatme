@@ -6,9 +6,6 @@ import { Platform, View, Text } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
-import { register } from '@videosdk.live/react-native-sdk';
-
-register();
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);

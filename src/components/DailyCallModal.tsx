@@ -21,6 +21,7 @@ interface DailyCallModalProps {
   callCost: number;
   totalDeducted: number;
   channelName: string;
+  roomUrl?: string;
   token: string;
   onEndCall: () => void;
 }
@@ -35,6 +36,7 @@ function CallContent({
   callCost,
   totalDeducted,
   channelName,
+  roomUrl,
   onEndCall,
 }: Omit<DailyCallModalProps, 'visible' | 'token'>) {
   const [isLoading, setIsLoading] = useState(true);
@@ -87,12 +89,12 @@ function CallContent({
           setIsLoading(false);
         });
 
-        const roomUrl = DAILY_DOMAIN 
+        const joinUrl = roomUrl || (DAILY_DOMAIN 
           ? `https://${DAILY_DOMAIN}.daily.co/${channelName}`
-          : `https://chatme.daily.co/${channelName}`;
+          : `https://chatme.daily.co/${channelName}`);
 
         await call.join({
-          url: roomUrl,
+          url: joinUrl,
           audioSource: true,
           videoSource: callType === 'video',
         });
@@ -155,6 +157,14 @@ function CallContent({
   const localParticipant = participantsArray.find((p: any) => p.local);
   const remoteParticipants = participantsArray.filter((p: any) => !p.local);
 
+  const getVideoTrack = (participant: any) => {
+    return participant?.tracks?.video?.persistentTrack || null;
+  };
+
+  const getAudioTrack = (participant: any) => {
+    return participant?.tracks?.audio?.persistentTrack || null;
+  };
+
   return (
     <LinearGradient colors={['#1a1a1a', '#2a2a2a']} style={styles.container}>
       <View style={styles.header}>
@@ -186,8 +196,8 @@ function CallContent({
               {remoteParticipants.map((participant: any) => (
                 <DailyMediaView
                   key={participant.session_id}
-                  videoTrack={participant.videoTrack}
-                  audioTrack={participant.audioTrack}
+                  videoTrack={getVideoTrack(participant)}
+                  audioTrack={getAudioTrack(participant)}
                   mirror={false}
                   zOrder={0}
                   style={styles.videoStream}
@@ -210,10 +220,10 @@ function CallContent({
             </View>
           )}
 
-          {callType === 'video' && !isVideoOff && localParticipant?.videoTrack && (
+          {callType === 'video' && !isVideoOff && localParticipant && getVideoTrack(localParticipant) && (
             <View style={styles.localVideoContainer}>
               <DailyMediaView
-                videoTrack={localParticipant.videoTrack}
+                videoTrack={getVideoTrack(localParticipant)}
                 mirror={true}
                 zOrder={1}
                 style={styles.videoStream}

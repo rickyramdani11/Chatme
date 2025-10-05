@@ -77,6 +77,7 @@ export default function PrivateChatScreen() {
   const [callCost, setCallCost] = useState(0);
   const [totalDeducted, setTotalDeducted] = useState(0);
   const [agoraChannelName, setAgoraChannelName] = useState<string | null>(null);
+  const [dailyRoomUrl, setDailyRoomUrl] = useState<string | null>(null);
   const callIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
@@ -287,9 +288,12 @@ export default function PrivateChatScreen() {
       socketInstance.on('incoming-call', (callData) => {
         console.log('📞 Received incoming call:', callData);
         setIncomingCallData(callData);
-        // Store Agora channel name
+        // Store Daily.co room info
         if (callData.channelName) {
           setAgoraChannelName(callData.channelName);
+        }
+        if (callData.roomUrl) {
+          setDailyRoomUrl(callData.roomUrl);
         }
         setShowIncomingCallModal(true);
       });
@@ -300,13 +304,17 @@ export default function PrivateChatScreen() {
         setCallRinging(false);
 
         if (responseData.response === 'accept') {
-          // Store channel name for Agora
+          // Store Daily.co room info
           const channelName = responseData.channelName;
+          const roomUrl = responseData.roomUrl;
           
-          console.log('📞 Call accepted with channel:', channelName);
+          console.log('📞 Call accepted with room:', roomUrl || channelName);
           
           if (channelName) {
             setAgoraChannelName(channelName);
+          }
+          if (roomUrl) {
+            setDailyRoomUrl(roomUrl);
           }
           
           Alert.alert(
@@ -785,6 +793,7 @@ export default function PrivateChatScreen() {
         response: 'accept',
         responderName: user.username,
         channelName: channelName,
+        roomUrl: incomingCallData.roomUrl || dailyRoomUrl || undefined,
         callType: incomingCallData.callType
       });
     }
@@ -808,6 +817,7 @@ export default function PrivateChatScreen() {
         response: 'decline',
         responderName: user.username,
         channelName: agoraChannelName,
+        roomUrl: incomingCallData.roomUrl || dailyRoomUrl || undefined,
         callType: incomingCallData.callType
       });
     }
@@ -1770,6 +1780,7 @@ export default function PrivateChatScreen() {
         callCost={callCost}
         totalDeducted={totalDeducted}
         channelName={agoraChannelName || ''}
+        roomUrl={dailyRoomUrl || undefined}
         token={token || ''}
         onEndCall={() => {
           endCall();

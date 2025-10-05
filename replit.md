@@ -5,6 +5,18 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 # Recent Changes
 
 **October 5, 2025**
+- **Video Call Migration to Daily.co**: Migrated from VideoSDK to Daily.co for 1v1 video/audio calls due to React 19/React Native 0.79 compatibility issues
+  - **Root Cause**: VideoSDK has fundamental React 19/RN 0.79 incompatibility ("Super expression must either be null or a function" error) that cannot be fixed with workarounds
+  - **Solution**: Migrated to Daily.co which provides maintained Expo-compatible React Native bindings with equivalent feature coverage
+  - Installed Daily.co packages: @daily-co/react-native-daily-js, @daily-co/react-native-webrtc@124.0.6-daily.1, @daily-co/config-plugin-rn-daily-js
+  - Created DailyCallModal component to replace VideoSDKCallModal with same UI/UX (preserved all stats, controls, and animations)
+  - Updated socket-gateway.js to create Daily.co rooms via REST API instead of Agora/VideoSDK channels
+  - Removed all VideoSDK packages and config from app.json/eas.json
+  - Removed VideoSDK register() from App.tsx
+  - Changed Metro config from 'expo/metro-config' to '@expo/metro-config'
+  - Disabled Hermes engine, switched to JavaScriptCore (JSC) for compatibility
+  - **Benefits**: Free tier (10,000 minutes/month), better React Native 0.79 compatibility, actively maintained SDK
+  - **Note**: Development build must be rebuilt due to native dependency changes and JS engine switch
 - **VideoSDK APK Size Optimization**: Critical fixes to reduce APK from 389MB to expected ~60-100MB (60-75% reduction)
   - **Root Cause**: VideoSDK's WebRTC native libraries (.so files) included for ALL CPU architectures in universal APK build
   - **Solution**: Enabled architecture-specific APK splits via `enableSeparateBuildPerCPUArchitecture: true` in app.json
@@ -104,7 +116,7 @@ Preferred communication style: Simple, everyday language.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
-- **Video Call System**: Private video/audio calls with VideoSDK integration (migrated from Agora), real-time streaming, global incoming call notifications (works from any screen), call stats tracking, socket-based signaling with proper accept/decline response handling, and 10,000 free minutes per month.
+- **Video Call System**: Private video/audio calls with Daily.co integration (migrated from VideoSDK/Agora due to React 19 compatibility), real-time streaming, global incoming call notifications (works from any screen), call stats tracking, socket-based signaling with proper accept/decline response handling, and 10,000 free minutes per month.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
@@ -139,5 +151,5 @@ Preferred communication style: Simple, everyday language.
 - **Networking**: HTTP/HTTPS, WebSockets.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.
-- **Video Calls**: VideoSDK (@videosdk.live/react-native-sdk, @videosdk.live/react-native-webrtc, @videosdk.live/react-native-incallmanager, @videosdk.live/expo-config-plugin).
+- **Video Calls**: Daily.co (@daily-co/react-native-daily-js, @daily-co/react-native-webrtc@124.0.6-daily.1, @daily-co/config-plugin-rn-daily-js).
 - **Payment Gateway**: Xendit Payout API for withdrawal system.
