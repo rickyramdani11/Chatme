@@ -145,8 +145,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx expo start --clear --port 3001"
-waitForPort = 3001
+args = "npx expo start --tunnel --clear --port 8082"
 
 [workflows.workflow.metadata]
 outputType = "console"
@@ -182,6 +181,10 @@ externalPort = 8081
 [[ports]]
 localPort = 8082
 externalPort = 3000
+
+[[ports]]
+localPort = 8083
+externalPort = 5000
 
 [[ports]]
 localPort = 35151
