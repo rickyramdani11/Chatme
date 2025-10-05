@@ -83,11 +83,11 @@ args = "Gateway"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Mobile Tunnel"
+args = "API Server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "API Server"
+args = "Mobile Tunnel"
 
 [[workflows.workflow]]
 name = "Gateway"
@@ -128,17 +128,6 @@ task = "shell.exec"
 args = "npx expo start --tunnel --no-web"
 
 [[workflows.workflow]]
-name = "Mobile Tunnel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
 name = "API Server"
 author = "agent"
 
@@ -150,17 +139,25 @@ waitForPort = 5000
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Mobile Tunnel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --clear --port 3001"
+waitForPort = 3001
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[ports]]
 localPort = 3000
 externalPort = 3000
 
 [[ports]]
 localPort = 3001
-externalPort = 3002
-
-[[ports]]
-localPort = 4200
-externalPort = 5000
+externalPort = 3001
 
 [[ports]]
 localPort = 5000
@@ -169,6 +166,10 @@ externalPort = 80
 [[ports]]
 localPort = 8000
 externalPort = 8000
+
+[[ports]]
+localPort = 8001
+externalPort = 4200
 
 [[ports]]
 localPort = 8080
@@ -181,6 +182,10 @@ externalPort = 8081
 [[ports]]
 localPort = 8082
 externalPort = 3000
+
+[[ports]]
+localPort = 35151
+externalPort = 3002
 
 [[ports]]
 localPort = 36323
