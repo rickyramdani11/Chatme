@@ -4,12 +4,27 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 
 # Recent Changes
 
+**October 5, 2025**
+- **VideoSDK APK Size Optimization**: Critical fixes to reduce APK from 389MB to expected ~60-100MB (60-75% reduction)
+  - **Root Cause**: VideoSDK's WebRTC native libraries (.so files) included for ALL CPU architectures in universal APK build
+  - **Solution**: Enabled architecture-specific APK splits via `enableSeparateBuildPerCPUArchitecture: true`
+  - Added ProGuard rules for VideoSDK/WebRTC to prevent minification issues
+  - Configured EAS build profiles: `preview-arm64` and `preview-arm` for architecture-specific builds
+  - Cleaned build cache (Expo, Android, npm) to remove stale artifacts
+  - Production builds use AAB (Android App Bundle) for automatic per-device optimization by Google Play
+  - **Build Commands**:
+    - Universal APK (large): `eas build --profile preview --platform android`
+    - ARM64 APK (most devices, ~50% smaller): `eas build --profile preview-arm64 --platform android`
+    - ARM APK (older devices, ~50% smaller): `eas build --profile preview-arm --platform android`
+    - Production AAB (Google Play): `eas build --profile production --platform android`
+
 **October 4, 2025**
 - **Video Call Migration to VideoSDK**: Migrated from Agora SDK to VideoSDK for 1v1 video/audio calls
   - Replaced Agora RTC SDK (react-native-agora) with VideoSDK React Native SDK
   - Created VideoSDKCallModal component to handle video/audio calling with same interface as AgoraCallModal
   - Added VideoSDK Expo config plugin and metro.config.js for event-target-shim compatibility
-  - Benefits: Smaller APK footprint (~30-40MB vs Agora's bulk), free tier (10,000 minutes/month), easier integration
+  - Fixed all critical bugs: useRef guards for call teardown, Metro config resolution, error UI handling
+  - Benefits: Lighter native footprint, free tier (10,000 minutes/month), easier integration
   - Removed Agora-specific packaging exclusions from app.json
   - Uninstalled react-native-agora package to reduce dependencies
 - **LowCard Game Persistence**: Implemented database persistence system to prevent coin loss on server crashes
@@ -45,13 +60,13 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
   - Constructs fallback roomId from user IDs: `private_{userId}_{targetUserId}`
   - No error alert shown - seamless navigation experience
   - Private chat will be created automatically when user sends first message
-- **APK Size Optimization**: Comprehensive optimizations to reduce APK from 384MB to ~60-80MB (60-70% reduction)
+- **APK Size Optimization (Agora Era)**: Initial optimizations when using Agora SDK
   - Installed `expo-build-properties` package for build optimization
   - Enabled ProGuard (R8) minification to remove unused Java/Kotlin code
   - Enabled resource shrinking to remove unused images/layouts/strings
   - Removed unused Agora extensions: AI denoise, spatial audio, super resolution, video quality analyzer, content inspect, video segmentation, full audio format
   - Configured production builds to use Android App Bundle (AAB) format for 15-20% smaller user downloads
-  - Preview builds still use APK for easier testing
+  - Note: After VideoSDK migration, additional architecture-specific optimizations applied (see October 5 entry)
 
 # User Preferences
 
