@@ -7,16 +7,17 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 **October 5, 2025**
 - **VideoSDK APK Size Optimization**: Critical fixes to reduce APK from 389MB to expected ~60-100MB (60-75% reduction)
   - **Root Cause**: VideoSDK's WebRTC native libraries (.so files) included for ALL CPU architectures in universal APK build
-  - **Solution**: Enabled architecture-specific APK splits via `enableSeparateBuildPerCPUArchitecture: true`
+  - **Solution**: Enabled architecture-specific APK splits via `enableSeparateBuildPerCPUArchitecture: true` in app.json
   - Added ProGuard rules for VideoSDK/WebRTC to prevent minification issues
-  - Configured EAS build profiles: `preview-arm64` and `preview-arm` for architecture-specific builds
   - Cleaned build cache (Expo, Android, npm) to remove stale artifacts
   - Production builds use AAB (Android App Bundle) for automatic per-device optimization by Google Play
-  - **Build Commands**:
-    - Universal APK (large): `eas build --profile preview --platform android`
-    - ARM64 APK (most devices, ~50% smaller): `eas build --profile preview-arm64 --platform android`
-    - ARM APK (older devices, ~50% smaller): `eas build --profile preview-arm --platform android`
-    - Production AAB (Google Play): `eas build --profile production --platform android`
+  - **Build Process**: Single build command `eas build --profile preview --platform android` now generates MULTIPLE architecture-specific APKs automatically:
+    - app-armeabi-v7a-release.apk (~60-100MB for older ARM devices)
+    - app-arm64-v8a-release.apk (~60-100MB for modern ARM64 devices, most common)
+    - app-x86-release.apk (for x86 emulators)
+    - app-x86_64-release.apk (for x86_64 emulators)
+  - **Download Instructions**: After build completes, download the appropriate APK for your device (most users need arm64-v8a)
+  - **Production**: `eas build --profile production --platform android` creates AAB for Google Play auto-optimization
 
 **October 4, 2025**
 - **Video Call Migration to VideoSDK**: Migrated from Agora SDK to VideoSDK for 1v1 video/audio calls

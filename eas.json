@@ -10,22 +10,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
-      }
-    },
-    "preview-arm64": {
-      "extends": "preview",
-      "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleArm64Release"
-      }
-    },
-    "preview-arm": {
-      "extends": "preview",
-      "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleArmRelease"
+        "buildType": "apk"
       }
     },
     "production": {
