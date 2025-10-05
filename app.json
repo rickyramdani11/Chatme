@@ -11,6 +11,7 @@
       "android"
     ],
     "userInterfaceStyle": "light",
+    "jsEngine": "jsc",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
@@ -72,7 +73,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "90920054-e995-4028-9100-f0e2bff16042"
+        "projectId": "c8ed652b-a93b-4b7e-b07e-2c99e6e1e217"
       }
     }
   }
