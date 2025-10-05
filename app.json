@@ -58,7 +58,10 @@
         {
           "android": {
             "minifyEnabled": true,
-            "shrinkResources": true
+            "shrinkResources": true,
+            "enableProguardInReleaseBuilds": true,
+            "enableSeparateBuildPerCPUArchitecture": true,
+            "extraProguardRules": "-keep class live.videosdk.** { *; }\n-keep interface live.videosdk.** { *; }\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
           }
         }
       ]
