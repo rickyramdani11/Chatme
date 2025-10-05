@@ -53,7 +53,7 @@
     },
     "plugins": [
       "expo-router",
-      "@videosdk.live/expo-config-plugin",
+      "@daily-co/config-plugin-rn-daily-js",
       [
         "expo-build-properties",
         {
@@ -62,7 +62,7 @@
             "shrinkResources": true,
             "enableProguardInReleaseBuilds": true,
             "enableSeparateBuildPerCPUArchitecture": true,
-            "extraProguardRules": "-keep class live.videosdk.** { *; }\n-keep interface live.videosdk.** { *; }\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
+            "extraProguardRules": "-keep class co.daily.** { *; }\n-keep interface co.daily.** { *; }\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
           }
         }
       ]
