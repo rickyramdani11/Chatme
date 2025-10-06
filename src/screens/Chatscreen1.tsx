@@ -232,7 +232,7 @@ export default function ChatScreen() {
   // Call handling functions
   const checkUserBalance = async (requiredAmount: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/balance`, {
+      const response = await fetch(`${API_BASE_URL}/credits/balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -241,8 +241,10 @@ export default function ChatScreen() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('Balance check:', { balance: data.balance, required: requiredAmount, hasEnough: data.balance >= requiredAmount });
         return data.balance >= requiredAmount;
       }
+      console.error('Balance check failed - response not ok:', response.status);
       return false;
     } catch (error) {
       console.error('Error checking balance:', error);
@@ -1168,7 +1170,8 @@ export default function ChatScreen() {
 
       // Listen for incoming calls
       socketInstance.on('incoming-call', (callData) => {
-        console.log('Received incoming call:', callData);
+        console.log('📞 Received incoming call:', callData);
+        console.log('📞 Caller details - ID:', callData.callerId, 'Name:', callData.callerName, 'Type:', callData.callType);
         setIncomingCallData(callData);
         setShowIncomingCallModal(true);
       });
