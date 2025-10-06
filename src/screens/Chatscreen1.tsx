@@ -1160,9 +1160,12 @@ export default function ChatScreen() {
         ]).start();
 
         // Auto-close timing based on gift type
-        const isVideoGift = data.gift.animation && (
-          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        const animationStr = data.gift.animation?.uri || data.gift.videoUrl || (typeof data.gift.animation === 'string' ? data.gift.animation : '');
+        const isVideoGift = data.gift.mediaType === 'video' || (
+          animationStr && 
+          (animationStr.toLowerCase().includes('.mp4') || 
+           animationStr.toLowerCase().includes('.webm') || 
+           animationStr.toLowerCase().includes('.mov'))
         );
 
         // For non-video gifts, use fixed timeout
@@ -5412,8 +5415,8 @@ export default function ChatScreen() {
               return null;
             })()}
 
-            {/* Fallback emoji/icon layer (small) */}
-            {!activeGiftAnimation.animation && !activeGiftAnimation.image && (
+            {/* Fallback emoji/icon layer (small) - show if no animation/image or as additional layer */}
+            {!activeGiftAnimation.animation && !activeGiftAnimation.image && activeGiftAnimation.icon && (
               <View style={styles.smallGiftContainer}>
                 <Text style={styles.smallGiftEmoji}>{activeGiftAnimation.icon}</Text>
               </View>
