@@ -692,7 +692,7 @@ export default function AdminScreen({ navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images, // Only images (PNG/JPG)
         allowsEditing: false,
-        quality: 0.8,
+        quality: 1.0, // Use max quality to preserve PNG transparency
         base64: true,
         allowsMultipleSelection: false,
       });

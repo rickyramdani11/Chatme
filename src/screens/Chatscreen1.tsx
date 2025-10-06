@@ -6678,11 +6678,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
     zIndex: 2,
+    backgroundColor: 'transparent',
   },
   giftImage: {
     width: 60,
     height: 60,
-    borderRadius: 8,
+    backgroundColor: 'transparent',
   },
   newGiftIcon: {
     fontSize: 48,
@@ -7262,11 +7263,12 @@ const styles = StyleSheet.create({
   giftImagePreviewContainer: {
     marginTop: 8,
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   giftImagePreview: {
     width: 64,
     height: 64,
-    borderRadius: 8,
+    backgroundColor: 'transparent',
   },
   giftMessageHeader: {
     flexDirection: 'row',
