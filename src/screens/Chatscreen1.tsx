@@ -3458,7 +3458,9 @@ export default function ChatScreen() {
 
   const handleCopyMessage = () => {
     if (selectedMessage) {
-      const messageText = `${selectedMessage.sender}: ${selectedMessage.content}`;
+      // Strip card tags from content before copying
+      const cleanContent = selectedMessage.content.replace(/<card:[^>]+>/g, '');
+      const messageText = `${selectedMessage.sender}: ${cleanContent}`;
 
       // Copy to clipboard
       Clipboard.setStringAsync(messageText);
@@ -3500,12 +3502,13 @@ export default function ChatScreen() {
         
         if (cardSource) {
           return (
-            <Image
-              key={index}
-              source={cardSource}
-              style={styles.cardInlineImage}
-              resizeMode="contain"
-            />
+            <View key={index} style={styles.cardImageWrapper}>
+              <Image
+                source={cardSource}
+                style={styles.cardInlineImage}
+                resizeMode="contain"
+              />
+            </View>
           );
         }
         return null;
@@ -5995,11 +5998,16 @@ const styles = StyleSheet.create({
     height: 16,
     resizeMode: 'contain',
   },
+  cardImageWrapper: {
+    backgroundColor: 'transparent',
+    lineHeight: 0,
+    marginHorizontal: 1,
+    display: 'inline-flex',
+  },
   cardInlineImage: {
     width: 20,
     height: 28,
     resizeMode: 'contain',
-    marginHorizontal: 1,
     backgroundColor: 'transparent',
   },
   giftImageInChat: {
