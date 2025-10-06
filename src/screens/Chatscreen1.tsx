@@ -478,11 +478,17 @@ export default function ChatScreen() {
         // Room already exists - update ALL room info messages with latest data
         if (type !== 'private' && !isSupport) {
           try {
-            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms`, {
+            const timestamp = Date.now();
+            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms?_t=${timestamp}`, {
+              method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
               },
+              cache: 'no-store',
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
@@ -590,12 +596,15 @@ export default function ChatScreen() {
             // Add timestamp to force fresh request and bypass cache
             const timestamp = Date.now();
             const roomResponse = await fetch(`${API_BASE_URL}/api/rooms?_t=${timestamp}`, {
+              method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
-                'Cache-Control': 'no-cache',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
+                'Expires': '0',
               },
+              cache: 'no-store',
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
