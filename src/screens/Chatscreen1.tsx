@@ -3482,7 +3482,7 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessageContent = (content: string) => {
+  const renderMessageContent = (content: string, textStyle?: any) => {
     // Split content by @ mentions, card tags, img tags, and localimg tags
     const parts = content.split(/(@\w+|<card:[^>]+>|<img:[^>]+>|<localimg:[^>]+>)/g);
 
@@ -3490,7 +3490,7 @@ export default function ChatScreen() {
       if (part.startsWith('@')) {
         // Style @ mentions
         return (
-          <Text key={index} style={styles.mentionText}>
+          <Text key={index} style={[textStyle, styles.mentionText]}>
             {part}
           </Text>
         );
@@ -3540,7 +3540,8 @@ export default function ChatScreen() {
           );
         }
       }
-      return part;
+      // Wrap plain strings in Text with provided style
+      return <Text key={index} style={textStyle}>{part}</Text>;
     });
   };
 
@@ -3566,26 +3567,35 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.messageRow}>
-            <Text style={styles.messageContent}>
-              {/* Username */}
+            <View style={{flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center'}}>
               <Text style={[
                 styles.senderName,
+                styles.messageContent,
                 { 
                   color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                 }
               ]}>
                 {item.sender}
               </Text>
-              
-              {/* Colon and content */}
-              <Text style={{ 
-                color: isBotCommand ? '#0f23bd' : '#8B4513', 
-                fontWeight: 'bold',
-                fontStyle: isBotCommand ? 'italic' : 'normal'
-              }}>
-                : {renderMessageContent(item.content)}
+              <Text style={[
+                styles.messageContent,
+                { 
+                  color: isBotCommand ? '#0f23bd' : '#8B4513', 
+                  fontWeight: 'bold',
+                  fontStyle: isBotCommand ? 'italic' : 'normal'
+                }
+              ]}>
+                {': '}
               </Text>
-            </Text>
+              {renderMessageContent(item.content, [
+                styles.messageContent,
+                { 
+                  color: isBotCommand ? '#0f23bd' : '#8B4513', 
+                  fontWeight: 'bold',
+                  fontStyle: isBotCommand ? 'italic' : 'normal'
+                }
+              ])}
+            </View>
           </View>
         </TouchableOpacity>
       );
@@ -6000,15 +6010,11 @@ const styles = StyleSheet.create({
   },
   cardImageWrapper: {
     backgroundColor: 'transparent',
-    lineHeight: 0,
-    marginHorizontal: 1,
-    display: 'inline-flex',
   },
   cardInlineImage: {
     width: 20,
     height: 28,
     resizeMode: 'contain',
-    backgroundColor: 'transparent',
   },
   giftImageInChat: {
     width: 64,

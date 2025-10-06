@@ -52,6 +52,7 @@ Preferred communication style: Simple, everyday language.
 - **Emoji/Gift Display**: Standardized emoji sizing in input fields and chat messages (16x16 for inline emojis, 64x64 for standalone gift images).
 - **Android Back Button**: Hardware back button handling implemented at top-level with navigationRef.canGoBack() to properly navigate stack history or exit app at root, preventing blank screen issues.
 - **PNG Transparency**: Transparent PNG uploads preserved with quality: 1.0 in ImagePicker and explicit backgroundColor: 'transparent' on all gift image containers and Image components to prevent alpha channel loss.
+- **LowCardBot Card Icons**: Card images rendered from local bundled assets (assets/card/) with CARD_IMAGES mapping using require(), 20x28 pixel size. Command messages use View container with flexDirection: 'row' to render text (wrapped in Text) and card images (wrapped in transparent View) as siblings, avoiding React Native's Image-in-Text restriction. Copy message functionality strips `<card:...>` tags for clean copied text.
 
 # External Dependencies
 
