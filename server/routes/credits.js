@@ -395,4 +395,66 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
   }
 });
 
+router.post('/call-deduct', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const callAmount = 2500;
+
+    await pool.query('BEGIN');
+
+    try {
+      const balanceResult = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+        [userId]
+      );
+      
+      if (balanceResult.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'User credit account not found' });
+      }
+
+      const currentBalance = balanceResult.rows[0].balance;
+
+      if (currentBalance < callAmount) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'Insufficient balance', 
+          required: callAmount,
+          current: currentBalance 
+        });
+      }
+
+      const newBalance = currentBalance - callAmount;
+      await pool.query(
+        'UPDATE user_credits SET balance = $1, updated_at = NOW() WHERE user_id = $2',
+        [newBalance, userId]
+      );
+
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+        VALUES ($1, NULL, $2, 'video_call', 'Video call fee')
+      `, [userId, callAmount]);
+
+      await pool.query('COMMIT');
+
+      console.log(`📹 User ${userId} charged ${callAmount} coins for video call. New balance: ${newBalance}`);
+
+      res.json({ 
+        success: true, 
+        deducted: callAmount, 
+        newBalance: newBalance,
+        message: `${callAmount} coins deducted for video call` 
+      });
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error deducting call payment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

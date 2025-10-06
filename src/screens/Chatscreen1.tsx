@@ -279,44 +279,11 @@ export default function ChatScreen() {
     setIsInCall(true);
     setCallType(type);
     setCallTimer(0);
-    setCallCost(0);
-    setTotalDeducted(0);
+    setCallCost(2500);
+    setTotalDeducted(2500);
 
     callIntervalRef.current = setInterval(() => {
-      setCallTimer(prev => {
-        const newTime = prev + 1;
-        const elapsedMinutes = Math.ceil(newTime / 60);
-
-        // Calculate display cost based on elapsed minutes
-        let displayCost = 0;
-        if (elapsedMinutes >= 1) {
-          displayCost = 2500; // First minute
-          if (elapsedMinutes > 1) {
-            displayCost += (elapsedMinutes - 1) * 2000; // Additional minutes
-          }
-        }
-        setCallCost(displayCost);
-
-        // Deduct coins every 20 seconds with proper rate distribution
-        if (newTime % 20 === 0 && newTime > 0) {
-          const currentMinute = Math.ceil(newTime / 60);
-          const intervalInMinute = Math.floor(((newTime - 1) % 60) / 20) + 1; // Which 20s interval in current minute (1, 2, or 3)
-
-          let intervalCost;
-          if (currentMinute === 1) {
-            // First minute: distribute 2500 as [834, 833, 833]
-            intervalCost = intervalInMinute === 1 ? 834 : 833;
-          } else {
-            // After first minute: distribute 2000 as [667, 667, 666]
-            intervalCost = intervalInMinute === 3 ? 666 : 667;
-          }
-
-          setTotalDeducted(prev => prev + intervalCost);
-          deductCoins(intervalCost, type, `${(newTime/60).toFixed(2)} minutes`);
-        }
-
-        return newTime;
-      });
+      setCallTimer(prev => prev + 1);
     }, 1000);
   };
 
@@ -324,16 +291,6 @@ export default function ChatScreen() {
     if (callIntervalRef.current) {
       clearInterval(callIntervalRef.current);
       callIntervalRef.current = null;
-    }
-
-    // Show earnings for call recipient based on actual total deducted (no partial interval charge)
-    const finalEarnings = Math.floor(totalDeducted * 0.7);
-    if (finalEarnings > 0) {
-      Alert.alert(
-        'Call Ended', 
-        `Total earnings: ${finalEarnings} coins (70% of ${totalDeducted} coins spent)`,
-        [{ text: 'OK' }]
-      );
     }
 
     setIsInCall(false);
@@ -431,7 +388,6 @@ export default function ChatScreen() {
   const handleAcceptCall = async () => {
     if (!incomingCallData) return;
 
-    // Check balance before accepting call
     const hasBalance = await checkUserBalance(2500);
     if (!hasBalance) {
       Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to accept this call');
@@ -439,7 +395,32 @@ export default function ChatScreen() {
       return;
     }
 
-    // Send accept response
+    try {
+      const response = await fetch(`${API_BASE_URL}/credits/call-deduct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Payment Failed', data.error || 'Failed to deduct call payment');
+        handleDeclineCall();
+        return;
+      }
+
+      console.log(`💰 Call payment deducted: ${data.deducted} coins. New balance: ${data.newBalance}`);
+      
+    } catch (error) {
+      console.error('Error deducting call payment:', error);
+      Alert.alert('Error', 'Failed to process payment. Please try again.');
+      handleDeclineCall();
+      return;
+    }
+
     if (socket && user) {
       socket.emit('call-response', {
         callerId: incomingCallData.callerId,

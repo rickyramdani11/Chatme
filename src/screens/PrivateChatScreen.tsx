@@ -696,42 +696,11 @@ export default function PrivateChatScreen() {
     setIsInCall(true);
     setCallType(type);
     setCallTimer(0);
-    setCallCost(0);
-    setTotalDeducted(0);
+    setCallCost(2500);
+    setTotalDeducted(2500);
 
     callIntervalRef.current = setInterval(() => {
-      setCallTimer(prev => {
-        const newTime = prev + 1;
-        const elapsedMinutes = Math.ceil(newTime / 60);
-
-        // Calculate display cost based on elapsed minutes
-        let displayCost = 0;
-        if (elapsedMinutes >= 1) {
-          displayCost = 2500; // First minute
-          if (elapsedMinutes > 1) {
-            displayCost += (elapsedMinutes - 1) * 2000; // Additional minutes
-          }
-        }
-        setCallCost(displayCost);
-
-        // Deduct coins every 20 seconds with proper rate distribution
-        if (newTime % 20 === 0 && newTime > 0) {
-          const currentMinute = Math.ceil(newTime / 60);
-          const intervalInMinute = Math.floor(((newTime - 1) % 60) / 20) + 1;
-
-          let intervalCost;
-          if (currentMinute === 1) {
-            intervalCost = intervalInMinute === 1 ? 834 : 833;
-          } else {
-            intervalCost = intervalInMinute === 3 ? 666 : 667;
-          }
-
-          setTotalDeducted(prev => prev + intervalCost);
-          deductCoins(intervalCost, type, `${(newTime/60).toFixed(2)} minutes`);
-        }
-
-        return newTime;
-      });
+      setCallTimer(prev => prev + 1);
     }, 1000);
   };
 
@@ -739,15 +708,6 @@ export default function PrivateChatScreen() {
     if (callIntervalRef.current) {
       clearInterval(callIntervalRef.current);
       callIntervalRef.current = null;
-    }
-
-    const finalEarnings = Math.floor(totalDeducted * 0.7);
-    if (finalEarnings > 0) {
-      Alert.alert(
-        'Call Ended',
-        `Total earnings: ${finalEarnings} coins (70% of ${totalDeducted} coins spent)`,
-        [{ text: 'OK' }]
-      );
     }
 
     setIsInCall(false);
@@ -774,6 +734,32 @@ export default function PrivateChatScreen() {
       return;
     }
 
+    try {
+      const response = await fetch(`${API_BASE_URL}/credits/call-deduct`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Payment Failed', data.error || 'Failed to deduct call payment');
+        handleDeclineCall();
+        return;
+      }
+
+      console.log(`💰 Call payment deducted: ${data.deducted} coins. New balance: ${data.newBalance}`);
+      
+    } catch (error) {
+      console.error('Error deducting call payment:', error);
+      Alert.alert('Error', 'Failed to process payment. Please try again.');
+      handleDeclineCall();
+      return;
+    }
+
     // Use channelName and roomUrl directly from incoming call data
     const channelName = incomingCallData.channelName || agoraChannelName;
     const roomUrl = incomingCallData.roomUrl || dailyRoomUrl;
@@ -787,7 +773,6 @@ export default function PrivateChatScreen() {
       return;
     }
 
-    // Set channel name and room URL immediately
     setAgoraChannelName(channelName);
     if (roomUrl) {
       setDailyRoomUrl(roomUrl);
@@ -804,12 +789,11 @@ export default function PrivateChatScreen() {
       });
     }
 
-    // Close incoming call modal and show call modal immediately
     setShowIncomingCallModal(false);
     setShowCallModal(true);
     startCallTimer(incomingCallData.callType);
     
-    console.log('✅ Call modal opened with channel:', channelName, 'roomUrl:', roomUrl);
+    console.log('✅ Call accepted and paid. Call modal opened with channel:', channelName, 'roomUrl:', roomUrl);
   };
 
   const handleDeclineCall = () => {
