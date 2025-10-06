@@ -330,17 +330,119 @@ export default function AdminScreen({ navigation }: any) {
 
   const handleFileUpload = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['image/*', 'video/*', 'application/json'],
-        copyToCacheDirectory: true,
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload animated gift files.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: false,
+        quality: 0.8,
+        base64: true, // For GIF
+        allowsMultipleSelection: false,
+        videoMaxDuration: 30,
       });
 
-      if (!result.canceled && result.assets[0]) {
-        setSelectedFile(result.assets[0]);
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+
+        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+        const allowedExtensions = ['gif', 'mp4', 'webm', 'mov'];
+
+        if (!allowedExtensions.includes(fileExtension || '')) {
+          Alert.alert('Invalid file type', 'Please select GIF or video files (MP4, WebM, MOV) only for animated gifts.');
+          return;
+        }
+
+        const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
+
+        // For videos, read as base64 using FileSystem
+        if (isVideo && !asset.base64) {
+          try {
+            const FileSystem = require('expo-file-system');
+            
+            const base64Data = await FileSystem.readAsStringAsync(asset.uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+
+            const fileSizeInBytes = (base64Data.length * 3) / 4;
+            const maxVideoSize = 15 * 1024 * 1024;
+
+            if (fileSizeInBytes > maxVideoSize) {
+              Alert.alert('File too large', 'Please select a video smaller than 15MB.');
+              return;
+            }
+
+            setSelectedFile({
+              uri: asset.uri,
+              base64: base64Data,
+              type: `video/${fileExtension}`,
+              name: `gift_animated_${Date.now()}.${fileExtension}`,
+              extension: fileExtension || 'mp4',
+              isAnimated: true,
+              duration: asset.duration || null,
+              width: asset.width || 0,
+              height: asset.height || 0
+            });
+
+            console.log('Animated video file selected:', {
+              name: `gift_animated_${Date.now()}.${fileExtension}`,
+              type: `video/${fileExtension}`,
+              size: fileSizeInBytes,
+              duration: asset.duration
+            });
+
+            Alert.alert('Success', 'Animated video file selected successfully.');
+            return;
+          } catch (error) {
+            console.error('Error reading animated video file:', error);
+            Alert.alert('Error', 'Failed to read animated video file. Please try again.');
+            return;
+          }
+        }
+
+        // For GIFs with base64
+        if (!asset.base64) {
+          Alert.alert('Error', 'Failed to process the animated file. Please try again.');
+          return;
+        }
+
+        const fileSizeInBytes = (asset.base64.length * 3) / 4;
+        const maxSize = 5 * 1024 * 1024; // 5MB for GIFs
+
+        if (fileSizeInBytes > maxSize) {
+          Alert.alert('File too large', 'Please select a file smaller than 5MB.');
+          return;
+        }
+
+        let contentType = `image/${fileExtension}`;
+
+        setSelectedFile({
+          uri: asset.uri,
+          base64: asset.base64,
+          type: contentType,
+          name: `gift_animated_${Date.now()}.${fileExtension}`,
+          extension: fileExtension || 'gif',
+          isAnimated: true,
+          duration: asset.duration || null,
+          width: asset.width || 0,
+          height: asset.height || 0
+        });
+
+        console.log('Animated GIF file selected:', {
+          name: `gift_animated_${Date.now()}.${fileExtension}`,
+          size: fileSizeInBytes,
+          type: contentType,
+          isAnimated: true
+        });
+
+        Alert.alert('Success', 'Animated file selected successfully.');
       }
     } catch (error) {
-      console.error('Error picking file:', error);
-      Alert.alert('Error', 'Failed to pick file');
+      console.error('Error picking animated file:', error);
+      Alert.alert('Error', 'Failed to pick animated file: ' + error.message);
     }
   };
 
@@ -583,80 +685,44 @@ export default function AdminScreen({ navigation }: any) {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'We need camera roll permissions to upload gift files.');
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload gift image files.');
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All, // Allow both images and videos
-        allowsEditing: false, // Disable editing to prevent video processing errors
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Only images (PNG/JPG)
+        allowsEditing: false,
         quality: 0.8,
         base64: true,
         allowsMultipleSelection: false,
-        videoMaxDuration: 30, // Allow up to 30 seconds for video gifts
-        // Remove videoQuality to avoid undefined error
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
 
-        // Handle video files differently - they might not have base64
         const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
-        const allowedExtensions = ['png', 'gif', 'jpg', 'jpeg', 'mp4', 'webm', 'mov'];
+        const allowedExtensions = ['png', 'jpg', 'jpeg'];
 
         if (!allowedExtensions.includes(fileExtension || '')) {
-          Alert.alert('Invalid file type', 'Please select PNG, GIF, JPG, JPEG, MP4, WebM, or MOV files only.');
+          Alert.alert('Invalid file type', 'Please select PNG or JPG files only for static gift images. Use the animated upload button for GIF/MP4 files.');
           return;
         }
 
-        const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
-
-        // For videos, we might not have base64, so handle differently
-        if (isVideo && !asset.base64) {
-          // For video files without base64, we'll use the URI and handle server-side
-          setUploadedGiftImage({
-            uri: asset.uri,
-            base64: null,
-            type: `video/${fileExtension}`,
-            name: `gift_${Date.now()}.${fileExtension}`,
-            extension: fileExtension || 'mp4',
-            isAnimated: true,
-            duration: asset.duration || null,
-            width: asset.width || 0,
-            height: asset.height || 0
-          });
-
-          console.log('Video file selected (no base64):', {
-            name: `gift_${Date.now()}.${fileExtension}`,
-            type: `video/${fileExtension}`,
-            duration: asset.duration,
-            width: asset.width,
-            height: asset.height
-          });
-
-          Alert.alert('Video Selected', 'Video file selected successfully. Note: Video files will be processed on upload.');
-          return;
-        }
-
-        // For images and GIFs with base64
+        // For static images (PNG/JPG)
         if (!asset.base64) {
-          Alert.alert('Error', 'Failed to process the file. Please try again.');
+          Alert.alert('Error', 'Failed to process the image file. Please try again.');
           return;
         }
 
         const fileSizeInBytes = (asset.base64.length * 3) / 4;
-        const maxSize = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024; // 15MB for videos, 5MB for images/GIFs
+        const maxSize = 5 * 1024 * 1024; // 5MB for images
 
         if (fileSizeInBytes > maxSize) {
-          Alert.alert('File too large', `Please select a file smaller than ${isVideo ? '15MB' : '5MB'}.`);
+          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
           return;
         }
 
-        // Determine content type
-        let contentType = `image/${fileExtension}`;
-        if (isVideo) {
-          contentType = `video/${fileExtension}`;
-        }
+        const contentType = `image/${fileExtension}`;
 
         setUploadedGiftImage({
           uri: asset.uri,
@@ -664,19 +730,20 @@ export default function AdminScreen({ navigation }: any) {
           type: contentType,
           name: `gift_${Date.now()}.${fileExtension}`,
           extension: fileExtension || 'png',
-          isAnimated: fileExtension === 'gif' || isVideo,
-          duration: asset.duration || null,
+          isAnimated: false,
+          duration: null,
           width: asset.width || 0,
           height: asset.height || 0
         });
 
-        console.log('Gift file selected:', {
+        console.log('Static gift image selected:', {
           name: `gift_${Date.now()}.${fileExtension}`,
           size: fileSizeInBytes,
           type: contentType,
-          isAnimated: fileExtension === 'gif' || isVideo,
-          duration: asset.duration
+          isAnimated: false
         });
+
+        Alert.alert('Success', 'Static gift image selected successfully.');
       }
     } catch (error) {
       console.error('Error picking gift file:', error);
@@ -685,53 +752,51 @@ export default function AdminScreen({ navigation }: any) {
   };
 
   const handleAddGift = async () => {
-    if (!itemName.trim()) {
-      Alert.alert('Error', 'Nama gift harus diisi');
-      return;
-    }
     if (!itemPrice.trim()) {
       Alert.alert('Error', 'Harga gift harus diisi');
       return;
     }
 
-    if (!uploadedGiftImage) {
-      Alert.alert('Error', 'File gift harus dipilih');
+    // Check if either static image or animated file is uploaded
+    const hasStaticImage = uploadedGiftImage && uploadedGiftImage.base64;
+    const hasAnimatedFile = selectedFile && selectedFile.base64;
+
+    if (!hasStaticImage && !hasAnimatedFile) {
+      Alert.alert('Error', 'File gift harus dipilih (gambar PNG/JPG atau file animasi GIF/MP4)');
       return;
     }
 
     setLoading(true);
     try {
-      const isVideo = uploadedGiftImage.type?.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(uploadedGiftImage.extension || '');
+      // Use animated file if uploaded, otherwise use static image
+      const fileToUpload = hasAnimatedFile ? selectedFile : uploadedGiftImage;
+      const isVideo = fileToUpload.type?.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(fileToUpload.extension || '');
+      const isAnimated = hasAnimatedFile || fileToUpload.isAnimated;
 
       const requestBody: any = {
-        name: itemName.trim(),
+        name: itemName.trim() || 'Untitled Gift',
         icon: '🎁',
         price: parseInt(itemPrice),
-        type: isVideo || uploadedGiftImage.isAnimated ? 'animated' : 'static',
+        type: isAnimated ? 'animated' : 'static',
         category: 'popular'
       };
 
-      // Handle video files (might not have base64)
-      if (isVideo && !uploadedGiftImage.base64) {
-        Alert.alert('Info', 'Video files are being processed. This may take a moment...');
-        // In a real implementation, you'd handle file upload differently
-        throw new Error('Video file processing not yet implemented. Please use GIF files for animated gifts.');
+      if (!fileToUpload.base64) {
+        Alert.alert('Error', 'File belum siap. Silakan coba lagi.');
+        setLoading(false);
+        return;
       }
 
-      if (uploadedGiftImage && uploadedGiftImage.base64) {
-        requestBody.giftImage = uploadedGiftImage.base64;
-        requestBody.imageType = uploadedGiftImage.type;
-        requestBody.imageName = uploadedGiftImage.name;
+      requestBody.giftImage = fileToUpload.base64;
+      requestBody.imageType = fileToUpload.type;
+      requestBody.imageName = fileToUpload.name;
 
-        if (isVideo) {
-          requestBody.hasAnimation = true;
-          requestBody.isAnimated = true;
-          requestBody.duration = uploadedGiftImage.duration;
-        }
-      }
-
-      if (selectedFile) {
+      if (isAnimated) {
         requestBody.hasAnimation = true;
+        requestBody.isAnimated = true;
+        if (fileToUpload.duration) {
+          requestBody.duration = fileToUpload.duration;
+        }
       }
 
       console.log('Sending gift data:', {
@@ -739,7 +804,9 @@ export default function AdminScreen({ navigation }: any) {
         type: requestBody.type,
         hasBase64: !!requestBody.giftImage,
         fileType: requestBody.imageType,
-        isVideo: isVideo
+        isVideo: isVideo,
+        isAnimated: requestBody.isAnimated,
+        source: hasAnimatedFile ? 'animated-slot' : 'static-slot'
       });
 
       const response = await fetch(`${API_BASE_URL}/admin/gifts`, {
