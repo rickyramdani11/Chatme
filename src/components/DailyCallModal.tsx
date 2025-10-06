@@ -7,11 +7,17 @@ import {
   Modal,
   Image,
   ActivityIndicator,
+  LogBox,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Daily from '@daily-co/react-native-daily-js';
 import { DailyMediaView } from '@daily-co/react-native-daily-js';
+
+LogBox.ignoreLogs([
+  'new NativeEventEmitter',
+  'removeListeners',
+]);
 
 interface DailyCallModalProps {
   visible: boolean;
