@@ -1,3 +1,22 @@
+// Polyfill for findLastIndex (not available in older JS environments)
+if (!Array.prototype.findLastIndex) {
+  Object.defineProperty(Array.prototype, 'findLastIndex', {
+    value: function<T>(
+      predicate: (value: T, index: number, obj: T[]) => boolean,
+      thisArg?: any
+    ): number {
+      for (let i = this.length - 1; i >= 0; i--) {
+        if (predicate.call(thisArg, this[i], i, this)) {
+          return i;
+        }
+      }
+      return -1;
+    },
+    configurable: true,
+    writable: true,
+    enumerable: false
+  });
+}
 
 import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
