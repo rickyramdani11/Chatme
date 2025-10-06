@@ -5,6 +5,12 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 # Recent Changes
 
 **October 6, 2025**
+- **Room Owner Display Fix**: Fixed "unknown user" issue in room info messages
+  - Changed priority to use `managedBy` field first, then fallback to `createdBy` for accurate owner display
+  - Fixed 3 locations: initial room_info message creation, database history normalization, and tab metadata
+  - Room info now correctly shows: "This room is created by [actual owner username]"
+  - Ensures consistent owner display across all room types (chatroom, family)
+  - Fixed back button crash by replacing `navigation.goBack()` with direct `navigation.navigate('Room')` to avoid React Navigation Stack bug with React 19
 - **Follow Command Feature**: Added `/f username` chat command to follow users directly from chat
   - Command usage: `/f username` (e.g., `/f chatme`)
   - Private command - only visible to sender, not broadcasted to room
