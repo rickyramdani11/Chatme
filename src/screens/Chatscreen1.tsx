@@ -544,7 +544,9 @@ export default function ChatScreen() {
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
+              console.log(`🔍 Looking for room ${roomId} in ${rooms.length} rooms`);
               roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
+              console.log(`✅ Found roomData:`, roomData);
             }
           } catch (error) {
             console.log('Could not fetch room data');
