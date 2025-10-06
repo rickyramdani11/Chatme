@@ -579,7 +579,7 @@ export default function ChatScreen() {
           roomInfoMessages.push({
             id: `room_info_managed_${roomId}`,
             sender: roomName,
-            content: `This room is managed by ${roomData?.managed_by || roomData?.created_by || 'admin'}`,
+            content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
             timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
             role: 'system',
@@ -609,7 +609,7 @@ export default function ChatScreen() {
           title: roomName,
           type: isSupport ? 'support' : (type || 'room'),
           messages: allMessages,
-          managedBy: type === 'private' ? targetUser?.username : (roomData?.managed_by || roomData?.created_by || 'admin'),
+          managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.createdBy || 'admin'),
           description: roomDescription || (type === 'private' ? `Private chat with ${targetUser?.username}` : isSupport ? 'Support Chat' : `${roomName} room`),
           moderators: roomData?.moderators || [],
           isSupport: isSupport
