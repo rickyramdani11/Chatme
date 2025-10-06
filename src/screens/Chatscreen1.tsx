@@ -3844,14 +3844,7 @@ export default function ChatScreen() {
             </Text>
           </Text>
           
-          {/* Display card image if available */}
-          {item.image && (
-            <Image
-              source={{ uri: `${API_BASE_URL}${item.image}` }}
-              style={styles.cardMessageImage}
-              resizeMode="contain"
-            />
-          )}
+          {/* Card images are now rendered inline via renderMessageContent - no separate image display needed */}
         </View>
       </TouchableOpacity>
     );
