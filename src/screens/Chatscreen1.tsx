@@ -47,6 +47,7 @@ interface Message {
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
   image?: string;
   isSupport?: boolean;
+  giftData?: any;
 }
 
 interface ChatTab {
@@ -1116,7 +1117,8 @@ export default function ChatScreen() {
           roomId: chatTabs[activeTab]?.id || data.roomId,
           role: data.role || 'user',
           level: data.level || 1,
-          type: 'gift'
+          type: 'gift',
+          giftData: data.gift
         };
 
         setChatTabs(prevTabs =>
@@ -3650,6 +3652,8 @@ export default function ChatScreen() {
 
     // Handle gift messages
     if (item.type === 'gift') {
+      const gift = item.giftData;
+      
       return (
         <TouchableOpacity 
           style={styles.giftMessageContainer}
@@ -3677,6 +3681,25 @@ export default function ChatScreen() {
                 </Text>
               </Text>
             </View>
+            
+            {/* Gift Image Preview */}
+            {gift && (gift.image || gift.animation) && (
+              <View style={styles.giftImagePreviewContainer}>
+                {gift.image ? (
+                  <Image 
+                    source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
+                    style={styles.giftImagePreview} 
+                    resizeMode="contain"
+                  />
+                ) : gift.animation && (
+                  <Image 
+                    source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
+                    style={styles.giftImagePreview} 
+                    resizeMode="contain"
+                  />
+                )}
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       );
@@ -4000,7 +4023,7 @@ export default function ChatScreen() {
           };
 
           if (gift.image) {
-            if (gift.image.startsWith('https://')) {
+            if (gift.image.startsWith('http://') || gift.image.startsWith('https://')) {
               mappedGift.image = { uri: gift.image };
             } else {
               mappedGift.imageUrl = gift.image;
@@ -4008,7 +4031,7 @@ export default function ChatScreen() {
           }
 
           if (gift.animation) {
-            if (gift.animation.startsWith('https://')) {
+            if (gift.animation.startsWith('http://') || gift.animation.startsWith('https://')) {
               mappedGift.animation = { uri: gift.animation };
               mappedGift.videoSource = { uri: gift.animation };
             } else {
@@ -7235,6 +7258,15 @@ const styles = StyleSheet.create({
     padding: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#FF69B4',
+  },
+  giftImagePreviewContainer: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  giftImagePreview: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
   },
   giftMessageHeader: {
     flexDirection: 'row',

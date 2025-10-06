@@ -3023,19 +3023,45 @@ app.get('/api/gifts', async (req, res) => {
     // Get custom gifts from database
     const result = await pool.query('SELECT * FROM custom_gifts ORDER BY created_at DESC');
 
-    const gifts = result.rows.map(row => ({
-      id: row.id.toString(),
-      name: row.name,
-      icon: row.icon,
-      price: row.price,
-      type: row.type || 'static',
-      category: row.category || 'popular',
-      image: row.image ? `${API_BASE_URL}${row.image}` : null,
-      animation: row.animation,
-      mediaType: row.media_type || 'image',
-      thumbnailUrl: row.thumbnail_url ? `${API_BASE_URL}${row.thumbnail_url}` : null,
-      duration: row.duration
-    }));
+    const gifts = result.rows.map(row => {
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      
+      let imageUrl = null;
+      if (row.image) {
+        if (row.image.startsWith('http://') || row.image.startsWith('https://')) {
+          imageUrl = row.image;
+        } else if (row.image.startsWith('/')) {
+          imageUrl = `${baseUrl}${row.image}`;
+        } else {
+          imageUrl = `${baseUrl}/${row.image}`;
+        }
+      }
+      
+      let animationUrl = null;
+      if (row.animation) {
+        if (row.animation.startsWith('http://') || row.animation.startsWith('https://')) {
+          animationUrl = row.animation;
+        } else if (row.animation.startsWith('/')) {
+          animationUrl = `${baseUrl}${row.animation}`;
+        } else {
+          animationUrl = `${baseUrl}/${row.animation}`;
+        }
+      }
+      
+      return {
+        id: row.id.toString(),
+        name: row.name,
+        icon: row.icon,
+        price: row.price,
+        type: row.type || 'static',
+        category: row.category || 'popular',
+        image: imageUrl,
+        animation: animationUrl,
+        mediaType: row.media_type || 'image',
+        thumbnailUrl: row.thumbnail_url ? `${baseUrl}${row.thumbnail_url}` : null,
+        duration: row.duration
+      };
+    });
 
     // If no custom gifts in database, return default gifts
     if (gifts.length === 0) {
