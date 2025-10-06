@@ -34,6 +34,61 @@ import Daily, { DailyMediaView } from '@daily-co/react-native-daily-js';
 
 const { width } = Dimensions.get('window');
 
+const CARD_IMAGES: { [key: string]: any } = {
+  'lc_2c.png': require('../../assets/card/lc_2c.png'),
+  'lc_2d.png': require('../../assets/card/lc_2d.png'),
+  'lc_2h.png': require('../../assets/card/lc_2h.png'),
+  'lc_2s.png': require('../../assets/card/lc_2s.png'),
+  'lc_3c.png': require('../../assets/card/lc_3c.png'),
+  'lc_3d.png': require('../../assets/card/lc_3d.png'),
+  'lc_3h.png': require('../../assets/card/lc_3h.png'),
+  'lc_3s.png': require('../../assets/card/lc_3s.png'),
+  'lc_4c.png': require('../../assets/card/lc_4c.png'),
+  'lc_4d.png': require('../../assets/card/lc_4d.png'),
+  'lc_4h.png': require('../../assets/card/lc_4h.png'),
+  'lc_4s.png': require('../../assets/card/lc_4s.png'),
+  'lc_5c.png': require('../../assets/card/lc_5c.png'),
+  'lc_5d.png': require('../../assets/card/lc_5d.png'),
+  'lc_5h.png': require('../../assets/card/lc_5h.png'),
+  'lc_5s.png': require('../../assets/card/lc_5s.png'),
+  'lc_6c.png': require('../../assets/card/lc_6c.png'),
+  'lc_6d.png': require('../../assets/card/lc_6d.png'),
+  'lc_6h.png': require('../../assets/card/lc_6h.png'),
+  'lc_6s.png': require('../../assets/card/lc_6s.png'),
+  'lc_7c.png': require('../../assets/card/lc_7c.png'),
+  'lc_7d.png': require('../../assets/card/lc_7d.png'),
+  'lc_7h.png': require('../../assets/card/lc_7h.png'),
+  'lc_7s.png': require('../../assets/card/lc_7s.png'),
+  'lc_8c.png': require('../../assets/card/lc_8c.png'),
+  'lc_8d.png': require('../../assets/card/lc_8d.png'),
+  'lc_8h.png': require('../../assets/card/lc_8h.png'),
+  'lc_8s.png': require('../../assets/card/lc_8s.png'),
+  'lc_9c.png': require('../../assets/card/lc_9c.png'),
+  'lc_9d.png': require('../../assets/card/lc_9d.png'),
+  'lc_9h.png': require('../../assets/card/lc_9h.png'),
+  'lc_9s.png': require('../../assets/card/lc_9s.png'),
+  'lc_10c.png': require('../../assets/card/lc_10c.png'),
+  'lc_10d.png': require('../../assets/card/lc_10d.png'),
+  'lc_10h.png': require('../../assets/card/lc_10h.png'),
+  'lc_10s.png': require('../../assets/card/lc_10s.png'),
+  'lc_jc.png': require('../../assets/card/lc_jc.png'),
+  'lc_jd.png': require('../../assets/card/lc_jd.png'),
+  'lc_jh.png': require('../../assets/card/lc_jh.png'),
+  'lc_js.png': require('../../assets/card/lc_js.png'),
+  'lc_qc.png': require('../../assets/card/lc_qc.png'),
+  'lc_qd.png': require('../../assets/card/lc_qd.png'),
+  'lc_qh.png': require('../../assets/card/lc_qh.png'),
+  'lc_qs.png': require('../../assets/card/lc_qs.png'),
+  'lc_kc.png': require('../../assets/card/lc_kc.png'),
+  'lc_kd.png': require('../../assets/card/lc_kd.png'),
+  'lc_kh.png': require('../../assets/card/lc_kh.png'),
+  'lc_ks.png': require('../../assets/card/lc_ks.png'),
+  'lc_ac.png': require('../../assets/card/lc_ac.png'),
+  'lc_ad.png': require('../../assets/card/lc_ad.png'),
+  'lc_ah.png': require('../../assets/card/lc_ah.png'),
+  'lc_as.png': require('../../assets/card/lc_as.png'),
+};
+
 interface Message {
   id: string;
   sender: string;
@@ -3438,17 +3493,23 @@ export default function ChatScreen() {
           </Text>
         );
       } else if (part.startsWith('<card:') && part.endsWith('>')) {
-        // Extract card image URL from LowCardBot (remove <card: and >)
-        const cardUrl = part.substring(6, part.length - 1);
-        return (
-          <Text key={index}>
-            <Image
-              source={{ uri: `${API_BASE_URL}${cardUrl}` }}
-              style={styles.cardInlineImage}
-              resizeMode="contain"
-            />
-          </Text>
-        );
+        // Extract card image filename from LowCardBot (remove <card: and >)
+        const cardPath = part.substring(6, part.length - 1);
+        const cardFilename = cardPath.split('/').pop() || '';
+        const cardSource = CARD_IMAGES[cardFilename];
+        
+        if (cardSource) {
+          return (
+            <Text key={index}>
+              <Image
+                source={cardSource}
+                style={styles.cardInlineImage}
+                resizeMode="contain"
+              />
+            </Text>
+          );
+        }
+        return null;
       } else if (part.startsWith('<img:') && part.endsWith('>')) {
         // Extract server image URL
         const imageUrl = part.slice(5, -1);
@@ -3476,17 +3537,6 @@ export default function ChatScreen() {
             </Text>
           );
         }
-      } else if (part.startsWith('<card:') && part.endsWith('>')) {
-        // Handle card images - keep card size unchanged
-        const cardImageUrl = part.slice(6, -1);
-        return (
-          <Image
-            key={index}
-            source={{ uri: `${API_BASE_URL}${cardImageUrl}` }}
-            style={styles.cardImage}
-            resizeMode="contain"
-          />
-        );
       }
       return part;
     });
