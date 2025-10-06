@@ -1405,12 +1405,16 @@ io.on('connection', (socket) => {
 
       // Handle /f (follow) command
       if (trimmedContent.startsWith('/f ')) {
-        console.log(`👥 Processing /f (follow) command: ${trimmedContent}`);
-        const args = trimmedContent.split(' ');
+        console.log(`👥 Processing /f (follow) command from ${sender}: "${trimmedContent}"`);
+        const args = trimmedContent.split(/\s+/); // Use regex to split by any whitespace
         const targetUsername = args[1]?.trim();
+
+        console.log(`  - Parsed args:`, args);
+        console.log(`  - Target username:`, targetUsername);
 
         if (!targetUsername) {
           // Send error message privately to sender
+          console.log(`  ❌ No target username specified`);
           const userInfo = connectedUsers.get(socket.id);
           if (userInfo && userInfo.userId) {
             socket.emit('new-message', {
@@ -1535,11 +1539,13 @@ io.on('connection', (socket) => {
           console.log(`🔔 Follow notification sent to ${targetUser.username} (ID: ${targetUserId})`);
 
         } catch (error) {
-          console.error('Error processing /f command:', error);
+          console.error('❌ Error processing /f command:', error);
+          console.error('  - Error details:', error.message);
+          console.error('  - Stack trace:', error.stack);
           socket.emit('new-message', {
             id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             sender: 'System',
-            content: '❌ Failed to follow user. Please try again.',
+            content: `❌ Failed to follow user. Error: ${error.message || 'Unknown error'}`,
             timestamp: new Date().toISOString(),
             roomId: roomId,
             type: 'system',
@@ -1548,6 +1554,7 @@ io.on('connection', (socket) => {
           });
         }
 
+        console.log(`✅ /f command processing completed for ${sender}`);
         return; // Don't process as regular message
       }
 
