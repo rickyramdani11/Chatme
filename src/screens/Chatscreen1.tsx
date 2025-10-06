@@ -3426,8 +3426,8 @@ export default function ChatScreen() {
   };
 
   const renderMessageContent = (content: string) => {
-    // Split content by @ mentions and style them
-    const parts = content.split(/(@\w+)/g);
+    // Split content by @ mentions, card tags, img tags, and localimg tags
+    const parts = content.split(/(@\w+|<card:[^>]+>|<img:[^>]+>|<localimg:[^>]+>)/g);
 
     return parts.map((part, index) => {
       if (part.startsWith('@')) {
@@ -3435,6 +3435,18 @@ export default function ChatScreen() {
         return (
           <Text key={index} style={styles.mentionText}>
             {part}
+          </Text>
+        );
+      } else if (part.startsWith('<card:') && part.endsWith('>')) {
+        // Extract card image URL from LowCardBot (remove <card: and >)
+        const cardUrl = part.substring(6, part.length - 1);
+        return (
+          <Text key={index}>
+            <Image
+              source={{ uri: `${API_BASE_URL}${cardUrl}` }}
+              style={styles.cardInlineImage}
+              resizeMode="contain"
+            />
           </Text>
         );
       } else if (part.startsWith('<img:') && part.endsWith('>')) {
@@ -5933,6 +5945,12 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     resizeMode: 'contain',
+  },
+  cardInlineImage: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+    backgroundColor: 'transparent',
   },
   giftImageInChat: {
     width: 64,
