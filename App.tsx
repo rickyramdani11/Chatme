@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, View, Text } from 'react-native';
+import { Platform, View, Text, BackHandler } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
@@ -10,6 +10,7 @@ import SplashScreen from './src/screens/SplashScreen';
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [apiStatus, setApiStatus] = useState('Checking...');
+  const navigationRef = useRef<any>(null);
 
   // Web version - show API status only
   if (Platform.OS === 'web') {
@@ -63,12 +64,33 @@ export default function App() {
     );
   }
 
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const onBackPress = () => {
+        if (navigationRef.current?.canGoBack()) {
+          navigationRef.current.goBack();
+          return true;
+        } else {
+          BackHandler.exitApp();
+          return true;
+        }
+      };
+
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress
+      );
+
+      return () => subscription.remove();
+    }
+  }, []);
+
   if (showSplash) {
     return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <AuthProvider>
         <AppNavigator />
         <StatusBar style="auto" />
