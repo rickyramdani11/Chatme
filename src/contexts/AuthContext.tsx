@@ -20,6 +20,7 @@ interface User {
   role?: 'user' | 'merchant' | 'mentor' | 'admin';
   level?: number;
   status?: 'online' | 'offline' | 'away' | 'busy';
+  balance?: number;
 }
 
 interface AuthContextType {
@@ -74,11 +75,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const latestUserData = await response.json();
             console.log('Refreshed user data from server:', latestUserData);
 
+            // Fetch user balance
+            let userBalance = 0;
+            try {
+              const balanceResponse = await fetch(`${API_BASE_URL}/credits/balance`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${storedToken}`,
+                },
+              });
+              if (balanceResponse.ok) {
+                const balanceData = await balanceResponse.json();
+                userBalance = balanceData.balance || 0;
+              }
+            } catch (balanceError) {
+              console.log('Failed to fetch balance:', balanceError);
+            }
+
             // Always use server role as authoritative source
             const updatedUserData = {
               ...userData,
               ...latestUserData,
-              role: latestUserData.role // Always use server role
+              role: latestUserData.role, // Always use server role
+              balance: userBalance
             };
 
             setUser(updatedUserData);
@@ -209,11 +228,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       console.log('Setting token and user data');
+      
+      // Fetch user balance after successful login
+      let userBalance = 0;
+      try {
+        const balanceResponse = await fetch(`${API_BASE_URL}/credits/balance`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${data.token}`,
+          },
+        });
+        if (balanceResponse.ok) {
+          const balanceData = await balanceResponse.json();
+          userBalance = balanceData.balance || 0;
+        }
+      } catch (balanceError) {
+        console.log('Failed to fetch balance after login:', balanceError);
+      }
+
+      const userWithBalance = {
+        ...data.user,
+        balance: userBalance
+      };
+
       setToken(data.token);
-      setUser(data.user);
+      setUser(userWithBalance);
 
       await AsyncStorage.setItem('token', data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(data.user));
+      await AsyncStorage.setItem('user', JSON.stringify(userWithBalance));
 
       console.log('Login successful, token stored');
     } catch (error) {
@@ -370,11 +412,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const latestUserData = await response.json();
         console.log('Manual refresh - server user data:', latestUserData);
 
+        // Fetch user balance
+        let userBalance = 0;
+        try {
+          const balanceResponse = await fetch(`${API_BASE_URL}/credits/balance`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            userBalance = balanceData.balance || 0;
+          }
+        } catch (balanceError) {
+          console.log('Failed to fetch balance during refresh:', balanceError);
+        }
+
         // Merge with current user data, prioritizing server role
         const updatedUserData = {
           ...user,
           ...latestUserData,
-          role: latestUserData.role // Always use server role
+          role: latestUserData.role, // Always use server role
+          balance: userBalance
         };
 
         setUser(updatedUserData);

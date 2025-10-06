@@ -6962,10 +6962,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    height: '70%',
+    height: '50%',
     paddingBottom: 20,
   },
   giftPickerHeader: {
@@ -6975,18 +6975,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#E0E0E0',
   },
   giftPickerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#000',
   },
   giftCategoryTabs: {
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#E0E0E0',
   },
   tabRow: {
     flexDirection: 'row',
@@ -6996,7 +6996,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#E0E0E0',
   },
   sendToAllToggle: {
     flexDirection: 'row',
@@ -7004,7 +7004,7 @@ const styles = StyleSheet.create({
   },
   sendToAllText: {
     fontSize: 14,
-    color: '#fff',
+    color: '#333',
     marginLeft: 8,
     fontWeight: '500',
   },
@@ -7041,17 +7041,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   newGiftItemContainer: {
-    flex: 0.5,
+    flex: 0.33,
     marginHorizontal: 5,
     marginBottom: 15,
   },
   newGiftItem: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: '#E0E0E0',
     position: 'relative',
     minHeight: 140,
   },
@@ -7152,7 +7152,7 @@ const styles = StyleSheet.create({
   newGiftName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: '#333',
     marginBottom: 6,
     textAlign: 'center',
     minHeight: 28,
@@ -7392,7 +7392,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#E0E0E0',
   },
   coinBalanceRow: {
     flexDirection: 'row',
