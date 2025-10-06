@@ -475,7 +475,7 @@ export default function ChatScreen() {
       // Check if room already exists in tabs
       const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
-        // Room already exists - update cached room info message with latest data
+        // Room already exists - update ALL room info messages with latest data
         if (type !== 'private' && !isSupport) {
           try {
             const roomResponse = await fetch(`${API_BASE_URL}/api/rooms`, {
@@ -489,18 +489,27 @@ export default function ChatScreen() {
               const roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
               
               if (roomData) {
-                // Update the cached room info message
+                // Update ALL room_info messages AND tab metadata with latest owner info
                 const updatedTabs = [...chatTabs];
-                const managedMsgId = `room_info_managed_${roomId}`;
-                const msgIndex = updatedTabs[existingTabIndex].messages.findIndex((m: any) => m.id === managedMsgId);
+                const ownerName = roomData.managedBy || roomData.createdBy || 'admin';
                 
-                if (msgIndex !== -1) {
-                  updatedTabs[existingTabIndex].messages[msgIndex] = {
-                    ...updatedTabs[existingTabIndex].messages[msgIndex],
-                    content: `This room is managed by ${roomData.managedBy || roomData.createdBy || 'admin'}`
-                  };
-                  setChatTabs(updatedTabs);
+                updatedTabs[existingTabIndex].messages = updatedTabs[existingTabIndex].messages.map((msg: any) => {
+                  if (msg.type === 'room_info' && msg.content?.startsWith('This room is managed by')) {
+                    return {
+                      ...msg,
+                      content: `This room is managed by ${ownerName}`
+                    };
+                  }
+                  return msg;
+                });
+                
+                // Update tab metadata for permission checks
+                updatedTabs[existingTabIndex].managedBy = ownerName;
+                if (roomData.moderators) {
+                  updatedTabs[existingTabIndex].moderators = roomData.moderators;
                 }
+                
+                setChatTabs(updatedTabs);
               }
             }
           } catch (error) {
@@ -630,6 +639,20 @@ export default function ChatScreen() {
             role: 'system',
             level: 1,
             type: 'room_info'
+          });
+        }
+
+        // Normalize room_info messages from database history to use correct owner name
+        if (roomData && messages.length > 0) {
+          const ownerName = roomData.managedBy || roomData.createdBy || 'admin';
+          messages = messages.map((msg: any) => {
+            if (msg.type === 'room_info' && msg.content?.startsWith('This room is managed by')) {
+              return {
+                ...msg,
+                content: `This room is managed by ${ownerName}`
+              };
+            }
+            return msg;
           });
         }
 
