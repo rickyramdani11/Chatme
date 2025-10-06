@@ -596,7 +596,11 @@ export default function ChatScreen() {
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
+              console.log('🔍 DEBUG: All rooms from API:', rooms);
               roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
+              console.log('🔍 DEBUG: Found roomData:', roomData);
+              console.log('🔍 DEBUG: createdBy value:', roomData?.createdBy);
+              console.log('🔍 DEBUG: createdBy type:', typeof roomData?.createdBy);
             }
           } catch (error) {
             console.log('Could not fetch room data');
