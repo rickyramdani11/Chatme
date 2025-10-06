@@ -78,7 +78,7 @@ export default function WithdrawScreen({ navigation }: any) {
 
   const fetchExchangeRate = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/withdraw/exchange-rate`);
+      const response = await fetch(`${API_BASE_URL}/withdraw/exchange-rate`);
       if (response.ok) {
         const data = await response.json();
         setExchangeRate({
@@ -96,7 +96,7 @@ export default function WithdrawScreen({ navigation }: any) {
   const fetchUserBalance = async () => {
     try {
 
-      const response = await fetch(`${API_BASE_URL}/api/withdraw/user/gift-earnings-balance`, {
+      const response = await fetch(`${API_BASE_URL}/withdraw/user/gift-earnings-balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -124,7 +124,7 @@ export default function WithdrawScreen({ navigation }: any) {
   const fetchLinkedAccounts = async () => {
     try {
 
-      const response = await fetch(`${API_BASE_URL}/api/withdraw/user/linked-accounts`, {
+      const response = await fetch(`${API_BASE_URL}/withdraw/user/linked-accounts`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -197,7 +197,7 @@ export default function WithdrawScreen({ navigation }: any) {
     type: 'bank' | 'ewallet'
   ) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/withdraw/user/link-account`, {
+      const response = await fetch(`${API_BASE_URL}/withdraw/user/link-account`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -292,7 +292,7 @@ export default function WithdrawScreen({ navigation }: any) {
     setIsProcessing(true);
     try {
 
-      const response = await fetch(`${API_BASE_URL}/api/withdraw/user/withdraw`, {
+      const response = await fetch(`${API_BASE_URL}/withdraw/user/withdraw`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
