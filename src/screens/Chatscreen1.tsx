@@ -2604,7 +2604,11 @@ export default function ChatScreen() {
 
   const handleBackPress = () => {
     // Always navigate to Room screen instead of going back to Home
-    navigation.goBack();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Room' as never);
+    }
   };
 
   const handleEllipsisPress = () => {
