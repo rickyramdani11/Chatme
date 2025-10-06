@@ -288,6 +288,7 @@ export default function PrivateChatScreen() {
       // Listen for incoming calls
       socketInstance.on('incoming-call', (callData) => {
         console.log('📞 Received incoming call:', callData);
+        console.log('📞 Caller details - ID:', callData.callerId, 'Name:', callData.callerName, 'Type:', callData.callType);
         setIncomingCallData(callData);
         // Store Daily.co room info
         if (callData.channelName) {

@@ -2215,6 +2215,7 @@ io.on('connection', (socket) => {
       }
 
       console.log(`📞 ${callerName} initiating ${callType} call to ${targetUsername}`);
+      console.log('📞 Call data received:', { callerId, callerName, callType, targetUsername, channelName });
 
       // Create Daily.co room for the call
       let dailyRoomName = channelName || `call-${callerId}-${Date.now()}`;
@@ -2240,15 +2241,19 @@ io.on('connection', (socket) => {
       if (targetSocket) {
         const [targetSocketId] = targetSocket;
 
-        // Send incoming call notification to target user with Daily.co room URL
-        io.to(targetSocketId).emit('incoming-call', {
+        const incomingCallPayload = {
           callerId,
           callerName,
           callType,
           channelName: dailyRoom.name,
           roomUrl: dailyRoom.url,
           timestamp: new Date().toISOString()
-        });
+        };
+
+        console.log(`📞 Sending incoming-call to ${targetUsername}:`, incomingCallPayload);
+
+        // Send incoming call notification to target user with Daily.co room URL
+        io.to(targetSocketId).emit('incoming-call', incomingCallPayload);
 
         // Confirm call initiated to caller
         socket.emit('call-initiated', {
