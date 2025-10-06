@@ -1413,12 +1413,14 @@ io.on('connection', (socket) => {
           // Send error message privately to sender
           const userInfo = connectedUsers.get(socket.id);
           if (userInfo && userInfo.userId) {
-            io.to(`user_${userInfo.userId}`).emit('new-message', {
+            socket.emit('new-message', {
               id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               sender: 'System',
               content: '❌ Please specify a username. Usage: /f username',
               timestamp: new Date().toISOString(),
+              roomId: roomId,
               type: 'system',
+              role: 'system',
               isPrivate: true
             });
           }
@@ -1443,12 +1445,14 @@ io.on('connection', (socket) => {
 
           if (targetUserResult.rows.length === 0) {
             // User not found
-            io.to(`user_${followerId}`).emit('new-message', {
+            socket.emit('new-message', {
               id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               sender: 'System',
               content: `❌ User "${targetUsername}" not found.`,
               timestamp: new Date().toISOString(),
+              roomId: roomId,
               type: 'system',
+              role: 'system',
               isPrivate: true
             });
             return;
@@ -1459,12 +1463,14 @@ io.on('connection', (socket) => {
 
           // Check if user is trying to follow themselves
           if (followerId === targetUserId) {
-            io.to(`user_${followerId}`).emit('new-message', {
+            socket.emit('new-message', {
               id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               sender: 'System',
               content: '❌ You cannot follow yourself.',
               timestamp: new Date().toISOString(),
+              roomId: roomId,
               type: 'system',
+              role: 'system',
               isPrivate: true
             });
             return;
@@ -1478,12 +1484,14 @@ io.on('connection', (socket) => {
 
           if (existingFollow.rows.length > 0) {
             // Already following
-            io.to(`user_${followerId}`).emit('new-message', {
+            socket.emit('new-message', {
               id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               sender: 'System',
               content: `ℹ️ You are already following ${targetUser.username}.`,
               timestamp: new Date().toISOString(),
+              roomId: roomId,
               type: 'system',
+              role: 'system',
               isPrivate: true
             });
             return;
@@ -1498,12 +1506,14 @@ io.on('connection', (socket) => {
           console.log(`✅ ${sender} (ID: ${followerId}) followed ${targetUser.username} (ID: ${targetUserId})`);
 
           // Send success message to sender
-          io.to(`user_${followerId}`).emit('new-message', {
+          socket.emit('new-message', {
             id: `success_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             sender: 'System',
             content: `✅ You are now following ${targetUser.username}.`,
             timestamp: new Date().toISOString(),
+            roomId: roomId,
             type: 'system',
+            role: 'system',
             isPrivate: true
           });
 
@@ -1526,17 +1536,16 @@ io.on('connection', (socket) => {
 
         } catch (error) {
           console.error('Error processing /f command:', error);
-          const userInfo = connectedUsers.get(socket.id);
-          if (userInfo && userInfo.userId) {
-            io.to(`user_${userInfo.userId}`).emit('new-message', {
-              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              sender: 'System',
-              content: '❌ Failed to follow user. Please try again.',
-              timestamp: new Date().toISOString(),
-              type: 'system',
-              isPrivate: true
-            });
-          }
+          socket.emit('new-message', {
+            id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'System',
+            content: '❌ Failed to follow user. Please try again.',
+            timestamp: new Date().toISOString(),
+            roomId: roomId,
+            type: 'system',
+            role: 'system',
+            isPrivate: true
+          });
         }
 
         return; // Don't process as regular message
