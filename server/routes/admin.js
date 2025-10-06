@@ -5,6 +5,13 @@ const { authenticateToken } = require('./auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 const router = express.Router();
 const pool = new Pool({
@@ -397,12 +404,6 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
 
     if (giftImage && imageType && imageName) {
       try {
-        const uploadsDir = path.resolve(__dirname, '../../assets/gift/image');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-
-        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
         const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
         
         const allowedImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
@@ -432,38 +433,48 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
           }
         }
 
-        const filename = `gift_${uniqueSuffix}.${fileExtension}`;
-        const filepath = path.join(uploadsDir, filename);
-
-        fs.writeFileSync(filepath, fileBuffer);
-
-        const filePath = `/assets/gift/image/${filename}`;
+        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+        const filename = `gift_${uniqueSuffix}`;
         
-        // Determine media type based on file extension
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadOptions = {
+            folder: 'chatme/gifts',
+            public_id: filename,
+            resource_type: allowedVideoExtensions.includes(fileExtension) ? 'video' : 'image',
+            format: fileExtension
+          };
+
+          cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }).end(fileBuffer);
+        });
+
+        const cloudinaryUrl = uploadResult.secure_url;
+        
         let mediaType = 'image';
         if (['mp4', 'webm', 'mov'].includes(fileExtension)) {
           mediaType = 'video';
-          animationPath = filePath;
-          imagePath = filePath; // For now, use same path for image
+          animationPath = cloudinaryUrl;
+          imagePath = cloudinaryUrl;
         } else if (fileExtension === 'gif') {
-          animationPath = filePath;
-          imagePath = filePath;
+          animationPath = cloudinaryUrl;
+          imagePath = cloudinaryUrl;
         } else {
-          imagePath = filePath;
+          imagePath = cloudinaryUrl;
         }
 
-        console.log('Gift file saved:', {
+        console.log('Gift uploaded to Cloudinary:', {
           filename,
+          url: cloudinaryUrl,
           size: fileBuffer.length,
           type: imageType,
-          isAnimated: hasAnimation,
-          animationType,
           mediaType
         });
 
       } catch (error) {
-        console.error('Error saving gift file:', error);
-        return res.status(500).json({ error: 'Failed to save gift file' });
+        console.error('Error uploading gift to Cloudinary:', error);
+        return res.status(500).json({ error: 'Failed to upload gift file: ' + error.message });
       }
     }
 
@@ -477,10 +488,10 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
     `, [name, icon, imagePath, animationPath, parseInt(price), type, category, req.user.id, mediaType]);
 
     const gift = result.rows[0];
-    if (gift.image) {
+    if (gift.image && gift.image.startsWith('/')) {
       gift.image = `${API_BASE_URL}${gift.image}`;
     }
-    if (gift.animation) {
+    if (gift.animation && gift.animation.startsWith('/')) {
       gift.animation = `${API_BASE_URL}${gift.animation}`;
     }
 
@@ -523,22 +534,17 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
       return res.status(409).json({ error: 'Gift name already exists' });
     }
 
+    const allowedImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
+    const allowedVideoExtensions = ['mp4', 'webm', 'mov'];
+
     let imagePath = existingGift.rows[0].image;
     let animationPath = existingGift.rows[0].animation;
     let mediaType = existingGift.rows[0].media_type || 'image';
 
     if (giftImage && imageType && imageName) {
       try {
-        const uploadsDir = path.resolve(__dirname, '../../assets/gift/image');
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
-        }
-
-        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
         const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
         
-        const allowedImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
-        const allowedVideoExtensions = ['mp4', 'webm', 'mov'];
         const allAllowedExtensions = [...allowedImageExtensions, ...allowedVideoExtensions];
         
         if (!allAllowedExtensions.includes(fileExtension)) {
@@ -564,46 +570,75 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
           }
         }
 
-        const filename = `gift_${uniqueSuffix}.${fileExtension}`;
-        const filepath = path.join(uploadsDir, filename);
-
-        fs.writeFileSync(filepath, fileBuffer);
-
-        const filePath = `/assets/gift/image/${filename}`;
+        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+        const filename = `gift_${uniqueSuffix}`;
         
-        // Determine media type based on file extension
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadOptions = {
+            folder: 'chatme/gifts',
+            public_id: filename,
+            resource_type: allowedVideoExtensions.includes(fileExtension) ? 'video' : 'image',
+            format: fileExtension
+          };
+
+          cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }).end(fileBuffer);
+        });
+
+        const cloudinaryUrl = uploadResult.secure_url;
+        
         if (allowedVideoExtensions.includes(fileExtension)) {
           mediaType = 'video';
-          animationPath = filePath;
-          imagePath = filePath;
+          animationPath = cloudinaryUrl;
+          imagePath = cloudinaryUrl;
         } else if (fileExtension === 'gif') {
-          animationPath = filePath;
-          imagePath = filePath;
+          animationPath = cloudinaryUrl;
+          imagePath = cloudinaryUrl;
         } else {
-          imagePath = filePath;
+          imagePath = cloudinaryUrl;
           animationPath = null;
         }
 
-        if (existingGift.rows[0].image && existingGift.rows[0].image.startsWith('/assets/gift/')) {
+        if (existingGift.rows[0].image && existingGift.rows[0].image.includes('cloudinary.com')) {
+          try {
+            const urlParts = existingGift.rows[0].image.split('/upload/');
+            if (urlParts.length > 1) {
+              let pathAfterUpload = urlParts[1];
+              const pathSegments = pathAfterUpload.split('/');
+              if (pathSegments[0].startsWith('v')) {
+                pathSegments.shift();
+              }
+              const pathWithoutVersion = pathSegments.join('/');
+              const publicId = pathWithoutVersion.substring(0, pathWithoutVersion.lastIndexOf('.'));
+              const resourceType = existingGift.rows[0].media_type === 'video' ? 'video' : 'image';
+              await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+              console.log('Deleted old Cloudinary asset:', publicId);
+            }
+          } catch (err) {
+            console.error('Error deleting old Cloudinary asset:', err);
+          }
+        } else if (existingGift.rows[0].image && existingGift.rows[0].image.startsWith('/assets/gift/')) {
           const oldImagePath = path.resolve(__dirname, '../..' + existingGift.rows[0].image);
           if (fs.existsSync(oldImagePath)) {
             fs.unlink(oldImagePath, (err) => {
-              if (err) console.error('Error deleting old image:', err);
-            });
-          }
-        }
-        if (existingGift.rows[0].animation && existingGift.rows[0].animation.startsWith('/assets/gift/')) {
-          const oldAnimPath = path.resolve(__dirname, '../..' + existingGift.rows[0].animation);
-          if (fs.existsSync(oldAnimPath)) {
-            fs.unlink(oldAnimPath, (err) => {
-              if (err) console.error('Error deleting old animation:', err);
+              if (err) console.error('Error deleting old local image:', err);
             });
           }
         }
 
+        console.log('Gift updated on Cloudinary:', {
+          filename,
+          url: cloudinaryUrl,
+          size: fileBuffer.length,
+          type: imageType,
+          mediaType
+        });
+
       } catch (error) {
-        console.error('Error saving gift file:', error);
-        return res.status(500).json({ error: 'Failed to save gift file' });
+        console.error('Error uploading gift to Cloudinary:', error);
+        return res.status(500).json({ error: 'Failed to upload gift file: ' + error.message });
       }
     }
 
@@ -620,10 +655,10 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
     `, [name.trim(), icon, imagePath, animationPath, parseInt(price), type || 'static', category || 'popular', mediaType, id]);
 
     const gift = result.rows[0];
-    if (gift.image) {
+    if (gift.image && gift.image.startsWith('/')) {
       gift.image = `${API_BASE_URL}${gift.image}`;
     }
-    if (gift.animation) {
+    if (gift.animation && gift.animation.startsWith('/')) {
       gift.animation = `${API_BASE_URL}${gift.animation}`;
     }
 
@@ -639,11 +674,29 @@ router.delete('/gifts/:id', authenticateToken, adminOnly, rateLimit(10, 60000), 
   try {
     const { id } = req.params;
 
-    const giftResult = await pool.query('SELECT image, animation FROM custom_gifts WHERE id = $1', [id]);
+    const giftResult = await pool.query('SELECT image, animation, media_type FROM custom_gifts WHERE id = $1', [id]);
     if (giftResult.rows.length > 0) {
       const gift = giftResult.rows[0];
       
-      if (gift.image && gift.image.startsWith('/assets/gift/')) {
+      if (gift.image && gift.image.includes('cloudinary.com')) {
+        try {
+          const urlParts = gift.image.split('/upload/');
+          if (urlParts.length > 1) {
+            let pathAfterUpload = urlParts[1];
+            const pathSegments = pathAfterUpload.split('/');
+            if (pathSegments[0].startsWith('v')) {
+              pathSegments.shift();
+            }
+            const pathWithoutVersion = pathSegments.join('/');
+            const publicId = pathWithoutVersion.substring(0, pathWithoutVersion.lastIndexOf('.'));
+            const resourceType = gift.media_type === 'video' ? 'video' : 'image';
+            await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+            console.log('Deleted Cloudinary asset:', publicId);
+          }
+        } catch (err) {
+          console.error('Error deleting Cloudinary asset:', err);
+        }
+      } else if (gift.image && gift.image.startsWith('/assets/gift/')) {
         const imagePath = path.resolve(__dirname, '../..' + gift.image);
         if (fs.existsSync(imagePath)) {
           fs.unlink(imagePath, (err) => {
@@ -652,7 +705,25 @@ router.delete('/gifts/:id', authenticateToken, adminOnly, rateLimit(10, 60000), 
         }
       }
       
-      if (gift.animation && gift.animation.startsWith('/assets/gift/')) {
+      if (gift.animation && gift.animation.includes('cloudinary.com') && gift.animation !== gift.image) {
+        try {
+          const urlParts = gift.animation.split('/upload/');
+          if (urlParts.length > 1) {
+            let pathAfterUpload = urlParts[1];
+            const pathSegments = pathAfterUpload.split('/');
+            if (pathSegments[0].startsWith('v')) {
+              pathSegments.shift();
+            }
+            const pathWithoutVersion = pathSegments.join('/');
+            const publicId = pathWithoutVersion.substring(0, pathWithoutVersion.lastIndexOf('.'));
+            const resourceType = gift.media_type === 'video' ? 'video' : 'image';
+            await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+            console.log('Deleted Cloudinary animation asset:', publicId);
+          }
+        } catch (err) {
+          console.error('Error deleting Cloudinary animation asset:', err);
+        }
+      } else if (gift.animation && gift.animation.startsWith('/assets/gift/') && gift.animation !== gift.image) {
         const animPath = path.resolve(__dirname, '../..' + gift.animation);
         if (fs.existsSync(animPath)) {
           fs.unlink(animPath, (err) => {
