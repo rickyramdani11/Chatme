@@ -79,7 +79,15 @@ export default function CreditScreen({ navigation }: any) {
     }
   };
 
+  const canTransfer = user?.role === 'mentor' || user?.role === 'merchant';
+
   const handleSendCredits = async () => {
+    // Check if user has permission to transfer
+    if (!canTransfer) {
+      Alert.alert('Akses Ditolak', 'Hanya user dengan role Mentor atau Merchant yang dapat melakukan transfer kredit');
+      return;
+    }
+
     if (!username.trim()) {
       Alert.alert('Error', 'Username harus diisi');
       return;
@@ -183,15 +191,26 @@ export default function CreditScreen({ navigation }: any) {
         <View style={styles.formContainer}>
           <Text style={styles.sectionTitle}>Kirim Kredit</Text>
           
+          {/* Role Restriction Notice */}
+          {!canTransfer && (
+            <View style={styles.restrictionNotice}>
+              <Ionicons name="information-circle" size={20} color="#FF9800" />
+              <Text style={styles.restrictionText}>
+                Transfer kredit hanya tersedia untuk role Mentor dan Merchant
+              </Text>
+            </View>
+          )}
+          
           {/* Username Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Username Penerima</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !canTransfer && styles.inputDisabled]}
               value={username}
               onChangeText={setUsername}
               placeholder="Masukkan username"
               autoCapitalize="none"
+              editable={canTransfer}
             />
           </View>
 
@@ -199,11 +218,12 @@ export default function CreditScreen({ navigation }: any) {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Jumlah Kredit</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !canTransfer && styles.inputDisabled]}
               value={amount}
               onChangeText={setAmount}
               placeholder="Masukkan jumlah"
               keyboardType="numeric"
+              editable={canTransfer}
             />
           </View>
 
@@ -211,13 +231,14 @@ export default function CreditScreen({ navigation }: any) {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>PIN</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, !canTransfer && styles.inputDisabled]}
               value={pin}
               onChangeText={setPin}
               placeholder="Masukkan PIN (default: 123456)"
               keyboardType="numeric"
               maxLength={6}
               secureTextEntry
+              editable={canTransfer}
             />
           </View>
 
@@ -225,16 +246,16 @@ export default function CreditScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.sendButtonContainer}
             onPress={handleSendCredits}
-            disabled={loading}
+            disabled={loading || !canTransfer}
           >
             <LinearGradient
-              colors={['#9C27B0', '#E91E63']}
+              colors={!canTransfer ? ['#BDBDBD', '#9E9E9E'] : ['#9C27B0', '#E91E63']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.sendButton}
             >
               <Text style={styles.sendButtonText}>
-                {loading ? 'Mengirim...' : 'Kirim'}
+                {loading ? 'Mengirim...' : !canTransfer ? 'Tidak Tersedia' : 'Kirim'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -383,6 +404,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  inputDisabled: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
+    color: '#999',
+  },
+  restrictionNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9800',
+  },
+  restrictionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#E65100',
+    marginLeft: 8,
+    lineHeight: 20,
   },
   sendButtonContainer: {
     marginTop: 20,
