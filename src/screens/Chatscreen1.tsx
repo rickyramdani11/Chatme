@@ -1109,12 +1109,15 @@ export default function ChatScreen() {
         // For video gifts, auto-close is handled by video completion callback
 
         // Add gift message to chat
+        const giftMessageId = `gift_${Date.now()}_${data.sender}`;
+        const recipientText = data.recipient || 'someone';
+        const targetRoomId = chatTabs[activeTab]?.id || data.roomId; // Capture room ID at receive time
         const giftMessage: Message = {
-          id: `gift_${Date.now()}_${data.sender}`,
+          id: giftMessageId,
           sender: data.sender,
-          content: `🎁 sent a ${data.gift.name} ${data.gift.icon}`,
+          content: `🎁 sent a ${data.gift.name} ${data.gift.icon} to ${recipientText}`,
           timestamp: new Date(data.timestamp),
-          roomId: chatTabs[activeTab]?.id || data.roomId,
+          roomId: targetRoomId,
           role: data.role || 'user',
           level: data.level || 1,
           type: 'gift',
@@ -1123,11 +1126,22 @@ export default function ChatScreen() {
 
         setChatTabs(prevTabs =>
           prevTabs.map(tab =>
-            tab.id === (chatTabs[activeTab]?.id || data.roomId)
+            tab.id === targetRoomId
               ? { ...tab, messages: [...tab.messages, giftMessage] }
               : tab
           )
         );
+
+        // Auto-hide gift message after 6 seconds (use captured targetRoomId)
+        setTimeout(() => {
+          setChatTabs(prevTabs =>
+            prevTabs.map(tab =>
+              tab.id === targetRoomId
+                ? { ...tab, messages: tab.messages.filter(msg => msg.id !== giftMessageId) }
+                : tab
+            )
+          );
+        }, 6000);
       });
 
       // Listen for private gift notifications
