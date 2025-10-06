@@ -594,6 +594,24 @@ const announcedJoins = new Map();
 // Debounce system for join/leave broadcasts to prevent spam
 const pendingBroadcasts = new Map(); // key: "userId_roomId", value: { type: 'join'|'leave', timeout: timeoutId, data: {...} }
 
+// Helper function to sync participant count to database
+async function syncParticipantCountToDatabase(roomId) {
+  if (!roomId || roomId.startsWith('private_')) {
+    return; // Skip private chats
+  }
+  
+  try {
+    const participantCount = roomParticipants[roomId] ? roomParticipants[roomId].length : 0;
+    await pool.query(
+      'UPDATE rooms SET members = $1 WHERE id = $2',
+      [participantCount, roomId]
+    );
+    console.log(`📊 Updated database: Room ${roomId} now has ${participantCount} members`);
+  } catch (error) {
+    console.error(`❌ Error syncing participant count for room ${roomId}:`, error);
+  }
+}
+
 // Helper function to schedule debounced join/leave broadcast
 function scheduleBroadcast(io, type, userId, roomId, username, role, socket) {
   const key = `${userId}_${roomId}`;
@@ -923,6 +941,9 @@ io.on('connection', (socket) => {
       // Always update participants list
       io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
 
+      // Sync participant count to database
+      syncParticipantCountToDatabase(roomId);
+
       // Emit successful join confirmation to the user
       socket.emit('join-room-success', { roomId, username });
 
@@ -978,6 +999,9 @@ io.on('connection', (socket) => {
     if (roomParticipants[roomId]) {
       roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.userId !== socket.userId);
       io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
+      
+      // Sync participant count to database
+      syncParticipantCountToDatabase(roomId);
     }
 
     // Update connected user info and clear join tracking
