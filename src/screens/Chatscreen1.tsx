@@ -475,7 +475,40 @@ export default function ChatScreen() {
       // Check if room already exists in tabs
       const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
-        // Room already exists, just switch to it
+        // Room already exists - update cached room info message with latest data
+        if (type !== 'private' && !isSupport) {
+          try {
+            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'ChatMe-Mobile-App',
+              },
+            });
+            if (roomResponse.ok) {
+              const rooms = await roomResponse.json();
+              const roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
+              
+              if (roomData) {
+                // Update the cached room info message
+                const updatedTabs = [...chatTabs];
+                const managedMsgId = `room_info_managed_${roomId}`;
+                const msgIndex = updatedTabs[existingTabIndex].messages.findIndex((m: any) => m.id === managedMsgId);
+                
+                if (msgIndex !== -1) {
+                  updatedTabs[existingTabIndex].messages[msgIndex] = {
+                    ...updatedTabs[existingTabIndex].messages[msgIndex],
+                    content: `This room is managed by ${roomData.managedBy || roomData.createdBy || 'admin'}`
+                  };
+                  setChatTabs(updatedTabs);
+                }
+              }
+            }
+          } catch (error) {
+            console.log('Could not update cached room info');
+          }
+        }
+        
+        // Switch to existing tab
         setActiveTab(existingTabIndex);
         if (scrollViewRef.current) {
           scrollViewRef.current.scrollTo({
@@ -544,9 +577,7 @@ export default function ChatScreen() {
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
-              console.log(`🔍 Looking for room ${roomId} in ${rooms.length} rooms`);
               roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
-              console.log(`✅ Found roomData:`, roomData);
             }
           } catch (error) {
             console.log('Could not fetch room data');
