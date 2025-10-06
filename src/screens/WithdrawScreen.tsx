@@ -216,8 +216,25 @@ export default function WithdrawScreen({ navigation }: any) {
         Alert.alert('Success', 'Account linked successfully!');
         fetchLinkedAccounts();
       } else {
-        const errorData = await response.json();
-        Alert.alert('Error', errorData.message || 'Failed to link account');
+        // Try to parse as JSON, fallback to text
+        let errorMessage = 'Failed to link account';
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } catch (jsonError) {
+            console.error('Failed to parse error response as JSON:', jsonError);
+          }
+        } else {
+          // Response is not JSON (probably HTML error page)
+          const textResponse = await response.text();
+          console.error('Non-JSON error response:', textResponse);
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        
+        Alert.alert('Error', errorMessage);
         throw new Error('Failed to link account');
       }
     } catch (error) {
