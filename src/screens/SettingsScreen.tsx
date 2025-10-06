@@ -186,12 +186,15 @@ export default function SettingsScreen({ navigation }: any) {
             onPress={() => navigation.navigate('HelpSupport')}
           />
 
-          <SettingsItem
-            icon="card"
-            title="Kredit"
-            iconColor="#9C27B0"
-            onPress={() => navigation.navigate('Credit')}
-          />
+          {/* Kredit Menu Item - Only visible for mentor and merchant users */}
+          {(user?.role === 'mentor' || user?.role === 'merchant') && (
+            <SettingsItem
+              icon="card"
+              title="Kredit"
+              iconColor="#9C27B0"
+              onPress={() => navigation.navigate('Credit')}
+            />
+          )}
 
           <SettingsItem
             icon="wallet"

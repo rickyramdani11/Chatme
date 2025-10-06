@@ -261,10 +261,19 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
       return res.status(400).json({ error: 'Amount must be positive' });
     }
 
-    // Verify PIN
-    const userResult = await pool.query('SELECT pin FROM users WHERE id = $1', [fromUserId]);
+    // Verify user role and PIN
+    const userResult = await pool.query('SELECT pin, role FROM users WHERE id = $1', [fromUserId]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userRole = userResult.rows[0].role;
+
+    // SECURITY: Only mentor and merchant roles can transfer credits
+    if (userRole !== 'mentor' && userRole !== 'merchant') {
+      return res.status(403).json({ 
+        error: 'Only mentor and merchant users can transfer credits' 
+      });
     }
 
     // SECURITY: Require PIN to be set - no fallback allowed
