@@ -37,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
+- **Room Capacity Management**: Real-time participant count sync to database (rooms.members column) on join/leave events. Client-side validation prevents joining full rooms with user-friendly alerts.
 - **Video Call System**: Private video/audio calls with Daily.co integration, real-time streaming, global incoming call notifications, call stats tracking, socket-based signaling.
 
 ## Security & Admin Enhancements

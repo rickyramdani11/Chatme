@@ -83,6 +83,17 @@ export default function RoomScreen() {
   // Join room
   const joinRoom = async (roomId: string, roomName: string, roomDescription?: string, password?: string) => {
     try {
+      // Check if room is full before attempting to join
+      const room = rooms.find(r => r.id === roomId);
+      if (room && room.members >= (room.maxMembers || 25)) {
+        Alert.alert(
+          'Room is Full',
+          'Please wait a moment.',
+          [{ text: 'OK', style: 'default' }]
+        );
+        return;
+      }
+
       const requestBody: any = {};
       if (password) {
         requestBody.password = password;
