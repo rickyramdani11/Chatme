@@ -773,10 +773,11 @@ export default function PrivateChatScreen() {
       return;
     }
 
-    // Use channelName directly from incoming call data
+    // Use channelName and roomUrl directly from incoming call data
     const channelName = incomingCallData.channelName || agoraChannelName;
+    const roomUrl = incomingCallData.roomUrl || dailyRoomUrl;
     
-    console.log('📞 Accepting call with channel:', channelName);
+    console.log('📞 Accepting call with channel:', channelName, 'roomUrl:', roomUrl);
     
     if (!channelName) {
       console.error('❌ No channel name available for call');
@@ -785,8 +786,11 @@ export default function PrivateChatScreen() {
       return;
     }
 
-    // Set channel name synchronously before proceeding
+    // Set channel name and room URL immediately
     setAgoraChannelName(channelName);
+    if (roomUrl) {
+      setDailyRoomUrl(roomUrl);
+    }
 
     if (socket && user) {
       socket.emit('call-response', {
@@ -794,19 +798,17 @@ export default function PrivateChatScreen() {
         response: 'accept',
         responderName: user.username,
         channelName: channelName,
-        roomUrl: incomingCallData.roomUrl || dailyRoomUrl || undefined,
+        roomUrl: roomUrl || undefined,
         callType: incomingCallData.callType
       });
     }
 
+    // Close incoming call modal and show call modal immediately
     setShowIncomingCallModal(false);
+    setShowCallModal(true);
+    startCallTimer(incomingCallData.callType);
     
-    // Use setTimeout to ensure state is updated before showing call modal
-    setTimeout(() => {
-      console.log('✅ Opening call modal with channel:', channelName);
-      setShowCallModal(true);
-      startCallTimer(incomingCallData.callType);
-    }, 100);
+    console.log('✅ Call modal opened with channel:', channelName, 'roomUrl:', roomUrl);
   };
 
   const handleDeclineCall = () => {
