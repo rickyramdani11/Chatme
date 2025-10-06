@@ -630,7 +630,7 @@ export default function ChatScreen() {
           roomInfoMessages.push({
             id: `room_info_managed_${roomId}`,
             sender: roomName,
-            content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy || 'admin'}`,
+            content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy}`,
             timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
             role: 'system',
@@ -653,7 +653,7 @@ export default function ChatScreen() {
 
         // Normalize room_info messages from database history to use correct owner name
         if (roomData && messages.length > 0) {
-          const ownerName = roomData.managedBy || roomData.createdBy || 'admin';
+          const ownerName = roomData.managedBy || roomData.createdBy;
           messages = messages.map((msg: any) => {
             if (msg.type === 'room_info' && msg.content?.startsWith('This room is managed by')) {
               return {
@@ -674,7 +674,7 @@ export default function ChatScreen() {
           title: roomName,
           type: isSupport ? 'support' : (type || 'room'),
           messages: allMessages,
-          managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.createdBy || 'admin'),
+          managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.createdBy),
           description: roomDescription || (type === 'private' ? `Private chat with ${targetUser?.username}` : isSupport ? 'Support Chat' : `${roomName} room`),
           moderators: roomData?.moderators || [],
           isSupport: isSupport
