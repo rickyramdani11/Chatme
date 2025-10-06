@@ -3620,7 +3620,7 @@ export default function ChatScreen() {
               
               {/* Colon and content */}
               <Text style={{ color: '#8B4513', fontWeight: 'bold' }}>
-                : {item.content}
+                : {renderMessageContent(item.content)}
               </Text>
             </Text>
           </View>
@@ -3642,7 +3642,7 @@ export default function ChatScreen() {
                   {item.sender}:{' '}
                 </Text>
                 <Text style={[styles.messageContent, { color: '#333' }]}>
-                  {item.content}
+                  {renderMessageContent(item.content)}
                 </Text>
               </Text>
             </View>
@@ -3668,7 +3668,7 @@ export default function ChatScreen() {
                 ]}>
                   {item.sender} 
                 </Text>
-                <Text>{item.content}</Text>
+                <Text>{renderMessageContent(item.content)}</Text>
               </Text>
             </View>
           ) : (
@@ -3677,7 +3677,7 @@ export default function ChatScreen() {
                 styles.commandMessageText,
                 { color: '#8B4513', flex: 1 } // Coklat untuk semua command
               ]}>
-                {item.content}
+                {renderMessageContent(item.content)}
               </Text>
             </View>
           )}
@@ -3695,7 +3695,7 @@ export default function ChatScreen() {
         >
           <View style={styles.systemMessageRow}>
             <Text style={[styles.systemMessageText, { color: '#8B4513', fontWeight: 'bold' }]}>
-              {item.content}
+              {renderMessageContent(item.content)}
             </Text>
           </View>
         </TouchableOpacity>
