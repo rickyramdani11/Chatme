@@ -591,6 +591,7 @@ export default function ChatScreen() {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
+                'Cache-Control': 'no-cache',
               },
             });
             if (roomResponse.ok) {
