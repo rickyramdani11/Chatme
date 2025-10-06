@@ -2672,11 +2672,11 @@ export default function ChatScreen() {
   };
 
   const handleBackPress = () => {
-    // Always navigate to Room screen instead of going back to Home
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
+    // Navigate to Room screen (safe navigation without canGoBack check)
+    try {
       navigation.navigate('Room' as never);
+    } catch (error) {
+      console.log('Navigation error:', error);
     }
   };
 
@@ -4251,7 +4251,7 @@ export default function ChatScreen() {
           <Text style={styles.emptyStateSubtitle}>Go back to join a room to start chatting</Text>
           <TouchableOpacity
             style={styles.joinRoomButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => navigation.navigate('Room' as never)}
           >
             <Text style={styles.joinRoomButtonText}>Browse Rooms</Text>
           </TouchableOpacity>
