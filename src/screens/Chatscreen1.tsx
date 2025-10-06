@@ -600,6 +600,9 @@ export default function ChatScreen() {
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
               roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
+              console.log('🔍 DEBUG Room Data:', JSON.stringify(roomData, null, 2));
+              console.log('🔍 managedBy:', roomData?.managedBy);
+              console.log('🔍 createdBy:', roomData?.createdBy);
             }
           } catch (error) {
             console.log('Could not fetch room data');
@@ -630,11 +633,13 @@ export default function ChatScreen() {
             type: 'room_info'
           });
 
-          // Created by message  
+          // Created by message
+          const ownerUsername = roomData?.managedBy || roomData?.createdBy || 'unknown user';
+          console.log('🔍 Owner username for room info:', ownerUsername);
           roomInfoMessages.push({
             id: `room_info_managed_${roomId}`,
             sender: roomName,
-            content: `This room is created by ${roomData?.managedBy || roomData?.createdBy || 'unknown user'}`,
+            content: `This room is created by ${ownerUsername}`,
             timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
             role: 'system',
