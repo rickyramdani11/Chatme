@@ -5947,10 +5947,11 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   cardInlineImage: {
-    width: 40,
-    height: 40,
+    width: 30,
+    height: 42,
     resizeMode: 'contain',
     backgroundColor: 'transparent',
+    marginHorizontal: 2,
   },
   giftImageInChat: {
     width: 64,
