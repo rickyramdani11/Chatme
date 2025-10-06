@@ -82,6 +82,7 @@ export default function PrivateChatScreen() {
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
   const [callRinging, setCallRinging] = useState(false);
+  const [isCaller, setIsCaller] = useState(false);
 
   // Get user and token
   const { user, token } = useAuth();
@@ -326,11 +327,10 @@ export default function PrivateChatScreen() {
               {
                 text: 'Start Call',
                 onPress: () => {
-                  // Use setTimeout to ensure state is updated
                   setTimeout(() => {
                     console.log('✅ Starting accepted call with channel:', channelName);
                     setShowCallModal(true);
-                    startCallTimer(responseData.callType || incomingCallData?.callType || 'video');
+                    startCallTimer(responseData.callType || incomingCallData?.callType || 'video', true);
                   }, 100);
                 }
               }
@@ -561,7 +561,7 @@ export default function PrivateChatScreen() {
 
     Alert.alert(
       'Start Video Call',
-      `Video call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
+      `Video call rate: 41.67 coins/second (2,500 coins/minute)\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -570,13 +570,11 @@ export default function PrivateChatScreen() {
             if (socket && user) {
               setCallRinging(true);
               
-              // Create Agora channel name
               const channelName = `${user.id}_${targetUser.id}_${Date.now()}`;
-              console.log('📹 Creating Agora video call with channel:', channelName);
+              console.log('📹 Creating video call with channel:', channelName);
               
               setAgoraChannelName(channelName);
               
-              // Send call invitation with channel name
               socket.emit('initiate-call', {
                 targetUsername: targetUser.username,
                 callType: 'video',
@@ -605,7 +603,7 @@ export default function PrivateChatScreen() {
 
     Alert.alert(
       'Start Audio Call',
-      `Audio call rates:\n• First minute: 2,500 coins\n• After 1st minute: 2,000 coins/minute\n\nStart call with ${targetUser.username}?`,
+      `Audio call rate: 41.67 coins/second (2,500 coins/minute)\n\nStart call with ${targetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -659,7 +657,7 @@ export default function PrivateChatScreen() {
     try {
       console.log(`💰 Deducting ${amount} coins for ${type} call to ${targetUser?.username}`);
       
-      const response = await fetch(`${API_BASE_URL}/api/user/deduct-coins`, {
+      const response = await fetch(`${API_BASE_URL}/credits/call-interval-charge`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -667,47 +665,137 @@ export default function PrivateChatScreen() {
         },
         body: JSON.stringify({
           amount,
-          type: `${type}_call`,
-          description: `${type} call for ${description}`,
-          recipientUsername: targetUser?.username
+          receiverId: targetUser?.id
         }),
       });
 
       const result = await response.json();
-      console.log('💰 Deduct response:', result);
 
       if (response.ok) {
         console.log(`✅ Successfully deducted ${amount} coins. New balance: ${result.newBalance}`);
-        console.log(`📊 Split: ${result.recipientBalanceShare} to balance, ${result.recipientWithdrawShare} to withdraw`);
         return true;
       } else {
         console.error('❌ Deduct failed:', result.error);
-        Alert.alert('Payment Error', result.error || 'Failed to deduct coins');
+        if (result.error === 'Insufficient balance') {
+          Alert.alert('Balance Low', 'Your balance is too low. Call will end.');
+          endCall();
+        }
         return false;
       }
     } catch (error) {
       console.error('Error deducting coins:', error);
-      Alert.alert('Network Error', 'Failed to process payment. Please check your connection.');
       return false;
     }
   };
 
-  const startCallTimer = (type: 'video' | 'audio') => {
+  const startCallTimer = (type: 'video' | 'audio', isInitiator: boolean = false) => {
     setIsInCall(true);
     setCallType(type);
     setCallTimer(0);
-    setCallCost(2500);
-    setTotalDeducted(2500);
+    setCallCost(0);
+    setTotalDeducted(0);
+    setIsCaller(isInitiator);
 
     callIntervalRef.current = setInterval(() => {
-      setCallTimer(prev => prev + 1);
+      setCallTimer(prev => {
+        const newTime = prev + 1;
+        
+        const costPerSecond = 41.67;
+        const newCost = Math.floor(newTime * costPerSecond);
+        setCallCost(newCost);
+
+        if (isInitiator && newTime % 6 === 0 && newTime > 0) {
+          const intervalCost = 250;
+          
+          deductCoins(intervalCost, type, `${newTime} seconds`).then(success => {
+            if (success) {
+              setTotalDeducted(prevTotal => prevTotal + intervalCost);
+            }
+          });
+        }
+
+        return newTime;
+      });
     }, 1000);
   };
 
-  const endCall = () => {
+  const endCall = async () => {
     if (callIntervalRef.current) {
       clearInterval(callIntervalRef.current);
       callIntervalRef.current = null;
+    }
+
+    const finalDuration = callTimer;
+    const actualDeducted = totalDeducted;
+
+    if (isCaller && finalDuration > 0 && targetUser?.id) {
+      try {
+        const minimumCharge = finalDuration < 60 ? 2500 : actualDeducted;
+        const shortfall = minimumCharge - actualDeducted;
+        
+        if (shortfall > 0) {
+          console.log(`📞 Charging shortfall: ${shortfall} coins (minimum ${minimumCharge} - deducted ${actualDeducted})`);
+          
+          const shortfallResponse = await fetch(`${API_BASE_URL}/credits/call-interval-charge`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              amount: shortfall,
+              receiverId: targetUser.id
+            }),
+          });
+
+          if (!shortfallResponse.ok) {
+            const errorData = await shortfallResponse.json();
+            console.error('❌ Failed to charge shortfall:', errorData.error);
+            Alert.alert('Payment Error', 'Failed to complete final payment. Please contact support.');
+            setIsInCall(false);
+            setCallType(null);
+            setCallTimer(0);
+            setCallCost(0);
+            setTotalDeducted(0);
+            setShowCallModal(false);
+            setIsCaller(false);
+            return;
+          }
+        }
+
+        const finalAmount = minimumCharge;
+        console.log(`📞 Finalizing call payment: ${finalAmount} coins for ${finalDuration}s`);
+        
+        const response = await fetch(`${API_BASE_URL}/credits/call-finalize`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            receiverId: targetUser.id,
+            totalAmount: finalAmount,
+            duration: finalDuration
+          }),
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          console.log(`✅ Call finalized: Total ${result.totalCharged} coins, receiver earned ${result.receiverEarnings} coins (30%)`);
+          Alert.alert(
+            'Call Ended',
+            `Duration: ${Math.floor(finalDuration / 60)}:${(finalDuration % 60).toString().padStart(2, '0')}\nTotal cost: ${finalAmount} coins`,
+            [{ text: 'OK' }]
+          );
+        } else {
+          console.error('❌ Call finalization failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Error finalizing call:', error);
+      }
+    } else if (!isCaller && finalDuration > 0) {
+      console.log(`📞 Receiver: Call ended after ${finalDuration}s. Earnings will be calculated by caller.`);
     }
 
     setIsInCall(false);
@@ -716,6 +804,7 @@ export default function PrivateChatScreen() {
     setCallCost(0);
     setTotalDeducted(0);
     setShowCallModal(false);
+    setIsCaller(false);
   };
 
   const formatCallTime = (seconds: number) => {
@@ -727,40 +816,6 @@ export default function PrivateChatScreen() {
   const handleAcceptCall = async () => {
     if (!incomingCallData) return;
 
-    const hasBalance = await checkUserBalance(2500);
-    if (!hasBalance) {
-      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to accept this call');
-      handleDeclineCall();
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/credits/call-deduct`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        Alert.alert('Payment Failed', data.error || 'Failed to deduct call payment');
-        handleDeclineCall();
-        return;
-      }
-
-      console.log(`💰 Call payment deducted: ${data.deducted} coins. New balance: ${data.newBalance}`);
-      
-    } catch (error) {
-      console.error('Error deducting call payment:', error);
-      Alert.alert('Error', 'Failed to process payment. Please try again.');
-      handleDeclineCall();
-      return;
-    }
-
-    // Use channelName and roomUrl directly from incoming call data
     const channelName = incomingCallData.channelName || agoraChannelName;
     const roomUrl = incomingCallData.roomUrl || dailyRoomUrl;
     
@@ -791,9 +846,9 @@ export default function PrivateChatScreen() {
 
     setShowIncomingCallModal(false);
     setShowCallModal(true);
-    startCallTimer(incomingCallData.callType);
+    startCallTimer(incomingCallData.callType, false);
     
-    console.log('✅ Call accepted and paid. Call modal opened with channel:', channelName, 'roomUrl:', roomUrl);
+    console.log('✅ Call accepted. Call modal opened with channel:', channelName, 'roomUrl:', roomUrl);
   };
 
   const handleDeclineCall = () => {

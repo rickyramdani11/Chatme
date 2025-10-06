@@ -395,10 +395,14 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
   }
 });
 
-router.post('/call-deduct', authenticateToken, async (req, res) => {
+router.post('/call-interval-charge', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const callAmount = 2500;
+    const { amount, receiverId } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
 
     await pool.query('BEGIN');
 
@@ -415,16 +419,16 @@ router.post('/call-deduct', authenticateToken, async (req, res) => {
 
       const currentBalance = balanceResult.rows[0].balance;
 
-      if (currentBalance < callAmount) {
+      if (currentBalance < amount) {
         await pool.query('ROLLBACK');
         return res.status(400).json({ 
           error: 'Insufficient balance', 
-          required: callAmount,
+          required: amount,
           current: currentBalance 
         });
       }
 
-      const newBalance = currentBalance - callAmount;
+      const newBalance = currentBalance - amount;
       await pool.query(
         'UPDATE user_credits SET balance = $1, updated_at = NOW() WHERE user_id = $2',
         [newBalance, userId]
@@ -432,18 +436,17 @@ router.post('/call-deduct', authenticateToken, async (req, res) => {
 
       await pool.query(`
         INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
-        VALUES ($1, NULL, $2, 'video_call', 'Video call fee')
-      `, [userId, callAmount]);
+        VALUES ($1, $2, $3, 'video_call_charge', 'Video call charge (interval)')
+      `, [userId, receiverId, amount]);
 
       await pool.query('COMMIT');
 
-      console.log(`📹 User ${userId} charged ${callAmount} coins for video call. New balance: ${newBalance}`);
+      console.log(`📹 User ${userId} charged ${amount} coins for video call interval. New balance: ${newBalance}`);
 
       res.json({ 
         success: true, 
-        deducted: callAmount, 
-        newBalance: newBalance,
-        message: `${callAmount} coins deducted for video call` 
+        deducted: amount, 
+        newBalance: newBalance
       });
 
     } catch (error) {
@@ -453,6 +456,64 @@ router.post('/call-deduct', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Error deducting call payment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/call-finalize', authenticateToken, async (req, res) => {
+  try {
+    const callerId = req.user.id;
+    const { receiverId, totalAmount, duration } = req.body;
+
+    if (!receiverId || !totalAmount || totalAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid request data' });
+    }
+
+    await pool.query('BEGIN');
+
+    try {
+      const receiverEarnings = Math.floor(totalAmount * 0.3);
+
+      const receiverResult = await pool.query(
+        'SELECT user_id FROM user_credits WHERE user_id = $1 FOR UPDATE',
+        [receiverId]
+      );
+
+      if (receiverResult.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO user_credits (user_id, balance, withdraw_balance) VALUES ($1, 0, $2)',
+          [receiverId, receiverEarnings]
+        );
+      } else {
+        await pool.query(
+          'UPDATE user_credits SET withdraw_balance = withdraw_balance + $1, updated_at = NOW() WHERE user_id = $2',
+          [receiverEarnings, receiverId]
+        );
+      }
+
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+        VALUES ($1, $2, $3, 'video_call_earning', $4)
+      `, [callerId, receiverId, receiverEarnings, `Video call earning (${duration}s call, 30% of ${totalAmount} coins)`]);
+
+      await pool.query('COMMIT');
+
+      console.log(`📹 Call finalized: Caller ${callerId} paid ${totalAmount} coins, receiver ${receiverId} earned ${receiverEarnings} coins (30%)`);
+
+      res.json({ 
+        success: true, 
+        totalCharged: totalAmount,
+        receiverEarnings: receiverEarnings,
+        message: 'Call payment finalized successfully' 
+      });
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error finalizing call payment:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
