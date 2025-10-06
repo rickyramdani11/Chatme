@@ -627,11 +627,11 @@ export default function ChatScreen() {
             type: 'room_info'
           });
 
-          // Managed by message  
+          // Created by message  
           roomInfoMessages.push({
             id: `room_info_managed_${roomId}`,
             sender: roomName,
-            content: `This room is managed by ${roomData?.managedBy || roomData?.createdBy}`,
+            content: `This room is created by ${roomData?.createdBy || 'unknown user'}`,
             timestamp: new Date(currentTime.getTime() - 2000), // 2 seconds earlier
             roomId: roomId,
             role: 'system',
@@ -654,12 +654,12 @@ export default function ChatScreen() {
 
         // Normalize room_info messages from database history to use correct owner name
         if (roomData && messages.length > 0) {
-          const ownerName = roomData.managedBy || roomData.createdBy;
+          const ownerName = roomData.createdBy || 'unknown user';
           messages = messages.map((msg: any) => {
-            if (msg.type === 'room_info' && msg.content?.startsWith('This room is managed by')) {
+            if (msg.type === 'room_info' && (msg.content?.startsWith('This room is managed by') || msg.content?.startsWith('This room is created by'))) {
               return {
                 ...msg,
-                content: `This room is managed by ${ownerName}`
+                content: `This room is created by ${ownerName}`
               };
             }
             return msg;
@@ -675,7 +675,7 @@ export default function ChatScreen() {
           title: roomName,
           type: isSupport ? 'support' : (type || 'room'),
           messages: allMessages,
-          managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.createdBy),
+          managedBy: type === 'private' ? targetUser?.username : (roomData?.createdBy || 'unknown user'),
           description: roomDescription || (type === 'private' ? `Private chat with ${targetUser?.username}` : isSupport ? 'Support Chat' : `${roomName} room`),
           moderators: roomData?.moderators || [],
           isSupport: isSupport
