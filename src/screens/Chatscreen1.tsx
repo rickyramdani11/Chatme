@@ -3500,13 +3500,12 @@ export default function ChatScreen() {
         
         if (cardSource) {
           return (
-            <Text key={index}>
-              <Image
-                source={cardSource}
-                style={styles.cardInlineImage}
-                resizeMode="contain"
-              />
-            </Text>
+            <Image
+              key={index}
+              source={cardSource}
+              style={styles.cardInlineImage}
+              resizeMode="contain"
+            />
           );
         }
         return null;
@@ -6001,6 +6000,7 @@ const styles = StyleSheet.create({
     height: 28,
     resizeMode: 'contain',
     marginHorizontal: 1,
+    backgroundColor: 'transparent',
   },
   giftImageInChat: {
     width: 64,
