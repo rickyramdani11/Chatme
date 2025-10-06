@@ -189,49 +189,50 @@ export default function PrivateChatScreen() {
         console.log('🎁 Gift data:', JSON.stringify(data.gift, null, 2));
         console.log('🎁 From:', data.from, 'Timestamp:', data.timestamp);
 
-        // Enrich gift with local assets based on ID (ensure string conversion)
-        const localAssets = getGiftAssets(String(data.gift.id));
-        const enrichedGift = { ...data.gift, ...localAssets };
-
-        // Always set active gift animation first
+        const gift = data.gift;
+        
         const giftAnimationData = {
-          ...enrichedGift,
+          ...gift,
           sender: data.from,
           recipient: user?.username,
           timestamp: data.timestamp,
           isPrivate: true
         };
 
-        // Handle MP4 video gifts
-        if (enrichedGift.type === 'animated_video' && enrichedGift.videoSource) {
-          console.log('🎬 Processing MP4 video gift:', enrichedGift.name);
+        // Handle video gifts
+        if (gift.type === 'animated_video' || gift.mediaType === 'video') {
+          console.log('🎬 Processing video gift:', gift.name);
           
-          setCurrentGiftVideoSource(enrichedGift.videoSource);
+          let videoSource = gift.videoSource || gift.animation;
+          if (typeof videoSource === 'string') {
+            videoSource = { uri: videoSource };
+          } else if (gift.videoUrl) {
+            videoSource = { uri: gift.videoUrl };
+          }
+          
+          if (videoSource) {
+            setCurrentGiftVideoSource(videoSource);
+            setActiveGiftAnimation({
+              ...giftAnimationData,
+              type: 'animated_video'
+            });
+            setShowGiftVideo(true);
+          }
+          
+        } else if (gift.image || gift.imageUrl) {
+          console.log('🖼️ Processing image gift:', gift.name);
+          
+          let imageSource = gift.image;
+          if (typeof imageSource === 'string') {
+            imageSource = { uri: imageSource };
+          } else if (gift.imageUrl) {
+            imageSource = { uri: gift.imageUrl };
+          }
+          
+          setCurrentGiftVideoSource(imageSource);
           setActiveGiftAnimation({
             ...giftAnimationData,
-            type: 'animated_video'
-          });
-          setShowGiftVideo(true);
-          
-        } else if (enrichedGift.type === 'animated_gif' || enrichedGift.type === 'static') {
-          console.log('🖼️ Processing image/GIF gift:', enrichedGift.name, 'Type:', enrichedGift.type);
-          
-          // Handle static images and animated GIFs with local assets
-          setCurrentGiftVideoSource(enrichedGift.image);
-          setActiveGiftAnimation({
-            ...giftAnimationData,
-            type: enrichedGift.type
-          });
-          setShowGiftVideo(true);
-          
-        } else if (enrichedGift.image) {
-          console.log('🖼️ Processing fallback image gift:', enrichedGift.name);
-          
-          // Handle any remaining image gifts with local assets
-          setCurrentGiftVideoSource(enrichedGift.image);
-          setActiveGiftAnimation({
-            ...giftAnimationData,
-            type: enrichedGift.type || 'static'
+            type: gift.type || 'static'
           });
           setShowGiftVideo(true);
           
@@ -1014,39 +1015,6 @@ export default function PrivateChatScreen() {
     }
   };
 
-  // Gift registry to map server gift IDs to local assets
-  const getGiftAssets = (giftId: string) => {
-    const giftAssetMap: { [key: string]: any } = {
-      '1': { type: 'animated_video', videoSource: require('../../assets/gift/animated/Love.mp4') },
-      '2': { type: 'animated_video', videoSource: require('../../assets/gift/animated/Ufonew.mp4') },
-      '3': { type: 'animated_gif', image: require('../../assets/gift/animated/Lion.gif') },
-      '4': { type: 'static', image: require('../../assets/gift/image/duyung.png') },
-      '5': { type: 'static', image: require('../../assets/gift/image/duyung_moph.png') },
-      '6': { type: 'static', image: require('../../assets/gift/image/girl.png') },
-      '7': { type: 'animated_gif', image: require('../../assets/gift/image/lion_img.gif') },
-      '8': { type: 'static', image: require('../../assets/gift/image/lumba.png') },
-      '9': { type: 'static', image: require('../../assets/gift/image/putri_duyung.png') },
-      '10': { type: 'emoji' },
-      '11': { type: 'emoji' },
-      '12': { type: 'emoji' },
-      '13': { type: 'animated_video', videoSource: require('../../assets/gift/animated/BabyLion.mp4') },
-      '14': { type: 'animated_video', videoSource: require('../../assets/gift/animated/bookmagical.mp4') },
-      '15': { type: 'animated_video', videoSource: require('../../assets/gift/animated/Grildcar.mp4') },
-      '16': { type: 'animated_video', videoSource: require('../../assets/gift/animated/luxurycar.mp4') },
-      '17': { type: 'static', image: require('../../assets/gift/image/Baby Lion.png') },
-      '18': { type: 'static', image: require('../../assets/gift/image/Birds Love.png') },
-      '19': { type: 'static', image: require('../../assets/gift/image/Couple.png') },
-      '20': { type: 'static', image: require('../../assets/gift/image/Flower Girls.png') },
-      '21': { type: 'animated_gif', image: require('../../assets/gift/image/Happy Jump.gif') },
-      '22': { type: 'static', image: require('../../assets/gift/image/Hug.png') },
-      '23': { type: 'static', image: require('../../assets/gift/image/I Loveyou .png') },
-      '24': { type: 'static', image: require('../../assets/gift/image/Kids Hug.png') },
-      '25': { type: 'static', image: require('../../assets/gift/image/Kiss.png') },
-      '26': { type: 'static', image: require('../../assets/gift/image/Love Panda.png') },
-      '27': { type: 'static', image: require('../../assets/gift/image/Panda.png') }
-    };
-    return giftAssetMap[giftId] || {};
-  };
 
   const loadGifts = async () => {
     try {
@@ -1062,7 +1030,6 @@ export default function PrivateChatScreen() {
         const serverGifts = await response.json();
         console.log('Gifts loaded from server:', serverGifts.length);
         
-        // Map server gifts and add local asset references
         const gifts = serverGifts.map((gift: any) => {
           const mappedGift: any = {
             id: gift.id.toString(),
@@ -1073,53 +1040,19 @@ export default function PrivateChatScreen() {
             category: gift.category || 'popular'
           };
 
-          // Add local asset references for better performance
           if (gift.image) {
-            try {
-              // Map known image paths to require statements
-              const imageMap: { [key: string]: any } = {
-                '/assets/gift/image/putri_duyung.png': require('../../assets/gift/image/putri_duyung.png'),
-                '/assets/gift/image/girl.png': require('../../assets/gift/image/girl.png'),
-                '/assets/gift/image/lion_img.gif': require('../../assets/gift/image/lion_img.gif'),
-                '/assets/gift/image/lumba.png': require('../../assets/gift/image/lumba.png'),
-                '/assets/gift/image/Baby Lion.png': require('../../assets/gift/image/Baby Lion.png'),
-                '/assets/gift/image/Birds Love.png': require('../../assets/gift/image/Birds Love.png'),
-                '/assets/gift/image/Couple.png': require('../../assets/gift/image/Couple.png'),
-                '/assets/gift/image/Flower Girls.png': require('../../assets/gift/image/Flower Girls.png'),
-                '/assets/gift/image/Happy Jump.gif': require('../../assets/gift/image/Happy Jump.gif'),
-                '/assets/gift/image/Hug.png': require('../../assets/gift/image/Hug.png'),
-                '/assets/gift/image/I Loveyou .png': require('../../assets/gift/image/I Loveyou .png'),
-                '/assets/gift/image/Kids Hug.png': require('../../assets/gift/image/Kids Hug.png'),
-                '/assets/gift/image/Kiss.png': require('../../assets/gift/image/Kiss.png'),
-                '/assets/gift/image/Love Panda.png': require('../../assets/gift/image/Love Panda.png'),
-                '/assets/gift/image/Panda.png': require('../../assets/gift/image/Panda.png')
-              };
-              
-              if (imageMap[gift.image]) {
-                mappedGift.image = imageMap[gift.image];
-              }
-            } catch (error) {
-              console.log('Image asset not found for:', gift.image);
+            if (gift.image.startsWith('https://')) {
+              mappedGift.image = { uri: gift.image };
+            } else {
+              mappedGift.imageUrl = gift.image;
             }
           }
 
           if (gift.animation) {
-            try {
-              // Map known video paths to require statements
-              const videoMap: { [key: string]: any } = {
-                '/assets/gift/animated/Love.mp4': require('../../assets/gift/animated/Love.mp4'),
-                '/assets/gift/animated/Ufonew.mp4': require('../../assets/gift/animated/Ufonew.mp4'),
-                '/assets/gift/animated/BabyLion.mp4': require('../../assets/gift/animated/BabyLion.mp4'),
-                '/assets/gift/animated/bookmagical.mp4': require('../../assets/gift/animated/bookmagical.mp4'),
-                '/assets/gift/animated/Grildcar.mp4': require('../../assets/gift/animated/Grildcar.mp4'),
-                '/assets/gift/animated/luxurycar.mp4': require('../../assets/gift/animated/luxurycar.mp4')
-              };
-              
-              if (videoMap[gift.animation]) {
-                mappedGift.videoSource = videoMap[gift.animation];
-              }
-            } catch (error) {
-              console.log('Video asset not found for:', gift.animation);
+            if (gift.animation.startsWith('https://')) {
+              mappedGift.videoSource = { uri: gift.animation };
+            } else {
+              mappedGift.videoUrl = gift.animation;
             }
           }
 
@@ -1130,7 +1063,6 @@ export default function PrivateChatScreen() {
         console.log('✅ Server gifts loaded:', gifts.length);
       } else {
         console.error('Failed to load gifts from API, using fallback');
-        // Simple fallback gifts if API fails
         const fallbackGifts = [
           { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'emoji', category: 'popular' },
           { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'emoji', category: 'popular' },
@@ -1140,7 +1072,6 @@ export default function PrivateChatScreen() {
       }
     } catch (error) {
       console.error('Error loading gifts:', error);
-      // Simple fallback gifts on error
       const fallbackGifts = [
         { id: '1', name: 'Lucky Rose', icon: '🌹', price: 150, type: 'emoji', category: 'popular' },
         { id: '2', name: 'Ionceng', icon: '🔔', price: 300, type: 'emoji', category: 'popular' },
@@ -1222,12 +1153,10 @@ export default function PrivateChatScreen() {
           });
           setShowGiftVideo(true);
           
-        } else if (gift.image || (gift.animation && gift.animation.includes('.png'))) {
-          console.log('🖼️ Processing PNG gift locally:', gift.name);
+        } else if (gift.image || gift.imageUrl || gift.videoUrl) {
+          console.log('🖼️ Processing image gift locally:', gift.name);
           
-          const imageSource = gift.image 
-            ? (typeof gift.image === 'string' ? { uri: gift.image } : gift.image)
-            : (typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation);
+          const imageSource = gift.image || { uri: gift.imageUrl || gift.videoUrl };
           
           setCurrentGiftVideoSource(imageSource);
           setActiveGiftAnimation({
