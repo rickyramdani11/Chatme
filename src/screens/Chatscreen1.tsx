@@ -499,11 +499,11 @@ export default function ChatScreen() {
                 console.log(`👤 Owner name resolved to: ${ownerName}`);
                 
                 const updatedMessages = updatedTabs[existingTabIndex].messages.map((msg: any) => {
-                  if (msg.type === 'room_info' && msg.content?.startsWith('This room is managed by')) {
-                    console.log(`✏️ Updating message from "${msg.content}" to "This room is managed by ${ownerName}"`);
+                  if (msg.type === 'room_info' && (msg.content?.startsWith('This room is managed by') || msg.content?.startsWith('This room is created by'))) {
+                    console.log(`✏️ Updating message from "${msg.content}" to "This room is created by ${ownerName}"`);
                     return {
                       ...msg,
-                      content: `This room is managed by ${ownerName}`
+                      content: `This room is created by ${ownerName}`
                     };
                   }
                   return msg;
