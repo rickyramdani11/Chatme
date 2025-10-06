@@ -587,20 +587,19 @@ export default function ChatScreen() {
         let roomData = null;
         if (type !== 'private' && !isSupport) {
           try {
-            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms`, {
+            // Add timestamp to force fresh request and bypass cache
+            const timestamp = Date.now();
+            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms?_t=${timestamp}`, {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
                 'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
               },
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
-              console.log('🔍 DEBUG: All rooms from API:', rooms);
               roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
-              console.log('🔍 DEBUG: Found roomData:', roomData);
-              console.log('🔍 DEBUG: createdBy value:', roomData?.createdBy);
-              console.log('🔍 DEBUG: createdBy type:', typeof roomData?.createdBy);
             }
           } catch (error) {
             console.log('Could not fetch room data');
