@@ -489,12 +489,18 @@ export default function ChatScreen() {
               const roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
               
               if (roomData) {
+                console.log(`🔄 Updating existing tab for room ${roomId}`);
+                console.log(`📊 Room data:`, roomData);
+                
                 // Update ALL room_info messages AND tab metadata with latest owner info
                 const updatedTabs = [...chatTabs];
                 const ownerName = roomData.managedBy || roomData.createdBy || 'admin';
                 
-                updatedTabs[existingTabIndex].messages = updatedTabs[existingTabIndex].messages.map((msg: any) => {
+                console.log(`👤 Owner name resolved to: ${ownerName}`);
+                
+                const updatedMessages = updatedTabs[existingTabIndex].messages.map((msg: any) => {
                   if (msg.type === 'room_info' && msg.content?.startsWith('This room is managed by')) {
+                    console.log(`✏️ Updating message from "${msg.content}" to "This room is managed by ${ownerName}"`);
                     return {
                       ...msg,
                       content: `This room is managed by ${ownerName}`
@@ -503,12 +509,15 @@ export default function ChatScreen() {
                   return msg;
                 });
                 
+                updatedTabs[existingTabIndex].messages = updatedMessages;
+                
                 // Update tab metadata for permission checks
                 updatedTabs[existingTabIndex].managedBy = ownerName;
                 if (roomData.moderators) {
                   updatedTabs[existingTabIndex].moderators = roomData.moderators;
                 }
                 
+                console.log(`✅ Updated tab metadata - managedBy: ${ownerName}`);
                 setChatTabs(updatedTabs);
               }
             }
