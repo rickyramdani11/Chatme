@@ -41,6 +41,9 @@ export default function ParticipantsList({
   onParticipantPress
 }: ParticipantsListProps) {
 
+  // Filter to only show online participants
+  const onlineParticipants = participants.filter(p => p.isOnline);
+
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
     if (role === 'admin') return '#FF6B35'; // Orange Red for admin
@@ -121,8 +124,8 @@ export default function ParticipantsList({
             </View>
           ) : (
             <ScrollView style={styles.participantsList}>
-              {participants.length > 0 ? (
-                participants.map((participant, index) => (
+              {onlineParticipants.length > 0 ? (
+                onlineParticipants.map((participant, index) => (
                   <TouchableOpacity
                     key={`${participant.username}-${participant.id || index}`}
                     style={[
