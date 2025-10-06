@@ -1403,6 +1403,145 @@ io.on('connection', (socket) => {
         return; // Don't process as regular message
       }
 
+      // Handle /f (follow) command
+      if (trimmedContent.startsWith('/f ')) {
+        console.log(`👥 Processing /f (follow) command: ${trimmedContent}`);
+        const args = trimmedContent.split(' ');
+        const targetUsername = args[1]?.trim();
+
+        if (!targetUsername) {
+          // Send error message privately to sender
+          const userInfo = connectedUsers.get(socket.id);
+          if (userInfo && userInfo.userId) {
+            io.to(`user_${userInfo.userId}`).emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ Please specify a username. Usage: /f username',
+              timestamp: new Date().toISOString(),
+              type: 'system',
+              isPrivate: true
+            });
+          }
+          return;
+        }
+
+        try {
+          // Get sender's user ID
+          const userInfo = connectedUsers.get(socket.id);
+          if (!userInfo || !userInfo.userId) {
+            console.error('User info not found for socket:', socket.id);
+            return;
+          }
+
+          const followerId = userInfo.userId;
+
+          // Find target user by username
+          const targetUserResult = await pool.query(
+            'SELECT id, username FROM users WHERE LOWER(username) = LOWER($1)',
+            [targetUsername]
+          );
+
+          if (targetUserResult.rows.length === 0) {
+            // User not found
+            io.to(`user_${followerId}`).emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: `❌ User "${targetUsername}" not found.`,
+              timestamp: new Date().toISOString(),
+              type: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          const targetUser = targetUserResult.rows[0];
+          const targetUserId = targetUser.id;
+
+          // Check if user is trying to follow themselves
+          if (followerId === targetUserId) {
+            io.to(`user_${followerId}`).emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ You cannot follow yourself.',
+              timestamp: new Date().toISOString(),
+              type: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          // Check if already following
+          const existingFollow = await pool.query(
+            'SELECT id FROM user_follows WHERE follower_id = $1 AND following_id = $2',
+            [followerId, targetUserId]
+          );
+
+          if (existingFollow.rows.length > 0) {
+            // Already following
+            io.to(`user_${followerId}`).emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: `ℹ️ You are already following ${targetUser.username}.`,
+              timestamp: new Date().toISOString(),
+              type: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          // Insert follow relationship
+          await pool.query(
+            'INSERT INTO user_follows (follower_id, following_id, created_at) VALUES ($1, $2, NOW())',
+            [followerId, targetUserId]
+          );
+
+          console.log(`✅ ${sender} (ID: ${followerId}) followed ${targetUser.username} (ID: ${targetUserId})`);
+
+          // Send success message to sender
+          io.to(`user_${followerId}`).emit('new-message', {
+            id: `success_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'System',
+            content: `✅ You are now following ${targetUser.username}.`,
+            timestamp: new Date().toISOString(),
+            type: 'system',
+            isPrivate: true
+          });
+
+          // Send notification to target user
+          const notification = {
+            id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            type: 'follow',
+            message: `${sender} is followed you`,
+            timestamp: new Date().toISOString(),
+            data: {
+              followerUsername: sender,
+              followerId: followerId
+            }
+          };
+
+          // Emit notification via user's personal room
+          io.to(`user_${targetUserId}`).emit('new_notification', notification);
+          
+          console.log(`🔔 Follow notification sent to ${targetUser.username} (ID: ${targetUserId})`);
+
+        } catch (error) {
+          console.error('Error processing /f command:', error);
+          const userInfo = connectedUsers.get(socket.id);
+          if (userInfo && userInfo.userId) {
+            io.to(`user_${userInfo.userId}`).emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ Failed to follow user. Please try again.',
+              timestamp: new Date().toISOString(),
+              type: 'system',
+              isPrivate: true
+            });
+          }
+        }
+
+        return; // Don't process as regular message
+      }
+
       // Handle bot commands
       if (trimmedContent.startsWith('/bot lowcard add') || 
           trimmedContent.startsWith('/add') || 

@@ -4,6 +4,17 @@ ChatMe is a cross-platform React Native chat application built with Expo, offeri
 
 # Recent Changes
 
+**October 6, 2025**
+- **Follow Command Feature**: Added `/f username` chat command to follow users directly from chat
+  - Command usage: `/f username` (e.g., `/f chatme`)
+  - Private command - only visible to sender, not broadcasted to room
+  - Automatically validates: user exists, not already following, cannot self-follow
+  - Sends success/error feedback privately to command sender
+  - Sends real-time notification to target user: "{username} is followed you"
+  - Notification appears in Notification screen with follow type
+  - Updates `user_follows` table with follower/following relationship
+  - Provides instant feedback for all edge cases (user not found, already following, etc.)
+
 **October 5, 2025**
 - **Video Call Migration to Daily.co**: Migrated from VideoSDK to Daily.co for 1v1 video/audio calls due to React 19/React Native 0.79 compatibility issues
   - **Root Cause**: VideoSDK has fundamental React 19/RN 0.79 incompatibility ("Super expression must either be null or a function" error) that cannot be fixed with workarounds
