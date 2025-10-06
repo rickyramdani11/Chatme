@@ -608,10 +608,18 @@ export default function ChatScreen() {
             });
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
+              console.log('📋 All rooms received:', rooms.length);
+              console.log('🔍 Looking for roomId:', roomId, 'Type:', typeof roomId);
               roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
               console.log('🔍 DEBUG Room Data:', JSON.stringify(roomData, null, 2));
               console.log('🔍 managedBy:', roomData?.managedBy);
               console.log('🔍 createdBy:', roomData?.createdBy);
+              
+              if (!roomData) {
+                console.warn('⚠️ Room not found in response! Trying with strict equality...');
+                roomData = rooms.find((r: any) => r.id === roomId);
+                console.log('🔍 Retry result:', roomData ? 'Found!' : 'Still not found');
+              }
             }
           } catch (error) {
             console.log('Could not fetch room data');
