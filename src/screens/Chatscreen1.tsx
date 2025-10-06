@@ -3580,7 +3580,7 @@ export default function ChatScreen() {
                 fontWeight: 'bold',
                 fontStyle: isBotCommand ? 'italic' : 'normal'
               }}>
-                : {item.content}
+                : {renderMessageContent(item.content)}
               </Text>
             </Text>
           </View>
