@@ -26,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Core Features
 - **Chat System**: Multi-room chat (real-time only), private messaging (persisted), emoji support, media sharing, chat history notifications, hybrid emoji composer.
-- **Gift System**: Virtual gifts with real-time display, video gifts, atomic send prevention, duplicate message filtering, batched state updates. Gift earnings are standardized to 30% user / 70% system.
+- **Gift System**: Virtual gifts with real-time display, video gifts, atomic send prevention, duplicate message filtering, batched state updates. Gift earnings are standardized to 30% user / 70% system. Cloud storage integration with Cloudinary for scalable gift media management.
 - **Gaming Integration**: LowCard bot game with database persistence and automatic refund system.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat with rate limiting and conversation history.
 - **Credit System**: Virtual currency with transactions and transfers.
@@ -68,9 +68,10 @@ Preferred communication style: Simple, everyday language.
 
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).
-- **Storage**: Local file system.
+- **Storage**: Cloudinary cloud storage for gift media (images/videos/GIFs), legacy local file system support maintained for backward compatibility.
 - **Networking**: HTTP/HTTPS, WebSockets.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.
 - **Video Calls**: Daily.co (@daily-co/react-native-daily-js, @daily-co/react-native-webrtc@124.0.6-daily.1, @daily-co/config-plugin-rn-daily-js).
 - **Payment Gateway**: Xendit Payout API for withdrawal system.
+- **Media CDN**: Cloudinary for gift asset hosting and delivery.
