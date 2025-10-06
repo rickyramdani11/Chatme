@@ -224,7 +224,7 @@ export default function WithdrawScreen({ navigation }: any) {
       console.error('Error linking account:', error);
       if (error instanceof TypeError) {
         Alert.alert('Error', 'Network error. Please check your connection.');
-      } else if (!error.message.includes('Failed to link account')) {
+      } else if (error instanceof Error && !error.message.includes('Failed to link account')) {
         Alert.alert('Error', 'An unexpected error occurred');
       }
       throw error;
@@ -374,7 +374,7 @@ export default function WithdrawScreen({ navigation }: any) {
         {linkedAccounts.length > 0 ? (
           <View style={styles.linkedAccountSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Ikat kartu bank</Text>
+              <Text style={styles.sectionTitleLarge}>Ikat kartu bank</Text>
               <TouchableOpacity 
                 onPress={() => setShowBankModal(true)}
                 style={styles.changeButton}
@@ -388,19 +388,19 @@ export default function WithdrawScreen({ navigation }: any) {
               
               {linkedAccounts.map((account, index) => (
                 <View key={account.id} style={styles.accountCard}>
-                  <View style={styles.accountInfo}>
+                  <View style={styles.accountCardInfo}>
                     <Text style={styles.accountLabel}>Negara & Mata Uang</Text>
                     <Text style={styles.accountValue}>Indonesia&IDR</Text>
                   </View>
                   
-                  <View style={styles.accountInfo}>
+                  <View style={styles.accountCardInfo}>
                     <Text style={styles.accountLabel}>Nama</Text>
                     <Text style={styles.accountValue}>
                       {account.accountName.substring(0, 1)}***{account.accountName.slice(-1)}
                     </Text>
                   </View>
                   
-                  <View style={styles.accountInfo}>
+                  <View style={styles.accountCardInfo}>
                     <Text style={styles.accountLabel}>Akun</Text>
                     <Text style={styles.accountValue}>
                       {account.accountNumber.substring(0, 1)}{'*'.repeat(account.accountNumber.length - 2)}{account.accountNumber.slice(-1)}
@@ -445,7 +445,7 @@ export default function WithdrawScreen({ navigation }: any) {
 
         {/* Gift Earnings Details */}
         <View style={styles.giftEarningsSection}>
-          <Text style={styles.sectionTitle}>Pendapatan dari Gift</Text>
+          <Text style={styles.sectionTitleLarge}>Pendapatan dari Gift</Text>
           <View style={styles.giftEarningsCard}>
             <View style={styles.giftEarningsInfo}>
               <Text style={styles.giftEarningsText}>
@@ -974,7 +974,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 15,
   },
-  sectionTitle: {
+  sectionTitleLarge: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
@@ -1008,7 +1008,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-  accountInfo: {
+  accountCardInfo: {
     marginBottom: 12,
   },
   accountLabel: {
