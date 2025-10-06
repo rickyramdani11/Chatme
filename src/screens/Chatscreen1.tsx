@@ -978,9 +978,12 @@ export default function ChatScreen() {
         ]).start();
 
         // Auto-close timing based on gift type (same logic as private gifts)
-        const isVideoGift = data.gift.animation && (
-          (typeof data.gift.animation === 'string' && data.gift.animation.toLowerCase().includes('.mp4')) ||
-          (data.gift.name && (data.gift.name.toLowerCase().includes('love') || data.gift.name.toLowerCase().includes('ufo')))
+        const animationStr = data.gift.animation?.uri || data.gift.videoUrl || (typeof data.gift.animation === 'string' ? data.gift.animation : '');
+        const isVideoGift = data.gift.mediaType === 'video' || (
+          animationStr && 
+          (animationStr.toLowerCase().includes('.mp4') || 
+           animationStr.toLowerCase().includes('.webm') || 
+           animationStr.toLowerCase().includes('.mov'))
         );
 
         // For non-video gifts, use fixed timeout
@@ -3883,7 +3886,6 @@ export default function ChatScreen() {
         const serverGifts = await response.json();
         console.log('Gifts loaded from server:', serverGifts.length);
         
-        // Map server gifts and add local asset references
         const gifts = serverGifts.map((gift: any) => {
           const mappedGift: any = {
             id: gift.id.toString(),
@@ -3894,58 +3896,20 @@ export default function ChatScreen() {
             category: gift.category || 'popular'
           };
 
-          // Add local asset references for better performance
           if (gift.image) {
-            try {
-              // Map known image paths to require statements
-              const imageMap: { [key: string]: any } = {
-                '/assets/gift/image/putri_duyung.png': require('../../assets/gift/image/putri_duyung.png'),
-                '/assets/gift/image/girl.png': require('../../assets/gift/image/girl.png'),
-                '/assets/gift/image/lion_img.gif': require('../../assets/gift/image/lion_img.gif'),
-                '/assets/gift/image/lumba.png': require('../../assets/gift/image/lumba.png'),
-                '/assets/gift/image/Baby Lion.png': require('../../assets/gift/image/Baby Lion.png'),
-                '/assets/gift/image/Birds Love.png': require('../../assets/gift/image/Birds Love.png'),
-                '/assets/gift/image/Couple.png': require('../../assets/gift/image/Couple.png'),
-                '/assets/gift/image/Flower Girls.png': require('../../assets/gift/image/Flower Girls.png'),
-                '/assets/gift/image/Happy Jump.gif': require('../../assets/gift/image/Happy Jump.gif'),
-                '/assets/gift/image/Hug.png': require('../../assets/gift/image/Hug.png'),
-                '/assets/gift/image/I Loveyou .png': require('../../assets/gift/image/I Loveyou .png'),
-                '/assets/gift/image/Kids Hug.png': require('../../assets/gift/image/Kids Hug.png'),
-                '/assets/gift/image/Kiss.png': require('../../assets/gift/image/Kiss.png'),
-                '/assets/gift/image/Love Panda.png': require('../../assets/gift/image/Love Panda.png'),
-                '/assets/gift/image/Panda.png': require('../../assets/gift/image/Panda.png')
-              };
-              
-              if (imageMap[gift.image]) {
-                mappedGift.image = imageMap[gift.image];
-              }
-            } catch (error) {
-              console.log('Image asset not found for:', gift.image);
+            if (gift.image.startsWith('https://')) {
+              mappedGift.image = { uri: gift.image };
+            } else {
+              mappedGift.imageUrl = gift.image;
             }
           }
 
           if (gift.animation) {
-            try {
-              // Map known video paths to require statements
-              const videoMap: { [key: string]: any } = {
-                '/assets/gift/animated/Love.mp4': require('../../assets/gift/animated/Love.mp4'),
-                '/assets/gift/animated/Ufonew.mp4': require('../../assets/gift/animated/Ufonew.mp4'),
-                '/assets/gift/animated/BabyLion.mp4': require('../../assets/gift/animated/BabyLion.mp4'),
-                '/assets/gift/animated/bookmagical.mp4': require('../../assets/gift/animated/bookmagical.mp4'),
-                '/assets/gift/animated/Grildcar.mp4': require('../../assets/gift/animated/Grildcar.mp4'),
-                '/assets/gift/animated/luxurycar.mp4': require('../../assets/gift/animated/luxurycar.mp4')
-              };
-              
-              if (videoMap[gift.animation]) {
-                mappedGift.animation = videoMap[gift.animation];
-                mappedGift.videoSource = videoMap[gift.animation];
-              } else {
-                // Keep original path if not in map
-                mappedGift.animation = gift.animation;
-              }
-            } catch (error) {
-              console.log('Video asset not found for:', gift.animation);
-              mappedGift.animation = gift.animation;
+            if (gift.animation.startsWith('https://')) {
+              mappedGift.animation = { uri: gift.animation };
+              mappedGift.videoSource = { uri: gift.animation };
+            } else {
+              mappedGift.videoUrl = gift.animation;
             }
           }
 
@@ -5005,32 +4969,40 @@ export default function ChatScreen() {
                     onPress={() => sendToAllUsers ? handleGiftSendToAll(gift) : handleGiftSend(gift)}
                   >
                     <View style={styles.newGiftIconContainer}>
-                      {gift.image ? (
+                      {gift.image || gift.imageUrl ? (
                         <Image 
-                          source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
+                          source={gift.image || { uri: gift.imageUrl }} 
                           style={styles.giftImage} 
                           resizeMode="contain"
                         />
-                      ) : gift.animation ? (
-                        // Check if it's MP4 video
-                        (typeof gift.animation === 'string' && gift.animation.toLowerCase().includes('.mp4')) ||
-                        (gift.name && (gift.name.toLowerCase().includes('love') || gift.name.toLowerCase().includes('ufo'))) ? (
-                          <Video
-                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation}
-                            style={styles.giftImage}
-                            resizeMode="contain"
-                            shouldPlay={false}
-                            isLooping={false}
-                            isMuted={true}
-                          />
-                        ) : (
-                          // For GIF animations
-                          <Image 
-                            source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
-                            style={styles.giftImage} 
-                            resizeMode="contain"
-                          />
-                        )
+                      ) : gift.animation || gift.videoUrl ? (
+                        (() => {
+                          const animSource = gift.animation || { uri: gift.videoUrl };
+                          const animStr = gift.animation?.uri || gift.videoUrl || (typeof gift.animation === 'string' ? gift.animation : '');
+                          const isVideo = gift.mediaType === 'video' || (
+                            animStr && 
+                            (animStr.toLowerCase().includes('.mp4') || 
+                             animStr.toLowerCase().includes('.webm') || 
+                             animStr.toLowerCase().includes('.mov'))
+                          );
+                          
+                          return isVideo ? (
+                            <Video
+                              source={animSource}
+                              style={styles.giftImage}
+                              resizeMode="contain"
+                              shouldPlay={false}
+                              isLooping={false}
+                              isMuted={true}
+                            />
+                          ) : (
+                            <Image 
+                              source={animSource} 
+                              style={styles.giftImage} 
+                              resizeMode="contain"
+                            />
+                          );
+                        })()
                       ) : (
                         <Text style={styles.newGiftIcon}>{gift.icon}</Text>
                       )}
@@ -5256,65 +5228,89 @@ export default function ChatScreen() {
             ]}
             pointerEvents="box-none"
           >
-            {/* Full Screen MP4 Video Effect */}
-            {activeGiftAnimation.animation && (
-              (typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) ||
-              (activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo')))
-            ) && (
-              <Video
-                ref={giftVideoRef}
-                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
-                style={styles.fullScreenVideo}
-                resizeMode="cover"
-                shouldPlay
-                isLooping={false}
-                isMuted={false}
-                volume={0.7}
-                onPlaybackStatusUpdate={(status) => {
-                  // Auto close after video ends with smooth fade out
-                  if (status.didJustFinish) {
-                    setTimeout(() => {
-                      Animated.parallel([
-                        Animated.timing(giftScaleAnim, {
-                          toValue: 1.1, // Slight zoom out effect
-                          duration: 500,
-                          useNativeDriver: true,
-                        }),
-                        Animated.timing(giftOpacityAnim, {
-                          toValue: 0,
-                          duration: 500,
-                          useNativeDriver: true,
-                        }),
-                      ]).start(() => {
-                        setActiveGiftAnimation(null);
-                      });
-                    }, 1500); // Wait 1.5 seconds after video ends
-                  }
-                }}
-              />
-            )}
+            {/* Full Screen Video Effect */}
+            {(() => {
+              const animationData = activeGiftAnimation.animation || activeGiftAnimation.videoSource;
+              const animStr = animationData?.uri || activeGiftAnimation.videoUrl || (typeof animationData === 'string' ? animationData : '');
+              const isVideo = activeGiftAnimation.mediaType === 'video' || (
+                animStr && 
+                (animStr.toLowerCase().includes('.mp4') || 
+                 animStr.toLowerCase().includes('.webm') || 
+                 animStr.toLowerCase().includes('.mov'))
+              );
+              
+              if (isVideo && animationData) {
+                const videoSource = typeof animationData === 'string' ? { uri: animationData } : animationData;
+                return (
+                  <Video
+                    ref={giftVideoRef}
+                    source={videoSource}
+                    style={styles.fullScreenVideo}
+                    resizeMode="cover"
+                    shouldPlay
+                    isLooping={false}
+                    isMuted={false}
+                    volume={0.7}
+                    onPlaybackStatusUpdate={(status) => {
+                      if (status.didJustFinish) {
+                        setTimeout(() => {
+                          Animated.parallel([
+                            Animated.timing(giftScaleAnim, {
+                              toValue: 1.1,
+                              duration: 500,
+                              useNativeDriver: true,
+                            }),
+                            Animated.timing(giftOpacityAnim, {
+                              toValue: 0,
+                              duration: 500,
+                              useNativeDriver: true,
+                            }),
+                          ]).start(() => {
+                            setActiveGiftAnimation(null);
+                          });
+                        }, 1500);
+                      }
+                    }}
+                  />
+                );
+              }
+              return null;
+            })()}
 
             {/* Small Static Image/GIF Effect (30x30) */}
             {activeGiftAnimation.image && (
               <View style={styles.smallGiftContainer}>
                 <Image 
-                  source={typeof activeGiftAnimation.image === 'string' ? { uri: activeGiftAnimation.image } : activeGiftAnimation.image} 
+                  source={activeGiftAnimation.image} 
                   style={styles.smallGiftImage}
                   resizeMode="contain"
                 />
               </View>
             )}
 
-            {/* Fullscreen GIF layer for non-MP4 animations with transparency */}
-            {activeGiftAnimation.animation && 
-             !(typeof activeGiftAnimation.animation === 'string' && activeGiftAnimation.animation.toLowerCase().includes('.mp4')) &&
-             !(activeGiftAnimation.name && (activeGiftAnimation.name.toLowerCase().includes('love') || activeGiftAnimation.name.toLowerCase().includes('ufo'))) && (
-              <Image 
-                source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation} 
-                style={styles.fullScreenGif}
-                resizeMode="cover"
-              />
-            )}
+            {/* Fullscreen GIF layer for non-video animations */}
+            {(() => {
+              const animationData = activeGiftAnimation.animation;
+              const animStr = animationData?.uri || activeGiftAnimation.videoUrl || (typeof animationData === 'string' ? animationData : '');
+              const isVideo = activeGiftAnimation.mediaType === 'video' || (
+                animStr && 
+                (animStr.toLowerCase().includes('.mp4') || 
+                 animStr.toLowerCase().includes('.webm') || 
+                 animStr.toLowerCase().includes('.mov'))
+              );
+              
+              if (animationData && !isVideo) {
+                const gifSource = typeof animationData === 'string' ? { uri: animationData } : animationData;
+                return (
+                  <Image 
+                    source={gifSource} 
+                    style={styles.fullScreenGif}
+                    resizeMode="cover"
+                  />
+                );
+              }
+              return null;
+            })()}
 
             {/* Fallback emoji/icon layer (small) */}
             {!activeGiftAnimation.animation && !activeGiftAnimation.image && (
