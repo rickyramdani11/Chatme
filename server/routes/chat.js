@@ -60,38 +60,59 @@ router.post('/private', authenticateToken, async (req, res) => {
       SELECT * FROM private_chats WHERE id = $1
     `, [chatId]);
 
+    let isNewChat = false;
     if (existingChat.rows.length > 0) {
-      return res.json({
+      console.log(`💬 Existing private chat found: ${chatId}`);
+      res.json({
         id: chatId,
         participants,
         created_at: existingChat.rows[0].created_at,
         isExisting: true
       });
+    } else {
+      isNewChat = true;
+      const chatResult = await pool.query(`
+        INSERT INTO private_chats (id, created_by, participant1_id, participant1_username, participant2_id, participant2_username, initiated_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `, [chatId, req.user.username, userIds[0], participant1Username, userIds[1], participant2Username, currentUserId]);
+
+      // Insert participants with correct ID-username mapping
+      await pool.query(`
+        INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
+        VALUES ($1, $2, $3, NOW())
+      `, [chatId, userIds[0], participant1Username]);
+
+      await pool.query(`
+        INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
+        VALUES ($1, $2, $3, NOW())
+      `, [chatId, userIds[1], participant2Username]);
+
+      console.log(`✅ New private chat created: ${chatId}`);
+      res.json({
+        id: chatId,
+        participants,
+        created_at: chatResult.rows[0].created_at,
+        isExisting: false
+      });
     }
 
-    const chatResult = await pool.query(`
-      INSERT INTO private_chats (id, created_by, participant1_id, participant1_username, participant2_id, participant2_username, initiated_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *
-    `, [chatId, req.user.username, userIds[0], participant1Username, userIds[1], participant2Username, currentUserId]);
-
-    // Insert participants with correct ID-username mapping
-    await pool.query(`
-      INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
-      VALUES ($1, $2, $3, NOW())
-    `, [chatId, userIds[0], participant1Username]);
-
-    await pool.query(`
-      INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
-      VALUES ($1, $2, $3, NOW())
-    `, [chatId, userIds[1], participant2Username]);
-
-    res.json({
-      id: chatId,
-      participants,
-      created_at: chatResult.rows[0].created_at,
-      isExisting: false
-    });
+    // Send socket notification to recipient to open private chat tab
+    // This needs to be done via gateway
+    const axios = require('axios');
+    try {
+      await axios.post('http://localhost:8000/gateway/notify-private-chat', {
+        chatId,
+        recipientId: targetUser.id,
+        recipientUsername: targetUser.username,
+        initiatorId: currentUserId,
+        initiatorUsername: req.user.username,
+        isNewChat
+      });
+      console.log(`📨 Private chat notification sent to ${targetUser.username} (ID: ${targetUser.id})`);
+    } catch (notifError) {
+      console.error('Error sending private chat notification:', notifError.message);
+    }
 
   } catch (error) {
     console.error('Error creating private chat:', error);

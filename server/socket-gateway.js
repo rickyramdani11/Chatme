@@ -539,6 +539,37 @@ app.post('/emit-notification', express.json(), (req, res) => {
   }
 });
 
+// HTTP endpoint to notify user about new private chat
+app.post('/gateway/notify-private-chat', express.json(), (req, res) => {
+  try {
+    const { chatId, recipientId, recipientUsername, initiatorId, initiatorUsername, isNewChat } = req.body;
+    
+    if (!chatId || !recipientId || !initiatorUsername) {
+      return res.status(400).json({ error: 'chatId, recipientId, and initiatorUsername are required' });
+    }
+
+    // Send notification to recipient's personal room to open private chat tab
+    const personalRoom = `user_${recipientId}`;
+    const notification = {
+      type: 'private_chat',
+      chatId,
+      fromUserId: initiatorId,
+      fromUsername: initiatorUsername,
+      message: `${initiatorUsername} ${isNewChat ? 'started' : 'sent you'} a private chat`,
+      timestamp: new Date().toISOString()
+    };
+
+    io.to(personalRoom).emit('open_private_chat', notification);
+    
+    console.log(`📨 Private chat notification sent to ${recipientUsername} (room: ${personalRoom})`);
+    console.log(`   Chat ID: ${chatId}, Initiator: ${initiatorUsername}`);
+    res.json({ success: true, message: 'Private chat notification sent' });
+  } catch (error) {
+    console.error('Error sending private chat notification:', error);
+    res.status(500).json({ error: 'Failed to send private chat notification' });
+  }
+});
+
 // HTTP endpoint to get room participants for API server
 app.get('/gateway/rooms/:roomId/participants', (req, res) => {
   try {

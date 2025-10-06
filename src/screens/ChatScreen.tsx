@@ -1155,6 +1155,47 @@ export default function ChatScreen() {
         setShowIncomingCallModal(true);
       });
 
+      // Listen for private chat notifications to open tab
+      socketInstance.on('open_private_chat', (notification: any) => {
+        console.log('📨 Received private chat notification:', notification);
+        const { chatId, fromUsername, message } = notification;
+        
+        // Check if tab already exists
+        const tabExists = chatTabsRef.current.some(tab => tab.id === chatId);
+        
+        if (!tabExists && chatId && fromUsername) {
+          console.log(`🆕 Opening new private chat tab: ${chatId} with ${fromUsername}`);
+          // Add new private chat tab
+          setChatTabs(prevTabs => [
+            ...prevTabs,
+            {
+              id: chatId,
+              name: `Chat with ${fromUsername}`,
+              type: 'private',
+              messages: [],
+              participants: [fromUsername],
+            }
+          ]);
+          
+          // Switch to the new tab
+          setActiveTab(chatTabsRef.current.length);
+          
+          // Show notification alert
+          Alert.alert(
+            'New Private Chat',
+            message || `${fromUsername} started a private chat with you`,
+            [{ text: 'OK' }]
+          );
+        } else if (tabExists) {
+          console.log(`💬 Private chat tab already exists: ${chatId}`);
+          // Tab exists, just switch to it
+          const tabIndex = chatTabsRef.current.findIndex(tab => tab.id === chatId);
+          if (tabIndex !== -1) {
+            setActiveTab(tabIndex);
+          }
+        }
+      });
+
       // Listen for call responses
       socketInstance.on('call-response-received', (responseData) => {
         console.log('Call response received:', responseData);
