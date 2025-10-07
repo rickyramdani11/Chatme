@@ -8,7 +8,7 @@ apiInstance.setApiKey(
 
 async function sendVerificationEmail(email, username, token) {
   try {
-    const verificationUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/verify-email?token=${token}`;
+    const verificationUrl = `https://web.chatmeapp.online/api/auth/verify-email?token=${token}`;
     
     const sendSmtpEmail = new brevo.SendSmtpEmail();
     sendSmtpEmail.subject = "Verify Your ChatMe Account";
