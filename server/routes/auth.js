@@ -3,6 +3,8 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const crypto = require('crypto');
+const { sendVerificationEmail } = require('../services/emailService');
 
 const router = express.Router();
 const pool = new Pool({
@@ -75,16 +77,24 @@ router.post('/register', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     const result = await pool.query(
-      `INSERT INTO users (username, email, password, phone, country, gender, bio, avatar, verified, exp, level, last_login, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, username, email`,
-      [username, email, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline']
+      `INSERT INTO users (username, email, password, phone, country, gender, bio, avatar, verified, exp, level, last_login, status, verification_token, verification_token_expiry)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, username, email`,
+      [username, email, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline', verificationToken, verificationExpiry]
     );
 
     const newUser = result.rows[0];
+
+    // Send verification email (non-blocking)
+    sendVerificationEmail(email, username, verificationToken).catch(err => {
+      console.error('Failed to send verification email:', err);
+    });
+
     res.status(201).json({
-      message: 'User created successfully',
+      message: 'User created successfully. Please check your email to verify your account.',
       user: {
         id: newUser.id,
         username: newUser.username,
@@ -224,6 +234,94 @@ router.get('/check-pin', authenticateToken, async (req, res) => {
     res.json({ hasPin });
   } catch (error) {
     console.error('Check PIN error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Email verification endpoint
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, username, email, verified, verification_token_expiry FROM users WHERE verification_token = $1',
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid verification token' });
+    }
+
+    const user = result.rows[0];
+
+    if (user.verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+
+    if (new Date() > new Date(user.verification_token_expiry)) {
+      return res.status(400).json({ error: 'Verification token has expired. Please request a new one.' });
+    }
+
+    await pool.query(
+      'UPDATE users SET verified = true, verification_token = NULL, verification_token_expiry = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    res.json({
+      message: 'Email verified successfully! You can now login.',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Resend verification email
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, username, email, verified FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+
+    if (user.verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await pool.query(
+      'UPDATE users SET verification_token = $1, verification_token_expiry = $2 WHERE id = $3',
+      [verificationToken, verificationExpiry, user.id]
+    );
+
+    await sendVerificationEmail(email, user.username, verificationToken);
+
+    res.json({ message: 'Verification email sent successfully' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
