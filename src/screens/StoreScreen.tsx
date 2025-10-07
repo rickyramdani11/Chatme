@@ -280,7 +280,7 @@ export default function StoreScreen({ navigation }: any) {
       <View key={item.id} style={styles.itemCard}>
         <View style={styles.itemImageContainer}>
           <Image 
-            source={{ uri: `${API_BASE_URL}${item.image}` }} 
+            source={{ uri: item.image }} 
             style={styles.itemImage}
             resizeMode="cover"
           />
@@ -457,7 +457,7 @@ export default function StoreScreen({ navigation }: any) {
             {selectedItem && (
               <View style={styles.modalContent}>
                 <Image 
-                  source={{ uri: `${API_BASE_URL}${selectedItem.image}` }} 
+                  source={{ uri: selectedItem.image }} 
                   style={styles.modalItemImage}
                   resizeMode="cover"
                 />

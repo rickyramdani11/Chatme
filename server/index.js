@@ -701,14 +701,21 @@ app.get('/api/store/headwear', authenticateToken, async (req, res) => {
 
     const items = result.rows
       .filter(row => row.is_active !== false) // Include items where is_active is true or null
-      .map(row => ({
-        id: row.id.toString(),
-        name: row.name,
-        description: row.description,
-        image: row.image,
-        price: row.price,
-        duration: row.duration_days
-      }));
+      .map(row => {
+        let imageUrl = row.image;
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          imageUrl = `${API_BASE_URL}${imageUrl}`;
+        }
+        
+        return {
+          id: row.id.toString(),
+          name: row.name,
+          description: row.description,
+          image: imageUrl,
+          price: row.price,
+          duration: row.duration_days
+        };
+      });
 
     console.log('Processed headwear items:', items);
     console.log('Total items returned:', items.length);
@@ -734,14 +741,21 @@ app.get('/api/store/user-headwear', authenticateToken, async (req, res) => {
       ORDER BY uh.purchased_at DESC
     `, [userId]);
 
-    const headwear = result.rows.map(row => ({
-      id: row.id.toString(),
-      headwearId: row.headwear_id.toString(),
-      name: row.name,
-      image: row.image,
-      expiresAt: row.expires_at,
-      isActive: row.is_active && new Date(row.expires_at) > new Date()
-    }));
+    const headwear = result.rows.map(row => {
+      let imageUrl = row.image;
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = `${API_BASE_URL}${imageUrl}`;
+      }
+      
+      return {
+        id: row.id.toString(),
+        headwearId: row.headwear_id.toString(),
+        name: row.name,
+        image: imageUrl,
+        expiresAt: row.expires_at,
+        isActive: row.is_active && new Date(row.expires_at) > new Date()
+      };
+    });
 
     res.json({ headwear });
   } catch (error) {
@@ -764,14 +778,21 @@ app.get('/api/store/frames', authenticateToken, async (req, res) => {
 
     console.log('Raw frame data from database:', result.rows);
 
-    const items = result.rows.map(row => ({
-      id: row.id.toString(),
-      name: row.name,
-      description: row.description,
-      image: row.image,
-      price: row.price,
-      duration: row.duration_days
-    }));
+    const items = result.rows.map(row => {
+      let imageUrl = row.image;
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = `${API_BASE_URL}${imageUrl}`;
+      }
+      
+      return {
+        id: row.id.toString(),
+        name: row.name,
+        description: row.description,
+        image: imageUrl,
+        price: row.price,
+        duration: row.duration_days
+      };
+    });
 
     console.log('Processed frame items:', items);
     console.log('Total frame items returned:', items.length);
@@ -797,14 +818,21 @@ app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
       ORDER BY uf.purchased_at DESC
     `, [userId]);
 
-    const frames = result.rows.map(row => ({
-      id: row.id.toString(),
-      frameId: row.frame_id.toString(),
-      name: row.name,
-      image: row.image,
-      expiresAt: row.expires_at,
-      isActive: row.is_active && new Date(row.expires_at) > new Date()
-    }));
+    const frames = result.rows.map(row => {
+      let imageUrl = row.image;
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = `${API_BASE_URL}${imageUrl}`;
+      }
+      
+      return {
+        id: row.id.toString(),
+        frameId: row.frame_id.toString(),
+        name: row.name,
+        image: imageUrl,
+        expiresAt: row.expires_at,
+        isActive: row.is_active && new Date(row.expires_at) > new Date()
+      };
+    });
 
     res.json({ frames });
   } catch (error) {
@@ -1047,14 +1075,21 @@ app.get('/api/store/frames', authenticateToken, async (req, res) => {
 
     console.log('Raw frame data from database:', result.rows);
 
-    const items = result.rows.map(row => ({
-      id: row.id.toString(),
-      name: row.name,
-      description: row.description,
-      image: row.image,
-      price: row.price,
-      duration: row.duration_days
-    }));
+    const items = result.rows.map(row => {
+      let imageUrl = row.image;
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = `${API_BASE_URL}${imageUrl}`;
+      }
+      
+      return {
+        id: row.id.toString(),
+        name: row.name,
+        description: row.description,
+        image: imageUrl,
+        price: row.price,
+        duration: row.duration_days
+      };
+    });
 
     console.log('Processed frame items:', items);
     console.log('Total frame items returned:', items.length);
@@ -1080,14 +1115,21 @@ app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
       ORDER BY uf.purchased_at DESC
     `, [userId]);
 
-    const frames = result.rows.map(row => ({
-      id: row.id.toString(),
-      frameId: row.frame_id.toString(),
-      name: row.name,
-      image: row.image,
-      expiresAt: row.expires_at,
-      isActive: row.is_active && new Date(row.expires_at) > new Date()
-    }));
+    const frames = result.rows.map(row => {
+      let imageUrl = row.image;
+      if (imageUrl && !imageUrl.startsWith('http')) {
+        imageUrl = `${API_BASE_URL}${imageUrl}`;
+      }
+      
+      return {
+        id: row.id.toString(),
+        frameId: row.frame_id.toString(),
+        name: row.name,
+        image: imageUrl,
+        expiresAt: row.expires_at,
+        isActive: row.is_active && new Date(row.expires_at) > new Date()
+      };
+    });
 
     res.json({ frames });
   } catch (error) {
