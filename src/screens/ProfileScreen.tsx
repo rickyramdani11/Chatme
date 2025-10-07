@@ -205,6 +205,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 
       if (response.ok) {
         const profileData = await response.json();
+        
         // Process avatar URL - handle both full URLs and relative paths
         if (profileData.avatar) {
           if (profileData.avatar.startsWith('/api/')) {
@@ -213,6 +214,12 @@ export default function ProfileScreen({ navigation, route }: any) {
             // Handle case where avatar might be stored as relative path
             profileData.avatar = `${BASE_URL}${profileData.avatar}`;
           }
+        }
+
+        // Process profile background - convert from snake_case to camelCase
+        if (profileData.profile_background) {
+          profileData.profileBackground = profileData.profile_background;
+          console.log('Profile background loaded:', profileData.profileBackground);
         }
 
         // Check if current user is following this profile (only if not own profile and user is authenticated)
@@ -625,14 +632,6 @@ export default function ProfileScreen({ navigation, route }: any) {
             <Ionicons name="arrow-back" size={24} color="#333" />
           </LinearGradient>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.menuButton}>
-          <LinearGradient
-            colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
-            style={styles.headerButtonGradient}
-          >
-            <Ionicons name="ellipsis-horizontal" size={24} color="#333" />
-          </LinearGradient>
-        </TouchableOpacity>
       </Animated.View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -673,19 +672,6 @@ export default function ProfileScreen({ navigation, route }: any) {
                 <Ionicons name="pencil" size={20} color="#333" />
               </LinearGradient>
             </TouchableOpacity>
-          )}
-
-          {/* Living Status with pulse animation */}
-          {profile.isOnline && (
-            <Animated.View style={[styles.livingStatus, { transform: [{ scale: pulseAnim }] }]}>
-              <LinearGradient
-                colors={['#FF6B35', '#FF8E53']}
-                style={styles.livingGradient}
-              >
-                <View style={styles.livingDot} />
-                <Text style={styles.livingText}>Living</Text>
-              </LinearGradient>
-            </Animated.View>
           )}
         </View>
 
