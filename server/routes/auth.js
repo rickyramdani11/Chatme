@@ -105,19 +105,21 @@ router.post('/register', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    
+    // Generate 6-digit OTP
+    const verificationOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     const result = await pool.query(
-      `INSERT INTO users (username, email, password, phone, country, gender, bio, avatar, verified, exp, level, last_login, status, verification_token, verification_token_expiry)
+      `INSERT INTO users (username, email, password, phone, country, gender, bio, avatar, verified, exp, level, last_login, status, verification_otp, otp_expiry)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, username, email`,
-      [username, email, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline', verificationToken, verificationExpiry]
+      [username, email, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline', verificationOTP, otpExpiry]
     );
 
     const newUser = result.rows[0];
 
-    // Send verification email (non-blocking)
-    sendVerificationEmail(email, username, verificationToken).catch(err => {
+    // Send verification email with OTP (non-blocking)
+    sendVerificationEmail(email, username, verificationOTP).catch(err => {
       console.error('Failed to send verification email:', err);
     });
 

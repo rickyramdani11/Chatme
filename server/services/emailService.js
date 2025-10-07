@@ -11,10 +11,8 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-async function sendVerificationEmail(email, username, token) {
+async function sendVerificationEmail(email, username, otpCode) {
   try {
-    const verificationUrl = `https://web.chatmeapp.online/api/auth/verify-email?token=${token}`;
-    
     const mailOptions = {
       from: '"ChatMe" <noreply@chatmeapp.online>',
       to: email,
@@ -27,16 +25,14 @@ async function sendVerificationEmail(email, username, token) {
             </div>
             <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
               <p style="font-size: 16px; color: #333;">Hi <strong>${username}</strong>,</p>
-              <p style="font-size: 16px; color: #333;">Thank you for signing up! Please verify your email address to activate your account.</p>
+              <p style="font-size: 16px; color: #333;">Thank you for signing up! Please use the verification code below to activate your account.</p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${verificationUrl}" 
-                   style="background-color: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-size: 16px; display: inline-block;">
-                  Verify Email Address
-                </a>
+                <div style="background-color: #4CAF50; color: white; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 5px; display: inline-block;">
+                  ${otpCode}
+                </div>
               </div>
-              <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
-              <p style="font-size: 12px; color: #999; word-break: break-all; background-color: #eee; padding: 10px; border-radius: 5px;">${verificationUrl}</p>
-              <p style="font-size: 14px; color: #666; margin-top: 20px;">This link will expire in 24 hours.</p>
+              <p style="font-size: 14px; color: #666; text-align: center;">Enter this code in the app to verify your account</p>
+              <p style="font-size: 14px; color: #666; margin-top: 20px; text-align: center;">This code will expire in 10 minutes.</p>
               <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
               <p style="font-size: 12px; color: #999;">If you didn't create this account, please ignore this email.</p>
             </div>
