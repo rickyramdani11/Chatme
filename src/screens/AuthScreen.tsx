@@ -54,6 +54,11 @@ export default function AuthScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [verifyingOTP, setVerifyingOTP] = useState(false);
+  const [resendingOTP, setResendingOTP] = useState(false);
   const { login, register } = useAuth();
 
   // Auto-login disabled - users must manually enter credentials after restart
@@ -143,11 +148,8 @@ export default function AuthScreen() {
         Alert.alert('Success', '🎉 Welcome back ChatMe,Senang melihatmu lagi Yuk mulai ngobrol dan berbagi cerita!');
       } else {
         await register(username, password, email, phone, selectedCountry.code, gender);
-        Alert.alert(
-          'Account Created', 
-          `Verification link has been sent to ${email}. Please check your email to verify your account before logging in.`,
-          [{ text: 'OK', onPress: () => setIsLogin(true) }]
-        );
+        setRegisteredEmail(email);
+        setShowOtpModal(true);
       }
     } catch (error) {
       console.error('Auth error:', error);
@@ -155,6 +157,65 @@ export default function AuthScreen() {
       Alert.alert('Error', errorMessage);
     }
     setLoading(false);
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      Alert.alert('Error', 'Please enter the 6-digit OTP code');
+      return;
+    }
+
+    setVerifyingOTP(true);
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
+      const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: registeredEmail, otp: otpCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', '✅ Email verified successfully! You can now login.', [
+          { text: 'OK', onPress: () => {
+            setShowOtpModal(false);
+            setOtpCode('');
+            setIsLogin(true);
+          }}
+        ]);
+      } else {
+        Alert.alert('Error', data.error || 'Invalid or expired OTP code');
+      }
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      Alert.alert('Error', 'Failed to verify OTP. Please try again.');
+    }
+    setVerifyingOTP(false);
+  };
+
+  const handleResendOTP = async () => {
+    setResendingOTP(true);
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
+      const response = await fetch(`${API_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: registeredEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', '📧 New OTP code has been sent to your email!');
+      } else {
+        Alert.alert('Error', data.error || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+    }
+    setResendingOTP(false);
   };
 
   const handleForgotPassword = async () => {
@@ -279,6 +340,59 @@ export default function AuthScreen() {
               onPress={handleForgotPassword}
             >
               <Text style={styles.buttonText}>Send Reset Link</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderOtpModal = () => (
+    <Modal
+      visible={showOtpModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowOtpModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Verify Your Email</Text>
+            <TouchableOpacity onPress={() => setShowOtpModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.otpForm}>
+            <Text style={styles.otpInstruction}>
+              Please enter the 6-digit code sent to {registeredEmail}
+            </Text>
+            <TextInput
+              style={styles.otpInput}
+              placeholder="Enter OTP"
+              placeholderTextColor="#999"
+              value={otpCode}
+              onChangeText={setOtpCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus={true}
+            />
+            <TouchableOpacity
+              style={[styles.button, verifyingOTP && styles.buttonDisabled]}
+              onPress={handleVerifyOTP}
+              disabled={verifyingOTP || resendingOTP}
+            >
+              <Text style={styles.buttonText}>
+                {verifyingOTP ? 'Verifying...' : 'Verify OTP'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.resendButton, resendingOTP && { opacity: 0.5 }]}
+              onPress={handleResendOTP}
+              disabled={verifyingOTP || resendingOTP}
+            >
+              <Text style={styles.resendButtonText}>
+                {resendingOTP ? 'Resending...' : "Didn't receive code? Resend OTP"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -501,6 +615,7 @@ export default function AuthScreen() {
 
       {renderCountryModal()}
       {renderForgotPasswordModal()}
+      {renderOtpModal()}
     </View>
   );
 }
@@ -786,5 +901,38 @@ const styles = StyleSheet.create({
   },
   forgotPasswordForm: {
     padding: 20,
+  },
+  otpForm: {
+    padding: 20,
+  },
+  otpInstruction: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  otpInput: {
+    width: '100%',
+    height: 60,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    fontSize: 24,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 8,
+    marginBottom: 20,
+    color: '#333',
+  },
+  resendButton: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  resendButtonText: {
+    fontSize: 14,
+    color: '#FF6B35',
+    fontWeight: '500',
   },
 });
