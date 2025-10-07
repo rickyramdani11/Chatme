@@ -80,6 +80,46 @@ function validateUsername(username) {
   return { valid: true };
 }
 
+// Email validation function - only allow Gmail and Yahoo
+function validateEmailDomain(email) {
+  const emailLower = email.toLowerCase();
+  const allowedDomains = [
+    'gmail.com',
+    'yahoo.com',
+    'yahoo.co.id',
+    'yahoo.co.uk',
+    'yahoo.com.au',
+    'yahoo.ca',
+    'yahoo.fr',
+    'yahoo.de',
+    'yahoo.co.jp',
+    'yahoo.in'
+  ];
+  
+  const domain = emailLower.split('@')[1];
+  if (!domain || !allowedDomains.includes(domain)) {
+    return { valid: false, error: 'Only Gmail and Yahoo email addresses are allowed' };
+  }
+  
+  return { valid: true };
+}
+
+// Normalize Gmail address by removing dots from username part
+// Gmail ignores dots in the username, so test.user@gmail.com = testuser@gmail.com
+function normalizeGmailAddress(email) {
+  const emailLower = email.toLowerCase().trim();
+  const [username, domain] = emailLower.split('@');
+  
+  if (domain === 'gmail.com') {
+    // Remove all dots from username part for Gmail
+    const normalizedUsername = username.replace(/\./g, '');
+    return `${normalizedUsername}@${domain}`;
+  }
+  
+  // For other emails (Yahoo, etc), return as-is
+  return emailLower;
+}
+
 // Registration endpoint
 router.post('/register', async (req, res) => {
   try {
@@ -95,13 +135,40 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: usernameValidation.error });
     }
 
-    const existingUser = await pool.query(
-      'SELECT id FROM users WHERE username = $1 OR email = $2',
-      [username, email]
+    // Validate email domain - only Gmail and Yahoo allowed
+    const emailDomainValidation = validateEmailDomain(email);
+    if (!emailDomainValidation.valid) {
+      return res.status(400).json({ error: emailDomainValidation.error });
+    }
+
+    // Normalize Gmail address (remove dots) to prevent duplicate accounts
+    const normalizedEmail = normalizeGmailAddress(email);
+
+    // Check for existing username
+    const existingUsername = await pool.query(
+      'SELECT id FROM users WHERE username = $1',
+      [username]
     );
 
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ error: 'Username or email already exists' });
+    if (existingUsername.rows.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Check for existing email with normalization for Gmail
+    // For Gmail: remove dots from username part before comparing
+    // For other emails: direct comparison
+    const existingEmail = await pool.query(`
+      SELECT id, email FROM users 
+      WHERE CASE 
+        WHEN LOWER(SPLIT_PART(email, '@', 2)) = 'gmail.com' THEN 
+          REPLACE(LOWER(SPLIT_PART(email, '@', 1)), '.', '') || '@gmail.com'
+        ELSE 
+          LOWER(email)
+      END = $1
+    `, [normalizedEmail]);
+
+    if (existingEmail.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
