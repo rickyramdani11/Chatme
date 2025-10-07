@@ -123,17 +123,13 @@ export default function FamilyScreen({ navigation }: any) {
     setRefreshing(false);
   };
 
-  const FamilyHeader = () => (
-    <View style={styles.headerContainer}>
-      <Image 
-        source={{ uri: 'https://via.placeholder.com/400x150/4CAF50/FFFFFF?text=Family+Ranking' }}
-        style={styles.headerImage}
-      />
-      <View style={styles.headerOverlay}>
-        <Text style={styles.headerTitle}>Family Ranking</Text>
-      </View>
-    </View>
-  );
+  // Helper to get avatar background color based on first letter
+  const getRandomAvatarColor = (name: string): string => {
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#AAB7B8'];
+    const firstLetter = name.charAt(0).toUpperCase();
+    const index = firstLetter.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
 
   const UserFamilyStatus = () => (
     <View style={styles.statusContainer}>
@@ -176,11 +172,11 @@ export default function FamilyScreen({ navigation }: any) {
   const FamilyItem = ({ family }: { family: Family }) => (
     <View style={styles.familyItem}>
       <View style={styles.familyItemLeft}>
-        <View style={styles.familyLogo}>
+        <View style={[styles.familyLogo, !family.logo && { backgroundColor: getRandomAvatarColor(family.name) }]}>
           {family.logo ? (
             <Image source={{ uri: family.logo }} style={styles.familyLogoImage} />
           ) : (
-            <Ionicons name="people" size={30} color="#fff" />
+            <Text style={styles.familyLogoText}>{family.name.charAt(0).toUpperCase()}</Text>
           )}
         </View>
         <View style={styles.familyDetails}>
@@ -247,7 +243,6 @@ export default function FamilyScreen({ navigation }: any) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <FamilyHeader />
         <UserFamilyStatus />
 
         <View style={styles.discoverSection}>
@@ -289,37 +284,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  headerContainer: {
-    position: 'relative',
-    height: 120,
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  headerImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  headerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
   },
   statusContainer: {
     margin: 20,
@@ -433,6 +397,11 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
+  },
+  familyLogoText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
   },
   familyDetails: {
     flex: 1,
