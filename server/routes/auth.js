@@ -315,6 +315,61 @@ router.get('/verify-email', async (req, res) => {
   }
 });
 
+// Verify OTP endpoint
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, username, email, verified, verification_otp, otp_expiry FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const user = result.rows[0];
+
+    if (user.verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+
+    if (!user.verification_otp) {
+      return res.status(400).json({ error: 'No OTP found. Please request a new one.' });
+    }
+
+    if (new Date() > new Date(user.otp_expiry)) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    if (user.verification_otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    await pool.query(
+      'UPDATE users SET verified = true, verification_otp = NULL, otp_expiry = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    res.json({
+      message: 'Email verified successfully! You can now login.',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
+    });
+  } catch (error) {
+    console.error('OTP verification error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Resend verification email
 router.post('/resend-verification', async (req, res) => {
   try {
@@ -339,15 +394,16 @@ router.post('/resend-verification', async (req, res) => {
       return res.status(400).json({ error: 'Email already verified' });
     }
 
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Generate new 6-digit OTP
+    const verificationOTP = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await pool.query(
-      'UPDATE users SET verification_token = $1, verification_token_expiry = $2 WHERE id = $3',
-      [verificationToken, verificationExpiry, user.id]
+      'UPDATE users SET verification_otp = $1, otp_expiry = $2 WHERE id = $3',
+      [verificationOTP, otpExpiry, user.id]
     );
 
-    await sendVerificationEmail(email, user.username, verificationToken);
+    await sendVerificationEmail(email, user.username, verificationOTP);
 
     res.json({ message: 'Verification email sent successfully' });
   } catch (error) {
