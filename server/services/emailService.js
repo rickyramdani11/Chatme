@@ -1,154 +1,57 @@
-const SibApiV3Sdk = require('@getbrevo/brevo');
+const brevo = require('@getbrevo/brevo');
 
-const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+const apiInstance = new brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(
+  brevo.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY
+);
 
-// Initialize API key from environment
-const apiKey = apiInstance.authentications['apiKey'];
-apiKey.apiKey = process.env.BREVO_API_KEY;
-
-/**
- * Send verification email to user
- * @param {string} email - User email address
- * @param {string} username - Username
- * @param {string} verificationToken - Verification token
- * @returns {Promise} - Send email promise
- */
-async function sendVerificationEmail(email, username, verificationToken) {
-  if (!process.env.BREVO_API_KEY) {
-    console.warn('⚠️ BREVO_API_KEY not set - skipping email send');
-    return { skipped: true, reason: 'No API key' };
-  }
-
-  const verificationUrl = `${process.env.APP_URL || 'https://chatme.app'}/verify-email?token=${verificationToken}`;
-
-  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-  
-  sendSmtpEmail.subject = "Verify Your ChatMe Account";
-  sendSmtpEmail.htmlContent = `
-    <html>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">Welcome to ChatMe! 🎉</h1>
-        </div>
-        
-        <div style="background: #f7f7f7; padding: 30px; border-radius: 0 0 10px 10px;">
-          <h2 style="color: #333;">Hi ${username}!</h2>
-          <p style="color: #666; line-height: 1.6;">
-            Thanks for signing up! Please verify your email address to activate your account and start chatting.
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${verificationUrl}" 
-               style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                      color: white; 
-                      padding: 15px 40px; 
-                      text-decoration: none; 
-                      border-radius: 50px; 
-                      display: inline-block;
-                      font-weight: bold;">
-              Verify Email Address
-            </a>
-          </div>
-          
-          <p style="color: #999; font-size: 12px; margin-top: 30px;">
-            If you didn't create a ChatMe account, you can safely ignore this email.
-          </p>
-          
-          <p style="color: #999; font-size: 12px;">
-            Or copy and paste this link: <br/>
-            <span style="color: #667eea;">${verificationUrl}</span>
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
-  sendSmtpEmail.sender = {
-    name: "ChatMe",
-    email: process.env.BREVO_SENDER_EMAIL || "noreply@chatme.app"
-  };
-  sendSmtpEmail.to = [{ email, name: username }];
-
+async function sendVerificationEmail(email, username, token) {
   try {
-    const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log('✅ Verification email sent to:', email);
-    return response;
-  } catch (error) {
-    console.error('❌ Error sending verification email:', error);
-    throw error;
-  }
-}
-
-/**
- * Send password reset email
- * @param {string} email - User email
- * @param {string} username - Username
- * @param {string} resetToken - Reset token
- */
-async function sendPasswordResetEmail(email, username, resetToken) {
-  if (!process.env.BREVO_API_KEY) {
-    console.warn('⚠️ BREVO_API_KEY not set - skipping email send');
-    return { skipped: true };
-  }
-
-  const resetUrl = `${process.env.APP_URL || 'https://chatme.app'}/reset-password?token=${resetToken}`;
-
-  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-  
-  sendSmtpEmail.subject = "Reset Your ChatMe Password";
-  sendSmtpEmail.htmlContent = `
-    <html>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">Password Reset 🔐</h1>
-        </div>
-        
-        <div style="background: #f7f7f7; padding: 30px; border-radius: 0 0 10px 10px;">
-          <h2 style="color: #333;">Hi ${username}!</h2>
-          <p style="color: #666; line-height: 1.6;">
-            We received a request to reset your password. Click the button below to create a new password.
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" 
-               style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                      color: white; 
-                      padding: 15px 40px; 
-                      text-decoration: none; 
-                      border-radius: 50px; 
-                      display: inline-block;
-                      font-weight: bold;">
-              Reset Password
-            </a>
+    const verificationUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/api/auth/verify-email?token=${token}`;
+    
+    const sendSmtpEmail = new brevo.SendSmtpEmail();
+    sendSmtpEmail.subject = "Verify Your ChatMe Account";
+    sendSmtpEmail.to = [{ email: email, name: username }];
+    sendSmtpEmail.sender = { 
+      name: "ChatMe", 
+      email: process.env.BREVO_SENDER_EMAIL || "noreply@chatmeapp.online" 
+    };
+    sendSmtpEmail.htmlContent = `
+      <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #4CAF50; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+            <h1 style="margin: 0;">Welcome to ChatMe!</h1>
           </div>
-          
-          <p style="color: #999; font-size: 12px; margin-top: 30px;">
-            If you didn't request a password reset, you can safely ignore this email.
-          </p>
-          
-          <p style="color: #999; font-size: 12px;">
-            This link will expire in 1 hour.
-          </p>
-        </div>
-      </body>
-    </html>
-  `;
-  sendSmtpEmail.sender = {
-    name: "ChatMe",
-    email: process.env.BREVO_SENDER_EMAIL || "noreply@chatme.app"
-  };
-  sendSmtpEmail.to = [{ email, name: username }];
+          <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+            <p style="font-size: 16px; color: #333;">Hi <strong>${username}</strong>,</p>
+            <p style="font-size: 16px; color: #333;">Thank you for signing up! Please verify your email address to activate your account.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${verificationUrl}" 
+                 style="background-color: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-size: 16px; display: inline-block;">
+                Verify Email Address
+              </a>
+            </div>
+            <p style="font-size: 14px; color: #666;">Or copy and paste this link into your browser:</p>
+            <p style="font-size: 12px; color: #999; word-break: break-all; background-color: #eee; padding: 10px; border-radius: 5px;">${verificationUrl}</p>
+            <p style="font-size: 14px; color: #666; margin-top: 20px;">This link will expire in 24 hours.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="font-size: 12px; color: #999;">If you didn't create this account, please ignore this email.</p>
+          </div>
+        </body>
+      </html>
+    `;
 
-  try {
-    const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
-    console.log('✅ Password reset email sent to:', email);
-    return response;
+    const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('✅ Verification email sent successfully to:', email);
+    console.log('Brevo response:', result);
+    return result;
   } catch (error) {
-    console.error('❌ Error sending reset email:', error);
+    console.error('❌ Failed to send verification email:', error);
     throw error;
   }
 }
 
 module.exports = {
-  sendVerificationEmail,
-  sendPasswordResetEmail
+  sendVerificationEmail
 };
