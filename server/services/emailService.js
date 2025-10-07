@@ -3,15 +3,22 @@ const nodemailer = require('nodemailer');
 // Create SMTP transporter
 const transporter = nodemailer.createTransport({
   host: 'mail.chatmeapp.online',
-  port: 465,
-  secure: true, // use SSL
+  port: 587,
+  secure: false, // use STARTTLS
   auth: {
     user: 'noreply@chatmeapp.online',
     pass: process.env.SMTP_PASSWORD
-  }
+  },
+  tls: {
+    rejectUnauthorized: false // Accept self-signed certificates
+  },
+  connectionTimeout: 30000, // 30 seconds
+  greetingTimeout: 30000,
+  socketTimeout: 30000
 });
 
 async function sendVerificationEmail(email, username, otpCode) {
+  console.log('📧 Attempting to send verification email to:', email, 'with OTP:', otpCode);
   try {
     const mailOptions = {
       from: '"ChatMe" <noreply@chatmeapp.online>',
