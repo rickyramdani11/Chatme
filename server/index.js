@@ -3470,11 +3470,13 @@ app.put('/api/users/:userId/profile-background', authenticateToken, async (req, 
     const { backgroundUrl } = req.body;
 
     console.log(`=== UPDATE PROFILE BACKGROUND REQUEST ===`);
-    console.log(`User ID: ${userId}`);
+    console.log(`User ID from params: ${userId} (type: ${typeof userId})`);
+    console.log(`User ID from token: ${req.user.id} (type: ${typeof req.user.id})`);
     console.log(`Background URL: ${backgroundUrl}`);
 
-    // Verify user can only update their own profile
-    if (parseInt(userId) !== req.user.id) {
+    // Verify user can only update their own profile - convert both to integers for comparison
+    if (parseInt(userId, 10) !== parseInt(req.user.id, 10)) {
+      console.log(`Authorization failed: ${parseInt(userId, 10)} !== ${parseInt(req.user.id, 10)}`);
       return res.status(403).json({ error: 'Unauthorized to update this profile' });
     }
 
@@ -5223,10 +5225,13 @@ app.delete('/api/users/:userId/album/:photoId', authenticateToken, async (req, r
     const { userId, photoId } = req.params;
 
     console.log(`=== DELETE ALBUM PHOTO REQUEST ===`);
-    console.log(`User ID: ${userId}, Photo ID: ${photoId}`);
+    console.log(`User ID from params: ${userId} (type: ${typeof userId})`);
+    console.log(`User ID from token: ${req.user.id} (type: ${typeof req.user.id})`);
+    console.log(`Photo ID: ${photoId}`);
 
-    // Verify user can only delete their own photos
-    if (parseInt(userId) !== req.user.id) {
+    // Verify user can only delete their own photos - convert both to integers for comparison
+    if (parseInt(userId, 10) !== parseInt(req.user.id, 10)) {
+      console.log(`Authorization failed: ${parseInt(userId, 10)} !== ${parseInt(req.user.id, 10)}`);
       return res.status(403).json({ error: 'Unauthorized to delete this photo' });
     }
 
