@@ -307,7 +307,7 @@ export default function FamilyDetailScreen({ navigation, route }: any) {
                   source={{ 
                     uri: family.coverImage.startsWith('http') 
                       ? family.coverImage 
-                      : `${API_BASE_URL}${family.coverImage}` 
+                      : `${BASE_URL}${family.coverImage}` 
                   }}
                   style={styles.coverImage}
                 />
