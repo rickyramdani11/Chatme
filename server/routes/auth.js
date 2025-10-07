@@ -58,6 +58,28 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Username validation function
+function validateUsername(username) {
+  // Check length: 4-12 characters
+  if (username.length < 4 || username.length > 12) {
+    return { valid: false, error: 'Username must be 4-12 characters' };
+  }
+
+  // Check if only lowercase letters, numbers, underscore, and dot
+  const validCharsRegex = /^[a-z0-9_.]+$/;
+  if (!validCharsRegex.test(username)) {
+    return { valid: false, error: 'Username must be lowercase and can only contain letters, numbers, underscore (_), and dot (.)' };
+  }
+
+  // Must contain at least one letter (cannot be only numbers)
+  const hasLetterRegex = /[a-z]/;
+  if (!hasLetterRegex.test(username)) {
+    return { valid: false, error: 'Username must contain at least one letter (cannot be only numbers)' };
+  }
+
+  return { valid: true };
+}
+
 // Registration endpoint
 router.post('/register', async (req, res) => {
   try {
@@ -65,6 +87,12 @@ router.post('/register', async (req, res) => {
 
     if (!username || !password || !email || !phone || !country || !gender) {
       return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate username format
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
+      return res.status(400).json({ error: usernameValidation.error });
     }
 
     const existingUser = await pool.query(
