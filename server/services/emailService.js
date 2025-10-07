@@ -1,27 +1,24 @@
 const nodemailer = require('nodemailer');
 
-// Create SMTP transporter
+// Create SMTP transporter using Gmail
 const transporter = nodemailer.createTransport({
-  host: 'mail.chatmeapp.online',
+  host: 'smtp.gmail.com',
   port: 587,
   secure: false, // use STARTTLS
   auth: {
-    user: 'noreply@chatmeapp.online',
-    pass: process.env.SMTP_PASSWORD
+    user: 'meongkwl@gmail.com',
+    pass: process.env.GMAIL_APP_PASSWORD
   },
   tls: {
-    rejectUnauthorized: false // Accept self-signed certificates
-  },
-  connectionTimeout: 30000, // 30 seconds
-  greetingTimeout: 30000,
-  socketTimeout: 30000
+    rejectUnauthorized: true
+  }
 });
 
 async function sendVerificationEmail(email, username, otpCode) {
   console.log('📧 Attempting to send verification email to:', email, 'with OTP:', otpCode);
   try {
     const mailOptions = {
-      from: '"ChatMe" <noreply@chatmeapp.online>',
+      from: '"ChatMe" <meongkwl@gmail.com>',
       to: email,
       subject: 'Verify Your ChatMe Account',
       html: `
