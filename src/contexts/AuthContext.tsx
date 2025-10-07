@@ -219,6 +219,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Login response data:', data);
 
       if (!response.ok) {
+        // Check if email not verified error
+        if (data.code === 'EMAIL_NOT_VERIFIED' && data.email) {
+          const error: any = new Error(data.error || 'Email not verified');
+          error.code = 'EMAIL_NOT_VERIFIED';
+          error.email = data.email;
+          throw error;
+        }
         throw new Error(data.error || `Login failed with status ${response.status}`);
       }
 
@@ -258,8 +265,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userWithBalance));
 
       console.log('Login successful, token stored');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      
+      // Preserve EMAIL_NOT_VERIFIED error with metadata
+      if (error?.code === 'EMAIL_NOT_VERIFIED') {
+        throw error; // Rethrow original error with code and email
+      }
+      
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new Error('Request timeout. Please check your internet connection.');

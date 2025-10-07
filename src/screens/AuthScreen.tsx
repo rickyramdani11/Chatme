@@ -109,6 +109,26 @@ export default function AuthScreen() {
     createAnimation(animatedValue3, 5000).start();
   }, []);
 
+  const handleResendOTPFromLogin = async (email: string) => {
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
+      const response = await fetch(`${API_URL}/api/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Error', data.error || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+    }
+  };
+
   const handleSubmit = async () => {
     if (isLogin) {
       if (!username || !password) {
@@ -151,10 +171,30 @@ export default function AuthScreen() {
         setRegisteredEmail(email);
         setShowOtpModal(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed. Please try again.';
-      Alert.alert('Error', errorMessage);
+      
+      // Check if error is EMAIL_NOT_VERIFIED
+      if (error?.code === 'EMAIL_NOT_VERIFIED' && error?.email) {
+        Alert.alert(
+          'Akun Belum Diverifikasi',
+          'Akun belum diverifikasi. Kami telah mengirim ulang kode verifikasi ke email Anda.',
+          [
+            { text: 'Batal', style: 'cancel' },
+            { 
+              text: 'Kirim Ulang OTP', 
+              onPress: async () => {
+                setRegisteredEmail(error.email);
+                await handleResendOTPFromLogin(error.email);
+                setShowOtpModal(true);
+              }
+            }
+          ]
+        );
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Authentication failed. Please try again.';
+        Alert.alert('Error', errorMessage);
+      }
     }
     setLoading(false);
   };

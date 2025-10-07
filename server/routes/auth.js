@@ -161,6 +161,15 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid username or password' });
     }
 
+    // Check if email is verified
+    if (!user.verified) {
+      return res.status(403).json({ 
+        error: 'Email not verified', 
+        code: 'EMAIL_NOT_VERIFIED',
+        email: user.email 
+      });
+    }
+
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
 
     const ipAddress = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'Unknown';
