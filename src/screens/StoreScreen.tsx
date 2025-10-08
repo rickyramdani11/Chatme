@@ -53,7 +53,7 @@ type StoreTab = 'frames' | 'headwear';
 type ItemType = 'frame' | 'headwear';
 
 export default function StoreScreen({ navigation }: any) {
-  const { user, token } = useAuth();
+  const { user, token, refreshUserData } = useAuth();
   const [balance, setBalance] = useState(0);
   const [headwearItems, setHeadwearItems] = useState<HeadwearItem[]>([]);
   const [userHeadwear, setUserHeadwear] = useState<UserHeadwear[]>([]);
@@ -222,6 +222,10 @@ export default function StoreScreen({ navigation }: any) {
         } else {
           fetchUserHeadwear();
         }
+        
+        // Refresh user data to update avatarFrame in profile
+        await refreshUserData();
+        
         setShowPurchaseModal(false);
       } else {
         Alert.alert('Gagal', data.error || `Terjadi kesalahan saat membeli ${selectedItemType === 'frame' ? 'frame' : 'headwear'}`);
