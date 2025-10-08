@@ -39,6 +39,7 @@ Preferred communication style: Simple, everyday language.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
 - **Room Capacity Management**: Real-time participant count sync to database (rooms.members column) on join/leave events. Client-side validation prevents joining full rooms with user-friendly alerts.
 - **Video Call System**: Private video/audio calls with Daily.co integration, real-time streaming, global incoming call notifications, call stats tracking, socket-based signaling.
+- **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring with unlimited auto-reconnection (reconnectionAttempts: Infinity), exponential backoff retry strategy, comprehensive disconnect reason logging, automatic transport fallback (WebSocket ↔ Polling), and connection state recovery. Server-side ping interval: 25s, ping timeout: 60s.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.

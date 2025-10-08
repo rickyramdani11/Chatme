@@ -1431,7 +1431,7 @@ export default function ChatScreen() {
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 10000,
-        reconnectionAttempts: 10, // Increased attempts for better persistence
+        reconnectionAttempts: Infinity, // ✅ Unlimited reconnection attempts for maximum stability
         timeout: 30000, // Increased timeout for better connection stability
         forceNew: false,
         upgrade: true,
@@ -1483,31 +1483,49 @@ export default function ChatScreen() {
       });
 
       newSocket.on('disconnect', (reason) => {
-        console.log('Socket disconnected from gateway:', reason);
+        console.log('🔌 Socket disconnected from gateway:', reason);
         setIsSocketConnected(false);
 
-        // Don't attempt reconnection for intentional disconnects
-        if (reason === 'io client disconnect' || reason === 'io server disconnect') {
-          console.log('Intentional disconnect, not attempting reconnection');
+        // Log disconnect reasons for debugging
+        const disconnectReasons: { [key: string]: string } = {
+          'io server disconnect': 'Server manually disconnected (may need manual reconnect)',
+          'io client disconnect': 'Client manually disconnected',
+          'ping timeout': 'Ping timeout - no pong received (auto-reconnecting)',
+          'transport close': 'Network/transport issue (auto-reconnecting)',
+          'transport error': 'Transport error occurred (auto-reconnecting)',
+        };
+        
+        console.log(`📋 Reason: ${disconnectReasons[reason] || reason}`);
+
+        // Only attempt manual reconnection if server forcibly disconnected
+        if (reason === 'io server disconnect') {
+          console.log('🔄 Server disconnect - initiating manual reconnect');
+          setTimeout(() => {
+            newSocket.connect();
+          }, 1000);
           return;
         }
 
-        // For transport close and other unexpected disconnects, attempt reconnection
-        console.log('Unexpected disconnect, attempting reconnection...');
-        attemptReconnection();
+        // For other disconnects, Socket.IO will auto-reconnect with Infinity attempts
+        if (reason !== 'io client disconnect') {
+          console.log('✅ Auto-reconnection enabled - Socket.IO will handle reconnection');
+        }
       });
 
       newSocket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error.message);
-        console.error('Gateway URL:', SOCKET_URL);
+        console.error('❌ Socket connection error:', error.message);
+        console.error('🌐 Gateway URL:', SOCKET_URL);
         setIsSocketConnected(false);
 
-        // Don't attempt reconnection if it's a network issue
+        // Log error type for debugging
         if (error.message && error.message.includes('websocket error')) {
-          console.log('WebSocket specific error detected, will retry with polling');
+          console.log('🔄 WebSocket error - will fallback to polling transport');
+        } else if (error.message && error.message.includes('timeout')) {
+          console.log('⏱️ Connection timeout - will retry automatically');
         }
 
-        attemptReconnection();
+        // Socket.IO will auto-reconnect with exponential backoff
+        console.log('✅ Auto-reconnection active - Socket.IO handling retry');
       });
 
       newSocket.on('reconnect', (attemptNumber) => {
@@ -1525,6 +1543,24 @@ export default function ChatScreen() {
             attemptReconnection();
           }
         }, 5000);
+      });
+
+      // ✅ Ping/Pong monitoring for connection stability
+      newSocket.io.on('ping', () => {
+        console.log('🏓 Ping received from server (heartbeat check)');
+      });
+
+      newSocket.io.on('reconnect_attempt', (attempt) => {
+        console.log(`🔄 Reconnection attempt #${attempt}`);
+      });
+
+      newSocket.io.on('reconnect_error', (error) => {
+        console.error('❌ Reconnection error:', error.message);
+      });
+
+      // Monitor connection state changes
+      newSocket.on('error', (error) => {
+        console.error('⚠️ Socket error:', error);
       });
 
       setSocket(newSocket);
