@@ -647,7 +647,7 @@ export default function ChatScreen() {
                 
                 // Update ALL room_info messages AND tab metadata with latest owner info
                 const updatedTabs = [...chatTabs];
-                const ownerName = roomData.managedBy || roomData.managed_by || roomData.createdBy || roomData.created_by || 'admin';
+                const ownerName = roomData.createdBy || roomData.created_by || roomData.managedBy || roomData.managed_by || 'System';
                 
                 console.log(`👤 Owner name resolved to: ${ownerName}`);
                 
@@ -798,7 +798,12 @@ export default function ChatScreen() {
           });
 
           // Created by message
-          const ownerUsername = roomData?.managedBy || roomData?.managed_by || roomData?.createdBy || roomData?.created_by || 'admin';
+          console.log('🔍 DEBUG roomData for room info:', JSON.stringify(roomData, null, 2));
+          console.log('🔍 managedBy:', roomData?.managedBy);
+          console.log('🔍 managed_by:', roomData?.managed_by);
+          console.log('🔍 createdBy:', roomData?.createdBy);
+          console.log('🔍 created_by:', roomData?.created_by);
+          const ownerUsername = roomData?.createdBy || roomData?.created_by || roomData?.managedBy || roomData?.managed_by || 'System';
           console.log('🔍 Owner username for room info:', ownerUsername);
           roomInfoMessages.push({
             id: `room_info_managed_${roomId}`,
@@ -826,7 +831,7 @@ export default function ChatScreen() {
 
         // Normalize room_info messages from database history to use correct owner name
         if (roomData && messages.length > 0) {
-          const ownerName = roomData.managedBy || roomData.managed_by || roomData.createdBy || roomData.created_by || 'admin';
+          const ownerName = roomData.createdBy || roomData.created_by || roomData.managedBy || roomData.managed_by || 'System';
           messages = messages.map((msg: any) => {
             if (msg.type === 'room_info' && (msg.content?.startsWith('This room is managed by') || msg.content?.startsWith('This room is created by'))) {
               return {
@@ -847,7 +852,7 @@ export default function ChatScreen() {
           title: roomName,
           type: isSupport ? 'support' : (type || 'room'),
           messages: allMessages,
-          managedBy: type === 'private' ? targetUser?.username : (roomData?.managedBy || roomData?.managed_by || roomData?.createdBy || roomData?.created_by || 'admin'),
+          managedBy: type === 'private' ? targetUser?.username : (roomData?.createdBy || roomData?.created_by || roomData?.managedBy || roomData?.managed_by || 'System'),
           description: roomDescription || (type === 'private' ? `Private chat with ${targetUser?.username}` : isSupport ? 'Support Chat' : `${roomName} room`),
           moderators: roomData?.moderators || [],
           isSupport: isSupport
