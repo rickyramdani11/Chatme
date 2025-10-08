@@ -534,7 +534,17 @@ router.get('/withdrawals/history', authenticateToken, async (req, res) => {
 router.post('/user/send-change-account-otp', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const userEmail = req.user.email;
+
+    // Get user email from database
+    const userResult = await pool.query(`
+      SELECT email FROM users WHERE id = $1
+    `, [userId]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const userEmail = userResult.rows[0].email;
 
     if (!userEmail) {
       return res.status(400).json({ error: 'User email not found' });
