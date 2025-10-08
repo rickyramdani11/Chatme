@@ -3833,8 +3833,8 @@ app.put('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Name and description are required' });
     }
 
-    if (!maxMembers || ![25, 40, 80].includes(maxMembers)) {
-      return res.status(400).json({ error: 'Invalid max members. Must be 25, 40, or 80' });
+    if (!maxMembers || typeof maxMembers !== 'number' || maxMembers < 1 || maxMembers > 9999) {
+      return res.status(400).json({ error: 'Invalid max members. Must be between 1 and 9999' });
     }
 
     // Check if room exists

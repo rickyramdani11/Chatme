@@ -101,10 +101,9 @@ router.post('/', async (req, res) => {
   }
 
   // Validate capacity
-  const validCapacities = [25, 40, 80];
-  if (!validCapacities.includes(maxMembers)) {
+  if (!maxMembers || typeof maxMembers !== 'number' || maxMembers < 1 || maxMembers > 9999) {
     return res.status(400).json({
-      error: 'Invalid capacity. Must be 25, 40, or 80'
+      error: 'Invalid capacity. Must be between 1 and 9999'
     });
   }
 
