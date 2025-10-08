@@ -18,7 +18,14 @@
  * - anytriple: Any triple - pays 30:1
  */
 
-import { pool } from '../index.js';
+import pkg from 'pg';
+const { Pool } = pkg;
+
+// Create database pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+});
 
 const BOT_USERNAME = 'SicboBot';
 const BOT_USER_ID = 999; // Different from LowCard bot
@@ -179,35 +186,75 @@ function calculateWin(betType, betValue, amount, dice) {
   }
 }
 
-// Deduct coins from user
+// Deduct coins from user (use user_credits like LowCard)
 async function deductCoins(userId, amount) {
   try {
-    const result = await pool.query(
-      'UPDATE users SET coin = coin - $1 WHERE id = $2 AND coin >= $1 RETURNING coin',
+    // Check balance first
+    const balanceResult = await pool.query(
+      'SELECT balance FROM user_credits WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (balanceResult.rows.length === 0) {
+      console.log(`[Sicbo] User ${userId} has no credit record`);
+      return false;
+    }
+    
+    const currentBalance = balanceResult.rows[0].balance;
+    if (currentBalance < amount) {
+      console.log(`[Sicbo] User ${userId} insufficient balance: ${currentBalance} < ${amount}`);
+      return false;
+    }
+    
+    // Deduct from user_credits
+    await pool.query(
+      'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
-    return result.rows.length > 0;
+    
+    // Record transaction in credit_transactions (match LowCard schema)
+    await pool.query(
+      `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+       VALUES ($1, $1, $2, 'game_bet', 'Sicbo Game Bet')`,
+      [userId, amount]
+    );
+    
+    console.log(`[Sicbo] Deducted ${amount} COIN from user ${userId}`);
+    return true;
   } catch (error) {
     console.error('[Sicbo] Error deducting coins:', error);
     return false;
   }
 }
 
-// Add coins to user
+// Add coins to user (use user_credits like LowCard)
 async function addCoins(userId, amount, reason = 'sicbo_win') {
   try {
+    // Get current balance
+    const balanceResult = await pool.query(
+      'SELECT balance FROM user_credits WHERE user_id = $1',
+      [userId]
+    );
+    
+    const currentBalance = balanceResult.rows.length > 0 ? balanceResult.rows[0].balance : 0;
+    
+    // Add to user_credits
     await pool.query(
-      'UPDATE users SET coin = coin + $1 WHERE id = $2',
+      'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
     
-    // Record transaction
+    // Record transaction in credit_transactions (match LowCard schema)
+    const transactionType = reason === 'sicbo_win' ? 'game_win' : reason;
+    const description = reason === 'sicbo_win' ? 'Sicbo Game Win' : `Sicbo: ${reason}`;
+    
     await pool.query(
-      `INSERT INTO transactions (user_id, amount, type, description)
-       VALUES ($1, $2, $3, $4)`,
-      [userId, amount, reason, `Sicbo win: ${amount} COIN`]
+      `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+       VALUES ($1, $1, $2, $3, $4)`,
+      [userId, amount, transactionType, description]
     );
     
+    console.log(`[Sicbo] Added ${amount} COIN to user ${userId} (${reason})`);
     return true;
   } catch (error) {
     console.error('[Sicbo] Error adding coins:', error);
