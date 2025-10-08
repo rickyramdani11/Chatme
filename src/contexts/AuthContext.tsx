@@ -5,6 +5,7 @@ import * as Device from 'expo-device';
 import * as Location from 'expo-location';
 
 import { API_BASE_URL } from '../utils/apiConfig';
+import { maskEmail, maskPhone, maskToken, maskSensitiveData } from '../utils/maskSensitiveData';
 
 interface User {
   id: string;
@@ -289,11 +290,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (username: string, password: string, email: string, phone: string, country: string, gender: string) => {
     try {
-      console.log('Attempting to register user:', { username, email, phone, country, gender });
+      console.log('Attempting to register user:', maskSensitiveData({ username, email, phone, country, gender }));
       console.log('API URL:', `${API_BASE_URL}/auth/register`);
 
       const requestBody = { username, password, email, phone, country, gender };
-      console.log('Request body:', requestBody);
+      console.log('Request body:', maskSensitiveData(requestBody));
 
       // Create abort controller for timeout
       const controller = new AbortController();

@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { maskEmail, maskOTP } = require('../utils/maskSensitiveData');
 
 // Create SMTP transporter using Gmail
 const transporter = nodemailer.createTransport({
@@ -15,7 +16,7 @@ const transporter = nodemailer.createTransport({
 });
 
 async function sendVerificationEmail(email, username, otpCode) {
-  console.log('📧 Attempting to send verification email to:', email, 'with OTP:', otpCode);
+  console.log('📧 Attempting to send verification email to:', maskEmail(email), 'with OTP:', maskOTP(otpCode));
   try {
     const mailOptions = {
       from: '"ChatMe" <meongkwl@gmail.com>',
@@ -46,7 +47,7 @@ async function sendVerificationEmail(email, username, otpCode) {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log('✅ Verification email sent successfully to:', email);
+    console.log('✅ Verification email sent successfully to:', maskEmail(email));
     console.log('SMTP response:', result.messageId);
     return result;
   } catch (error) {

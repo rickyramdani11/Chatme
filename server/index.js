@@ -20,6 +20,7 @@ const roomsRouter = require('./routes/rooms');
 const withdrawRouter = require('./routes/withdraw');
 const fetch = require('node-fetch'); // Import node-fetch
 const { createProxyMiddleware } = require('http-proxy-middleware'); // For Socket.IO proxy
+const { maskEmail, maskToken, maskSensitiveData } = require('./utils/maskSensitiveData');
 
 // Import LowCard bot using CommonJS require
 let lowCardBot = null;
@@ -581,9 +582,9 @@ let verificationTokens = [];
 // Email verification simulation (replace with real email service)
 const sendVerificationEmail = (email, token) => {
   console.log(`=== EMAIL VERIFICATION ===`);
-  console.log(`To: ${email}`);
+  console.log(`To: ${maskEmail(email)}`);
   console.log(`Subject: Verify Your ChatMe Account`);
-  console.log(`Verification Link: http://0.0.0.0:5000/api/verify-email?token=${token}`);
+  console.log(`Verification Link: http://0.0.0.0:5000/api/verify-email?token=${maskToken(token)}`);
   console.log(`========================`);
   return true;
 };
@@ -671,18 +672,6 @@ const addUserEXP = async (userId, expAmount, activityType) => {
   }
 };
 
-
-// Helper function to mask sensitive data in responses
-const maskSensitiveData = (user) => {
-  if (!user) return user;
-
-  return {
-    ...user,
-    email: user.email ? '***@***.***' : undefined,
-    phone: user.phone ? '***' + user.phone.slice(-4) : undefined,
-    role: user.role // Keep true role for proper authorization
-  };
-};
 
 // Store API endpoints
 
@@ -2310,9 +2299,9 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     // In real app, send email with reset link
     console.log(`=== PASSWORD RESET EMAIL ===`);
-    console.log(`To: ${email}`);
+    console.log(`To: ${maskEmail(email)}`);
     console.log(`Subject: Reset Your ChatMe Password`);
-    console.log(`Reset Link: http://localhost:5000/api/auth/reset-password?token=${resetToken}`);
+    console.log(`Reset Link: http://localhost:5000/api/auth/reset-password?token=${maskToken(resetToken)}`);
     console.log(`This link will expire in 1 hour.`);
     console.log(`===========================`);
 
@@ -3405,7 +3394,7 @@ app.put('/api/users/:userId/profile', authenticateToken, async (req, res) => {
 
     console.log(`=== UPDATE USER PROFILE REQUEST ===`);
     console.log(`User ID: ${userId}`);
-    console.log(`Update data:`, { username, bio, phone, gender, birthDate, country, signature });
+    console.log(`Update data:`, maskSensitiveData({ username, bio, phone, gender, birthDate, country, signature }));
 
     // Build the SET clause dynamically
     const updates = [];
@@ -6118,7 +6107,7 @@ app.post('/api/chat/private', authenticateToken, async (req, res) => {
   console.log('POST /chat/private -', new Date().toISOString());
   console.log('=== AUTH TOKEN MIDDLEWARE ===');
   console.log('Auth header:', req.headers.authorization ? 'Present' : 'Missing');
-  console.log('Token:', req.headers.authorization ? `Present (${req.headers.authorization.substring(0, 20)}...)` : 'Missing');
+  console.log('Token:', req.headers.authorization ? maskToken(req.headers.authorization) : 'Missing');
   console.log('Token verified for user ID:', req.user.userId);
   console.log('User authenticated:', req.user.username, 'Role:', req.user.role);
 
