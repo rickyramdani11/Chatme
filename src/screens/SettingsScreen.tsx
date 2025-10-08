@@ -402,11 +402,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 8, // Add spacing between text and right items
   },
   settingsItemText: {
     fontSize: 16,
     marginLeft: 12,
     color: '#333',
+    flex: 1, // Allow text to take available space and wrap if needed
+    flexShrink: 1, // Allow text to shrink to prevent overflow
   },
   settingsItemRight: {
     flexDirection: 'row',
