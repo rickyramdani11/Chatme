@@ -478,6 +478,56 @@ pool.connect(async (err, client, release) => {
       console.error('Error creating withdrawal system tables:', tableError);
     }
 
+    // Create Sicbo game tables if they don't exist
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sicbo_games (
+          id SERIAL PRIMARY KEY,
+          room_id VARCHAR(255) NOT NULL,
+          round_id VARCHAR(255) UNIQUE NOT NULL,
+          phase VARCHAR(20) DEFAULT 'betting',
+          dice1 INTEGER,
+          dice2 INTEGER,
+          dice3 INTEGER,
+          total_sum INTEGER,
+          total_bets_count INTEGER DEFAULT 0,
+          total_bets_amount INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          rolled_at TIMESTAMP,
+          ended_at TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sicbo_bets (
+          id SERIAL PRIMARY KEY,
+          game_id INTEGER REFERENCES sicbo_games(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL,
+          username VARCHAR(255) NOT NULL,
+          bet_type VARCHAR(50) NOT NULL,
+          bet_value INTEGER,
+          bet_amount INTEGER NOT NULL,
+          win_amount INTEGER DEFAULT 0,
+          payout_multiplier DECIMAL(10,2),
+          is_win BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sicbo_bot_rooms (
+          id SERIAL PRIMARY KEY,
+          room_id INTEGER NOT NULL,
+          is_active BOOLEAN DEFAULT true,
+          added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      console.log('✅ Sicbo game tables initialized successfully');
+    } catch (tableError) {
+      console.error('Error creating Sicbo tables:', tableError);
+    }
+
     // Load existing rooms from database
     try {
       const result = await client.query(`
