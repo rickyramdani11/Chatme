@@ -56,6 +56,48 @@ async function sendVerificationEmail(email, username, otpCode) {
   }
 }
 
+async function sendPasswordResetOTP(email, username, otpCode) {
+  console.log('📧 Attempting to send password reset OTP to:', maskEmail(email), 'with OTP:', maskOTP(otpCode));
+  try {
+    const mailOptions = {
+      from: '"ChatMe" <meongkwl@gmail.com>',
+      to: email,
+      subject: 'Reset Your ChatMe Password',
+      html: `
+        <html>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #FF6B6B; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="margin: 0;">Reset Your Password</h1>
+            </div>
+            <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px; color: #333;">Hi <strong>${username}</strong>,</p>
+              <p style="font-size: 16px; color: #333;">You requested to reset your password. Use the code below to continue:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <div style="background-color: #FF6B6B; color: white; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 5px; display: inline-block;">
+                  ${otpCode}
+                </div>
+              </div>
+              <p style="font-size: 14px; color: #666; text-align: center;">Enter this code in the app to reset your password</p>
+              <p style="font-size: 14px; color: #666; margin-top: 20px; text-align: center;">This code will expire in 10 minutes.</p>
+              <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+              <p style="font-size: 12px; color: #999;">If you didn't request this, please ignore this email and your password will remain unchanged.</p>
+            </div>
+          </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('✅ Password reset OTP sent successfully to:', maskEmail(email));
+    console.log('SMTP response:', result.messageId);
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send password reset OTP:', error);
+    throw error;
+  }
+}
+
 module.exports = {
-  sendVerificationEmail
+  sendVerificationEmail,
+  sendPasswordResetOTP
 };

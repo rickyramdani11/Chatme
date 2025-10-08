@@ -55,6 +55,11 @@ export default function AuthScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [showResetOtpModal, setShowResetOtpModal] = useState(false);
+  const [resetOtpCode, setResetOtpCode] = useState('');
+  const [showNewPasswordModal, setShowNewPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [registeredEmail, setRegisteredEmail] = useState('');
@@ -261,13 +266,13 @@ export default function AuthScreen() {
 
   const handleForgotPassword = async () => {
     if (!resetEmail) {
-      Alert.alert('Error', 'Harap masukkan alamat email Anda');
+      Alert.alert('Error', 'Please enter your email address');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(resetEmail)) {
-      Alert.alert('Error', 'Harap masukkan alamat email yang valid');
+      Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
 
@@ -284,18 +289,94 @@ export default function AuthScreen() {
       const data = await response.json();
 
       if (response.ok) {
+        setShowForgotPassword(false);
+        setShowResetOtpModal(true);
         Alert.alert(
-          'OTP Terkirim',
-          `Kode OTP telah dikirim ke ${resetEmail}. Silakan cek email Anda dan gunakan kode tersebut untuk reset password.`,
-          [{ text: 'OK', onPress: () => setShowForgotPassword(false) }]
+          'OTP Sent',
+          `OTP code has been sent to ${resetEmail}. Please check your email and enter the code.`
         );
-        setResetEmail('');
       } else {
-        Alert.alert('Error', data.error || 'Gagal mengirim OTP. Silakan coba lagi.');
+        Alert.alert('Error', data.error || 'Failed to send OTP. Please try again.');
       }
     } catch (error) {
       console.error('Forgot password error:', error);
-      Alert.alert('Error', 'Gagal mengirim OTP. Silakan coba lagi.');
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+    }
+  };
+
+  const handleVerifyResetOTP = async () => {
+    if (!resetOtpCode || resetOtpCode.length !== 6) {
+      Alert.alert('Error', 'Please enter a valid 6-digit OTP code');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-reset-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resetEmail, otp: resetOtpCode }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowResetOtpModal(false);
+        setShowNewPasswordModal(true);
+        Alert.alert('Success', 'OTP verified successfully. Please enter your new password.');
+      } else {
+        Alert.alert('Error', data.error || 'Invalid OTP code. Please try again.');
+      }
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      Alert.alert('Error', 'Failed to verify OTP. Please try again.');
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password-with-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email: resetEmail, 
+          otp: resetOtpCode, 
+          newPassword 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowNewPasswordModal(false);
+        setResetEmail('');
+        setResetOtpCode('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        Alert.alert(
+          'Success',
+          'Your password has been reset successfully. You can now login with your new password.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', data.error || 'Failed to reset password. Please try again.');
+      }
+    } catch (error) {
+      console.error('Reset password error:', error);
+      Alert.alert('Error', 'Failed to reset password. Please try again.');
     }
   };
 
@@ -382,11 +463,11 @@ export default function AuthScreen() {
           </View>
           <View style={styles.forgotPasswordForm}>
             <Text style={styles.otpInstruction}>
-              Masukkan email Anda untuk menerima kode OTP
+              Enter your email to receive OTP code
             </Text>
             <TextInput
               style={styles.input}
-              placeholder="Masukkan Email"
+              placeholder="Enter Email"
               placeholderTextColor="#999"
               value={resetEmail}
               onChangeText={setResetEmail}
@@ -397,7 +478,97 @@ export default function AuthScreen() {
               style={styles.button}
               onPress={handleForgotPassword}
             >
-              <Text style={styles.buttonText}>Kirim OTP</Text>
+              <Text style={styles.buttonText}>Send OTP</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderResetOtpModal = () => (
+    <Modal
+      visible={showResetOtpModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowResetOtpModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Enter OTP Code</Text>
+            <TouchableOpacity onPress={() => setShowResetOtpModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.otpForm}>
+            <Text style={styles.otpInstruction}>
+              Please enter the 6-digit code sent to {resetEmail}
+            </Text>
+            <TextInput
+              style={styles.otpInput}
+              placeholder="Enter OTP"
+              placeholderTextColor="#999"
+              value={resetOtpCode}
+              onChangeText={setResetOtpCode}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus={true}
+            />
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleVerifyResetOTP}
+            >
+              <Text style={styles.buttonText}>Verify OTP</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderNewPasswordModal = () => (
+    <Modal
+      visible={showNewPasswordModal}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowNewPasswordModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Set New Password</Text>
+            <TouchableOpacity onPress={() => setShowNewPasswordModal(false)}>
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.forgotPasswordForm}>
+            <Text style={styles.otpInstruction}>
+              Enter your new password
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="New Password"
+              placeholderTextColor="#999"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry={true}
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm New Password"
+              placeholderTextColor="#999"
+              value={confirmNewPassword}
+              onChangeText={setConfirmNewPassword}
+              secureTextEntry={true}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleResetPassword}
+            >
+              <Text style={styles.buttonText}>Reset Password</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -673,6 +844,8 @@ export default function AuthScreen() {
 
       {renderCountryModal()}
       {renderForgotPasswordModal()}
+      {renderResetOtpModal()}
+      {renderNewPasswordModal()}
       {renderOtpModal()}
     </View>
   );

@@ -2268,7 +2268,7 @@ app.post('/api/auth/change-pin', authenticateToken, async (req, res) => {
   }
 });
 
-// Forgot password endpoint
+// Forgot password endpoint - OTP based
 app.post('/api/auth/forgot-password', async (req, res) => {
   const { email } = req.body;
 
@@ -2282,33 +2282,181 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     if (userResult.rows.length === 0) {
       // Don't reveal if email exists or not for security
-      return res.json({ message: 'If this email exists, a reset link has been sent.' });
+      return res.json({ message: 'If this email exists, an OTP has been sent.' });
     }
 
     const user = userResult.rows[0];
 
-    // Generate reset token (in real app, use crypto.randomBytes)
-    const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
-
-    // Store reset token in database
-    await pool.query(
-      'INSERT INTO password_resets (user_id, token, expires_at) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = $3',
-      [user.id, resetToken, expiresAt]
+    // Check for recent OTP attempts (rate limiting: max 3 requests per 15 minutes)
+    const recentAttempts = await pool.query(
+      'SELECT COUNT(*) as count FROM password_resets WHERE user_id = $1 AND created_at > NOW() - INTERVAL \'15 minutes\'',
+      [user.id]
     );
 
-    // In real app, send email with reset link
-    console.log(`=== PASSWORD RESET EMAIL ===`);
-    console.log(`To: ${maskEmail(email)}`);
-    console.log(`Subject: Reset Your ChatMe Password`);
-    console.log(`Reset Link: http://localhost:5000/api/auth/reset-password?token=${maskToken(resetToken)}`);
-    console.log(`This link will expire in 1 hour.`);
-    console.log(`===========================`);
+    if (parseInt(recentAttempts.rows[0].count) >= 3) {
+      return res.status(429).json({ error: 'Too many requests. Please try again in 15 minutes.' });
+    }
 
-    res.json({ message: 'If this email exists, a reset link has been sent.' });
+    // Generate 6-digit OTP code using crypto-secure random
+    const crypto = require('crypto');
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
+    const expiresAt = new Date(Date.now() + 600000); // 10 minutes from now
+
+    // Hash the OTP before storing (for security)
+    const hashedOTP = await bcrypt.hash(otpCode, 10);
+
+    // Store hashed OTP in database with attempt counter
+    await pool.query(
+      'INSERT INTO password_resets (user_id, token, expires_at, used) VALUES ($1, $2, $3, false) ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = $3, used = false, created_at = CURRENT_TIMESTAMP',
+      [user.id, hashedOTP, expiresAt]
+    );
+
+    // Send OTP email
+    const { sendPasswordResetOTP } = require('./services/emailService');
+    try {
+      await sendPasswordResetOTP(email, user.username, otpCode);
+      console.log(`✅ Password reset OTP sent to ${maskEmail(email)}`);
+    } catch (emailError) {
+      console.error('Failed to send OTP email:', emailError);
+      // Don't fail the request, just log the error
+    }
+
+    res.json({ message: 'If this email exists, an OTP has been sent.' });
 
   } catch (error) {
     console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Verify reset OTP endpoint
+app.post('/api/auth/verify-reset-otp', async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ error: 'Email and OTP are required' });
+  }
+
+  try {
+    // Get user by email
+    const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid OTP or email' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Get the password reset record
+    const resetResult = await pool.query(
+      'SELECT token, expires_at, used FROM password_resets WHERE user_id = $1',
+      [user.id]
+    );
+
+    if (resetResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No password reset request found' });
+    }
+
+    const resetRecord = resetResult.rows[0];
+
+    // Check if already used
+    if (resetRecord.used) {
+      return res.status(400).json({ error: 'This OTP has already been used' });
+    }
+
+    // Check if expired
+    if (new Date() > new Date(resetRecord.expires_at)) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Verify OTP
+    const isValidOTP = await bcrypt.compare(otp, resetRecord.token);
+
+    if (!isValidOTP) {
+      return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    // OTP is valid - don't mark as used yet, wait for password reset
+    res.json({ message: 'OTP verified successfully', userId: user.id });
+
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reset password with OTP endpoint
+app.post('/api/auth/reset-password-with-otp', async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+  }
+
+  // Validate password strength
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+
+  try {
+    // Get user by email
+    const userResult = await pool.query('SELECT id, username FROM users WHERE email = $1', [email]);
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid OTP or email' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Get the password reset record
+    const resetResult = await pool.query(
+      'SELECT id, token, expires_at, used FROM password_resets WHERE user_id = $1',
+      [user.id]
+    );
+
+    if (resetResult.rows.length === 0) {
+      return res.status(400).json({ error: 'No password reset request found' });
+    }
+
+    const resetRecord = resetResult.rows[0];
+
+    // Check if already used
+    if (resetRecord.used) {
+      return res.status(400).json({ error: 'This OTP has already been used' });
+    }
+
+    // Check if expired
+    if (new Date() > new Date(resetRecord.expires_at)) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Verify OTP
+    const isValidOTP = await bcrypt.compare(otp, resetRecord.token);
+
+    if (!isValidOTP) {
+      return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password
+    await pool.query(
+      'UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [hashedPassword, user.id]
+    );
+
+    // Mark OTP as used
+    await pool.query(
+      'UPDATE password_resets SET used = true WHERE id = $1',
+      [resetRecord.id]
+    );
+
+    console.log(`✅ Password reset successful for user: ${user.username}`);
+    res.json({ message: 'Password has been reset successfully. You can now login with your new password.' });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -8048,7 +8196,9 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📋 API Endpoints:`);
   console.log(`   POST /api/auth/register - User registration`);
   console.log(`   POST /api/auth/login - User login`);
-  console.log(`   POST /api/auth/forgot-password - Request password reset`);
+  console.log(`   POST /api/auth/forgot-password - Request password reset OTP`);
+  console.log(`   POST /api/auth/verify-reset-otp - Verify OTP code`);
+  console.log(`   POST /api/auth/reset-password-with-otp - Reset password using OTP`);
   console.log(`   GET  /api/verify-email - Verify email address`);
      console.log(`   GET  /api/rooms - Get chat rooms`);
   console.log(`   POST /api/chat/private - Create private chat`);
