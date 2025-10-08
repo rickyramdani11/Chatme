@@ -54,6 +54,10 @@ export default function WithdrawScreen({ navigation }: any) {
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolderName, setAccountHolderName] = useState('');
   const [isLinking, setIsLinking] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpValue, setOtpValue] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const ewalletOptions = [
     { id: 'dana', name: 'DANA', icon: 'wallet' },
@@ -147,6 +151,66 @@ export default function WithdrawScreen({ navigation }: any) {
     setAccountHolderName('');
     setShowBankModal(false);
     setShowAccountLinkModal(true);
+  };
+
+  const handleChangeAccountRequest = async () => {
+    setIsSendingOtp(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/withdraw/user/send-change-account-otp`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setShowOtpModal(true);
+        Alert.alert('OTP Sent', 'Kode OTP telah dikirim ke email Anda untuk keamanan');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Failed to send OTP');
+      }
+    } catch (error) {
+      console.error('Error sending OTP:', error);
+      Alert.alert('Error', 'Gagal mengirim OTP. Periksa koneksi Anda.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpValue || otpValue.length !== 6) {
+      Alert.alert('Error', 'Masukkan 6 digit kode OTP');
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/withdraw/user/verify-change-account-otp`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ otp: otpValue })
+      });
+
+      if (response.ok) {
+        setShowOtpModal(false);
+        setOtpValue('');
+        setShowBankModal(true);
+        Alert.alert('Verified', 'OTP berhasil diverifikasi!');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Invalid OTP');
+      }
+    } catch (error) {
+      console.error('Error verifying OTP:', error);
+      Alert.alert('Error', 'Gagal memverifikasi OTP');
+    } finally {
+      setIsVerifyingOtp(false);
+    }
   };
 
   const handleSubmitAccountLink = async () => {
@@ -393,10 +457,15 @@ export default function WithdrawScreen({ navigation }: any) {
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitleLarge}>Ikat kartu bank</Text>
               <TouchableOpacity 
-                onPress={() => setShowBankModal(true)}
+                onPress={handleChangeAccountRequest}
                 style={styles.changeButton}
+                disabled={isSendingOtp}
               >
-                <Text style={styles.changeButtonText}>mau ubah?</Text>
+                {isSendingOtp ? (
+                  <ActivityIndicator size="small" color="#FF69B4" />
+                ) : (
+                  <Text style={styles.changeButtonText}>mau ubah?</Text>
+                )}
               </TouchableOpacity>
             </View>
             
@@ -678,6 +747,76 @@ export default function WithdrawScreen({ navigation }: any) {
                     <Text style={styles.linkSubmitText}>Link Account</Text>
                   </>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* OTP Verification Modal */}
+      <Modal
+        visible={showOtpModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowOtpModal(false);
+          setOtpValue('');
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Verifikasi OTP</Text>
+              <TouchableOpacity onPress={() => {
+                setShowOtpModal(false);
+                setOtpValue('');
+              }}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <View style={styles.otpInfoBox}>
+                <Ionicons name="shield-checkmark" size={32} color="#9C27B0" />
+                <Text style={styles.otpInfoText}>
+                  Untuk keamanan, kode OTP telah dikirim ke email Anda
+                </Text>
+              </View>
+
+              <Text style={styles.label}>Masukkan Kode OTP (6 digit)</Text>
+              <TextInput
+                style={styles.otpInput}
+                value={otpValue}
+                onChangeText={(text) => setOtpValue(text.replace(/\D/g, '').substring(0, 6))}
+                placeholder="000000"
+                keyboardType="numeric"
+                maxLength={6}
+                autoFocus={true}
+              />
+
+              <TouchableOpacity
+                style={[styles.verifyOtpButton, isVerifyingOtp && styles.disabledButton]}
+                onPress={handleVerifyOtp}
+                disabled={isVerifyingOtp}
+              >
+                {isVerifyingOtp ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Text style={styles.verifyOtpText}>Verifikasi OTP</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendOtpButton}
+                onPress={handleChangeAccountRequest}
+                disabled={isSendingOtp}
+              >
+                <Text style={styles.resendOtpText}>
+                  {isSendingOtp ? 'Mengirim...' : 'Kirim Ulang OTP'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1111,5 +1250,58 @@ const styles = StyleSheet.create({
   giftExamplePrice: {
     fontSize: 14,
     color: '#666',
+  },
+  // OTP Modal styles
+  otpInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E5F5',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  otpInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 12,
+    lineHeight: 20,
+  },
+  otpInput: {
+    borderWidth: 2,
+    borderColor: '#9C27B0',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    letterSpacing: 8,
+    backgroundColor: '#fff',
+  },
+  verifyOtpButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+  verifyOtpText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  resendOtpButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 15,
+  },
+  resendOtpText: {
+    color: '#9C27B0',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

@@ -530,4 +530,117 @@ router.get('/withdrawals/history', authenticateToken, async (req, res) => {
   }
 });
 
+// Send OTP for account change
+router.post('/user/send-change-account-otp', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userEmail = req.user.email;
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'User email not found' });
+    }
+
+    // Generate 6-digit OTP
+    const crypto = require('crypto');
+    const otp = crypto.randomInt(100000, 999999).toString();
+
+    // Hash OTP for storage
+    const bcrypt = require('bcrypt');
+    const hashedOtp = await bcrypt.hash(otp, 10);
+
+    // Create OTP table if not exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_change_otps (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        otp_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP NOT NULL,
+        used BOOLEAN DEFAULT false
+      )
+    `);
+
+    // Delete any existing unused OTPs for this user
+    await pool.query(`
+      DELETE FROM account_change_otps 
+      WHERE user_id = $1 AND used = false
+    `, [userId]);
+
+    // Store OTP (expires in 10 minutes)
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    await pool.query(`
+      INSERT INTO account_change_otps (user_id, otp_hash, expires_at)
+      VALUES ($1, $2, $3)
+    `, [userId, hashedOtp, expiresAt]);
+
+    // Send OTP email
+    const emailService = require('../services/emailService');
+    await emailService.sendOTP(userEmail, otp, 'untuk mengubah rekening bank Anda');
+
+    console.log(`✅ OTP sent to ${userEmail} for account change`);
+
+    res.json({
+      success: true,
+      message: 'OTP has been sent to your email',
+      expiresIn: 600 // 10 minutes in seconds
+    });
+
+  } catch (error) {
+    console.error('Error sending account change OTP:', error);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+// Verify OTP for account change
+router.post('/user/verify-change-account-otp', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { otp } = req.body;
+
+    if (!otp || otp.length !== 6) {
+      return res.status(400).json({ error: 'Invalid OTP format' });
+    }
+
+    // Get latest unused OTP for user
+    const result = await pool.query(`
+      SELECT * FROM account_change_otps 
+      WHERE user_id = $1 AND used = false AND expires_at > NOW()
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'OTP expired or not found. Please request a new one.' });
+    }
+
+    const otpRecord = result.rows[0];
+
+    // Verify OTP
+    const bcrypt = require('bcrypt');
+    const isValid = await bcrypt.compare(otp, otpRecord.otp_hash);
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
+    }
+
+    // Mark OTP as used
+    await pool.query(`
+      UPDATE account_change_otps 
+      SET used = true 
+      WHERE id = $1
+    `, [otpRecord.id]);
+
+    console.log(`✅ OTP verified for user ${userId} - account change authorized`);
+
+    res.json({
+      success: true,
+      message: 'OTP verified successfully'
+    });
+
+  } catch (error) {
+    console.error('Error verifying account change OTP:', error);
+    res.status(500).json({ error: 'Failed to verify OTP' });
+  }
+});
+
 module.exports = router;
