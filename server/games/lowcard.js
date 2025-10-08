@@ -797,6 +797,18 @@ async function processLowCardCommand(io, room, msg, userId, username, userRole =
       return;
     }
     
+    // Check if Sicbo game is running (dynamic import)
+    try {
+      const { hasActiveSicboGame } = await import('./sicbo.js');
+      if (hasActiveSicboGame(room)) {
+        sendBotMessage(io, room, '⚠️ Sicbo is running this room, off bot sicbo to add bot new');
+        console.log(`[LowCard] Cannot add LowCardBot - Sicbo game is running in room ${room}`);
+        return;
+      }
+    } catch (err) {
+      console.error('[LowCard] Error checking Sicbo game:', err);
+    }
+    
     if (!botPresence[room]) {
       botPresence[room] = true;
       sendBotMessage(io, room, '🎮 LowCardBot is now active! Type !start <bet> to begin playing');
@@ -1284,10 +1296,16 @@ function handleLowCardBot(io, socket) {
   });
 }
 
+// Check if there's an active game in room
+function hasActiveLowcardGame(roomId) {
+  return rooms[roomId]?.isRunning === true;
+}
+
 module.exports = {
   processLowCardCommand,
   handleLowCardBot,
   isBotActiveInRoom,
   getBotStatus,
-  initializeLowCardTables
+  initializeLowCardTables,
+  hasActiveLowcardGame
 };

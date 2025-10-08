@@ -20,6 +20,7 @@
 
 import pkg from 'pg';
 const { Pool } = pkg;
+import { hasActiveLowcardGame } from './lowcard.js';
 
 // Create database pool
 const pool = new Pool({
@@ -281,6 +282,13 @@ export async function handleSicboAdminCommand(io, room, message, userId, usernam
     if (userRole !== 'admin') {
       sendBotMessage(io, room, `❌ Only admins can add SicboBot to rooms.`);
       console.log(`[Sicbo] Non-admin user ${username} attempted to add SicboBot`);
+      return true; // Command handled
+    }
+    
+    // Check if LowCard game is running
+    if (hasActiveLowcardGame(room)) {
+      sendBotMessage(io, room, '⚠️ Lowcard is running this room, off bot lowcard to add bot new');
+      console.log(`[Sicbo] Cannot add SicboBot - LowCard game is running in room ${room}`);
       return true; // Command handled
     }
     
@@ -612,6 +620,11 @@ export async function shutdownSicboBot(roomId) {
     console.error('[Sicbo] Shutdown error:', error);
     return { success: false, message: 'Failed to shutdown bot' };
   }
+}
+
+// Check if there's an active game in room
+export function hasActiveSicboGame(roomId) {
+  return games[roomId] !== undefined;
 }
 
 // Export ensureBotPresence for socket-gateway
