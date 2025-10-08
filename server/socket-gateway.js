@@ -11,6 +11,9 @@ import crypto from 'crypto';
 // Import LowCard bot
 import { processLowCardCommand } from './games/lowcard.js';
 
+// Import Sicbo bot
+import { handleSicboCommand } from './games/sicbo.js';
+
 // Import ChatMe AI Bot
 import { processBotMessage, BOT_USERNAME } from './bot/chatme-bot.js';
 
@@ -1625,8 +1628,16 @@ io.on('connection', (socket) => {
         // Get user info from connected users
         const userInfo = connectedUsers.get(socket.id);
         if (userInfo && userInfo.userId) {
-          // Process the command through LowCard bot with role
-          processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+          // Route to appropriate bot based on command
+          if (trimmedContent.startsWith('!sicbo')) {
+            // Sicbo game command
+            const args = trimmedContent.slice(1).split(/\s+/);
+            args.shift(); // Remove '!sicbo'
+            handleSicboCommand(io, socket, roomId, args, userInfo.userId, sender);
+          } else {
+            // LowCard or other commands
+            processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+          }
         } else {
           console.error('User info not found for socket:', socket.id);
         }
