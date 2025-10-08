@@ -931,7 +931,8 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
         } else if (userIdForPrivate) {
           sendPrivateBotMessageToUser(io, userIdForPrivate, room, `You don't have enough COIN to start the game.`);
         } else {
-          sendBotMessage(io, room, `${username} doesn't have enough COIN to start the game.`);
+          // Fallback: send private to user instead of broadcasting
+          sendPrivateBotMessageToUser(io, userId, room, `You don't have enough COIN to start the game.`);
         }
         return;
       }
@@ -1011,8 +1012,11 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
         // Send private error message to user only
         if (socket) {
           sendPrivateBotMessage(socket, room, `You don't have enough COIN to join. Need ${data.bet} COIN.`);
+        } else if (userIdForPrivate) {
+          sendPrivateBotMessageToUser(io, userIdForPrivate, room, `You don't have enough COIN to join. Need ${data.bet} COIN.`);
         } else {
-          sendBotMessage(io, room, `${username} doesn't have enough COIN to join.`);
+          // Fallback: send private to user instead of broadcasting
+          sendPrivateBotMessageToUser(io, userId, room, `You don't have enough COIN to join. Need ${data.bet} COIN.`);
         }
         return;
       }
