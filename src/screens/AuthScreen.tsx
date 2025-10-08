@@ -466,7 +466,7 @@ export default function AuthScreen() {
               Enter your email to receive OTP code
             </Text>
             <TextInput
-              style={styles.input}
+              style={styles.modalInput}
               placeholder="Enter Email"
               placeholderTextColor="#999"
               value={resetEmail}
@@ -547,7 +547,7 @@ export default function AuthScreen() {
               Enter your new password
             </Text>
             <TextInput
-              style={styles.input}
+              style={styles.modalInput}
               placeholder="New Password"
               placeholderTextColor="#999"
               value={newPassword}
@@ -556,7 +556,7 @@ export default function AuthScreen() {
               autoCapitalize="none"
             />
             <TextInput
-              style={styles.input}
+              style={styles.modalInput}
               placeholder="Confirm New Password"
               placeholderTextColor="#999"
               value={confirmNewPassword}
@@ -1142,6 +1142,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 20,
+  },
+  modalInput: {
+    width: '100%',
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#fff',
+    marginBottom: 15,
   },
   otpInput: {
     width: '100%',
