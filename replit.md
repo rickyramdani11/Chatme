@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Features
 - **Chat System**: Multi-room chat (real-time only), private messaging (persisted), emoji support, media sharing, chat history notifications, hybrid emoji composer.
 - **Gift System**: Virtual gifts with real-time display, video gifts, atomic send prevention, duplicate message filtering, batched state updates. Gift earnings are standardized to 30% user / 70% system. Cloud storage integration with Cloudinary for scalable gift media management.
-- **Gaming Integration**: LowCard bot game with database persistence and automatic refund system.
+- **Gaming Integration**: LowCard bot game with database persistence, automatic refund system, and auto-advance feature (instantly proceeds to "Times up" when all players draw cards, no need to wait for 20s timer).
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat with rate limiting and conversation history.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.

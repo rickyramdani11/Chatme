@@ -383,6 +383,9 @@ function processRoundResults(io, room) {
     delete data.drawTimeout;
   }
 
+  // Show "Times up" message when tallying cards
+  sendBotMessage(io, room, `Times up! Tallying cards.`);
+
   // Sort active players by card value (lowest first)
   const sorted = [...data.activePlayers].sort((a, b) => getCardValue(a.card) - getCardValue(b.card));
   const lowestValue = getCardValue(sorted[0].card);
