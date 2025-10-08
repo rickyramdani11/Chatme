@@ -685,7 +685,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             }
           ]}
         >
-          {/* Avatar without frame - headwear will be used instead */}
+          {/* Avatar with frame */}
           <Animated.View 
             style={[
               styles.avatarContainer,
@@ -693,6 +693,16 @@ export default function ProfileScreen({ navigation, route }: any) {
             ]}
           >
             <View style={styles.simpleAvatarContainer}>
+              {/* Avatar Frame (if exists) */}
+              {profile.avatarFrame && (
+                <Image
+                  source={{ uri: profile.avatarFrame.startsWith('http') ? profile.avatarFrame : `${BASE_URL}${profile.avatarFrame}` }}
+                  style={styles.avatarFrameImage}
+                  resizeMode="contain"
+                />
+              )}
+              
+              {/* Avatar Image */}
               {profile.avatar ? (
                 <Image 
                   source={{ uri: profile.avatar }} 
@@ -1137,16 +1147,25 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   simpleAvatarContainer: {
+    position: 'relative',
     width: 88,
     height: 88,
     borderRadius: 44,
-    overflow: 'hidden',
+    overflow: 'visible',
     backgroundColor: '#f0f0f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
+  },
+  avatarFrameImage: {
+    position: 'absolute',
+    top: -10,
+    left: -10,
+    width: 108,
+    height: 108,
+    zIndex: 2,
   },
   simpleAvatar: {
     width: '100%',
