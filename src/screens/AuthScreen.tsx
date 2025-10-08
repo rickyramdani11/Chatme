@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 const { width, height } = Dimensions.get('window');
 
@@ -260,27 +261,41 @@ export default function AuthScreen() {
 
   const handleForgotPassword = async () => {
     if (!resetEmail) {
-      Alert.alert('Error', 'Please enter your email address');
+      Alert.alert('Error', 'Harap masukkan alamat email Anda');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(resetEmail)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      Alert.alert('Error', 'Harap masukkan alamat email yang valid');
       return;
     }
 
     try {
-      // In a real app, you would call your backend API here
-      // For demo purposes, we'll show a success message
-      Alert.alert(
-        'Reset Link Sent',
-        `Password reset instructions have been sent to ${resetEmail}. Please check your email.`,
-        [{ text: 'OK', onPress: () => setShowForgotPassword(false) }]
-      );
-      setResetEmail('');
+      // Call backend API to send OTP
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert(
+          'OTP Terkirim',
+          `Kode OTP telah dikirim ke ${resetEmail}. Silakan cek email Anda dan gunakan kode tersebut untuk reset password.`,
+          [{ text: 'OK', onPress: () => setShowForgotPassword(false) }]
+        );
+        setResetEmail('');
+      } else {
+        Alert.alert('Error', data.error || 'Gagal mengirim OTP. Silakan coba lagi.');
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to send reset email. Please try again.');
+      console.error('Forgot password error:', error);
+      Alert.alert('Error', 'Gagal mengirim OTP. Silakan coba lagi.');
     }
   };
 
@@ -360,15 +375,18 @@ export default function AuthScreen() {
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Forgot Password</Text>
+            <Text style={styles.modalTitle}>Reset Password</Text>
             <TouchableOpacity onPress={() => setShowForgotPassword(false)}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
           <View style={styles.forgotPasswordForm}>
+            <Text style={styles.otpInstruction}>
+              Masukkan email Anda untuk menerima kode OTP
+            </Text>
             <TextInput
               style={styles.input}
-              placeholder="Enter your email"
+              placeholder="Masukkan Email"
               placeholderTextColor="#999"
               value={resetEmail}
               onChangeText={setResetEmail}
@@ -379,7 +397,7 @@ export default function AuthScreen() {
               style={styles.button}
               onPress={handleForgotPassword}
             >
-              <Text style={styles.buttonText}>Send Reset Link</Text>
+              <Text style={styles.buttonText}>Kirim OTP</Text>
             </TouchableOpacity>
           </View>
         </View>
