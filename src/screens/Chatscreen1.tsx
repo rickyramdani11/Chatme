@@ -2845,7 +2845,13 @@ export default function ChatScreen() {
       }
 
       // Handle special commands (only for non-support chats)
-      if (messageContent.startsWith('/') && !currentTab?.isSupport) {
+      // BUT: Admin/bot commands (/add, /bot, /sicbo off, etc) should be sent to server
+      const isAdminCommand = messageContent.startsWith('/add') || 
+                             messageContent.startsWith('/bot') || 
+                             messageContent.startsWith('/sicbo') ||
+                             messageContent.startsWith('/lowcard');
+      
+      if (messageContent.startsWith('/') && !currentTab?.isSupport && !isAdminCommand) {
         handleSpecialCommand(messageContent, currentRoomId);
         setMessage('');
         setSelectedImageEmojis([]);
