@@ -52,76 +52,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loadStoredAuth = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem('token');
-      const storedUser = await AsyncStorage.getItem('user');
-
-      if (storedToken && storedUser) {
-        // Validate token format before using
-        if (typeof storedToken === 'string' && storedToken.split('.').length === 3) {
-          console.log('Loading stored token and user');
-          setToken(storedToken);
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-
-          // Refresh user data from server to get latest role information
-          try {
-            const response = await fetch(`${API_BASE_URL}/users/${userData.id}/profile`, {
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${storedToken}`,
-              },
-            });
-
-            if (response.ok) {
-            const latestUserData = await response.json();
-            console.log('Refreshed user data from server:', latestUserData);
-
-            // Fetch user balance
-            let userBalance = 0;
-            try {
-              const balanceResponse = await fetch(`${API_BASE_URL}/credits/balance`, {
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${storedToken}`,
-                },
-              });
-              if (balanceResponse.ok) {
-                const balanceData = await balanceResponse.json();
-                userBalance = balanceData.balance || 0;
-              }
-            } catch (balanceError) {
-              console.log('Failed to fetch balance:', balanceError);
-            }
-
-            // Always use server role as authoritative source
-            const updatedUserData = {
-              ...userData,
-              ...latestUserData,
-              role: latestUserData.role, // Always use server role
-              balance: userBalance
-            };
-
-            setUser(updatedUserData);
-            await AsyncStorage.setItem('user', JSON.stringify(updatedUserData));
-            console.log('User role after refresh (server authoritative):', updatedUserData.role);
-            } else {
-              console.log('Failed to refresh user data, server response not ok:', response.status);
-              // Still set the stored user data
-              setUser(userData);
-            }
-          } catch (refreshError) {
-            console.log('Failed to refresh user data, using stored data:', refreshError);
-            // Still set the stored user data even if refresh fails
-            setUser(userData);
-          }
-        } else {
-          console.log('Invalid stored token format, clearing storage');
-          await AsyncStorage.removeItem('token');
-          await AsyncStorage.removeItem('user');
-        }
-      }
+      // ❌ AUTO-LOGIN DISABLED - User must login manually every time
+      // Clear any stored auth data on app start
+      console.log('🚫 Auto-login disabled - clearing stored credentials');
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      
+      setToken(null);
+      setUser(null);
     } catch (error) {
-      console.error('Error loading stored auth:', error);
+      console.error('Error clearing stored auth:', error);
       // Clear potentially corrupted data
       try {
         await AsyncStorage.removeItem('token');
