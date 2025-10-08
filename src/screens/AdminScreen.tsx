@@ -2302,25 +2302,22 @@ export default function AdminScreen({ navigation }: any) {
 
                     <View style={styles.editFormSection}>
                       <Text style={styles.editFormLabel}>Maximum Capacity</Text>
-                      <View style={styles.capacityEditContainer}>
-                        {[25, 40, 80].map((capacity) => (
-                          <TouchableOpacity
-                            key={capacity}
-                            style={[
-                              styles.capacityEditOption,
-                              editRoomMaxMembers === capacity && styles.capacityEditOptionSelected
-                            ]}
-                            onPress={() => setEditRoomMaxMembers(capacity)}
-                          >
-                            <Text style={[
-                              styles.capacityEditOptionText,
-                              editRoomMaxMembers === capacity && styles.capacityEditOptionTextSelected
-                            ]}>
-                              {capacity}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
+                      <TextInput
+                        style={styles.editFormInput}
+                        placeholder="Enter maximum capacity"
+                        value={editRoomMaxMembers.toString()}
+                        onChangeText={(text) => {
+                          const num = parseInt(text, 10);
+                          if (!isNaN(num) && num > 0) {
+                            setEditRoomMaxMembers(num);
+                          } else if (text === '') {
+                            setEditRoomMaxMembers(0);
+                          }
+                        }}
+                        keyboardType="numeric"
+                        maxLength={4}
+                        placeholderTextColor="#999"
+                      />
                     </View>
                   </ScrollView>
                 </SafeAreaView>
