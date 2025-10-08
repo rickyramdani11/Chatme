@@ -743,7 +743,7 @@ export default function ChatScreen() {
             // Add timestamp to force fresh request and bypass cache
             const timestamp = Date.now();
             console.log('🔄 Fetching room data for roomId:', roomId);
-            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms?_t=${timestamp}`, {
+            const roomResponse = await fetch(`${API_BASE_URL}/rooms?_t=${timestamp}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
