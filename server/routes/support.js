@@ -450,4 +450,335 @@ router.post('/tickets/:ticketId/messages', authenticateToken, async (req, res) =
   }
 });
 
+// ==================== ADMIN ENDPOINTS ====================
+
+// Middleware to check admin role
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+// Get all support tickets (admin only)
+router.get('/admin/tickets', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { status, priority, category, page = 1, limit = 20 } = req.query;
+
+    let query = `
+      SELECT 
+        st.id,
+        st.user_id,
+        st.username,
+        st.subject,
+        st.description,
+        st.category,
+        st.priority,
+        st.status,
+        st.assigned_to,
+        st.assigned_to_username,
+        st.created_at,
+        st.updated_at,
+        st.resolved_at,
+        COUNT(sm.id) as message_count,
+        MAX(sm.created_at) as last_message_at
+      FROM support_tickets st
+      LEFT JOIN support_messages sm ON st.id = sm.ticket_id
+    `;
+
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+      conditions.push(`st.status = $${paramIndex++}`);
+      params.push(status);
+    }
+
+    if (priority) {
+      conditions.push(`st.priority = $${paramIndex++}`);
+      params.push(priority);
+    }
+
+    if (category) {
+      conditions.push(`st.category = $${paramIndex++}`);
+      params.push(category);
+    }
+
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    query += `
+      GROUP BY st.id
+      ORDER BY 
+        CASE st.status 
+          WHEN 'open' THEN 1 
+          WHEN 'in_progress' THEN 2 
+          WHEN 'resolved' THEN 3 
+          WHEN 'closed' THEN 4 
+        END,
+        st.created_at DESC
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+    `;
+
+    params.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+
+    const result = await pool.query(query, params);
+
+    const tickets = result.rows.map(row => ({
+      id: row.id.toString(),
+      userId: row.user_id.toString(),
+      username: row.username,
+      subject: row.subject,
+      description: row.description,
+      category: row.category,
+      priority: row.priority,
+      status: row.status,
+      assignedTo: row.assigned_to ? row.assigned_to.toString() : null,
+      assignedToUsername: row.assigned_to_username,
+      messageCount: parseInt(row.message_count),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      resolvedAt: row.resolved_at,
+      lastMessageAt: row.last_message_at
+    }));
+
+    // Get total count
+    let countQuery = 'SELECT COUNT(*) FROM support_tickets';
+    const countConditions = [];
+    const countParams = [];
+    let countParamIndex = 1;
+
+    if (status) {
+      countConditions.push(`status = $${countParamIndex++}`);
+      countParams.push(status);
+    }
+    if (priority) {
+      countConditions.push(`priority = $${countParamIndex++}`);
+      countParams.push(priority);
+    }
+    if (category) {
+      countConditions.push(`category = $${countParamIndex++}`);
+      countParams.push(category);
+    }
+
+    if (countConditions.length > 0) {
+      countQuery += ' WHERE ' + countConditions.join(' AND ');
+    }
+
+    const countResult = await pool.query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    res.json({ 
+      tickets, 
+      page: parseInt(page), 
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / parseInt(limit))
+    });
+  } catch (error) {
+    console.error('Error fetching admin tickets:', error);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// Get ticket messages (admin can view any ticket)
+router.get('/admin/tickets/:ticketId/messages', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    const result = await pool.query(`
+      SELECT id, user_id, username, message, is_admin, created_at
+      FROM support_messages
+      WHERE ticket_id = $1
+      ORDER BY created_at ASC
+    `, [ticketId]);
+
+    const messages = result.rows.map(row => ({
+      id: row.id.toString(),
+      userId: row.user_id.toString(),
+      message: row.message,
+      username: row.username,
+      isAdmin: row.is_admin,
+      createdAt: row.created_at
+    }));
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching admin ticket messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// Reply to ticket (admin only)
+router.post('/admin/tickets/:ticketId/reply', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { message } = req.body;
+    const adminId = req.user.id;
+    const adminUsername = req.user.username;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // Check if ticket exists
+    const ticketCheck = await pool.query(
+      'SELECT id, status, user_id FROM support_tickets WHERE id = $1',
+      [ticketId]
+    );
+
+    if (ticketCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const ticket = ticketCheck.rows[0];
+
+    // Add admin reply
+    const result = await pool.query(`
+      INSERT INTO support_messages (ticket_id, user_id, username, message, is_admin)
+      VALUES ($1, $2, $3, $4, true)
+      RETURNING *
+    `, [ticketId, adminId, adminUsername, message.trim()]);
+
+    // Update ticket status to in_progress if it was open
+    // and assign to this admin if not assigned
+    await pool.query(`
+      UPDATE support_tickets 
+      SET 
+        status = CASE WHEN status = 'open' THEN 'in_progress' ELSE status END,
+        assigned_to = COALESCE(assigned_to, $1),
+        assigned_to_username = COALESCE(assigned_to_username, $2),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+    `, [adminId, adminUsername, ticketId]);
+
+    const newMessage = result.rows[0];
+
+    res.status(201).json({
+      success: true,
+      message: {
+        id: newMessage.id.toString(),
+        message: newMessage.message,
+        username: newMessage.username,
+        isAdmin: newMessage.is_admin,
+        createdAt: newMessage.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Error adding admin reply:', error);
+    res.status(500).json({ error: 'Failed to add reply' });
+  }
+});
+
+// Update ticket status (admin only)
+router.put('/admin/tickets/:ticketId/status', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['open', 'in_progress', 'resolved', 'closed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const updateData = {
+      status,
+      updated_at: new Date()
+    };
+
+    // Set resolved_at when status is resolved or closed
+    if (status === 'resolved' || status === 'closed') {
+      updateData.resolved_at = new Date();
+    }
+
+    const result = await pool.query(`
+      UPDATE support_tickets 
+      SET 
+        status = $1,
+        updated_at = CURRENT_TIMESTAMP,
+        resolved_at = CASE WHEN $1 IN ('resolved', 'closed') THEN COALESCE(resolved_at, CURRENT_TIMESTAMP) ELSE resolved_at END
+      WHERE id = $2
+      RETURNING *
+    `, [status, ticketId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const ticket = result.rows[0];
+
+    res.json({
+      success: true,
+      ticket: {
+        id: ticket.id.toString(),
+        status: ticket.status,
+        updatedAt: ticket.updated_at,
+        resolvedAt: ticket.resolved_at
+      }
+    });
+  } catch (error) {
+    console.error('Error updating ticket status:', error);
+    res.status(500).json({ error: 'Failed to update ticket status' });
+  }
+});
+
+// Assign ticket to admin (admin only)
+router.put('/admin/tickets/:ticketId/assign', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { adminId, adminUsername } = req.body;
+
+    const result = await pool.query(`
+      UPDATE support_tickets 
+      SET 
+        assigned_to = $1,
+        assigned_to_username = $2,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3
+      RETURNING *
+    `, [adminId, adminUsername, ticketId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    const ticket = result.rows[0];
+
+    res.json({
+      success: true,
+      ticket: {
+        id: ticket.id.toString(),
+        assignedTo: ticket.assigned_to ? ticket.assigned_to.toString() : null,
+        assignedToUsername: ticket.assigned_to_username,
+        updatedAt: ticket.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Error assigning ticket:', error);
+    res.status(500).json({ error: 'Failed to assign ticket' });
+  }
+});
+
+// Get ticket statistics (admin only)
+router.get('/admin/tickets/stats', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const stats = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'open') as open_count,
+        COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count,
+        COUNT(*) FILTER (WHERE status = 'resolved') as resolved_count,
+        COUNT(*) FILTER (WHERE status = 'closed') as closed_count,
+        COUNT(*) as total_count
+      FROM support_tickets
+    `);
+
+    res.json(stats.rows[0]);
+  } catch (error) {
+    console.error('Error fetching ticket stats:', error);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
 module.exports = router;

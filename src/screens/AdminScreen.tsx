@@ -136,6 +136,16 @@ export default function AdminScreen({ navigation }: any) {
   const [bannerDisplayOrder, setBannerDisplayOrder] = useState('0');
   const [uploadedBannerImage, setUploadedBannerImage] = useState<any>(null);
 
+  // Support tickets states
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [ticketMessages, setTicketMessages] = useState([]);
+  const [ticketReply, setTicketReply] = useState('');
+  const [showTicketDetailModal, setShowTicketDetailModal] = useState(false);
+  const [ticketStatusFilter, setTicketStatusFilter] = useState('all');
+  const [ticketStats, setTicketStats] = useState<any>(null);
+
   const menuItems: MenuItem[] = [
     {
       id: 'emoji',
@@ -185,6 +195,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'analytics-outline',
       color: '#F44336',
       description: 'Monitor status dan aktivitas user'
+    },
+    {
+      id: 'support-tickets',
+      title: 'Support Tickets',
+      icon: 'mail-outline',
+      color: '#2196F3',
+      description: 'Kelola support tickets dari user'
     }
   ];
 
@@ -223,8 +240,18 @@ export default function AdminScreen({ navigation }: any) {
       if (activeTab === 'banners') {
         loadBanners();
       }
+      if (activeTab === 'support-tickets') {
+        loadSupportTickets();
+        loadTicketStats();
+      }
     }
   }, [token, activeTab, user]);
+
+  useEffect(() => {
+    if (activeTab === 'support-tickets' && token && user?.role === 'admin') {
+      loadSupportTickets();
+    }
+  }, [ticketStatusFilter]);
 
   const loadDeviceInfo = async () => {
     try {
@@ -667,6 +694,146 @@ export default function AdminScreen({ navigation }: any) {
         }
       ]
     );
+  };
+
+  // ==================== SUPPORT TICKETS FUNCTIONS ====================
+
+  const loadSupportTickets = async () => {
+    try {
+      setTicketsLoading(true);
+      const statusParam = ticketStatusFilter === 'all' ? '' : `?status=${ticketStatusFilter}`;
+      
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets${statusParam}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTickets(data.tickets || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load tickets:', errorData);
+      }
+    } catch (error) {
+      console.error('Error loading tickets:', error);
+      Alert.alert('Error', 'Gagal memuat support tickets');
+    } finally {
+      setTicketsLoading(false);
+    }
+  };
+
+  const loadTicketStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/stats`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const stats = await response.json();
+        setTicketStats(stats);
+      }
+    } catch (error) {
+      console.error('Error loading ticket stats:', error);
+    }
+  };
+
+  const loadTicketMessages = async (ticketId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/${ticketId}/messages`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const messages = await response.json();
+        setTicketMessages(messages);
+      } else {
+        Alert.alert('Error', 'Gagal memuat pesan tiket');
+      }
+    } catch (error) {
+      console.error('Error loading ticket messages:', error);
+      Alert.alert('Error', 'Gagal memuat pesan tiket');
+    }
+  };
+
+  const handleReplyToTicket = async () => {
+    if (!ticketReply.trim()) {
+      Alert.alert('Error', 'Pesan reply tidak boleh kosong');
+      return;
+    }
+
+    if (!selectedTicket) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/${selectedTicket.id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({ message: ticketReply.trim() }),
+      });
+
+      if (response.ok) {
+        setTicketReply('');
+        loadTicketMessages(selectedTicket.id);
+        loadSupportTickets();
+        Alert.alert('Berhasil', 'Balasan berhasil dikirim');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Gagal mengirim balasan');
+      }
+    } catch (error) {
+      console.error('Error replying to ticket:', error);
+      Alert.alert('Error', 'Gagal mengirim balasan');
+    }
+  };
+
+  const handleUpdateTicketStatus = async (ticketId: string, status: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/${ticketId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Berhasil', 'Status tiket berhasil diperbarui');
+        loadSupportTickets();
+        loadTicketStats();
+        if (selectedTicket && selectedTicket.id === ticketId) {
+          setSelectedTicket({ ...selectedTicket, status });
+        }
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Gagal memperbarui status');
+      }
+    } catch (error) {
+      console.error('Error updating ticket status:', error);
+      Alert.alert('Error', 'Gagal memperbarui status');
+    }
+  };
+
+  const openTicketDetail = async (ticket: any) => {
+    setSelectedTicket(ticket);
+    setShowTicketDetailModal(true);
+    await loadTicketMessages(ticket.id);
   };
 
   const handleGiftImageUpload = async () => {
@@ -2540,8 +2707,244 @@ export default function AdminScreen({ navigation }: any) {
           </ScrollView>
         );
 
+      case 'support-tickets':
+        return (
+          <ScrollView style={styles.ticketsContainer} showsVerticalScrollIndicator={false}>
+            {/* Stats Cards */}
+            {ticketStats && (
+              <View style={styles.ticketStatsRow}>
+                <View style={[styles.statCard, { borderLeftColor: '#4CAF50' }]}>
+                  <Text style={styles.statNumber}>{ticketStats.open_count || 0}</Text>
+                  <Text style={styles.statLabel}>Open</Text>
+                </View>
+                <View style={[styles.statCard, { borderLeftColor: '#FF9800' }]}>
+                  <Text style={styles.statNumber}>{ticketStats.in_progress_count || 0}</Text>
+                  <Text style={styles.statLabel}>In Progress</Text>
+                </View>
+                <View style={[styles.statCard, { borderLeftColor: '#2196F3' }]}>
+                  <Text style={styles.statNumber}>{ticketStats.resolved_count || 0}</Text>
+                  <Text style={styles.statLabel}>Resolved</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Filter Buttons */}
+            <View style={styles.filterButtonsRow}>
+              <TouchableOpacity
+                style={[styles.filterButton, ticketStatusFilter === 'all' && styles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('all')}
+              >
+                <Text style={[styles.filterButtonText, ticketStatusFilter === 'all' && styles.filterButtonTextActive]}>
+                  Semua
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterButton, ticketStatusFilter === 'open' && styles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('open')}
+              >
+                <Text style={[styles.filterButtonText, ticketStatusFilter === 'open' && styles.filterButtonTextActive]}>
+                  Open
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterButton, ticketStatusFilter === 'in_progress' && styles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('in_progress')}
+              >
+                <Text style={[styles.filterButtonText, ticketStatusFilter === 'in_progress' && styles.filterButtonTextActive]}>
+                  In Progress
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterButton, ticketStatusFilter === 'resolved' && styles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('resolved')}
+              >
+                <Text style={[styles.filterButtonText, ticketStatusFilter === 'resolved' && styles.filterButtonTextActive]}>
+                  Resolved
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Tickets List */}
+            {ticketsLoading ? (
+              <ActivityIndicator size="large" color="#2196F3" style={{ marginTop: 20 }} />
+            ) : tickets.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="mail-outline" size={60} color="#ccc" />
+                <Text style={styles.emptyTitle}>No Tickets</Text>
+                <Text style={styles.emptySubtitle}>Tidak ada tiket support untuk filter ini</Text>
+              </View>
+            ) : (
+              tickets.map((ticket: any) => (
+                <TouchableOpacity
+                  key={ticket.id}
+                  style={styles.ticketCard}
+                  onPress={() => openTicketDetail(ticket)}
+                >
+                  <View style={styles.ticketHeader}>
+                    <View style={styles.ticketTitleRow}>
+                      <Ionicons name="ticket-outline" size={18} color="#2196F3" />
+                      <Text style={styles.ticketSubject} numberOfLines={1}>{ticket.subject}</Text>
+                    </View>
+                    <View style={[styles.ticketStatusBadge, { backgroundColor: getTicketStatusColor(ticket.status) }]}>
+                      <Text style={styles.ticketStatusText}>{ticket.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.ticketDescription} numberOfLines={2}>{ticket.description}</Text>
+                  <View style={styles.ticketFooter}>
+                    <Text style={styles.ticketUsername}>
+                      <Ionicons name="person-outline" size={12} /> {ticket.username}
+                    </Text>
+                    <Text style={styles.ticketDate}>
+                      {new Date(ticket.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  {ticket.messageCount > 0 && (
+                    <View style={styles.ticketMessageCount}>
+                      <Ionicons name="chatbubble-outline" size={12} color="#666" />
+                      <Text style={styles.ticketMessageCountText}>{ticket.messageCount} pesan</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+
+            {/* Ticket Detail Modal */}
+            <Modal
+              visible={showTicketDetailModal}
+              animationType="slide"
+              transparent={false}
+              onRequestClose={() => {
+                setShowTicketDetailModal(false);
+                setSelectedTicket(null);
+                setTicketMessages([]);
+                setTicketReply('');
+              }}
+            >
+              <SafeAreaView style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <TouchableOpacity onPress={() => {
+                    setShowTicketDetailModal(false);
+                    setSelectedTicket(null);
+                    setTicketMessages([]);
+                    setTicketReply('');
+                  }}>
+                    <Ionicons name="arrow-back" size={24} color="#333" />
+                  </TouchableOpacity>
+                  <Text style={styles.modalTitle}>Detail Tiket</Text>
+                  <View style={{ width: 24 }} />
+                </View>
+
+                {selectedTicket && (
+                  <ScrollView style={styles.ticketDetailContainer}>
+                    {/* Ticket Info */}
+                    <View style={styles.ticketDetailCard}>
+                      <Text style={styles.ticketDetailSubject}>{selectedTicket.subject}</Text>
+                      <Text style={styles.ticketDetailDescription}>{selectedTicket.description}</Text>
+                      <View style={styles.ticketDetailMeta}>
+                        <Text style={styles.ticketDetailMetaText}>
+                          User: <Text style={{ fontWeight: '600' }}>{selectedTicket.username}</Text>
+                        </Text>
+                        <Text style={styles.ticketDetailMetaText}>
+                          Category: <Text style={{ fontWeight: '600' }}>{selectedTicket.category}</Text>
+                        </Text>
+                        <Text style={styles.ticketDetailMetaText}>
+                          Priority: <Text style={{ fontWeight: '600' }}>{selectedTicket.priority}</Text>
+                        </Text>
+                        <Text style={styles.ticketDetailMetaText}>
+                          Created: <Text style={{ fontWeight: '600' }}>
+                            {new Date(selectedTicket.createdAt).toLocaleString()}
+                          </Text>
+                        </Text>
+                      </View>
+
+                      {/* Status Actions */}
+                      <View style={styles.statusActionsRow}>
+                        <TouchableOpacity
+                          style={[styles.statusActionButton, selectedTicket.status === 'in_progress' && styles.statusActionButtonActive]}
+                          onPress={() => handleUpdateTicketStatus(selectedTicket.id, 'in_progress')}
+                          disabled={selectedTicket.status === 'in_progress'}
+                        >
+                          <Text style={styles.statusActionButtonText}>In Progress</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.statusActionButton, selectedTicket.status === 'resolved' && styles.statusActionButtonActive]}
+                          onPress={() => handleUpdateTicketStatus(selectedTicket.id, 'resolved')}
+                          disabled={selectedTicket.status === 'resolved'}
+                        >
+                          <Text style={styles.statusActionButtonText}>Resolved</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.statusActionButton, selectedTicket.status === 'closed' && styles.statusActionButtonActive]}
+                          onPress={() => handleUpdateTicketStatus(selectedTicket.id, 'closed')}
+                          disabled={selectedTicket.status === 'closed'}
+                        >
+                          <Text style={styles.statusActionButtonText}>Close</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* Messages */}
+                    <Text style={styles.messagesTitle}>Percakapan</Text>
+                    {ticketMessages.map((msg: any) => (
+                      <View
+                        key={msg.id}
+                        style={[
+                          styles.messageCard,
+                          msg.isAdmin && styles.adminMessageCard
+                        ]}
+                      >
+                        <View style={styles.messageHeader}>
+                          <Text style={[styles.messageSender, msg.isAdmin && styles.adminMessageSender]}>
+                            {msg.username} {msg.isAdmin && '(Admin)'}
+                          </Text>
+                          <Text style={styles.messageTime}>
+                            {new Date(msg.createdAt).toLocaleString()}
+                          </Text>
+                        </View>
+                        <Text style={styles.messageText}>{msg.message}</Text>
+                      </View>
+                    ))}
+
+                    {/* Reply Input */}
+                    <View style={styles.replySection}>
+                      <Text style={styles.replyTitle}>Balas Tiket</Text>
+                      <TextInput
+                        style={styles.replyInput}
+                        value={ticketReply}
+                        onChangeText={setTicketReply}
+                        placeholder="Tulis balasan Anda..."
+                        placeholderTextColor="#999"
+                        multiline
+                        numberOfLines={4}
+                      />
+                      <TouchableOpacity
+                        style={styles.replyButton}
+                        onPress={handleReplyToTicket}
+                        disabled={!ticketReply.trim()}
+                      >
+                        <Ionicons name="send" size={20} color="#fff" />
+                        <Text style={styles.replyButtonText}>Kirim Balasan</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
+                )}
+              </SafeAreaView>
+            </Modal>
+          </ScrollView>
+        );
+
       default:
         return null;
+    }
+  };
+
+  const getTicketStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return '#4CAF50';
+      case 'in_progress': return '#FF9800';
+      case 'resolved': return '#2196F3';
+      case 'closed': return '#999';
+      default: return '#666';
     }
   };
 
@@ -4565,6 +4968,274 @@ const styles = StyleSheet.create({
   editModalDeleteText: {
     color: 'white',
     fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Support Tickets Styles
+  ticketsContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  ticketStatsRow: {
+    flexDirection: 'row',
+    padding: 15,
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  filterButtonsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 15,
+    gap: 8,
+    marginBottom: 15,
+  },
+  filterButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+  filterButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+  },
+  filterButtonTextActive: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  ticketCard: {
+    backgroundColor: 'white',
+    marginHorizontal: 15,
+    marginBottom: 12,
+    padding: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  ticketHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  ticketTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 6,
+  },
+  ticketSubject: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  ticketStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  ticketStatusText: {
+    fontSize: 11,
+    color: 'white',
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  ticketDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  ticketFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  ticketUsername: {
+    fontSize: 12,
+    color: '#999',
+  },
+  ticketDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  ticketMessageCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+  },
+  ticketMessageCountText: {
+    fontSize: 11,
+    color: '#666',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  ticketDetailContainer: {
+    flex: 1,
+    padding: 15,
+  },
+  ticketDetailCard: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  ticketDetailSubject: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  ticketDetailDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  ticketDetailMeta: {
+    gap: 6,
+  },
+  ticketDetailMetaText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  statusActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 15,
+  },
+  statusActionButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  statusActionButtonActive: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+  statusActionButtonText: {
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '600',
+  },
+  messagesTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  messageCard: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  adminMessageCard: {
+    backgroundColor: '#E3F2FD',
+  },
+  messageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  messageSender: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+  },
+  adminMessageSender: {
+    color: '#2196F3',
+  },
+  messageTime: {
+    fontSize: 11,
+    color: '#999',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  replySection: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  replyTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  replyInput: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  replyButton: {
+    flexDirection: 'row',
+    backgroundColor: '#2196F3',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    gap: 8,
+  },
+  replyButtonText: {
+    color: 'white',
+    fontSize: 15,
     fontWeight: '600',
   },
 });
