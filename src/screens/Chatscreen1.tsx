@@ -5219,7 +5219,7 @@ export default function ChatScreen() {
                         </View>
                       )}
                     </View>
-                    <Text style={styles.newGiftName}>{gift.name}</Text>
+                    <Text style={styles.newGiftName} numberOfLines={1}>{gift.name}</Text>
                     <View style={styles.giftPriceContainer}>
                       <Ionicons name="diamond-outline" size={12} color="#FFD700" />
                       <Text style={styles.newGiftPrice}>{gift.price}</Text>
@@ -5235,7 +5235,7 @@ export default function ChatScreen() {
                   </View>
                 </View>
               )}
-              numColumns={2}
+              numColumns={3}
               keyExtractor={(gift, index) => `${gift.id}-${index}`}
               contentContainerStyle={styles.giftGridContainer}
               showsVerticalScrollIndicator={false}
@@ -6581,10 +6581,15 @@ const styles = StyleSheet.create({
   },
   giftPickerModal: {
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: '70%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '50%',
     paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 10,
   },
   giftPickerHeader: {
     flexDirection: 'row',
@@ -6683,9 +6688,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   newGiftItemContainer: {
-    flex: 0.5,
-    marginHorizontal: 5,
-    marginBottom: 15,
+    flex: 1,
+    maxWidth: '33.33%',
+    paddingHorizontal: 4,
+    marginBottom: 12,
   },
   newGiftItem: {
     backgroundColor: '#3C3C3E',
@@ -6791,8 +6797,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   giftGridContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     textAlign: 'center',
   },
   newGiftPriceContainer: {
