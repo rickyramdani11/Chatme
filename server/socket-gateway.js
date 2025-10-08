@@ -596,6 +596,8 @@ const announcedJoins = new Map();
 
 // Debounce system for join/leave broadcasts to prevent spam
 const pendingBroadcasts = new Map(); // key: "userId_roomId", value: { type: 'join'|'leave', timeout: timeoutId, data: {...} }
+// Track recently broadcast messages to prevent duplicates (key: messageId, value: timestamp)
+const recentBroadcasts = new Map();
 
 // Helper function to sync participant count to database
 async function syncParticipantCountToDatabase(roomId) {
@@ -648,6 +650,19 @@ function scheduleBroadcast(io, type, userId, roomId, username, role, socket) {
   
   // Schedule new broadcast
   const timeout = setTimeout(() => {
+    // Create unique message identifier based on action (not timestamp to prevent duplicates)
+    const messageKey = `${type}_${userId}_${roomId}`;
+    const now = Date.now();
+    const lastBroadcast = recentBroadcasts.get(messageKey);
+    const BROADCAST_COOLDOWN = 3000; // 3 seconds minimum between same broadcast
+    
+    // Check if we already broadcast this exact message recently
+    if (lastBroadcast && (now - lastBroadcast) < BROADCAST_COOLDOWN) {
+      console.log(`🚫 Skipping duplicate ${type} broadcast for ${username} in room ${roomId} (already sent ${Math.round((now - lastBroadcast) / 1000)}s ago)`);
+      pendingBroadcasts.delete(key);
+      return;
+    }
+    
     const message = {
       id: `${type}_${Date.now()}_${username}_${roomId}`,
       sender: username,
@@ -664,6 +679,16 @@ function scheduleBroadcast(io, type, userId, roomId, username, role, socket) {
     } else {
       io.to(roomId).emit('user-left', message);
       console.log(`✅ Broadcasting LEAVE for ${username} in room ${roomId}`);
+    }
+    
+    // Mark as recently broadcast
+    recentBroadcasts.set(messageKey, now);
+    
+    // Clean up old entries (older than 10 seconds)
+    for (const [key, timestamp] of recentBroadcasts.entries()) {
+      if (now - timestamp > 10000) {
+        recentBroadcasts.delete(key);
+      }
     }
     
     pendingBroadcasts.delete(key);
