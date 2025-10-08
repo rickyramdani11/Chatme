@@ -78,20 +78,23 @@ function getDiceIcon(number) {
   return diceEmoji[number] || '?';
 }
 
-// Send bot message to room
+// Send bot message to room (match LowCard format)
 function sendBotMessage(io, room, message) {
-  io.to(room).emit('new-message', {
-    id: `sicbo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+  const botMessage = {
+    id: `${Date.now()}_sicbobot_${Math.random().toString(36).substr(2, 9)}`,
     sender: BOT_USERNAME,
-    senderId: BOT_USER_ID,
     content: message,
     timestamp: new Date().toISOString(),
     roomId: room,
     role: 'bot',
-    level: 1,
-    type: 'bot',
-    isBot: true
-  });
+    level: 999,
+    type: 'message',  // Use 'message' not 'bot' (same as LowCard)
+    media: null,
+    image: null
+  };
+  
+  console.log(`[Sicbo] SicboBot sending message to room ${room}:`, message);
+  io.to(room).emit('new-message', botMessage);
 }
 
 // Send private bot message

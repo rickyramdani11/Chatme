@@ -1636,9 +1636,12 @@ io.on('connection', (socket) => {
             handleSicboCommand(io, socket, roomId, args, userInfo.userId, sender);
           } else if (trimmedContent.includes('sicbo') && trimmedContent.startsWith('/')) {
             // Sicbo admin command (/add sicbo, /bot sicbo add, etc.)
+            console.log(`[Sicbo] Routing to admin command handler: ${trimmedContent}`);
             const handled = await handleSicboAdminCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+            console.log(`[Sicbo] Admin command handled: ${handled}`);
             if (!handled) {
               // If not handled by Sicbo, try LowCard
+              console.log(`[Sicbo] Not handled, passing to LowCard`);
               processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
             }
           } else {
