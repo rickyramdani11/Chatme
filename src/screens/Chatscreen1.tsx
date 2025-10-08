@@ -173,7 +173,7 @@ export default function ChatScreen() {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   
   // Get user and token before any refs that depend on them
-  const { user, token } = useAuth();
+  const { user, token, logout } = useAuth();
   
   // Get room data from navigation params  
   const routeParams = (route.params as any) || {};
@@ -1457,21 +1457,23 @@ export default function ChatScreen() {
           const currentTabs = chatTabsRef.current;
           const currentUser = userRef.current;
           if (currentTabs.length > 0 && currentUser?.username) {
-            console.log(`Rejoining ${currentTabs.length} rooms after reconnection`);
+            console.log(`Rejoining ${currentTabs.length} rooms after reconnection (silent mode)`);
             currentTabs.forEach((tab, index) => {
               // Stagger room rejoining to prevent server overload
               setTimeout(() => {
-                console.log('Rejoining room after reconnect:', tab.id, currentUser.username);
+                console.log('Rejoining room after reconnect (silent):', tab.id, currentUser.username);
                 if (tab.isSupport) {
                   newSocket.emit('join-support-room', {
                     supportRoomId: tab.id,
-                    isAdmin: currentUser.role === 'admin'
+                    isAdmin: currentUser.role === 'admin',
+                    silent: true // Silent rejoin - no broadcast message
                   });
                 } else {
                   newSocket.emit('join-room', {
                     roomId: tab.id,
                     username: currentUser.username,
-                    role: currentUser.role || 'user'
+                    role: currentUser.role || 'user',
+                    silent: true // Silent rejoin - no broadcast message
                   });
                 }
               }, index * 100); // 100ms delay between each room join
@@ -1530,7 +1532,31 @@ export default function ChatScreen() {
 
     const attemptReconnection = () => {
       if (reconnectAttempts >= maxReconnectAttempts) {
-        console.log('Max reconnection attempts reached');
+        console.log('❌ Max reconnection attempts reached - logging out user');
+        
+        // Show alert to user
+        Alert.alert(
+          'Connection Lost',
+          'Unable to connect to server. You will be logged out.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Disconnect socket
+                if (socket) {
+                  socket.disconnect();
+                  setSocket(null);
+                }
+                
+                // Clear all data and logout
+                setChatTabs([]);
+                setMessage('');
+                logout();
+              }
+            }
+          ],
+          { cancelable: false }
+        );
         return;
       }
 
