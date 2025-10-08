@@ -1907,6 +1907,11 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Get kicker's role from database for message
+      const kickerResult = await pool.query('SELECT role FROM users WHERE id = $1', [socket.userId]);
+      const kickerRole = kickerResult.rows[0]?.role || 'moderator';
+      const roleText = kickerRole === 'admin' ? 'administrator' : 'moderator';
+
       // 4. AUTHORITATIVE ENFORCEMENT - Remove from participants
       if (roomParticipants[roomId]) {
         roomParticipants[roomId] = roomParticipants[roomId].filter(p => p.username !== targetUsername);
@@ -1942,11 +1947,11 @@ io.on('connection', (socket) => {
         kickedBy: socket.username // Use server-side authoritative username
       });
 
-      // 7. Send verified system message
+      // 7. Send verified system message with role
       const kickMessage = {
         id: Date.now().toString(),
         sender: 'System',
-        content: `${targetUsername} was kicked by ${socket.username}${reason ? ` (${reason})` : ''}`,
+        content: `${targetUsername} was kicked by ${roleText} ${socket.username}`,
         timestamp: new Date().toISOString(),
         roomId: roomId,
         type: 'kick'
