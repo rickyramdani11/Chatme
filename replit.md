@@ -55,6 +55,7 @@ Preferred communication style: Simple, everyday language.
 - **Android Back Button**: Hardware back button handling implemented at top-level with navigationRef.canGoBack() to properly navigate stack history or exit app at root, preventing blank screen issues.
 - **PNG Transparency**: Transparent PNG uploads preserved with quality: 1.0 in ImagePicker and explicit backgroundColor: 'transparent' on all gift image containers and Image components to prevent alpha channel loss.
 - **LowCardBot Card Icons**: Card images rendered from local bundled assets (assets/card/) with CARD_IMAGES mapping using require(), 20x28 pixel size. Command messages use View container with flexDirection: 'row' to render text (wrapped in Text) and card images (wrapped in transparent View) as siblings, avoiding React Native's Image-in-Text restriction. Copy message functionality strips `<card:...>` tags for clean copied text.
+- **Auto-Scroll Optimization**: Debounced scroll implementation with 50ms delay and animated:false for instant, lag-free scrolling. Uses dedicated scrollToBottom helper function to prevent multiple redundant scroll calls, improving chat room performance and reducing UI lag.
 
 # External Dependencies
 

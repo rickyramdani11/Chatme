@@ -162,6 +162,7 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
   const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Debounce scroll calls
   
   // Create refs for state values that socket listeners need to avoid stale closures
   const chatTabsRef = useRef<ChatTab[]>([]);
@@ -252,10 +253,10 @@ export default function ChatScreen() {
         // Force scroll to bottom for current tab
         setTimeout(() => {
           const currentTab = chatTabsRef.current[activeTabRef.current];
-          if (currentTab && flatListRefs.current[currentTab.id]) {
-            flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: true });
+          if (currentTab) {
+            scrollToBottom(currentTab.id, true);
           }
-        }, 1000);
+        }, 300);
         
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
@@ -294,6 +295,28 @@ export default function ChatScreen() {
   const isRoomModerator = () => {
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
     return currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+  };
+
+  // Optimized scroll helper - debounced and instant
+  const scrollToBottom = (roomId: string, instant: boolean = false) => {
+    if (!autoScrollEnabledRef.current || isUserScrollingRef.current) {
+      return;
+    }
+
+    // Clear any pending scroll
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    // Immediate scroll without animation for better performance
+    if (instant) {
+      flatListRefs.current[roomId]?.scrollToEnd({ animated: false });
+    } else {
+      // Debounced scroll with minimal delay
+      scrollTimeoutRef.current = setTimeout(() => {
+        flatListRefs.current[roomId]?.scrollToEnd({ animated: false });
+      }, 50);
+    }
   };
 
   // Call handling functions
@@ -988,13 +1011,7 @@ export default function ChatScreen() {
               }
 
               // Auto-scroll for ALL messages if autoscroll is enabled and user is not manually scrolling
-              // Use refs to avoid stale closure issues
-              if (autoScrollEnabledRef.current && !isUserScrollingRef.current) {
-                setTimeout(() => {
-                  console.log('Auto-scrolling to end for room:', tab.id);
-                  flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
-                }, 100);
-              }
+              scrollToBottom(tab.id);
 
               return { ...tab, messages: updatedMessages };
             }
@@ -1015,14 +1032,9 @@ export default function ChatScreen() {
           }));
         }
         
-        // Force scroll to bottom for current room messages with better timing using refs
+        // Force scroll to bottom for current room messages
         if (newMessage.roomId === chatTabsRef.current[activeTabRef.current]?.id) {
-          setTimeout(() => {
-            console.log('Forcing scroll for current room message:', newMessage.roomId);
-            if (flatListRefs.current[newMessage.roomId]) {
-              flatListRefs.current[newMessage.roomId]?.scrollToEnd({ animated: true });
-            }
-          }, 150);
+          scrollToBottom(newMessage.roomId, true);
         }
       });
 
@@ -1327,12 +1339,8 @@ export default function ChatScreen() {
             if (tab.id === supportMessage.roomId && tab.isSupport) {
               const updatedMessages = [...tab.messages, supportMessage];
 
-              // Auto-scroll if enabled and user is scrolling
-              if (autoScrollEnabled && !isUserScrolling) {
-                setTimeout(() => {
-                  flatListRefs.current[tab.id]?.scrollToEnd({ animated: true });
-                }, 30);
-              }
+              // Auto-scroll if enabled
+              scrollToBottom(tab.id);
 
               return { ...tab, messages: updatedMessages };
             }
@@ -1691,21 +1699,13 @@ export default function ChatScreen() {
           }, 500);
         }
 
-        // Ensure current tab messages are visible with multiple attempts using refs
+        // Ensure current tab messages are visible
         setTimeout(() => {
           const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
-          if (currentTabId && flatListRefs.current[currentTabId]) {
-            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: false });
+          if (currentTabId) {
+            scrollToBottom(currentTabId, true);
           }
-        }, 600);
-        
-        // Second attempt to ensure scrolling
-        setTimeout(() => {
-          const currentTabId = chatTabsRef.current[activeTabRef.current]?.id;
-          if (currentTabId && flatListRefs.current[currentTabId]) {
-            flatListRefs.current[currentTabId]?.scrollToEnd({ animated: true });
-          }
-        }, 1000);
+        }, 400);
         
       } else if (nextAppState === 'background') {
         console.log('App moved to background - maintaining socket connection');
@@ -1721,6 +1721,10 @@ export default function ChatScreen() {
 
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
 
       appStateSubscription?.remove();
@@ -1774,12 +1778,7 @@ export default function ChatScreen() {
         
         // Force update FlatList jika ada pesan
         if (currentTab.messages.length > 0) {
-          setTimeout(() => {
-            const currentRoomId = currentTab.id;
-            if (flatListRefs.current[currentRoomId]) {
-              flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: false });
-            }
-          }, 100);
+          scrollToBottom(currentTab.id, true);
         }
       }
     };
@@ -1907,24 +1906,11 @@ export default function ChatScreen() {
     // Reset scroll state when switching tabs
     setIsUserScrolling(false);
 
-    // Ensure messages are visible in the new tab with multiple attempts
-    setTimeout(() => {
-      if (chatTabs[index] && chatTabs[index].messages.length > 0) {
-        console.log(`Switching to tab ${index}: ${chatTabs[index].title}, Messages: ${chatTabs[index].messages.length}`);
-        if (flatListRefs.current[selectedRoomId]) {
-          flatListRefs.current[selectedRoomId]?.scrollToEnd({ animated: false });
-        }
-      }
-    }, 100);
-    
-    // Second attempt for better reliability
-    setTimeout(() => {
-      if (chatTabs[index] && chatTabs[index].messages.length > 0) {
-        if (flatListRefs.current[selectedRoomId]) {
-          flatListRefs.current[selectedRoomId]?.scrollToEnd({ animated: true });
-        }
-      }
-    }, 300);
+    // Ensure messages are visible in the new tab
+    if (chatTabs[index] && chatTabs[index].messages.length > 0 && selectedRoomId) {
+      console.log(`Switching to tab ${index}: ${chatTabs[index].title}, Messages: ${chatTabs[index].messages.length}`);
+      setTimeout(() => scrollToBottom(selectedRoomId, true), 100);
+    }
   };
 
 
@@ -2813,9 +2799,7 @@ export default function ChatScreen() {
     }
 
     // Auto-scroll after command
-    setTimeout(() => {
-      flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-    }, 100);
+    scrollToBottom(currentRoomId, true);
   };
 
   const handleSendMessage = async () => {
@@ -2916,13 +2900,8 @@ export default function ChatScreen() {
         )
       );
 
-      // Auto-scroll immediately with better timing
-      setTimeout(() => {
-        console.log('Auto-scrolling after message send for room:', currentRoomId);
-        if (flatListRefs.current[currentRoomId]) {
-          flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-        }
-      }, 100);
+      // Auto-scroll immediately after sending
+      scrollToBottom(currentRoomId, true);
 
       // Determine if this is a command
       let type = 'message';
@@ -4747,9 +4726,7 @@ export default function ChatScreen() {
               // If enabling autoscroll, immediately scroll to bottom
               if (!autoScrollEnabled && chatTabs[activeTab]) {
                 const currentRoomId = chatTabs[activeTab].id;
-                setTimeout(() => {
-                  flatListRefs.current[currentRoomId]?.scrollToEnd({ animated: true });
-                }, 100);
+                scrollToBottom(currentRoomId, true);
                 setIsUserScrolling(false);
               }
             }}
