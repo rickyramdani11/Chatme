@@ -98,6 +98,15 @@ function sendPrivateMessage(io, userId, room, message) {
   });
 }
 
+// Initialize bot presence in a room (called when user joins)
+function ensureBotPresence(io, roomId) {
+  if (botPresence[roomId]) {
+    // Bot is active in this room, send activation message
+    sendBotMessage(io, roomId, '🎲 SicboBot is now active! Type !sicbo start to begin playing');
+    console.log(`[Sicbo] Showing activation message for room: ${roomId}`);
+  }
+}
+
 // Roll 3 dice
 function rollDice() {
   return [
@@ -582,9 +591,15 @@ export async function shutdownSicboBot(roomId) {
       delete games[roomId];
     }
 
+    // Clear bot presence
+    botPresence[roomId] = false;
+
     return { success: true, message: 'SicboBot shutdown' };
   } catch (error) {
     console.error('[Sicbo] Shutdown error:', error);
     return { success: false, message: 'Failed to shutdown bot' };
   }
 }
+
+// Export ensureBotPresence for socket-gateway
+export { ensureBotPresence };

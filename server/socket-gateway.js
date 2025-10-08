@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { processLowCardCommand } from './games/lowcard.js';
 
 // Import Sicbo bot
-import { handleSicboCommand, handleSicboAdminCommand } from './games/sicbo.js';
+import { handleSicboCommand, handleSicboAdminCommand, ensureBotPresence as ensureSicboBotPresence } from './games/sicbo.js';
 
 // Import ChatMe AI Bot
 import { processBotMessage, BOT_USERNAME } from './bot/chatme-bot.js';
@@ -949,6 +949,9 @@ io.on('connection', (socket) => {
 
       // Emit successful join confirmation to the user
       socket.emit('join-room-success', { roomId, username });
+
+      // Show SicboBot activation message if bot is active in this room
+      ensureSicboBotPresence(io, roomId);
 
     } catch (error) {
       console.error('Error in join-room handler:', error);
