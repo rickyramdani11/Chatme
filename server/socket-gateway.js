@@ -1646,6 +1646,7 @@ io.on('connection', (socket) => {
 
       // Handle bot commands
       if (trimmedContent.startsWith('/bot lowcard add') || 
+          trimmedContent.startsWith('/bot sicbo') ||
           trimmedContent.startsWith('/add') || 
           trimmedContent.startsWith('/init_bot') ||
           trimmedContent.startsWith('/bot off') ||
