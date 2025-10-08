@@ -190,10 +190,10 @@ router.post('/tickets', authenticateToken, async (req, res) => {
     }
 
     const result = await pool.query(`
-      INSERT INTO support_tickets (user_id, username, subject, description, category, priority)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO support_tickets (user_id, subject, message, category, priority)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [userId, username, subject.trim(), description.trim(), category, priority]);
+    `, [userId, subject.trim(), description.trim(), category, priority]);
 
     const ticket = result.rows[0];
 
@@ -202,7 +202,7 @@ router.post('/tickets', authenticateToken, async (req, res) => {
       ticket: {
         id: ticket.id.toString(),
         subject: ticket.subject,
-        description: ticket.description,
+        description: ticket.message,
         category: ticket.category,
         priority: ticket.priority,
         status: ticket.status,
