@@ -469,21 +469,22 @@ router.get('/admin/tickets', authenticateToken, requireAdmin, async (req, res) =
       SELECT 
         st.id,
         st.user_id,
-        st.username,
+        u.username,
         st.subject,
-        st.description,
+        st.message as description,
         st.category,
         st.priority,
         st.status,
-        st.assigned_to,
-        st.assigned_to_username,
+        NULL as assigned_to,
+        NULL as assigned_to_username,
         st.created_at,
         st.updated_at,
-        st.resolved_at,
+        NULL as resolved_at,
         COUNT(sm.id) as message_count,
         MAX(sm.created_at) as last_message_at
       FROM support_tickets st
-      LEFT JOIN support_messages sm ON st.id = sm.ticket_id
+      LEFT JOIN users u ON st.user_id = u.id
+      LEFT JOIN support_messages sm ON st.ticket_id = sm.ticket_id
     `;
 
     const conditions = [];
