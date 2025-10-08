@@ -30,6 +30,9 @@ const pool = new Pool({
 const BOT_USERNAME = 'SicboBot';
 const BOT_USER_ID = 999; // Different from LowCard bot
 
+// Bot presence per room (admin controlled)
+const botPresence = {}; // { roomId: true/false }
+
 // Game states per room
 const games = {}; // { roomId: gameData }
 
@@ -262,9 +265,93 @@ async function addCoins(userId, amount, reason = 'sicbo_win') {
   }
 }
 
+// Handle admin commands for Sicbo bot (like /add sicbo)
+export async function handleSicboAdminCommand(io, room, message, userId, username, userRole) {
+  const trimmedMsg = message.trim().toLowerCase();
+  
+  // /add sicbo or /bot sicbo add command (ADMIN ONLY)
+  if (trimmedMsg === '/add sicbo' || trimmedMsg === '/bot sicbo add' || trimmedMsg === '/sicbo add') {
+    console.log(`[Sicbo] Add bot command received in room ${room} from ${username} (role: ${userRole})`);
+    
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      sendBotMessage(io, room, `❌ Only admins can add SicboBot to rooms.`);
+      console.log(`[Sicbo] Non-admin user ${username} attempted to add SicboBot`);
+      return true; // Command handled
+    }
+    
+    if (!botPresence[room]) {
+      botPresence[room] = true;
+      sendBotMessage(io, room, '🎲 SicboBot is now active! Type !sicbo start to begin playing');
+      console.log(`[Sicbo] SicboBot successfully added to room ${room} by admin ${username}`);
+    } else {
+      sendBotMessage(io, room, '⚠️ SicboBot is already active in this room! Type !sicbo help for commands.');
+      console.log(`[Sicbo] SicboBot already active in room ${room}`);
+    }
+    return true; // Command handled
+  }
+  
+  // /bot sicbo off command (ADMIN ONLY)
+  if (trimmedMsg === '/bot sicbo off' || trimmedMsg === '/sicbo off') {
+    console.log(`[Sicbo] Remove bot command received in room ${room} from ${username} (role: ${userRole})`);
+    
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      sendBotMessage(io, room, `❌ Only admins can remove SicboBot from rooms.`);
+      return true; // Command handled
+    }
+    
+    // Check if bot is already off
+    if (!botPresence[room]) {
+      sendBotMessage(io, room, `SicboBot is not active in this room.`);
+      return true; // Command handled
+    }
+    
+    // Remove bot presence
+    delete botPresence[room];
+    
+    // Cancel any ongoing game
+    if (games[room]) {
+      const game = games[room];
+      
+      // Refund all bets
+      if (game.bets && game.bets.length > 0) {
+        let refundCount = 0;
+        let totalRefunded = 0;
+        
+        for (const bet of game.bets) {
+          await addCoins(bet.userId, bet.amount, 'sicbo_refund');
+          refundCount++;
+          totalRefunded += bet.amount;
+          console.log(`[Sicbo] Refunded ${bet.amount} COIN to ${bet.username} (bot shutdown)`);
+        }
+        
+        if (refundCount > 0) {
+          sendBotMessage(io, room, `Game canceled - ${refundCount} player(s) refunded ${totalRefunded} COIN total.`);
+        }
+      }
+      
+      // Clear game state
+      delete games[room];
+    }
+    
+    sendBotMessage(io, room, 'SicboBot has left the room. Type "/add sicbo" to add the bot back.');
+    console.log(`[Sicbo] SicboBot removed from room ${room} by admin ${username}`);
+    return true; // Command handled
+  }
+  
+  return false; // Command not handled
+}
+
 // Main command handler
 export async function handleSicboCommand(io, socket, room, args, userId, username) {
   const command = args[0]?.toLowerCase();
+  
+  // Check if bot is active in room
+  if (!botPresence[room]) {
+    sendPrivateMessage(io, userId, room, 'SicboBot is not active in this room. Ask an admin to add it with: /add sicbo');
+    return;
+  }
 
   switch (command) {
     case 'start': {

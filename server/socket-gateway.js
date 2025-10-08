@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { processLowCardCommand } from './games/lowcard.js';
 
 // Import Sicbo bot
-import { handleSicboCommand } from './games/sicbo.js';
+import { handleSicboCommand, handleSicboAdminCommand } from './games/sicbo.js';
 
 // Import ChatMe AI Bot
 import { processBotMessage, BOT_USERNAME } from './bot/chatme-bot.js';
@@ -1634,6 +1634,13 @@ io.on('connection', (socket) => {
             const args = trimmedContent.slice(1).split(/\s+/);
             args.shift(); // Remove '!sicbo'
             handleSicboCommand(io, socket, roomId, args, userInfo.userId, sender);
+          } else if (trimmedContent.includes('sicbo') && trimmedContent.startsWith('/')) {
+            // Sicbo admin command (/add sicbo, /bot sicbo add, etc.)
+            const handled = await handleSicboAdminCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+            if (!handled) {
+              // If not handled by Sicbo, try LowCard
+              processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+            }
           } else {
             // LowCard or other commands
             processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
