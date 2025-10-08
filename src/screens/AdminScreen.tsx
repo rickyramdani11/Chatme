@@ -1139,7 +1139,7 @@ export default function AdminScreen({ navigation }: any) {
         console.log('Location permission denied or unavailable');
       }
 
-      const response = await fetch(`${API_BASE_URL}/admin/users/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/status`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
