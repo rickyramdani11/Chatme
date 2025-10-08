@@ -143,12 +143,13 @@ export default function HelpSupportScreen({ navigation }: any) {
         setTicketForm({ subject: '', message: '', category: 'technical', priority: 'medium' });
         fetchSupportTickets();
       } else {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || 'Failed to create ticket');
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create ticket' }));
+        Alert.alert('Error', errorData.error || 'Gagal membuat tiket support');
       }
     } catch (error) {
       console.error('Error creating support ticket:', error);
-      Alert.alert('Error', 'Gagal membuat tiket support');
+      const errorMessage = error instanceof Error ? error.message : 'Gagal membuat tiket support';
+      Alert.alert('Error', errorMessage);
     }
   };
 
