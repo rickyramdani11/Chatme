@@ -66,16 +66,8 @@ const PAYOUTS = {
 
 // Dice face to emoji/icon mapping
 function getDiceIcon(number) {
-  // Using dice emoji (will be replaced with images later)
-  const diceEmoji = {
-    1: '⚀',
-    2: '⚁',
-    3: '⚂',
-    4: '⚃',
-    5: '⚄',
-    6: '⚅'
-  };
-  return diceEmoji[number] || '?';
+  // Return dice icon tag (client will render image from assets/dice/)
+  return `<dice:${number}>`;
 }
 
 // Send bot message to room (match LowCard format)

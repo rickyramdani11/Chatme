@@ -89,6 +89,16 @@ const CARD_IMAGES: { [key: string]: any } = {
   'lc_as.png': require('../../assets/card/lc_as.png'),
 };
 
+// Dice images mapping for Sicbo bot
+const DICE_IMAGES: { [key: string]: any } = {
+  '1': require('../../assets/dice/dice_1.jpg'),
+  '2': require('../../assets/dice/dice_2.jpg'),
+  '3': require('../../assets/dice/dice_3.jpg'),
+  '4': require('../../assets/dice/dice_4.jpg'),
+  '5': require('../../assets/dice/dice_5.jpg'),
+  '6': require('../../assets/dice/dice_6.jpg'),
+};
+
 interface Message {
   id: string;
   sender: string;
@@ -3553,8 +3563,10 @@ export default function ChatScreen() {
 
   const handleCopyMessage = () => {
     if (selectedMessage) {
-      // Strip card tags from content before copying
-      const cleanContent = selectedMessage.content.replace(/<card:[^>]+>/g, '');
+      // Strip card and dice tags from content before copying
+      const cleanContent = selectedMessage.content
+        .replace(/<card:[^>]+>/g, '')
+        .replace(/<dice:[^>]+>/g, '');
       const messageText = `${selectedMessage.sender}: ${cleanContent}`;
 
       // Copy to clipboard
@@ -3578,8 +3590,8 @@ export default function ChatScreen() {
   };
 
   const renderMessageContent = (content: string, textStyle?: any) => {
-    // Split content by @ mentions, card tags, img tags, and localimg tags
-    const parts = content.split(/(@\w+|<card:[^>]+>|<img:[^>]+>|<localimg:[^>]+>)/g);
+    // Split content by @ mentions, card tags, dice tags, img tags, and localimg tags
+    const parts = content.split(/(@\w+|<card:[^>]+>|<dice:[^>]+>|<img:[^>]+>|<localimg:[^>]+>)/g);
 
     return parts.map((part, index) => {
       if (part.startsWith('@')) {
@@ -3601,6 +3613,23 @@ export default function ChatScreen() {
               <Image
                 source={cardSource}
                 style={styles.cardInlineImage}
+                resizeMode="contain"
+              />
+            </View>
+          );
+        }
+        return null;
+      } else if (part.startsWith('<dice:') && part.endsWith('>')) {
+        // Extract dice number from SicboBot (remove <dice: and >)
+        const diceNumber = part.substring(6, part.length - 1);
+        const diceSource = DICE_IMAGES[diceNumber];
+        
+        if (diceSource) {
+          return (
+            <View key={index} style={styles.diceImageWrapper}>
+              <Image
+                source={diceSource}
+                style={styles.diceInlineImage}
                 resizeMode="contain"
               />
             </View>
@@ -6086,6 +6115,14 @@ const styles = StyleSheet.create({
   cardInlineImage: {
     width: 20,
     height: 28,
+    resizeMode: 'contain',
+  },
+  diceImageWrapper: {
+    backgroundColor: 'transparent',
+  },
+  diceInlineImage: {
+    width: 32,
+    height: 32,
     resizeMode: 'contain',
   },
   giftImageInChat: {
