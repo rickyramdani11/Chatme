@@ -5119,14 +5119,7 @@ export default function ChatScreen() {
       >
         <View style={styles.giftModalOverlay}>
           <View style={styles.giftPickerModal}>
-            <View style={styles.giftPickerHeader}>
-              <Text style={styles.giftPickerTitle}>Send Gift 🎁</Text>
-              <TouchableOpacity onPress={() => setShowGiftPicker(false)}>
-                <Ionicons name="close" size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Gift Category Tabs */}
+            {/* Gift Category Tabs with Close Button */}
             <View style={styles.giftCategoryTabs}>
               <View style={styles.tabRow}>
                 <TouchableOpacity 
@@ -5142,28 +5135,19 @@ export default function ChatScreen() {
                   <Text style={[styles.categoryTabText, activeGiftTab === 'special' && styles.activeCategoryTabText]}>Hadiah Ketertarikan</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-
-            {/* Send to All Toggle */}
-            <View style={styles.sendToAllContainer}>
               <TouchableOpacity 
-                style={styles.sendToAllToggle}
-                onPress={() => setSendToAllUsers(!sendToAllUsers)}
+                onPress={() => setShowGiftPicker(false)}
+                style={styles.closeButtonInTab}
               >
-                <Ionicons 
-                  name={sendToAllUsers ? "checkbox" : "square-outline"} 
-                  size={20} 
-                  color={sendToAllUsers ? "#4ADE80" : "#666"} 
-                />
-                <Text style={styles.sendToAllText}>Kirim ke semua user di room</Text>
+                <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
 
             {/* Coin Balance Display */}
             <View style={styles.coinBalanceDisplay}>
               <View style={styles.coinBalanceRow}>
-                <Ionicons name="diamond" size={20} color="#FFD700" />
-                <Text style={styles.coinBalanceText}>Balance: {user?.balance || 0} coins</Text>
+                <Ionicons name="diamond" size={18} color="#FFD700" />
+                <Text style={styles.coinBalanceText}>{user?.balance?.toLocaleString() || 0}</Text>
               </View>
             </View>
 
@@ -5173,7 +5157,7 @@ export default function ChatScreen() {
                 <View style={styles.newGiftItemContainer}>
                   <TouchableOpacity
                     style={styles.newGiftItem}
-                    onPress={() => sendToAllUsers ? handleGiftSendToAll(gift) : handleGiftSend(gift)}
+                    onPress={() => handleGiftSend(gift)}
                   >
                     <View style={styles.newGiftIconContainer}>
                       {gift.image || gift.imageUrl ? (
@@ -6606,14 +6590,22 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   giftCategoryTabs: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#444',
   },
   tabRow: {
     flexDirection: 'row',
+    flex: 1,
     justifyContent: 'space-around',
+  },
+  closeButtonInTab: {
+    padding: 4,
+    marginLeft: 8,
   },
   sendToAllContainer: {
     paddingHorizontal: 20,
@@ -7064,7 +7056,7 @@ const styles = StyleSheet.create({
   },
   coinBalanceDisplay: {
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#444',
   },
@@ -7074,10 +7066,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   coinBalanceText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFD700',
-    marginLeft: 8,
+    marginLeft: 6,
   },
   // User Tag Menu Styles
   userTagModalOverlay: {
