@@ -153,7 +153,7 @@ const HomeScreen = ({ navigation }: any) => {
 
       if (response.ok) {
         const roomsData = await response.json();
-        console.log('Rooms data received:', roomsData.length, 'rooms');
+        // console.log('Rooms data received:', roomsData.length, 'rooms'); // Disabled to reduce log verbosity
         setRooms(roomsData);
       } else {
         const errorData = await response.json();

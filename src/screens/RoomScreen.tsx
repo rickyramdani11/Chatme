@@ -64,7 +64,7 @@ export default function RoomScreen() {
       }
 
       const data = await response.json();
-      console.log('Rooms data received:', data);
+      // console.log('Rooms data received:', data); // Disabled to reduce log verbosity
       
       // Filter out private rooms (rooms that start with 'private_')
       const publicRooms = data.filter((room: Room) => !room.name.startsWith('private_'));
