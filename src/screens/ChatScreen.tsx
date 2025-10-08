@@ -118,7 +118,6 @@ export default function ChatScreen() {
   const joiningRoomsRef = useRef(new Set<string>()); // Track rooms currently being joined (prevent race condition)
   const socketRef = useRef<Socket | null>(null); // Ref to avoid closure issues in AppState handler
   const prevNavigationParamsRef = useRef<any>(null); // Track previous navigation params to prevent duplicate joins
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const hasAutoFocusedRef = useRef(false); // Track if we've already auto-focused a tab
 
@@ -1528,8 +1527,7 @@ export default function ChatScreen() {
   useEffect(() => {
     const keyboardWillShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
+      () => {
         setIsKeyboardVisible(true);
       }
     );
@@ -1537,7 +1535,6 @@ export default function ChatScreen() {
     const keyboardWillHideListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
-        setKeyboardHeight(0);
         setIsKeyboardVisible(false);
       }
     );
@@ -4954,9 +4951,8 @@ export default function ChatScreen() {
       {/* Tab Navigation with KeyboardAvoidingView */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        enabled={true}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.tabContainer}>
           <ScrollView
@@ -5040,12 +5036,7 @@ export default function ChatScreen() {
         </View>
 
         {/* Message Input */}
-        <View
-          style={[
-            styles.inputContainer,
-            isKeyboardVisible && { paddingBottom: Platform.OS === 'android' ? 8 : 8 }
-          ]}
-        >
+        <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.emojiButton} onPress={handleEmojiPress}>
               <Ionicons name="happy-outline" size={24} color="white" />
