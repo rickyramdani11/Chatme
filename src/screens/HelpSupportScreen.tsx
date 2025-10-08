@@ -128,17 +128,23 @@ export default function HelpSupportScreen({ navigation }: any) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${user?.token}`,
         },
-        body: JSON.stringify(ticketForm),
+        body: JSON.stringify({
+          subject: ticketForm.subject,
+          description: ticketForm.message,
+          category: ticketForm.category,
+          priority: ticketForm.priority
+        }),
       });
 
       if (response.ok) {
         const result = await response.json();
-        Alert.alert('Berhasil', `Tiket support berhasil dibuat dengan ID: ${result.ticketId}`);
+        Alert.alert('Berhasil', `Tiket support berhasil dibuat dengan ID: ${result.ticket?.id || 'Unknown'}`);
         setShowCreateTicket(false);
         setTicketForm({ subject: '', message: '', category: 'technical', priority: 'medium' });
         fetchSupportTickets();
       } else {
-        throw new Error('Failed to create ticket');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to create ticket');
       }
     } catch (error) {
       console.error('Error creating support ticket:', error);
