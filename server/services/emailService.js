@@ -97,7 +97,49 @@ async function sendPasswordResetOTP(email, username, otpCode) {
   }
 }
 
+async function sendOTP(email, otpCode, purpose = 'verifikasi') {
+  console.log('📧 Attempting to send OTP to:', maskEmail(email), 'with OTP:', maskOTP(otpCode), 'for purpose:', purpose);
+  try {
+    const mailOptions = {
+      from: '"ChatMe" <meongkwl@gmail.com>',
+      to: email,
+      subject: 'Kode Verifikasi ChatMe',
+      html: `
+        <html>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #9C27B0; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="margin: 0;">Kode Verifikasi ChatMe</h1>
+            </div>
+            <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px; color: #333;">Halo,</p>
+              <p style="font-size: 16px; color: #333;">Gunakan kode verifikasi di bawah ini ${purpose}:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <div style="background-color: #9C27B0; color: white; padding: 20px; font-size: 32px; font-weight: bold; letter-spacing: 8px; border-radius: 5px; display: inline-block;">
+                  ${otpCode}
+                </div>
+              </div>
+              <p style="font-size: 14px; color: #666; text-align: center;">Masukkan kode ini di aplikasi untuk melanjutkan</p>
+              <p style="font-size: 14px; color: #666; margin-top: 20px; text-align: center;">Kode ini akan kadaluarsa dalam 10 menit.</p>
+              <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+              <p style="font-size: 12px; color: #999;">Jika Anda tidak meminta kode ini, abaikan email ini.</p>
+            </div>
+          </body>
+        </html>
+      `
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('✅ OTP email sent successfully to:', maskEmail(email));
+    console.log('SMTP response:', result.messageId);
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send OTP email:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
-  sendPasswordResetOTP
+  sendPasswordResetOTP,
+  sendOTP
 };
