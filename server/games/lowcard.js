@@ -731,8 +731,8 @@ function sendPrivateBotMessageToUser(io, userId, room, content, media = null, im
   });
 }
 
-async function processLowCardCommand(io, room, msg, userId, username) {
-  console.log('Processing LowCard command directly:', msg, 'in room:', room, 'for user:', username);
+async function processLowCardCommand(io, room, msg, userId, username, userRole = 'user') {
+  console.log('Processing LowCard command directly:', msg, 'in room:', room, 'for user:', username, 'role:', userRole);
 
   // Comprehensive validation of all parameters
   if (!io || !room || !userId || !username) {
@@ -764,13 +764,21 @@ async function processLowCardCommand(io, room, msg, userId, username) {
     return;
   }
 
-  // Handle /init_bot command specifically - force initialize bot
+  // Handle /init_bot command specifically - force initialize bot (ADMIN ONLY)
   if (trimmedMsg === '/init_bot') {
-    console.log(`Force initializing LowCardBot in room ${room}`);
+    console.log(`Force initializing LowCardBot in room ${room} by ${username} (role: ${userRole})`);
+    
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      sendBotMessage(io, room, `❌ Only admins can initialize LowCardBot.`);
+      console.log(`⚠️ Non-admin user ${username} attempted to init LowCardBot`);
+      return;
+    }
+    
     if (!botPresence[room]) {
       botPresence[room] = true;
       sendBotMessage(io, room, 'LowCardBot is now active! Type !start <bet> to begin playing');
-      console.log(`LowCardBot successfully activated in room ${room}`);
+      console.log(`LowCardBot successfully activated in room ${room} by admin ${username}`);
     } else {
       sendBotMessage(io, room, 'LowCardBot is already active in this room! Type !help for commands.');
       console.log(`LowCardBot already active in room ${room}`);
@@ -778,13 +786,21 @@ async function processLowCardCommand(io, room, msg, userId, username) {
     return;
   }
 
-  // Handle /bot lowcard add command specifically
+  // Handle /bot lowcard add command specifically (ADMIN ONLY)
   if (trimmedMsg === '/bot lowcard add' || trimmedMsg === '/add' || trimmedMsg === '/addbot' || trimmedMsg === '/add lowcard') {
-    console.log(`Add bot command received in room ${room} from user ${username}`);
+    console.log(`Add bot command received in room ${room} from user ${username} (role: ${userRole})`);
+    
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      sendBotMessage(io, room, `❌ Only admins can add LowCardBot to rooms.`);
+      console.log(`⚠️ Non-admin user ${username} attempted to add LowCardBot`);
+      return;
+    }
+    
     if (!botPresence[room]) {
       botPresence[room] = true;
       sendBotMessage(io, room, '🎮 LowCardBot is now active! Type !start <bet> to begin playing');
-      console.log(`LowCardBot successfully added to room ${room}`);
+      console.log(`LowCardBot successfully added to room ${room} by admin ${username}`);
     } else {
       sendBotMessage(io, room, '⚠️ LowCardBot is already active in this room! Type !help for commands.');
       console.log(`LowCardBot already active in room ${room}`);
@@ -1162,6 +1178,10 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
 !leave - Leave game (before it starts)
 !status - Check bot status
 !help - Show this help
+
+Admin Commands:
+/add or /addbot - Add LowCardBot to room (Admin only)
+/bot off - Remove LowCardBot from room
 
 Game Rules:
 - Minimum bet: 500 COIN

@@ -1625,8 +1625,8 @@ io.on('connection', (socket) => {
         // Get user info from connected users
         const userInfo = connectedUsers.get(socket.id);
         if (userInfo && userInfo.userId) {
-          // Process the command through LowCard bot
-          processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender);
+          // Process the command through LowCard bot with role
+          processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
         } else {
           console.error('User info not found for socket:', socket.id);
         }
