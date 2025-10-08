@@ -111,6 +111,7 @@ export default function AdminScreen({ navigation }: any) {
   const [editRoomName, setEditRoomName] = useState('');
   const [editRoomDescription, setEditRoomDescription] = useState('');
   const [editRoomMaxMembers, setEditRoomMaxMembers] = useState(25);
+  const [editRoomMaxMembersInput, setEditRoomMaxMembersInput] = useState('25');
   const [editRoomOwner, setEditRoomOwner] = useState('');
   const [editingRoom, setEditingRoom] = useState(false);
 
@@ -1287,7 +1288,9 @@ export default function AdminScreen({ navigation }: any) {
     setSelectedRoom(room);
     setEditRoomName(room.name);
     setEditRoomDescription(room.description);
-    setEditRoomMaxMembers(room.maxMembers || 25);
+    const capacity = room.maxMembers || 25;
+    setEditRoomMaxMembers(capacity);
+    setEditRoomMaxMembersInput(capacity.toString());
     setEditRoomOwner(room.managedBy || room.createdBy);
     setShowEditRoomModal(true);
   };
@@ -1302,6 +1305,11 @@ export default function AdminScreen({ navigation }: any) {
 
     if (!editRoomDescription.trim()) {
       Alert.alert('Error', 'Room description is required');
+      return;
+    }
+
+    if (!editRoomMaxMembers || editRoomMaxMembers <= 0) {
+      Alert.alert('Error', 'Maximum capacity must be greater than 0');
       return;
     }
 
@@ -2304,14 +2312,25 @@ export default function AdminScreen({ navigation }: any) {
                       <Text style={styles.editFormLabel}>Maximum Capacity</Text>
                       <TextInput
                         style={styles.editFormInput}
-                        placeholder="Enter maximum capacity"
-                        value={editRoomMaxMembers.toString()}
+                        placeholder="Enter maximum capacity (e.g., 50)"
+                        value={editRoomMaxMembersInput}
                         onChangeText={(text) => {
-                          const num = parseInt(text, 10);
-                          if (!isNaN(num) && num > 0) {
-                            setEditRoomMaxMembers(num);
-                          } else if (text === '') {
+                          const filtered = text.replace(/[^0-9]/g, '').slice(0, 4);
+                          setEditRoomMaxMembersInput(filtered);
+                          
+                          if (filtered === '') {
                             setEditRoomMaxMembers(0);
+                          } else {
+                            const num = parseInt(filtered, 10);
+                            if (!isNaN(num)) {
+                              setEditRoomMaxMembers(num);
+                            }
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editRoomMaxMembersInput === '' || editRoomMaxMembers === 0) {
+                            setEditRoomMaxMembersInput(editRoomMaxMembers > 0 ? editRoomMaxMembers.toString() : '25');
+                            setEditRoomMaxMembers(editRoomMaxMembers > 0 ? editRoomMaxMembers : 25);
                           }
                         }}
                         keyboardType="numeric"
