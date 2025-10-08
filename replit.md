@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat with rate limiting and conversation history.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
-- **Administrative Tools**: Admin panel for moderation, user management, and configuration with access control and audit logging.
+- **Administrative Tools**: Admin panel for moderation, user management, configuration, and support ticket management with access control and audit logging.
 - **Notification System**: Real-time notifications via Socket.IO.
 - **User Presence System**: Real-time online/offline status with multi-device support.
 - **Device & Location Tracking**: Collects device information and city/country level location.
