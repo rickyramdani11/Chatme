@@ -102,7 +102,7 @@ function sendPrivateMessage(io, userId, room, message) {
 function ensureBotPresence(io, roomId) {
   if (botPresence[roomId]) {
     // Bot is active in this room, send activation message
-    sendBotMessage(io, roomId, '🎲 SicboBot is now active! Type !sicbo start to begin playing');
+    sendBotMessage(io, roomId, '🎲 SicboBot is now active! Type !start to begin playing');
     console.log(`[Sicbo] Showing activation message for room: ${roomId}`);
   }
 }
@@ -286,10 +286,10 @@ export async function handleSicboAdminCommand(io, room, message, userId, usernam
     
     if (!botPresence[room]) {
       botPresence[room] = true;
-      sendBotMessage(io, room, '🎲 SicboBot is now active! Type !sicbo start to begin playing');
+      sendBotMessage(io, room, '🎲 SicboBot is now active! Type !start to begin playing');
       console.log(`[Sicbo] SicboBot successfully added to room ${room} by admin ${username}`);
     } else {
-      sendBotMessage(io, room, '⚠️ SicboBot is already active in this room! Type !sicbo help for commands.');
+      sendBotMessage(io, room, '⚠️ SicboBot is already active in this room! Type !help for commands.');
       console.log(`[Sicbo] SicboBot already active in room ${room}`);
     }
     return true; // Command handled
@@ -373,7 +373,7 @@ export async function handleSicboCommand(io, socket, room, args, userId, usernam
         roundId: `sicbo_${room}_${Date.now()}`
       };
 
-      sendBotMessage(io, room, `🎲 **Sicbo Game Started!**\n\nPlace your bets now! (30 seconds)\n\nBet types:\n• !sicbo bet big <amount>\n• !sicbo bet small <amount>\n• !sicbo bet odd <amount>\n• !sicbo bet even <amount>\n• !sicbo bet total:10 <amount>\n• !sicbo bet single:5 <amount>\n• !sicbo bet double:3 <amount>\n• !sicbo bet triple:6 <amount>\n• !sicbo bet anytriple <amount>`);
+      sendBotMessage(io, room, `🎲 **Sicbo Game Started!**\n\nPlace your bets now! (30 seconds)\n\nBet types:\n• !s <amount> big/small\n• !s <amount> odd/even\n• !s <amount> total:10\n• !s <amount> single:5\n• !s <amount> double:3\n• !s <amount> triple:6\n• !s <amount> anytriple`);
 
       // Auto-roll after 30 seconds
       setTimeout(() => {
@@ -386,17 +386,30 @@ export async function handleSicboCommand(io, socket, room, args, userId, usernam
 
     case 'bet': {
       if (!games[room] || games[room].phase !== 'betting') {
-        sendPrivateMessage(io, userId, room, 'No betting phase active! Use !sicbo start first.');
+        sendPrivateMessage(io, userId, room, 'No betting phase active! Use !start first.');
         return;
       }
 
-      // Parse bet: !sicbo bet <type> <amount>
-      // Examples: !sicbo bet big 500, !sicbo bet total:10 1000
-      const betInput = args[1]?.toLowerCase();
-      const amount = parseInt(args[2]);
+      // Support two formats:
+      // Old: !sicbo bet <type> <amount> (args = ['bet', 'big', '500'])
+      // New: !s <amount> <type> (args = ['bet', '500', 'big'])
+      
+      let betInput, amount;
+      const arg1 = args[1];
+      const arg2 = args[2];
+      
+      // Check if first arg is a number (new format: !s <amount> <type>)
+      if (!isNaN(parseInt(arg1))) {
+        amount = parseInt(arg1);
+        betInput = arg2?.toLowerCase();
+      } else {
+        // Old format: !sicbo bet <type> <amount>
+        betInput = arg1?.toLowerCase();
+        amount = parseInt(arg2);
+      }
 
       if (!betInput || !amount || amount < 100) {
-        sendPrivateMessage(io, userId, room, 'Invalid bet! Format: !sicbo bet <type> <amount> (min 100 COIN)');
+        sendPrivateMessage(io, userId, room, 'Invalid bet! Format: !s <amount> <type> (min 100 COIN)');
         return;
       }
 
@@ -479,7 +492,7 @@ export async function handleSicboCommand(io, socket, room, args, userId, usernam
 
     case 'status': {
       if (!games[room]) {
-        sendBotMessage(io, room, 'No game running. Use !sicbo start');
+        sendBotMessage(io, room, 'No game running. Use !start');
         return;
       }
 
@@ -490,12 +503,12 @@ export async function handleSicboCommand(io, socket, room, args, userId, usernam
     }
 
     case 'help': {
-      sendBotMessage(io, room, `🎲 **Sicbo Game Help**\n\n**Commands:**\n!sicbo start - Start game\n!sicbo bet <type> <amount> - Place bet\n!sicbo status - Game status\n\n**Bet Types:**\nbig/small (1:1), odd/even (1:1)\ntotal:4-17 (varies)\nsingle:1-6 (1:1 to 3:1)\ndouble:1-6 (10:1)\ntriple:1-6 (180:1)\nanytriple (30:1)`);
+      sendBotMessage(io, room, `🎲 **Sicbo Game Help**\n\n**Commands:**\n!start - Start game\n!s <amount> <type> - Bet\n!status - Game status\n\n**Bet Types:**\nbig/small (1:1), odd/even (1:1)\ntotal:4-17 (varies)\nsingle:1-6 (1:1 to 3:1)\ndouble:1-6 (10:1)\ntriple:1-6 (180:1)\nanytriple (30:1)\n\n**Examples:**\n!s 500 big\n!s 1000 total:10`);
       break;
     }
 
     default:
-      sendBotMessage(io, room, 'Unknown command! Use !sicbo help');
+      sendBotMessage(io, room, 'Unknown command! Use !help');
   }
 }
 

@@ -1632,8 +1632,30 @@ io.on('connection', (socket) => {
         const userInfo = connectedUsers.get(socket.id);
         if (userInfo && userInfo.userId) {
           // Route to appropriate bot based on command
-          if (trimmedContent.startsWith('!sicbo')) {
-            // Sicbo game command
+          // Sicbo shortened commands: !start, !s, !help, !status
+          if (trimmedContent.startsWith('!start') || 
+              trimmedContent.startsWith('!s ') || 
+              trimmedContent === '!s' ||
+              (trimmedContent === '!help' && botPresence[roomId]) ||
+              (trimmedContent === '!status' && botPresence[roomId])) {
+            // Sicbo game command (shortened format)
+            const args = trimmedContent.slice(1).split(/\s+/);
+            const cmd = args.shift(); // Remove '!start', '!s', etc
+            
+            // Map shortened commands to full commands
+            if (cmd === 's') {
+              args.unshift('bet'); // !s becomes 'bet' command
+            } else if (cmd === 'start') {
+              args.unshift('start');
+            } else if (cmd === 'help') {
+              args.unshift('help');
+            } else if (cmd === 'status') {
+              args.unshift('status');
+            }
+            
+            handleSicboCommand(io, socket, roomId, args, userInfo.userId, sender);
+          } else if (trimmedContent.startsWith('!sicbo')) {
+            // Legacy sicbo command (keep for backward compatibility)
             const args = trimmedContent.slice(1).split(/\s+/);
             args.shift(); // Remove '!sicbo'
             handleSicboCommand(io, socket, roomId, args, userInfo.userId, sender);
