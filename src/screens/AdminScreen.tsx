@@ -78,12 +78,6 @@ export default function AdminScreen({ navigation }: any) {
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
-  // Credit transfer states
-  const [transferUsername, setTransferUsername] = useState('');
-  const [transferAmount, setTransferAmount] = useState('');
-  const [transferPin, setTransferPin] = useState('');
-  const [transferLoading, setTransferLoading] = useState(false);
-
   // Gift edit states
   const [editingGift, setEditingGift] = useState<Gift | null>(null);
   const [editGiftPrice, setEditGiftPrice] = useState('');
@@ -177,13 +171,6 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'people-outline',
       color: '#21963F',
       description: 'Cari dan promosikan user'
-    },
-    {
-      id: 'credit',
-      title: 'Transfer Credit',
-      icon: 'diamond-outline',
-      color: '#9C27B0',
-      description: 'Transfer credit antar user'
     },
     {
       id: 'admin-credit',
@@ -1478,56 +1465,6 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
-  const handleTransferCredit = async () => {
-    if (!transferUsername.trim()) {
-      Alert.alert('Error', 'Username harus diisi');
-      return;
-    }
-
-    if (!transferAmount.trim() || isNaN(Number(transferAmount)) || Number(transferAmount) <= 0) {
-      Alert.alert('Error', 'Jumlah kredit harus berupa angka positif');
-      return;
-    }
-
-    if (!transferPin.trim()) {
-      Alert.alert('Error', 'PIN harus diisi');
-      return;
-    }
-
-    setTransferLoading(true);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/credits/transfer`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          toUsername: transferUsername.trim(),
-          amount: Number(transferAmount),
-          pin: transferPin.trim()
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert('Berhasil', `Kredit berhasil dikirim ke ${transferUsername}!`);
-        setTransferUsername('');
-        setTransferAmount('');
-        setTransferPin('000000');
-      } else {
-        Alert.alert('Error', data.error || 'Gagal mengirim kredit');
-      }
-    } catch (error) {
-      console.error('Error transferring credits:', error);
-      Alert.alert('Error', 'Gagal mengirim kredit. Silakan coba lagi.');
-    } finally {
-      setTransferLoading(false);
-    }
-  };
-
   const handleDeleteItem = async (id: string, type: 'emoji' | 'gift') => {
     Alert.alert(
       'Confirm Delete',
@@ -2604,68 +2541,7 @@ export default function AdminScreen({ navigation }: any) {
         );
 
       default:
-        return (
-          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
-            <View style={styles.creditTransferCard}>
-              <Text style={styles.creditTransferTitle}>Transfer Credit</Text>
-
-              <View style={styles.creditInputGroup}>
-                <Text style={styles.creditInputLabel}>Username Penerima</Text>
-                <TextInput
-                  style={styles.creditInput}
-                  value={transferUsername}
-                  onChangeText={setTransferUsername}
-                  placeholder="Masukkan username penerima..."
-                  placeholderTextColor="#999"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.creditInputGroup}>
-                <Text style={styles.creditInputLabel}>Jumlah Credit</Text>
-                <TextInput
-                  style={styles.creditInput}
-                  value={transferAmount}
-                  onChangeText={setTransferAmount}
-                  placeholder="Masukkan jumlah credit..."
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.creditInputGroup}>
-                <Text style={styles.creditInputLabel}>PIN</Text>
-                <TextInput
-                  style={styles.creditInput}
-                  value={transferPin}
-                  onChangeText={setTransferPin}
-                  placeholder="000000"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
-                  maxLength={6}
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.transferButtonContainer}>
-                <TouchableOpacity
-                  style={styles.transferButton}
-                  onPress={handleTransferCredit}
-                  disabled={transferLoading}
-                >
-                  {transferLoading ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="send" size={20} color="#fff" />
-                      <Text style={styles.transferButtonText}>Transfer Credit</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        );
+        return null;
     }
   };
 
