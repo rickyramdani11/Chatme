@@ -374,6 +374,109 @@ function startRound(io, room) {
   }, 20000);
 }
 
+function processTieBreaker(io, room, tiedPlayers) {
+  const data = rooms[room];
+  if (!data) return;
+
+  // Show tied players
+  const tiedNames = tiedPlayers.map(p => p.username).join(', ');
+  sendBotMessage(io, room, `Tied players: ${tiedNames}`);
+  sendBotMessage(io, room, `Tied players ONLY draw again. Next round starts in 3 seconds.`);
+
+  // Reset cards for tied players only
+  tiedPlayers.forEach(player => {
+    player.card = undefined;
+  });
+
+  // Mark as tie breaker phase and store tied players
+  data.isTieBreaker = true;
+  data.tiedPlayers = tiedPlayers;
+
+  // Start tie breaker draw phase
+  setTimeout(() => {
+    sendBotMessage(io, room, `ROUND #${data.currentRound}: Players. !d to DRAW. 20 seconds.`);
+
+    // Auto-draw after 20 seconds for tied players
+    data.drawTimeout = setTimeout(() => {
+      tiedPlayers.forEach(player => {
+        if (!player.card) {
+          player.card = drawCard();
+          sendBotMessage(io, room, `${player.username}:`, null, player.card.imageUrl);
+        }
+      });
+
+      const allDrawn = tiedPlayers.every(p => p.card);
+      if (allDrawn) {
+        processTieResults(io, room, tiedPlayers);
+      }
+    }, 20000);
+  }, 3000);
+}
+
+function processTieResults(io, room, tiedPlayers) {
+  const data = rooms[room];
+  if (!data) return;
+
+  if (data.drawTimeout) {
+    clearTimeout(data.drawTimeout);
+    delete data.drawTimeout;
+  }
+
+  // Show "Times up" message
+  sendBotMessage(io, room, `Times up! Tallying cards.`);
+
+  // Sort tied players by card value (lowest first)
+  const sorted = [...tiedPlayers].sort((a, b) => getCardValue(a.card) - getCardValue(b.card));
+  const lowestValue = getCardValue(sorted[0].card);
+  const newEliminatedCandidates = sorted.filter(p => getCardValue(p.card) === lowestValue);
+
+  // Check if still tied
+  if (newEliminatedCandidates.length > 1) {
+    // Still tied, do another tie breaker
+    sendBotMessage(io, room, `Still tied! Drawing again...`);
+    processTieBreaker(io, room, newEliminatedCandidates);
+  } else {
+    // We have a clear loser
+    const eliminatedPlayer = newEliminatedCandidates[0];
+    
+    // Show bot draws for other active players (not in tie)
+    const nonTiedPlayers = data.activePlayers.filter(p => !tiedPlayers.some(tp => tp.username === p.username));
+    nonTiedPlayers.forEach(player => {
+      sendBotMessage(io, room, `Bot draws - ${player.username}:`, null, player.card.imageUrl);
+    });
+    
+    // Show tied results
+    sorted.forEach(player => {
+      sendBotMessage(io, room, `${player.username}:`, null, player.card.imageUrl);
+    });
+    
+    sendBotMessage(io, room, `${eliminatedPlayer.username}: OUT with the lowest card!`, null, eliminatedPlayer.card.imageUrl);
+
+    // Remove eliminated player from active players
+    data.activePlayers = data.activePlayers.filter(p => p.username !== eliminatedPlayer.username);
+    eliminatedPlayer.isActive = false;
+
+    // Reset tie breaker flags
+    data.isTieBreaker = false;
+    data.tiedPlayers = null;
+
+    // Check if game should end
+    if (data.activePlayers.length <= 1) {
+      setTimeout(() => {
+        finishGame(io, room);
+      }, 3000);
+    } else {
+      // Continue to next round
+      data.currentRound++;
+      sendBotMessage(io, room, `${data.activePlayers.length} players remaining. Next round in 5 seconds...`);
+
+      data.roundTimeout = setTimeout(() => {
+        startRound(io, room);
+      }, 5000);
+    }
+  }
+}
+
 function processRoundResults(io, room) {
   const data = rooms[room];
   if (!data) return;
@@ -394,20 +497,22 @@ function processRoundResults(io, room) {
   let eliminatedPlayer;
 
   if (eliminatedCandidates.length > 1) {
-    // Tie breaker - random selection
-    eliminatedPlayer = eliminatedCandidates[Math.floor(Math.random() * eliminatedCandidates.length)];
-    sendBotMessage(io, room, `Tie broken! ${eliminatedPlayer.username} is OUT with the lowest card!`, null, eliminatedPlayer.card.imageUrl);
+    // Tie detected - start tie breaker re-draw
+    sorted.forEach(player => {
+      sendBotMessage(io, room, `${player.username}:`, null, player.card.imageUrl);
+    });
+    processTieBreaker(io, room, eliminatedCandidates);
+    return;
   } else {
     eliminatedPlayer = eliminatedCandidates[0];
-    sendBotMessage(io, room, `${eliminatedPlayer.username} is OUT with the lowest card!`, null, eliminatedPlayer.card.imageUrl);
+    
+    // Show all cards
+    sorted.forEach(player => {
+      sendBotMessage(io, room, `${player.username}:`, null, player.card.imageUrl);
+    });
+    
+    sendBotMessage(io, room, `${eliminatedPlayer.username}: OUT with the lowest card!`, null, eliminatedPlayer.card.imageUrl);
   }
-
-  // Show round results
-  sendBotMessage(io, room, `Round ${data.currentRound} Results:`);
-  sorted.forEach(player => {
-    const status = player.username === eliminatedPlayer.username ? " OUT" : " SAFE";
-    sendBotMessage(io, room, `${player.username}: ${player.card.value.toUpperCase()}${player.card.suit.toUpperCase()}${status}`, null, player.card.imageUrl);
-  });
 
   // Remove eliminated player from active players
   data.activePlayers = data.activePlayers.filter(p => p.username !== eliminatedPlayer.username);
@@ -964,12 +1069,21 @@ async function handleLowCardCommand(io, room, command, args, userId, username, s
       }
 
       player.card = drawCard();
-      sendBotMessage(io, room, `${username} drew a card`, null, player.card.imageUrl);
+      sendBotMessage(io, room, `${username}:`, null, player.card.imageUrl);
 
-      // Check if all active players have drawn
-      const allDrawn = data.activePlayers.every(p => p.card);
-      if (allDrawn) {
-        processRoundResults(io, room);
+      // Check if all players have drawn (depending on tie breaker mode)
+      if (data.isTieBreaker && data.tiedPlayers) {
+        // In tie breaker, only check tied players
+        const allDrawn = data.tiedPlayers.every(p => p.card);
+        if (allDrawn) {
+          processTieResults(io, room, data.tiedPlayers);
+        }
+      } else {
+        // Normal round, check all active players
+        const allDrawn = data.activePlayers.every(p => p.card);
+        if (allDrawn) {
+          processRoundResults(io, room);
+        }
       }
       break;
     }
