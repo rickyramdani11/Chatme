@@ -1139,7 +1139,7 @@ export default function AdminScreen({ navigation }: any) {
         console.log('Location permission denied or unavailable');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/admin/users/status`, {
+      const response = await fetch(`${API_BASE_URL}/admin/users/status`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -1148,15 +1148,8 @@ export default function AdminScreen({ navigation }: any) {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        // Enhance user data with device info for current user
-        const enhancedUsers = data.users?.map(user => ({
-          ...user,
-          device: user.username === user?.username ? deviceName : user.device || 'Unknown Device',
-          location: user.username === user?.username ? locationString : user.location || 'Unknown'
-        })) || [];
-
-        setUserStatusList(enhancedUsers);
+        const users = await response.json();
+        setUserStatusList(Array.isArray(users) ? users : []);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         Alert.alert('Error', `Failed to load user status: ${errorData.error || response.statusText}`);
