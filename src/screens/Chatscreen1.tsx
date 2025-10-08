@@ -742,6 +742,7 @@ export default function ChatScreen() {
           try {
             // Add timestamp to force fresh request and bypass cache
             const timestamp = Date.now();
+            console.log('🔄 Fetching room data for roomId:', roomId);
             const roomResponse = await fetch(`${API_BASE_URL}/api/rooms?_t=${timestamp}`, {
               method: 'GET',
               headers: {
@@ -753,6 +754,7 @@ export default function ChatScreen() {
               },
               cache: 'no-store',
             });
+            console.log('📡 Room fetch response status:', roomResponse.status, roomResponse.ok);
             if (roomResponse.ok) {
               const rooms = await roomResponse.json();
               console.log('📋 All rooms received:', rooms.length);
@@ -767,9 +769,11 @@ export default function ChatScreen() {
                 roomData = rooms.find((r: any) => r.id === roomId);
                 console.log('🔍 Retry result:', roomData ? 'Found!' : 'Still not found');
               }
+            } else {
+              console.error('❌ Room fetch failed with status:', roomResponse.status);
             }
           } catch (error) {
-            console.log('Could not fetch room data');
+            console.error('❌ Error fetching room data:', error);
           }
         } else if (isSupport) {
           // For support rooms, we don't have roomData in the same way
