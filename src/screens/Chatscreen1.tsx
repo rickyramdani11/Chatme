@@ -2853,6 +2853,24 @@ export default function ChatScreen() {
         return;
       }
 
+      // Skip optimistic UI for game commands (! commands) - they are handled by server and bot responses
+      if (messageContent.startsWith('!') && !currentTab?.isSupport) {
+        setMessage('');
+        setSelectedImageEmojis([]);
+        setShowUserTagMenu(false);
+        
+        // Send game command to server (no optimistic message)
+        socket.emit('sendMessage', {
+          roomId: currentRoomId,
+          sender: user.username,
+          content: messageContent,
+          role: user.role || 'user',
+          level: user.level || 1,
+          type: 'message'
+        });
+        return;
+      }
+
       // Create optimistic message object
       const optimisticMessage = {
         id: `temp_${Date.now()}_${user.username}`,
