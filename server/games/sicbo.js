@@ -274,8 +274,8 @@ async function addCoins(userId, amount, reason = 'sicbo_win') {
 export async function handleSicboAdminCommand(io, room, message, userId, username, userRole) {
   const trimmedMsg = message.trim().toLowerCase();
   
-  // /add sicbo or /bot sicbo add command (ADMIN ONLY)
-  if (trimmedMsg === '/add sicbo' || trimmedMsg === '/bot sicbo add' || trimmedMsg === '/sicbo add') {
+  // /add sicbo or /bot sicbo command (ADMIN ONLY)
+  if (trimmedMsg === '/add sicbo' || trimmedMsg === '/bot sicbo' || trimmedMsg === '/bot sicbo add' || trimmedMsg === '/sicbo add') {
     console.log(`[Sicbo] Add bot command received in room ${room} from ${username} (role: ${userRole})`);
     
     // Check if user is admin
