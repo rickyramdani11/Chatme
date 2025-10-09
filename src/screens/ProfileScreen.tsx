@@ -736,9 +736,13 @@ export default function ProfileScreen({ navigation, route }: any) {
           <View style={styles.userInfo}>
             <View style={styles.nameContainer}>
               <View style={styles.usernameRow}>
-                <Text style={styles.username}>
-                  {profile.username} <Text style={styles.levelBadge}>[Lv {profile.level || 1}]</Text>
-                </Text>
+                <Text style={styles.username}>{profile.username}</Text>
+                <LinearGradient
+                  colors={['#9333ea', '#dc2626']}
+                  style={styles.levelBadgeCapsule}
+                >
+                  <Text style={styles.levelBadgeText}>Lv {profile.level || 1}</Text>
+                </LinearGradient>
                 {profile.gender && (() => {
                   const genderLower = profile.gender.toLowerCase();
                   const isMale = genderLower === 'male' || genderLower === 'pria' || genderLower === 'laki-laki';
@@ -1244,9 +1248,17 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: 'bold',
   },
-  levelBadge: {
-    color: '#9333ea',
-    fontSize: 18,
+  levelBadgeCapsule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  levelBadgeText: {
+    color: '#fff',
+    fontSize: 10,
     fontWeight: 'bold',
   },
   genderIcon: {
