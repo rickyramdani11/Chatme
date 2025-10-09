@@ -44,10 +44,12 @@ export default function MentorScreen() {
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) {
-        console.log('No token found');
+        console.log('No token found for fetching merchants');
+        Alert.alert('Error', 'Token tidak ditemukan. Silakan login ulang.');
         return;
       }
 
+      console.log('Fetching merchants from:', `${API_BASE_URL}/mentor/merchants`);
       const response = await fetch(`${API_BASE_URL}/mentor/merchants`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -56,19 +58,28 @@ export default function MentorScreen() {
         },
       });
 
+      console.log('Fetch merchants response status:', response.status);
+      
       if (response.ok) {
         const text = await response.text();
+        console.log('Fetch merchants response text:', text);
         try {
           const data = JSON.parse(text);
+          console.log('Parsed merchants data:', data);
           setMerchants(data.merchants || []);
+          console.log('Merchants set successfully, count:', data.merchants?.length || 0);
         } catch (parseError) {
           console.error('JSON parse error:', parseError, 'Response text:', text);
+          Alert.alert('Error', 'Gagal memproses data merchant');
         }
       } else {
-        console.error('Fetch merchants failed:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('Fetch merchants failed:', response.status, response.statusText, 'Body:', errorText);
+        Alert.alert('Error', `Gagal mengambil data merchant (Status: ${response.status})`);
       }
     } catch (error) {
       console.error('Error fetching merchants:', error);
+      Alert.alert('Error', 'Terjadi kesalahan saat mengambil data merchant: ' + error.message);
     }
   };
 
