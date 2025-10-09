@@ -5113,6 +5113,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
       achievements: achievements,
       isOnline: Math.random() > 0.5, // TODO: implement real online status
       country: user.country || 'ID',
+      gender: user.gender,
       isFollowing: false // TODO: check if current user follows this user
     };
 

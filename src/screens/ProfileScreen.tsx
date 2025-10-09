@@ -34,6 +34,7 @@ interface UserProfile {
   achievements: Achievement[];
   isOnline: boolean;
   country?: string;
+  gender?: string;
   albumPhotos?: AlbumPhoto[];
   gifts?: Gift[];
   isFollowing?: boolean; // Added to UserProfile interface
@@ -728,7 +729,33 @@ export default function ProfileScreen({ navigation, route }: any) {
           {/* User Info */}
           <View style={styles.userInfo}>
             <View style={styles.nameContainer}>
-              <Text style={styles.username}>{profile.username}</Text>
+              <View style={styles.usernameRow}>
+                <Text style={styles.username}>{profile.username}</Text>
+                {profile.gender && (() => {
+                  const genderLower = profile.gender.toLowerCase();
+                  const isMale = genderLower === 'male' || genderLower === 'pria' || genderLower === 'laki-laki';
+                  const isFemale = genderLower === 'female' || genderLower === 'wanita' || genderLower === 'perempuan';
+                  
+                  if (isMale) {
+                    return (
+                      <Image
+                        source={require('../../assets/gender/male.png')}
+                        style={styles.genderIcon}
+                        resizeMode="contain"
+                      />
+                    );
+                  } else if (isFemale) {
+                    return (
+                      <Image
+                        source={require('../../assets/gender/female.png')}
+                        style={styles.genderIcon}
+                        resizeMode="contain"
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+              </View>
               <Text style={styles.userRole}></Text>
             </View>
 
@@ -1207,11 +1234,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   username: {
     color: '#2c3e50',
     fontSize: 26,
     fontWeight: 'bold',
-    marginRight: 8,
+  },
+  genderIcon: {
+    width: 24,
+    height: 24,
   },
   userRole: {
     color: '#FF6B35',
