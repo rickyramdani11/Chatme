@@ -325,7 +325,9 @@ export default function ProfileScreen({ navigation, route }: any) {
       if (response.ok) {
         const photos = await response.json();
         console.log('Album photos fetched:', photos.length, 'photos');
+        console.log('Album photos data:', JSON.stringify(photos));
         setAlbumPhotos(photos);
+        console.log('albumPhotos state updated');
       } else {
         console.log('Album photos response not ok:', response.status);
         setAlbumPhotos([]);
@@ -560,7 +562,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   };
 
   const renderAlbumPhoto = ({ item }: { item: AlbumPhoto }) => (
-    <Animated.View style={[styles.albumPhotoItem, { opacity: fadeAnim }]}>
+    <View style={styles.albumPhotoItem}>
       <TouchableOpacity
         onPress={() => {
           if (isOwnProfile) {
@@ -578,7 +580,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           }}
         />
       </TouchableOpacity>
-    </Animated.View>
+    </View>
   );
 
   const renderGift = ({ item }: { item: Gift }) => (
@@ -637,10 +639,10 @@ export default function ProfileScreen({ navigation, route }: any) {
 
       <ScrollView 
         style={styles.content} 
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         scrollEventThrottle={16}
-        bounces={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        bounces={true}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* Background Image Area with Gradient Overlay */}
         <View style={styles.backgroundImageContainer}>
