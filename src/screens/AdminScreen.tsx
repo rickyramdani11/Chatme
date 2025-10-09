@@ -260,7 +260,7 @@ export default function AdminScreen({ navigation }: any) {
       description: 'Kelola room chat dan pengaturan'
     },
     {
-      id: 'users',
+      id: 'manage-users',
       title: 'Kelola User',
       icon: 'people-outline',
       color: '#21963F',
@@ -1645,11 +1645,11 @@ export default function AdminScreen({ navigation }: any) {
   const openEditRoomModal = (room: Room) => {
     setSelectedRoom(room);
     setEditRoomName(room.name);
-    setEditRoomDescription(room.description);
+    setEditRoomDescription(room.description || '');
     const capacity = room.maxMembers || 25;
     setEditRoomMaxMembers(capacity);
     setEditRoomMaxMembersInput(capacity.toString());
-    setEditRoomOwner(room.managedBy || room.createdBy);
+    setEditRoomOwner(room.managedBy || room.createdBy || '');
     setShowEditRoomModal(true);
   };
 
@@ -2198,7 +2198,7 @@ export default function AdminScreen({ navigation }: any) {
                 <View style={styles.giftGridContainer}>
                   {gifts.map((item) => (
                     <View key={item.id}>
-                      {renderGiftGridItem({ item, index: 0 })}
+                      {renderGiftGridItem({ item })}
                     </View>
                   ))}
                 </View>
@@ -2338,7 +2338,7 @@ export default function AdminScreen({ navigation }: any) {
                           `Manage: ${item.name}`,
                           [
                             { text: 'Edit', onPress: () => handleEditFrame(item) },
-                            { text: 'Delete', onPress: () => handleDeleteFrame(item.id), style: 'destructive' },
+                            { text: 'Delete', onPress: () => handleDeleteFrame(Number(item.id)), style: 'destructive' },
                             { text: 'Cancel', style: 'cancel' }
                           ]
                         );
@@ -2365,7 +2365,7 @@ export default function AdminScreen({ navigation }: any) {
           </ScrollView>
         );
 
-      case 'users':
+      case 'manage-users':
         return (
           <View style={styles.userSearchContainer}>
             <View style={styles.searchContainer}>
@@ -2867,11 +2867,11 @@ export default function AdminScreen({ navigation }: any) {
                           { text: 'Cancel', style: 'cancel' },
                           {
                             text: 'Ban Device',
-                            onPress: () => handleBanDevice(user.id, user.username, user.device, user.ip)
+                            onPress: () => handleBanDevice(user.id, user.username, user.device || 'unknown', user.ip || 'unknown')
                           },
                           {
                             text: 'Ban IP',
-                            onPress: () => handleBanIP(user.id, user.username, user.ip)
+                            onPress: () => handleBanIP(user.id, user.username, user.ip || 'unknown')
                           }
                         ]
                       );
@@ -3000,7 +3000,7 @@ export default function AdminScreen({ navigation }: any) {
                   <View style={styles.banActions}>
                     <TouchableOpacity
                       style={[styles.banActionButton, styles.banDeviceButton]}
-                      onPress={() => handleBanDevice(userItem.id, userItem.username, userItem.device || `${userItem.username}_device`, userItem.ip)}
+                      onPress={() => handleBanDevice(userItem.id, userItem.username, userItem.device || `${userItem.username}_device`, userItem.ip || 'unknown')}
                       disabled={banLoading}
                     >
                       <Ionicons name="phone-portrait" size={16} color="#fff" />
@@ -3009,7 +3009,7 @@ export default function AdminScreen({ navigation }: any) {
 
                     <TouchableOpacity
                       style={[styles.banActionButton, styles.banIpButton]}
-                      onPress={() => handleBanIP(userItem.id, userItem.username, userItem.ip || 'unknown_ip')}
+                      onPress={() => handleBanIP(userItem.id, userItem.username, userItem.ip || 'unknown')}
                       disabled={banLoading}
                     >
                       <Ionicons name="shield-outline" size={16} color="#fff" />
@@ -3901,6 +3901,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
   modalContent: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -4144,6 +4162,11 @@ const styles = StyleSheet.create({
   userEmail: {
     fontSize: 14,
     color: '#666',
+  },
+  userActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
   },
   actionBtn: {
     paddingHorizontal: 12,
@@ -5086,12 +5109,6 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 4,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   editModal: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -5146,12 +5163,6 @@ const styles = StyleSheet.create({
   },
 
   // Gift Grid Styles
-  giftGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 5,
-  },
   giftGridListContainer: {
     paddingHorizontal: 5,
     paddingVertical: 10,
@@ -5232,15 +5243,6 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 2,
-  },
-  emptyGiftList: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyGiftText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 8,
   },
   giftHelpText: {
     fontSize: 12,
@@ -5518,30 +5520,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 30,
-  },
-  statCard: {
-    flex: 1,
-    padding: 25,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginHorizontal: 5,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  statNumber: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 10,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#fff',
-    marginTop: 5,
-    opacity: 0.9,
   },
   chartContainer: {
     backgroundColor: '#fff',
