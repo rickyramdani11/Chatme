@@ -755,6 +755,22 @@ export default function ProfileScreen({ navigation, route }: any) {
                 >
                   <Text style={styles.levelBadgeText}>Lv {profile.level || 1}</Text>
                 </LinearGradient>
+                
+                {/* Role Badge - Merchant, Admin, Mentor */}
+                {profile.role && (profile.role === 'merchant' || profile.role === 'admin' || profile.role === 'mentor') && (
+                  <Image
+                    source={
+                      profile.role === 'merchant'
+                        ? require('../../assets/badges/merchant.png')
+                        : profile.role === 'admin'
+                        ? require('../../assets/badges/admin.png')
+                        : require('../../assets/badges/mentor.png')
+                    }
+                    style={styles.roleBadgeIcon}
+                    resizeMode="contain"
+                  />
+                )}
+                
                 {profile.gender && (() => {
                   const genderLower = profile.gender.toLowerCase();
                   const isMale = genderLower === 'male' || genderLower === 'pria' || genderLower === 'laki-laki';
@@ -1332,6 +1348,10 @@ const styles = StyleSheet.create({
   genderIcon: {
     width: 24,
     height: 24,
+  },
+  roleBadgeIcon: {
+    width: 32,
+    height: 32,
   },
   userRole: {
     color: '#FF6B35',

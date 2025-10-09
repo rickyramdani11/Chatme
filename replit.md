@@ -1,6 +1,6 @@
 # Overview
 
-ChatMe is a cross-platform React Native chat application built with Expo, designed to be a comprehensive social messaging platform. It offers real-time chat rooms, private messaging, user authentication, a credit system, friend management, media sharing, and gaming features. The application supports iOS, Android, and web, integrating functionalities like AI bot integration, ranking systems, and administrative tools to create a dynamic and engaging social experience. Its ambition is to provide a robust and feature-rich platform for social interaction and entertainment.
+ChatMe is a cross-platform React Native chat application built with Expo, designed as a comprehensive social messaging platform. It offers real-time chat rooms, private messaging, user authentication, a credit system, friend management, media sharing, and gaming features. The application supports iOS, Android, and web, integrating functionalities like AI bot integration, ranking systems, and administrative tools to create a dynamic and engaging social experience. Its ambition is to provide a robust and feature-rich platform for social interaction and entertainment.
 
 # User Preferences
 
@@ -25,72 +25,70 @@ Preferred communication style: Simple, everyday language.
 - **API**: RESTful endpoints with Bearer token authorization
 
 ## Core Features
-- **Chat System**: Multi-room chat (real-time only), private messaging (persisted), emoji support, media sharing, chat history notifications, hybrid emoji composer. API endpoint URLs use consistent pattern: `${API_BASE_URL}/endpoint` where API_BASE_URL already contains `/api` prefix (e.g., `/api/chat/private`, `/api/messages/:roomId`, `/api/rooms`). Fixed October 2025: Removed duplicate `/api` prefix from Chatscreen1.tsx URLs to prevent 404 errors.
-- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie animations, atomic send prevention, duplicate message filtering, batched state updates. Gift earnings are standardized to 30% user / 70% system. Cloud storage integration with Cloudinary for scalable gift media management. Supported formats: PNG, JPG, GIF, MP4, WebM, MOV, and Lottie JSON (with format validation). Admin panel supports direct file upload for all formats including Lottie JSON animations (2MB limit, validates v and layers properties), automatically uploading to Cloudinary with appropriate resource_type (image/video/raw). Frontend uses lottie-react-native for transparent animation playback with perfect alpha channel support, automatic format detection (mediaType or .json URL), full-screen rendering, and smooth fade-out transitions.
-- **Gaming Integration**: LowCard bot game with database persistence, automatic refund system, auto-advance feature (instantly proceeds to "Times up" when all players draw cards, no need to wait for 20s timer), and tie-breaker re-draw system (when multiple players have the same lowest card, only those tied players re-draw until there's a clear loser, without affecting other players or moving to the next round).
-- **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat with rate limiting and conversation history.
+- **Chat System**: Multi-room chat, private messaging, emoji support, media sharing, chat history notifications.
+- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie animations, and Cloudinary integration for media.
+- **Gaming Integration**: LowCard bot game with database persistence, automatic refunds, and tie-breaker re-draw system.
+- **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
-- **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management with full CRUD operations, user online statistics dashboard, and broadcast messaging system. All admin actions protected by role-based access control, rate limiting, and comprehensive audit logging. Frame management includes Cloudinary upload support for PNG/GIF assets with file validation (5MB limit). User statistics dashboard displays total registered users, currently online users, and 30-day registration trends. Support ticket system features auto-generated ticket IDs (format: TICK-{timestamp}-{random}), proper SQL joins for admin ticket listing with message counts, and consistent API response mapping (database `message` column mapped to `description` in API responses). Admin screen uses unique menu IDs to prevent React duplicate key warnings: 'users' for User Online stats, 'manage-users' for User Management search panel. Broadcast command (`/broadcast <message>`) allows admins to send room-wide announcements with green semi-transparent styling and megaphone icon, secured with database role verification.
-- **Merchant Recas System**: Monthly revenue requirement system (800,000 coins/month) for merchant promotions with automatic downgrade logic and visual status indicators. Tracks 30% user share from gift purchases (both room and private chat). Atomic transaction handling via dedicated client connections ensures consistent downgrade operations across merchant_promotions and users tables. Automated cron jobs: hourly merchant status check (00 */1 * * * *) with automatic downgrade for merchants below requirement, daily revenue reset at midnight (00 00 00 * * *). Database tracking via merchant_revenue_history table for monthly records. Visual "luntur warna" (color fading) effect on ProfileScreen merchant badge: normal state displays gold gradient (#FFD700 → #FFA500) with full opacity, at-risk state (<50% revenue) shows gray gradient (#888888 → #666666) with 0.4 opacity, reduced shadows, progress bar, and warning text "⚠️ At Risk - Low Revenue". Profile API endpoint returns merchantStatus object (revenue, requirement, percentage, status, atRisk, resetDate) for client-side rendering. Revenue tracking integrated into both gift purchase endpoints (/api/gift/purchase and /api/gifts/purchase).
-- **Help & Support System**: Live chat support with support ticket creation, FAQ categories, and real-time chat status. Token authentication properly sourced from AuthContext (token variable, not user.token) to prevent "invalid token format" errors. Live chat uses **independent chat system** (support_chat_messages table) completely separate from rooms - NO room creation, avoiding max_user relation errors. Sessions auto-close stale connections and assign available online admins (fallback to "Support"). Dedicated endpoints: GET/POST /api/support/live-chat/:sessionId/messages for messaging.
+- **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Role-based access control and audit logging are implemented.
+- **Merchant Recas System**: Monthly revenue requirement system for merchant promotions with automatic downgrade logic and visual status indicators.
+- **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time chat status, operating independently from the main chat rooms.
 - **Notification System**: Real-time notifications via Socket.IO.
-- **User Presence System**: Friends list (GET /api/friends) displays real-time status with smart sorting (online → away → busy → offline) and contextual lastSeen messages ("Active now", "Away", "Busy", or time-based for offline users). Status feature not implemented in room participants to avoid compatibility issues.
+- **User Presence System**: Friends list displays real-time status with smart sorting.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
-- **Room Capacity Management**: Real-time participant count sync to database (rooms.members column) on join/leave events. Client-side validation prevents joining full rooms with user-friendly alerts.
-- **Video Call System**: Private video/audio calls with Daily.co integration, real-time streaming, global incoming call notifications, call stats tracking, socket-based signaling.
-- **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring with unlimited auto-reconnection (reconnectionAttempts: Infinity), exponential backoff retry strategy, comprehensive disconnect reason logging, automatic transport fallback (WebSocket ↔ Polling), and connection state recovery. Server-side ping interval: 25s, ping timeout: 60s.
+- **Room Capacity Management**: Real-time participant count sync and client-side validation.
+- **Video Call System**: Private video/audio calls with Daily.co integration and real-time streaming.
+- **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
 - **Audit Logging**: Comprehensive logging of admin actions.
-- **File Upload Security**: Base64 validation, size limits, MIME type filtering, filename sanitization, path traversal protection.
+- **File Upload Security**: Base64 validation, size limits, MIME type filtering, and path traversal protection.
 - **Rate Limiting**: Applied to sensitive operations.
 - **PIN Security**: Mandatory PIN for credit transfers.
-- **Code Protection**: Hermes engine for JavaScript bytecode compilation, ProGuard/R8 for Android native code obfuscation, auto-backup disabled to prevent sensitive data leakage to cloud storage.
+- **Code Protection**: Hermes engine, ProGuard/R8, auto-backup disabled.
 
 ## Process Management & Stability
-- **PM2 Configuration**: Dual-process setup with API server (port 5000) in cluster mode with 2 instances for load balancing, and Gateway (port 8000) in fork mode with 1 instance due to Socket.IO stateful requirements. Auto-restart on crash (max 10 restarts with 4s delay), memory limits (1.5GB per process), and centralized logging to ./logs/ directory.
-- **Auto-Recovery**: Application-level crash recovery via PM2. Note: Reserved VM deployment does not auto-restart on VM-level crashes; consider Autoscale deployment for full auto-recovery.
-- **Monitoring Commands**: npm scripts for status checking (pm2:status), log viewing (pm2:logs), real-time monitoring (pm2:monit), and service management (pm2:start/stop/restart).
-- **Socket.IO Clustering**: Gateway uses single instance (fork mode) to maintain Socket.IO session state. For multi-instance Socket.IO, implement Redis adapter with sticky sessions.
+- **PM2 Configuration**: Dual-process setup for API server (cluster mode) and Gateway (fork mode for Socket.IO). Includes auto-restart, memory limits, and centralized logging.
+- **Auto-Recovery**: Application-level crash recovery via PM2.
 
 ## UI/UX Decisions
-- **Level Badges**: Dynamic gradient level badges (green to blue), with icon badges in chat rooms and text badges elsewhere.
-- **Chat Message Display**: Optimized message spacing, consistent font sizes for join/leave messages, improved text wrapping alignment.
-- **Emoji/Gift Display**: Standardized emoji sizing in input fields and chat messages (16x16 for inline emojis, 64x64 for standalone gift images).
-- **Android Back Button**: Hardware back button handling implemented at top-level with navigationRef.canGoBack() to properly navigate stack history or exit app at root, preventing blank screen issues.
-- **PNG Transparency**: Transparent PNG uploads preserved with quality: 1.0 in ImagePicker and explicit backgroundColor: 'transparent' on all gift image containers and Image components to prevent alpha channel loss.
-- **LowCardBot Card Icons**: Card images rendered from local bundled assets (assets/card/) with CARD_IMAGES mapping using require(), 20x28 pixel size. Command messages use View container with flexDirection: 'row' to render text (wrapped in Text) and card images (wrapped in transparent View) as siblings, avoiding React Native's Image-in-Text restriction. Copy message functionality strips `<card:...>` tags for clean copied text.
-- **Auto-Scroll Optimization**: Debounced scroll implementation with 50ms delay and animated:false for instant, lag-free scrolling. Uses dedicated scrollToBottom helper function to prevent multiple redundant scroll calls, improving chat room performance and reducing UI lag.
-- **Gender Icons**: Visual gender indicators displayed next to username in ProfileScreen using toilet-style icons (24x24px). Blue icon for male, pink icon for female from assets/gender/ folder. Backend API returns gender field from users table.
-- **ProfileScreen Design**: Compact button/badge design with purple-red gradient (#9333ea → #dc2626) for Follow, Message buttons and Family Badge. Button sizes reduced (padding: 18px/10px, fontSize: 14px, icons: 16px). Username displays with level badge as small capsule gradient badge (purple-red gradient, paddingHorizontal: 8px, paddingVertical: 3px, borderRadius: 10px, fontSize: 10px) positioned next to username with marginLeft: 6px. Avatar rendering fixed by separating username and level badge as sibling elements (not nested Text). Clean white background (#fff) throughout screen (container, backgroundImageContainer, simpleAvatarContainer) replacing gray backgrounds. Avatar always has visual border frame (3px, #667eea purple) independent of database avatarFrame, ensuring consistent framing.
-- **Album Photo Visibility Fix**: Removed fadeAnim opacity animation from album photos (renderAlbumPhoto) to fix race condition where animation completed before async data loaded, causing photos to remain invisible (opacity: 0). Album photos now render immediately visible when data loads. ScrollView settings adjusted: showsVerticalScrollIndicator enabled, bounces enabled, paddingBottom increased to 100px for better content accessibility.
+- **Level Badges**: Dynamic gradient level badges.
+- **Chat Message Display**: Optimized spacing, consistent font sizes, and improved text wrapping.
+- **Emoji/Gift Display**: Standardized sizing.
+- **Android Back Button**: Hardware back button handling for proper navigation.
+- **PNG Transparency**: Preserved transparency for uploaded images.
+- **LowCardBot Card Icons**: Card images rendered from local assets.
+- **Auto-Scroll Optimization**: Debounced scroll implementation for lag-free scrolling.
+- **Gender Icons**: Visual gender indicators in user profiles.
+- **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
+- **Album Photo Visibility**: Removed opacity animation to ensure immediate visibility of loaded photos.
 
 # External Dependencies
 
 ## Core Framework & Libraries
 - **React Native Ecosystem**: React 19, React Native 0.79, Expo SDK 53.
-- **Navigation**: @react-navigation/native, @react-navigation/stack, @react-navigation/bottom-tabs, @react-navigation/material-top-tabs.
+- **Navigation**: @react-navigation/native and related navigation libraries.
 - **UI/UX**: expo-linear-gradient, @expo/vector-icons, expo-blur, expo-haptics.
 - **Media**: expo-image, expo-image-picker, expo-document-picker, expo-av, expo-video, expo-audio.
 
 ## Backend Technologies
 - **Server**: Express.js v5, Socket.IO v4.7, CORS.
-- **Database**: PostgreSQL (pg driver) with optimized connection pooling (max: 20, min: 2, idle timeout: 30s).
+- **Database**: PostgreSQL (pg driver) with connection pooling.
 - **Security**: bcrypt, jsonwebtoken.
 - **File Handling**: Multer.
-- **Process Manager**: PM2 v6.0.13 for auto-restart, memory management, and process monitoring.
-- **AI Integration**: OpenAI SDK with OpenRouter API (https://openrouter.ai/api/v1) for ChatMe Bot using Google Gemini 2.5 Flash Lite Preview model.
+- **Process Manager**: PM2 v6.0.13.
+- **AI Integration**: OpenAI SDK with OpenRouter API for Google Gemini 2.5 Flash Lite Preview.
 
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).
-- **Storage**: Cloudinary cloud storage for gift media (images/videos/GIFs), avatar frame assets (PNG/GIF), and feed post media (photos/videos). Cloud-first storage with automatic CDN delivery.
+- **Storage**: Cloudinary for gift media, avatar frame assets, and feed post media.
 - **Networking**: HTTP/HTTPS, WebSockets.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.
-- **Video Calls**: Daily.co (@daily-co/react-native-daily-js, @daily-co/react-native-webrtc@124.0.6-daily.1, @daily-co/config-plugin-rn-daily-js).
-- **Payment Gateway**: Xendit Payout API for withdrawal system.
-- **Media CDN**: Cloudinary for gift asset hosting and delivery.
+- **Video Calls**: Daily.co (@daily-co/react-native-daily-js, @daily-co/react-native-webrtc, @daily-co/config-plugin-rn-daily-js).
+- **Payment Gateway**: Xendit Payout API.
+- **Media CDN**: Cloudinary.
