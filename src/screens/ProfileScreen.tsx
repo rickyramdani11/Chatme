@@ -640,7 +640,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         bounces={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
         {/* Background Image Area with Gradient Overlay */}
         <View style={styles.backgroundImageContainer}>
@@ -736,7 +736,9 @@ export default function ProfileScreen({ navigation, route }: any) {
           <View style={styles.userInfo}>
             <View style={styles.nameContainer}>
               <View style={styles.usernameRow}>
-                <Text style={styles.username}>{profile.username}</Text>
+                <Text style={styles.username}>
+                  {profile.username} <Text style={styles.levelBadge}>[Lv {profile.level || 1}]</Text>
+                </Text>
                 {profile.gender && (() => {
                   const genderLower = profile.gender.toLowerCase();
                   const isMale = genderLower === 'male' || genderLower === 'pria' || genderLower === 'laki-laki';
@@ -1242,6 +1244,11 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: 'bold',
   },
+  levelBadge: {
+    color: '#9333ea',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   genderIcon: {
     width: 24,
     height: 24,
@@ -1378,7 +1385,6 @@ const styles = StyleSheet.create({
   },
   albumSection: {
     marginBottom: 30,
-    paddingBottom: 100,
   },
   sectionTitle: {
     fontSize: 20,
