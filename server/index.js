@@ -20,7 +20,7 @@ const roomsRouter = require('./routes/rooms');
 const withdrawRouter = require('./routes/withdraw');
 const fetch = require('node-fetch'); // Import node-fetch
 const { createProxyMiddleware } = require('http-proxy-middleware'); // For Socket.IO proxy
-const { maskEmail, maskToken, maskSensitiveData } = require('./utils/maskSensitiveData');
+const { maskEmail, maskPhone, maskToken, maskSensitiveData } = require('./utils/maskSensitiveData');
 
 // Import LowCard bot using CommonJS require
 let lowCardBot = null;
@@ -2009,7 +2009,13 @@ app.get('/api/headwear/images/:imageName', (req, res) => {
 // Auth routes
 // Registration endpoint
 app.post('/api/auth/register', async (req, res) => {
-  console.log('Registration request received:', req.body);
+  console.log('Registration request received:', { 
+    username: req.body.username, 
+    email: maskEmail(req.body.email),
+    phone: maskPhone(req.body.phone),
+    country: req.body.country,
+    gender: req.body.gender
+  });
 
   try {
     const { username, password, email, phone, country, gender } = req.body;

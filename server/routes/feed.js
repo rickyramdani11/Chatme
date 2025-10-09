@@ -175,8 +175,8 @@ router.get('/posts', async (req, res) => {
 router.post('/posts', async (req, res) => {
   try {
     console.log('=== CREATE POST REQUEST ===');
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
+    console.log('User:', req.body.username || req.body.user);
+    console.log('Content length:', req.body.content?.length || 0);
 
     const { content, user, username, level = 1, avatar = 'U', streamingUrl = '' } = req.body;
 

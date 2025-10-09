@@ -157,7 +157,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       const data = await response.json();
-      console.log('Login response data:', data);
+      console.log('Login response data:', maskSensitiveData(data));
 
       if (!response.ok) {
         // Check if email not verified error
@@ -275,7 +275,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       let data;
       try {
         data = await response.json();
-        console.log('Parsed JSON data:', data);
+        console.log('Parsed JSON data:', maskSensitiveData(data));
       } catch (parseError) {
         console.error('Failed to parse JSON response:', parseError);
         throw new Error(`Server returned invalid JSON. Status: ${response.status}`);
@@ -364,7 +364,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (response.ok) {
         const latestUserData = await response.json();
-        console.log('Manual refresh - server user data:', latestUserData);
+        console.log('Manual refresh - server user data:', maskSensitiveData(latestUserData));
 
         // Fetch user balance
         let userBalance = 0;
