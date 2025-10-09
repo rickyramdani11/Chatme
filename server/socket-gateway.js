@@ -87,10 +87,15 @@ async function createDailyRoom(roomName) {
   }
 }
 
-// Database configuration
+// Database configuration with optimized pooling
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  max: 20,
+  min: 2,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+  allowExitOnIdle: false
 });
 
 // Test database connection
