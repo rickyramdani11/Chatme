@@ -11,7 +11,7 @@
       "android"
     ],
     "userInterfaceStyle": "light",
-    "jsEngine": "jsc",
+    "jsEngine": "hermes",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
@@ -29,7 +29,7 @@
         "background-processing",
         "background-fetch"
       ],
-      "bundleIdentifier": "com.chatme1.app",
+      "bundleIdentifier": "com.chatme.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app needs access to your camera for video calls",
@@ -49,7 +49,8 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.chatme1.app"
+      "package": "com.chatme.app",
+      "allowBackup": false
     },
     "plugins": [
       "expo-router",

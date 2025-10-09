@@ -48,6 +48,7 @@ Preferred communication style: Simple, everyday language.
 - **File Upload Security**: Base64 validation, size limits, MIME type filtering, filename sanitization, path traversal protection.
 - **Rate Limiting**: Applied to sensitive operations.
 - **PIN Security**: Mandatory PIN for credit transfers.
+- **Code Protection**: Hermes engine for JavaScript bytecode compilation, ProGuard/R8 for Android native code obfuscation, auto-backup disabled to prevent sensitive data leakage to cloud storage.
 
 ## UI/UX Decisions
 - **Level Badges**: Dynamic gradient level badges (green to blue), with icon badges in chat rooms and text badges elsewhere.
