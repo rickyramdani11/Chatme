@@ -39,7 +39,7 @@ interface SupportTicket {
 }
 
 export default function HelpSupportScreen({ navigation }: any) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('faq');
   const [faqCategories, setFaqCategories] = useState<FAQCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function HelpSupportScreen({ navigation }: any) {
     try {
       const response = await fetch(`${API_BASE_URL}/support/tickets`, {
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       if (response.ok) {
@@ -126,7 +126,7 @@ export default function HelpSupportScreen({ navigation }: any) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           subject: ticketForm.subject,
@@ -159,7 +159,7 @@ export default function HelpSupportScreen({ navigation }: any) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
 
