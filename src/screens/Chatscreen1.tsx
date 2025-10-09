@@ -11,6 +11,7 @@ import {
   Modal,
   ScrollView,
   Animated,
+  Easing, // For smooth animation curves
   Dimensions,
   ActivityIndicator,
   Keyboard,
@@ -1263,13 +1264,13 @@ export default function ChatScreen() {
               Animated.timing(giftScaleAnim, {
                 toValue: 1.1, // Slight zoom out effect
                 duration: 600, // Slightly longer for smoother effect
-                easing: Animated.Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
+                easing: Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
                 useNativeDriver: true,
               }),
               Animated.timing(giftOpacityAnim, {
                 toValue: 0,
                 duration: 600, // Smooth fade
-                easing: Animated.Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
+                easing: Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
                 useNativeDriver: true,
               }),
             ]).start(() => {
@@ -1364,13 +1365,13 @@ export default function ChatScreen() {
               Animated.timing(giftScaleAnim, {
                 toValue: 1.1,
                 duration: 600, // Slightly longer for smoother effect
-                easing: Animated.Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
+                easing: Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
                 useNativeDriver: true,
               }),
               Animated.timing(giftOpacityAnim, {
                 toValue: 0,
                 duration: 600, // Smooth fade
-                easing: Animated.Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
+                easing: Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
                 useNativeDriver: true,
               }),
             ]).start(() => {
