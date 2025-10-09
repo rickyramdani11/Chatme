@@ -4484,16 +4484,18 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     console.log('User ID:', userId);
 
-    // Fetch friends from friendships table
+    // Fetch friends from friendships table with real-time status
     const friendsQuery = await pool.query(`
       SELECT u.id, u.username as name, u.avatar, 
-             CASE WHEN u.last_login > NOW() - INTERVAL '5 minutes' THEN 'online' ELSE 'offline' END as status,
+             COALESCE(u.status, 'offline') as status,
              CASE 
-               WHEN u.last_login > NOW() - INTERVAL '5 minutes' THEN 'Active now'
+               WHEN u.status = 'online' THEN 'Active now'
+               WHEN u.status = 'away' THEN 'Away'
+               WHEN u.status = 'busy' THEN 'Busy'
                WHEN u.last_login IS NULL THEN 'Recently'
                ELSE
                  CASE 
-                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60) < 1 THEN 'Active now'
+                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60) < 1 THEN 'Just now'
                    WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60) < 60 THEN 
                      FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60)::text || ' min ago'
                    WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/3600) < 24 THEN 
@@ -4505,7 +4507,14 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
       FROM users u
       JOIN friendships f ON (f.friend_id = u.id)
       WHERE f.user_id = $1 AND f.status = 'accepted'
-      ORDER BY u.last_login DESC NULLS LAST
+      ORDER BY 
+        CASE u.status 
+          WHEN 'online' THEN 1 
+          WHEN 'away' THEN 2 
+          WHEN 'busy' THEN 3 
+          ELSE 4 
+        END,
+        u.last_login DESC NULLS LAST
     `, [userId]);
 
     const friendsData = friendsQuery.rows.map(friend => ({
@@ -7260,21 +7269,45 @@ app.get('/api/friends', authenticateToken, async (req, res) => {
     console.log('Headers:', req.headers);
     console.log('User ID:', req.user.id);
 
-    // Get friends from database
+    // Get friends from database with real-time status
     const result = await pool.query(`
-      SELECT u.id, u.username, u.avatar, u.verified, u.role, u.exp, u.level
+      SELECT u.id, u.username, u.avatar, u.verified, u.role, u.exp, u.level,
+             COALESCE(u.status, 'offline') as status,
+             CASE 
+               WHEN u.status = 'online' THEN 'Active now'
+               WHEN u.status = 'away' THEN 'Away'
+               WHEN u.status = 'busy' THEN 'Busy'
+               WHEN u.last_login IS NULL THEN 'Recently'
+               ELSE
+                 CASE 
+                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60) < 1 THEN 'Just now'
+                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60) < 60 THEN 
+                     FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/60)::text || ' min ago'
+                   WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/3600) < 24 THEN 
+                     FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/3600)::text || ' hours ago'
+                   ELSE 
+                     FLOOR(EXTRACT(EPOCH FROM (NOW() - u.last_login))/86400)::text || ' days ago'
+                 END
+             END as lastSeen
       FROM users u
       JOIN user_follows uf ON u.id = uf.following_id
       WHERE uf.follower_id = $1
-      ORDER BY u.username
+      ORDER BY 
+        CASE u.status 
+          WHEN 'online' THEN 1 
+          WHEN 'away' THEN 2 
+          WHEN 'busy' THEN 3 
+          ELSE 4 
+        END,
+        u.username
     `, [req.user.id]);
 
     const friends = result.rows.map(user => ({
       id: user.id.toString(),
       name: user.username,
       username: user.username,
-      status: 'online', // TODO: implement real status
-      lastSeen: 'Active now', // TODO: implement real last seen
+      status: user.status,
+      lastSeen: user.lastseen,
       avatar: user.avatar || user.username.charAt(0).toUpperCase(),
       level: user.level || 1,
       verified: user.verified,
