@@ -2839,11 +2839,12 @@ export default function ChatScreen() {
       }
 
       // Handle special commands (only for non-support chats)
-      // BUT: Admin/bot commands (/add, /bot, /sicbo off, etc) should be sent to server
+      // BUT: Admin/bot commands (/add, /bot, /sicbo off, /broadcast, etc) should be sent to server
       const isAdminCommand = messageContent.startsWith('/add') || 
                              messageContent.startsWith('/bot') || 
                              messageContent.startsWith('/sicbo') ||
-                             messageContent.startsWith('/lowcard');
+                             messageContent.startsWith('/lowcard') ||
+                             messageContent.startsWith('/broadcast');
       
       if (messageContent.startsWith('/') && !currentTab?.isSupport && !isAdminCommand) {
         handleSpecialCommand(messageContent, currentRoomId);
