@@ -29,6 +29,7 @@ import ReanimatedAnimated, {
   withSpring,
   runOnJS 
 } from 'react-native-reanimated';
+import LottieView from 'lottie-react-native'; // For transparent gift animations
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -5549,16 +5550,63 @@ export default function ChatScreen() {
             ]}
             pointerEvents="box-none"
           >
+            {/* Lottie Animation Support - Perfect Transparency */}
+            {(() => {
+              const animationData = activeGiftAnimation.animation || activeGiftAnimation.videoSource;
+              const animStr = animationData?.uri || activeGiftAnimation.videoUrl || (typeof animationData === 'string' ? animationData : '');
+              const isLottie = activeGiftAnimation.mediaType === 'lottie' || (
+                animStr && 
+                (animStr.toLowerCase().includes('.json') || animStr.toLowerCase().includes('lottie'))
+              );
+              
+              if (isLottie && animationData) {
+                const lottieSource = typeof animationData === 'string' ? { uri: animationData } : animationData;
+                return (
+                  <LottieView
+                    source={lottieSource}
+                    autoPlay
+                    loop={false}
+                    style={styles.fullScreenLottie}
+                    onAnimationFinish={() => {
+                      setTimeout(() => {
+                        Animated.parallel([
+                          Animated.timing(giftScaleAnim, {
+                            toValue: 1.1,
+                            duration: 600,
+                            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+                            useNativeDriver: true,
+                          }),
+                          Animated.timing(giftOpacityAnim, {
+                            toValue: 0,
+                            duration: 600,
+                            easing: Easing.bezier(0.33, 0, 0.67, 1),
+                            useNativeDriver: true,
+                          }),
+                        ]).start(() => {
+                          setActiveGiftAnimation(null);
+                        });
+                      }, 500);
+                    }}
+                  />
+                );
+              }
+              return null;
+            })()}
+
             {/* Full Screen Video Effect */}
             {(() => {
               const animationData = activeGiftAnimation.animation || activeGiftAnimation.videoSource;
               const animStr = animationData?.uri || activeGiftAnimation.videoUrl || (typeof animationData === 'string' ? animationData : '');
-              const isVideo = activeGiftAnimation.mediaType === 'video' || (
+              const isLottie = activeGiftAnimation.mediaType === 'lottie' || (
+                animStr && 
+                (animStr.toLowerCase().includes('.json') || animStr.toLowerCase().includes('lottie'))
+              );
+              const isVideo = !isLottie && (activeGiftAnimation.mediaType === 'video' || (
                 animStr && 
                 (animStr.toLowerCase().includes('.mp4') || 
                  animStr.toLowerCase().includes('.webm') || 
                  animStr.toLowerCase().includes('.mov'))
-              );
+              ));
               
               if (isVideo && animationData) {
                 const videoSource = typeof animationData === 'string' ? { uri: animationData } : animationData;
@@ -5609,10 +5657,14 @@ export default function ChatScreen() {
               </View>
             )}
 
-            {/* Fullscreen GIF layer for non-video animations */}
+            {/* Fullscreen GIF layer for non-video, non-lottie animations */}
             {(() => {
               const animationData = activeGiftAnimation.animation;
               const animStr = animationData?.uri || activeGiftAnimation.videoUrl || (typeof animationData === 'string' ? animationData : '');
+              const isLottie = activeGiftAnimation.mediaType === 'lottie' || (
+                animStr && 
+                (animStr.toLowerCase().includes('.json') || animStr.toLowerCase().includes('lottie'))
+              );
               const isVideo = activeGiftAnimation.mediaType === 'video' || (
                 animStr && 
                 (animStr.toLowerCase().includes('.mp4') || 
@@ -5620,7 +5672,7 @@ export default function ChatScreen() {
                  animStr.toLowerCase().includes('.mov'))
               );
               
-              if (animationData && !isVideo) {
+              if (animationData && !isVideo && !isLottie) {
                 const gifSource = typeof animationData === 'string' ? { uri: animationData } : animationData;
                 return (
                   <Image 
@@ -7148,6 +7200,14 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: 'transparent',
     opacity: 0.6, // More transparent for smoother look
+  },
+  fullScreenLottie: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent', // Perfect transparency support
   },
   smallGiftContainer: {
     position: 'absolute',
