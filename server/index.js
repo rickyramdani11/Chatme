@@ -597,7 +597,11 @@ app.use('/api', (req, res, next) => {
 // Also add request logging for chat routes
 app.use('/chat', (req, res, next) => {
   console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-  console.log('Headers:', req.headers);
+  console.log('Headers:', {
+    authorization: req.headers.authorization ? 'Present (masked)' : 'Missing',
+    'content-type': req.headers['content-type'],
+    'user-agent': req.headers['user-agent'] ? 'Present' : 'Missing'
+  });
   console.log('Body:', req.body);
   next();
 });
@@ -4280,7 +4284,11 @@ app.get('/api/gateway-config', (req, res) => {
 // Create room endpoint
 app.post('/api/rooms', async (req, res) => {
   console.log('POST /api/rooms -', new Date().toISOString());
-  console.log('Headers:', req.headers);
+  console.log('Headers:', {
+    authorization: req.headers.authorization ? 'Present (masked)' : 'Missing',
+    'content-type': req.headers['content-type'],
+    'user-agent': req.headers['user-agent'] ? 'Present' : 'Missing'
+  });
   console.log('Body:', req.body);
 
   const { name, description, type, maxMembers, createdBy } = req.body;
@@ -7266,7 +7274,11 @@ app.get('/api/user/exp-history', authenticateToken, async (req, res) => {
 app.get('/api/friends', authenticateToken, async (req, res) => {
   try {
     console.log('=== GET FRIENDS REQUEST (API) ===');
-    console.log('Headers:', req.headers);
+    console.log('Headers:', {
+      authorization: req.headers.authorization ? 'Present (masked)' : 'Missing',
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent'] ? 'Present' : 'Missing'
+    });
     console.log('User ID:', req.user.id);
 
     // Get friends from database with real-time status

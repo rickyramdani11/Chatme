@@ -57,7 +57,11 @@ const generateRoomDescription = (roomName, creatorUsername) => {
 router.get('/', async (req, res) => {
   try {
     console.log('GET /api/rooms -', new Date().toISOString());
-    console.log('Headers:', req.headers);
+    console.log('Headers:', {
+      authorization: req.headers.authorization ? 'Present (masked)' : 'Missing',
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent'] ? 'Present' : 'Missing'
+    });
     
     // Query database for real-time room data (not in-memory cache)
     const result = await pool.query(`
@@ -89,7 +93,11 @@ router.get('/', async (req, res) => {
 // Create room endpoint
 router.post('/', async (req, res) => {
   console.log('POST /api/rooms -', new Date().toISOString());
-  console.log('Headers:', req.headers);
+  console.log('Headers:', {
+    authorization: req.headers.authorization ? 'Present (masked)' : 'Missing',
+    'content-type': req.headers['content-type'],
+    'user-agent': req.headers['user-agent'] ? 'Present' : 'Missing'
+  });
   console.log('Body:', req.body);
 
   const { name, description, type, maxMembers, createdBy } = req.body;
