@@ -1650,6 +1650,112 @@ io.on('connection', (socket) => {
         return; // Don't process as regular message
       }
 
+      // Handle /broadcast command (admin only)
+      if (trimmedContent.startsWith('/broadcast ')) {
+        console.log(`📢 Processing broadcast command from ${sender}`);
+        
+        try {
+          // Get user info from connected users
+          const userInfo = connectedUsers.get(socket.id);
+          if (!userInfo || !userInfo.userId) {
+            socket.emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ User information not found',
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          // Verify admin status from database (authoritative source)
+          const userResult = await pool.query('SELECT role, username FROM users WHERE id = $1', [userInfo.userId]);
+          
+          if (userResult.rows.length === 0) {
+            socket.emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ User not found in database',
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          const userRole = userResult.rows[0].role;
+          const actualUsername = userResult.rows[0].username;
+
+          // Check if user is admin
+          if (userRole !== 'admin') {
+            socket.emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ Only admins can use /broadcast command',
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            console.log(`🚫 Broadcast rejected: ${actualUsername} is not admin (role: ${userRole})`);
+            return;
+          }
+
+          // Extract message content after /broadcast
+          const broadcastContent = content.substring('/broadcast '.length).trim();
+          
+          if (!broadcastContent) {
+            socket.emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ Broadcast message cannot be empty',
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          // Create broadcast message with actual sender info
+          const broadcastMessage = {
+            id: `broadcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: actualUsername,
+            content: broadcastContent,
+            timestamp: new Date().toISOString(),
+            roomId,
+            type: 'broadcast',
+            role: 'admin'
+          };
+
+          // Broadcast to all users in the room
+          io.to(roomId).emit('new-message', broadcastMessage);
+          console.log(`📢 Broadcast message sent to room ${roomId} by ${actualUsername}: ${broadcastContent}`);
+          
+        } catch (error) {
+          console.error('❌ Error processing /broadcast command:', error);
+          socket.emit('new-message', {
+            id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'System',
+            content: `❌ Failed to broadcast message. Error: ${error.message || 'Unknown error'}`,
+            timestamp: new Date().toISOString(),
+            roomId: roomId,
+            type: 'system',
+            role: 'system',
+            isPrivate: true
+          });
+        }
+        
+        return; // Don't process as regular message
+      }
+
       // Handle bot commands
       if (trimmedContent.startsWith('/bot lowcard add') || 
           trimmedContent.startsWith('/bot sicbo') ||

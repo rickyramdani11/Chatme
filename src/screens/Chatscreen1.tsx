@@ -3788,6 +3788,23 @@ export default function ChatScreen() {
       );
     }
 
+    // Handle broadcast messages (admin announcements)
+    if (item.type === 'broadcast') {
+      return (
+        <TouchableOpacity 
+          style={styles.broadcastMessageContainer}
+          onLongPress={() => handleMessageLongPress(item)}
+        >
+          <View style={styles.broadcastMessageRow}>
+            <Ionicons name="megaphone" size={18} color="#22c55e" style={{ marginRight: 8 }} />
+            <View style={{ flex: 1 }}>
+              {renderMessageContent(item.content, styles.broadcastMessageText)}
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
     // Handle system messages (from System sender) - INCLUDING roll messages
     if (item.sender === 'System' || item.role === 'system') {
       console.log('Rendering system message:', item.content);
@@ -6648,6 +6665,27 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
     marginRight: 8,
+  },
+  broadcastMessageContainer: {
+    marginVertical: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#22c55e',
+  },
+  broadcastMessageRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
+  broadcastMessageText: {
+    fontSize: 14,
+    color: '#166534',
+    fontWeight: '600',
+    lineHeight: 20,
   },
   unreadBadge: {
     position: 'absolute',
