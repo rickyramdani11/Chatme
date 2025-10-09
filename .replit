@@ -79,27 +79,11 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Gateway"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "API Server"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Mobile Tunnel"
 
-[[workflows.workflow]]
-name = "Gateway"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node server/socket-gateway.js"
-waitForPort = 8000
+task = "workflow.run"
+args = "ChatMe Servers (PM2)"
 
 [[workflows.workflow]]
 name = "Admin Panel"
@@ -128,18 +112,6 @@ task = "shell.exec"
 args = "npx expo start --tunnel --no-web"
 
 [[workflows.workflow]]
-name = "API Server"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node server/index.js"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow]]
 name = "Mobile Tunnel"
 author = "agent"
 
@@ -149,6 +121,18 @@ args = "npx expo start --tunnel --clear --port 8082"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "ChatMe Servers (PM2)"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx pm2 start pm2.config.js --no-daemon"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [[ports]]
 localPort = 3000
@@ -161,10 +145,6 @@ externalPort = 3001
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 8000
-externalPort = 8000
 
 [[ports]]
 localPort = 8001
