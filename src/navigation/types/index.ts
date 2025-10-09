@@ -23,6 +23,7 @@ export type RootStackParamList = {
   ChangePassword: undefined;
   ChangePin: undefined;
   HelpSupport: undefined;
+  LiveChat: { sessionId: string; adminUsername: string };
   Credit: undefined;
   TransactionHistory: undefined;
   TopRank: undefined;

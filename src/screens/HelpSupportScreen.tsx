@@ -165,12 +165,10 @@ export default function HelpSupportScreen({ navigation }: any) {
 
       if (response.ok) {
         const result = await response.json();
-        Alert.alert('Live Chat', result.message);
-        // Navigate to chat with support room
-        navigation.navigate('Chat', { 
-          roomId: result.supportRoomId,
-          roomName: `Support - ${result.adminUsername}`,
-          isSupport: true 
+        // Navigate to LiveChatScreen with session data
+        navigation.navigate('LiveChat', { 
+          sessionId: result.session.id,
+          adminUsername: result.adminUsername
         });
       } else {
         const error = await response.json();

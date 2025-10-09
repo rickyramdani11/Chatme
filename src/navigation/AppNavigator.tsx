@@ -20,6 +20,7 @@ import PrivacySecurityScreen from '../screens/PrivacySecurityScreen'; // Import 
 import ChangePasswordScreen from '../screens/ChangePasswordScreen'; // Import ChangePasswordScreen
 import ChangePinScreen from '../screens/ChangePinScreen'; // Import ChangePinScreen
 import HelpSupportScreen from '../screens/HelpSupportScreen';
+import LiveChatScreen from '../screens/LiveChatScreen';
 
 // Import the new CreditScreen
 import CreditScreen from '../screens/CreditScreen';
@@ -154,6 +155,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="HelpSupport"
             component={HelpSupportScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="LiveChat"
+            component={LiveChatScreen}
             options={{ headerShown: false }}
           />
           {/* Add Credit screen to Stack Navigator */}
