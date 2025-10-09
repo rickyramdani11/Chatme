@@ -3951,7 +3951,7 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle gift messages
+    // Handle gift messages - ONLY show gift image, no text
     if (item.type === 'gift') {
       const gift = item.giftData;
       
@@ -3960,48 +3960,24 @@ export default function ChatScreen() {
           style={styles.giftMessageContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
-          <View style={styles.giftMessageBubble}>
-            <View style={styles.messageRow}>
-              <Text style={styles.giftMessageInline}>
-                {/* Username */}
-                <Text style={[
-                  styles.senderName,
-                  { color: getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
-                ]}>
-                  {item.sender}{' '}
-                </Text>
-                
-                {/* Level badge - small circle */}
-                <View style={[styles.giftLevelCircle, { backgroundColor: getLevelBadgeColor(item.level || 1) }]}>
-                  <Text style={styles.giftLevelText}>{item.level || 1}</Text>
-                </View>
-                
-                {/* Colon and content */}
-                <Text>
-                  {' '}: {renderMessageContent(item.content)}
-                </Text>
-              </Text>
+          {/* Gift Image Only - No bubble, no text */}
+          {gift && (gift.image || gift.animation) && (
+            <View style={styles.giftImagePreviewContainer}>
+              {gift.image ? (
+                <Image 
+                  source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
+                  style={styles.giftImagePreview} 
+                  resizeMode="contain"
+                />
+              ) : gift.animation && (
+                <Image 
+                  source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
+                  style={styles.giftImagePreview} 
+                  resizeMode="contain"
+                />
+              )}
             </View>
-            
-            {/* Gift Image Preview */}
-            {gift && (gift.image || gift.animation) && (
-              <View style={styles.giftImagePreviewContainer}>
-                {gift.image ? (
-                  <Image 
-                    source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
-                    style={styles.giftImagePreview} 
-                    resizeMode="contain"
-                  />
-                ) : gift.animation && (
-                  <Image 
-                    source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
-                    style={styles.giftImagePreview} 
-                    resizeMode="contain"
-                  />
-                )}
-              </View>
-            )}
-          </View>
+          )}
         </TouchableOpacity>
       );
     }
