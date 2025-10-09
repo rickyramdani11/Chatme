@@ -635,7 +635,13 @@ export default function ProfileScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </Animated.View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        bounces={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
         {/* Background Image Area with Gradient Overlay */}
         <View style={styles.backgroundImageContainer}>
           <Image 
@@ -785,13 +791,12 @@ export default function ProfileScreen({ navigation, route }: any) {
                 onPress={() => navigation.navigate('FamilyDetailScreen', { familyId: familyBadge.familyId })}
               >
                 <LinearGradient
-                  colors={[getFamilyLevelColor(familyBadge.familyLevel), 
-                          `${getFamilyLevelColor(familyBadge.familyLevel)}CC`]}
+                  colors={['#9333ea', '#dc2626']}
                   style={styles.familyBadge}
                 >
                   <View style={styles.familyBadgeIcon}>
                     <View style={styles.familyIconCircle}>
-                      <Ionicons name="diamond" size={16} color="#4A90E2" />
+                      <Ionicons name="diamond" size={14} color="#9333ea" />
                     </View>
                   </View>
                   <Text style={styles.familyBadgeName} numberOfLines={1}>
@@ -821,14 +826,14 @@ export default function ProfileScreen({ navigation, route }: any) {
             <View style={styles.actionButtons}>
               <TouchableOpacity onPress={handleFollow} style={styles.followButtonContainer}>
                 <LinearGradient
-                  colors={isFollowing ? ['#4CAF50', '#45A049'] : ['#667eea', '#764ba2']}
+                  colors={isFollowing ? ['#9333ea', '#dc2626'] : ['#9333ea', '#dc2626']}
                   style={styles.followButton}
                 >
                   <Ionicons 
                     name={isFollowing ? "checkmark-circle" : "person-add"} 
-                    size={18} 
+                    size={16} 
                     color="#fff" 
-                    style={{ marginRight: 8 }}
+                    style={{ marginRight: 6 }}
                   />
                   <Text style={styles.followButtonText}>
                     {isFollowing ? 'Mengikuti' : 'Ikuti'}
@@ -838,10 +843,10 @@ export default function ProfileScreen({ navigation, route }: any) {
 
               <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
                 <LinearGradient
-                  colors={['#FF6B35', '#FF8E53']}
+                  colors={['#9333ea', '#dc2626']}
                   style={styles.messageButtonGradient}
                 >
-                  <Ionicons name="chatbubble" size={18} color="#fff" />
+                  <Ionicons name="chatbubble" size={16} color="#fff" />
                   <Text style={styles.messageButtonText}>Pesan</Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -1275,31 +1280,31 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   familyBadgeContainer: {
-    marginTop: 15,
+    marginTop: 12,
     alignSelf: 'center',
-    borderRadius: 30,
+    borderRadius: 20,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
   },
   familyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    minWidth: 140,
-    maxWidth: 220,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    minWidth: 120,
+    maxWidth: 180,
   },
   familyBadgeIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   familyIconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1311,7 +1316,7 @@ const styles = StyleSheet.create({
   },
   familyBadgeName: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
@@ -1322,57 +1327,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 35,
-    gap: 15,
+    marginBottom: 25,
+    gap: 10,
     paddingHorizontal: 20,
   },
   followButtonContainer: {
     flex: 1,
-    borderRadius: 25,
+    borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#667eea',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: '#9333ea',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
   },
   followButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 25,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
   },
   followButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   messageButton: {
     flex: 1,
-    borderRadius: 25,
+    borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#FF6B35',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
   },
   messageButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 25,
-    paddingVertical: 14,
-    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    gap: 6,
   },
   messageButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   albumSection: {
     marginBottom: 30,
+    paddingBottom: 100,
   },
   sectionTitle: {
     fontSize: 20,
