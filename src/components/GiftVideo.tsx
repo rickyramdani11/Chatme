@@ -1,7 +1,8 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, StyleSheet, Dimensions, Image, Animated } from "react-native";
 import { Video } from "expo-av";
+import LottieView from 'lottie-react-native';
 
 const { height, width } = Dimensions.get("window");
 
@@ -9,7 +10,7 @@ interface GiftVideoProps {
   visible: boolean;
   source: any;
   onEnd?: () => void;
-  type?: 'video' | 'image' | 'png' | 'gif';
+  type?: 'video' | 'image' | 'png' | 'gif' | 'json' | 'lottie';
   giftData?: any;
   fullScreen?: boolean;
 }
@@ -18,10 +19,23 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
   const [show, setShow] = useState(visible);
   const scaleAnim = useState(new Animated.Value(0.5))[0];
   const opacityAnim = useState(new Animated.Value(0))[0];
+  const lottieRef = useRef<LottieView>(null);
 
   useEffect(() => {
     if (visible) {
       setShow(true);
+      
+      // Handle Lottie JSON animation
+      if (type === 'json' || type === 'lottie') {
+        // Lottie will autoplay by default
+        // Auto close after animation duration (4 seconds default)
+        const timer = setTimeout(() => {
+          setShow(false);
+          onEnd && onEnd();
+        }, 4000);
+        return () => clearTimeout(timer);
+      }
+      
       // Start PNG/GIF gift animation
       if (type === 'png' || type === 'image' || type === 'gif') {
         Animated.parallel([
@@ -64,6 +78,30 @@ export default function GiftVideo({ visible, source, onEnd, type = 'video', gift
   }, [visible, type, scaleAnim, opacityAnim, onEnd]);
 
   if (!show) return null;
+
+  // Render Lottie JSON animation
+  if (type === 'json' || type === 'lottie') {
+    return (
+      <View style={[fullScreen ? styles.fullScreenContainer : styles.container]} pointerEvents="none">
+        <LottieView
+          ref={lottieRef}
+          source={source}
+          autoPlay
+          loop={false}
+          style={[
+            fullScreen ? styles.fullScreenLottie : styles.lottieMedium,
+            giftData?.price >= 5000 ? styles.lottieLarge :
+            giftData?.price >= 1000 ? styles.lottieMedium :
+            styles.lottieStandard
+          ]}
+          onAnimationFinish={() => {
+            setShow(false);
+            onEnd && onEnd();
+          }}
+        />
+      </View>
+    );
+  }
 
   // Render PNG/GIF gift
   if (type === 'png' || type === 'image' || type === 'gif') {
@@ -179,6 +217,23 @@ const styles = StyleSheet.create({
     height: height * 0.6,
     maxWidth: 400,
     maxHeight: 400,
+  },
+  // Lottie animation styles
+  lottieStandard: {
+    width: 250,
+    height: 250,
+  },
+  lottieMedium: {
+    width: 320,
+    height: 320,
+  },
+  lottieLarge: {
+    width: 400,
+    height: 400,
+  },
+  fullScreenLottie: {
+    width: width * 0.85,
+    height: height * 0.65,
   },
   pngGift: {
     shadowColor: '#000',

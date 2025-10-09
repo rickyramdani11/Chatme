@@ -200,8 +200,37 @@ export default function PrivateChatScreen() {
           isPrivate: true
         };
 
+        // Check if this is a Lottie JSON animation
+        const checkIsLottieJSON = (source: any): boolean => {
+          if (!source) return false;
+          const uri = source.uri || source;
+          if (typeof uri === 'string') {
+            return uri.toLowerCase().endsWith('.json');
+          }
+          return false;
+        };
+
+        // Handle Lottie JSON animations
+        const lottieSource = gift.animation || gift.videoSource || gift.image;
+        if (checkIsLottieJSON(lottieSource)) {
+          console.log('🎭 Processing Lottie JSON animation:', gift.name);
+          
+          let jsonSource = lottieSource;
+          if (typeof jsonSource === 'string') {
+            jsonSource = { uri: jsonSource };
+          }
+          
+          if (jsonSource) {
+            setCurrentGiftVideoSource(jsonSource);
+            setActiveGiftAnimation({
+              ...giftAnimationData,
+              type: 'json'
+            });
+            setShowGiftVideo(true);
+          }
+          
         // Handle video gifts
-        if (gift.type === 'animated_video' || gift.mediaType === 'video') {
+        } else if (gift.type === 'animated_video' || gift.mediaType === 'video') {
           console.log('🎬 Processing video gift:', gift.name);
           
           let videoSource = gift.videoSource || gift.animation;
@@ -1696,16 +1725,20 @@ export default function PrivateChatScreen() {
       {/* Gift Animation Overlay */}
       {activeGiftAnimation && (
         <View style={styles.giftAnimationOverlay} pointerEvents="box-none">
-          {/* Video/PNG Gift Component */}
-          {((activeGiftAnimation.type === 'png' || activeGiftAnimation.type === 'animated_video') && showGiftVideo && currentGiftVideoSource) ? (
+          {/* Video/PNG/Lottie Gift Component */}
+          {((activeGiftAnimation.type === 'png' || activeGiftAnimation.type === 'animated_video' || activeGiftAnimation.type === 'json' || activeGiftAnimation.type === 'lottie') && showGiftVideo && currentGiftVideoSource) ? (
             <GiftVideo
               visible={true}
               source={currentGiftVideoSource}
-              type={activeGiftAnimation.type === 'animated_video' ? 'video' : 'png'}
+              type={
+                activeGiftAnimation.type === 'animated_video' ? 'video' : 
+                (activeGiftAnimation.type === 'json' || activeGiftAnimation.type === 'lottie') ? 'json' : 
+                'png'
+              }
               giftData={activeGiftAnimation}
-              fullScreen={activeGiftAnimation.type === 'animated_video'}
+              fullScreen={activeGiftAnimation.type === 'animated_video' || activeGiftAnimation.type === 'json' || activeGiftAnimation.type === 'lottie'}
               onEnd={() => {
-                console.log('🎁 Video/PNG gift animation ended');
+                console.log('🎁 Gift animation ended');
                 setShowGiftVideo(false);
                 setCurrentGiftVideoSource(null);
                 setActiveGiftAnimation(null);
