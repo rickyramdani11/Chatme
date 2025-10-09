@@ -435,6 +435,7 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
 
     let imagePath = null;
     let animationPath = null;
+    let mediaType = null;
 
     if (giftImage && imageType && imageName) {
       try {
@@ -516,7 +517,7 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
 
         const cloudinaryUrl = uploadResult.secure_url;
         
-        let mediaType = 'image';
+        mediaType = 'image';
         if (['mp4', 'webm', 'mov'].includes(fileExtension)) {
           mediaType = 'video';
           animationPath = cloudinaryUrl;
