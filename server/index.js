@@ -566,6 +566,175 @@ pool.connect(async (err, client, release) => {
   }
 });
 
+// =====================================================
+// MERCHANT REVENUE TRACKING HELPER FUNCTIONS
+// =====================================================
+
+// Track revenue for merchant when receiving gifts
+async function trackMerchantRevenue(merchantId, amount, source, sourceUserId = null, description = '') {
+  try {
+    // Get current month-year format
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    // Check if user is a merchant
+    const merchantCheck = await pool.query(`
+      SELECT mp.* FROM merchant_promotions mp
+      JOIN users u ON mp.user_id = u.id
+      WHERE mp.user_id = $1 AND mp.status = 'active' AND u.role = 'merchant'
+    `, [merchantId]);
+    
+    if (merchantCheck.rows.length === 0) {
+      console.log(`User ${merchantId} is not an active merchant, skipping revenue tracking`);
+      return false;
+    }
+    
+    const promotion = merchantCheck.rows[0];
+    
+    // Insert revenue tracking record
+    await pool.query(`
+      INSERT INTO merchant_revenue_tracking 
+      (merchant_id, amount, source, source_user_id, description, month_year)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [merchantId, amount, source, sourceUserId, description, monthYear]);
+    
+    // Update monthly revenue in merchant_promotions
+    await pool.query(`
+      UPDATE merchant_promotions 
+      SET monthly_revenue = monthly_revenue + $1,
+          last_revenue_check = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [amount, promotion.id]);
+    
+    console.log(`✅ Tracked ${amount} coins revenue for merchant ${merchantId} from ${source}`);
+    return true;
+  } catch (error) {
+    console.error('Error tracking merchant revenue:', error);
+    return false;
+  }
+}
+
+// Check and reset monthly revenue if new month
+async function checkAndResetMonthlyRevenue() {
+  try {
+    const now = new Date();
+    const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    // Get all active merchants
+    const merchants = await pool.query(`
+      SELECT * FROM merchant_promotions 
+      WHERE status = 'active'
+    `);
+    
+    for (const merchant of merchants.rows) {
+      const resetDate = new Date(merchant.revenue_reset_date);
+      const resetMonthYear = `${resetDate.getFullYear()}-${String(resetDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      // If reset date is in previous month, reset revenue
+      if (resetMonthYear !== currentMonthYear) {
+        await pool.query(`
+          UPDATE merchant_promotions 
+          SET monthly_revenue = 0,
+              revenue_reset_date = CURRENT_TIMESTAMP,
+              warning_sent = false
+          WHERE id = $1
+        `, [merchant.id]);
+        
+        console.log(`✅ Reset monthly revenue for merchant ID ${merchant.user_id}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error resetting monthly revenue:', error);
+  }
+}
+
+// Check merchant status and auto-downgrade if revenue requirement not met
+async function checkMerchantStatusAndDowngrade() {
+  try {
+    console.log('🔍 Checking merchant revenue status...');
+    
+    // Get all active merchants
+    const merchants = await pool.query(`
+      SELECT mp.*, u.username 
+      FROM merchant_promotions mp
+      JOIN users u ON mp.user_id = u.id
+      WHERE mp.status = 'active' AND u.role = 'merchant'
+    `);
+    
+    for (const merchant of merchants.rows) {
+      const revenue = merchant.monthly_revenue || 0;
+      const requirement = merchant.revenue_requirement || 800000;
+      const resetDate = new Date(merchant.revenue_reset_date);
+      const now = new Date();
+      
+      // Check if one month has passed since reset
+      const monthsPassed = (now.getFullYear() - resetDate.getFullYear()) * 12 + 
+                          (now.getMonth() - resetDate.getMonth());
+      
+      if (monthsPassed >= 1) {
+        if (revenue < requirement) {
+          // Downgrade merchant
+          await pool.query('BEGIN');
+          
+          try {
+            // Update merchant promotion status
+            await pool.query(`
+              UPDATE merchant_promotions 
+              SET status = 'downgraded',
+                  downgrade_reason = $1
+              WHERE id = $2
+            `, [`Failed to meet revenue requirement: ${revenue}/${requirement} coins`, merchant.id]);
+            
+            // Downgrade user role to 'user'
+            await pool.query(`
+              UPDATE users 
+              SET role = 'user'
+              WHERE id = $1
+            `, [merchant.user_id]);
+            
+            await pool.query('COMMIT');
+            
+            console.log(`⚠️ DOWNGRADED merchant ${merchant.username} (ID: ${merchant.user_id}) - Revenue: ${revenue}/${requirement}`);
+            
+            // TODO: Send notification to merchant
+            
+          } catch (error) {
+            await pool.query('ROLLBACK');
+            throw error;
+          }
+        } else {
+          // Merchant met requirement, reset for next month
+          await pool.query(`
+            UPDATE merchant_promotions 
+            SET monthly_revenue = 0,
+                revenue_reset_date = CURRENT_TIMESTAMP,
+                warning_sent = false
+            WHERE id = $1
+          `, [merchant.id]);
+          
+          console.log(`✅ Merchant ${merchant.username} met requirement: ${revenue}/${requirement} - Reset for next month`);
+        }
+      }
+    }
+    
+    console.log('✅ Merchant status check completed');
+  } catch (error) {
+    console.error('Error checking merchant status:', error);
+  }
+}
+
+// Run merchant status check every hour
+setInterval(checkMerchantStatusAndDowngrade, 60 * 60 * 1000); // Every hour
+
+// Run monthly revenue reset check every day
+setInterval(checkAndResetMonthlyRevenue, 24 * 60 * 60 * 1000); // Every 24 hours
+
+// Run checks on startup
+setTimeout(() => {
+  checkAndResetMonthlyRevenue();
+  checkMerchantStatusAndDowngrade();
+}, 10000); // 10 seconds after startup
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit for potential file data
@@ -3473,6 +3642,15 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
         INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
         VALUES ($1, $2, $3, 'gift_purchase')
       `, [userId, recipientId, giftPrice]);
+
+      // Track merchant revenue if recipient is a merchant
+      await trackMerchantRevenue(
+        recipientId, 
+        earnings, 
+        'gift_earning', 
+        userId, 
+        `Gift from ${senderUsername}: ${giftName}`
+      );
 
       await pool.query('COMMIT');
 
@@ -6812,6 +6990,15 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       `, [recipientUserId, recipientShare]);
 
+      // Track merchant revenue if recipient is a merchant
+      await trackMerchantRevenue(
+        recipientUserId, 
+        recipientShare, 
+        'gift_earning', 
+        senderId, 
+        `Gift from ${senderUsername}: ${giftName}`
+      );
+
       await client.query('COMMIT');
 
       // Get updated balances
@@ -7426,7 +7613,12 @@ app.get('/mentor/merchants', authenticateToken, async (req, res) => {
       promoted_by: row.promoted_by_username,
       promoted_at: row.promoted_at,
       expires_at: row.expires_at,
-      status: row.status
+      status: row.status,
+      monthly_revenue: row.monthly_revenue || 0,
+      revenue_requirement: row.revenue_requirement || 800000,
+      revenue_percentage: Math.min(100, Math.round(((row.monthly_revenue || 0) / (row.revenue_requirement || 800000)) * 100)),
+      is_at_risk: (row.monthly_revenue || 0) < (row.revenue_requirement || 800000),
+      warning_sent: row.warning_sent || false
     }));
 
     res.json({ merchants });
