@@ -3525,7 +3525,7 @@ export default function ChatScreen() {
       }
 
       // Create private chat via API
-      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -692,7 +692,7 @@ const HomeScreen = ({ navigation }: any) => {
     try {
       console.log('Creating private chat with user:', username, 'ID:', userId);
 
-      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

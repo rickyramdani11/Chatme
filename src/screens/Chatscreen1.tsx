@@ -659,7 +659,7 @@ export default function ChatScreen() {
         if (type !== 'private' && !isSupport) {
           try {
             const timestamp = Date.now();
-            const roomResponse = await fetch(`${API_BASE_URL}/api/rooms?_t=${timestamp}`, {
+            const roomResponse = await fetch(`${API_BASE_URL}/rooms?_t=${timestamp}`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -728,7 +728,7 @@ export default function ChatScreen() {
       if (type !== 'private' && !isSupport) { // Also exclude support chats from room message loading
         // Load messages for the specific room
         try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${roomId}`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/messages/${roomId}`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -742,7 +742,7 @@ export default function ChatScreen() {
       } else if (type === 'private') {
         // For private chats, try to load private chat messages
         try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/chat/private/${roomId}/messages`, {
+          const messagesResponse = await fetch(`${API_BASE_URL}/chat/private/${roomId}/messages`, {
             headers: {
               'Content-Type': 'application/json',
               'User-Agent': 'ChatMe-Mobile-App',
@@ -1809,8 +1809,8 @@ export default function ChatScreen() {
 
   const loadRooms = async () => {
     try {
-      console.log('Loading rooms from:', `${API_BASE_URL}/api/rooms`);
-      const response = await fetch(`${API_BASE_URL}/api/rooms`, {
+      console.log('Loading rooms from:', `${API_BASE_URL}/rooms`);
+      const response = await fetch(`${API_BASE_URL}/rooms`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1836,7 +1836,7 @@ export default function ChatScreen() {
 
         if (targetRoom) {
           try {
-            const messagesResponse = await fetch(`${API_BASE_URL}/api/messages/${targetRoom.id}`, {
+            const messagesResponse = await fetch(`${API_BASE_URL}/messages/${targetRoom.id}`, {
               headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'ChatMe-Mobile-App',
@@ -3151,7 +3151,7 @@ export default function ChatScreen() {
       }
 
       // Create private chat via API
-      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
