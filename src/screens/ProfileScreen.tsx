@@ -759,13 +759,6 @@ export default function ProfileScreen({ navigation, route }: any) {
               <Text style={styles.userRole}></Text>
             </View>
 
-            {/* Country Flag */}
-            {profile.country && (
-              <View style={styles.countryContainer}>
-                <Text style={styles.countryFlag}>🇮🇩</Text> 
-              </View>
-            )}
-
             {/* Follow Stats */}
             <View style={styles.followStatsContainer}>
               <TouchableOpacity style={styles.followStatItem}>
@@ -1188,10 +1181,10 @@ const styles = StyleSheet.create({
   },
   avatarFrameImage: {
     position: 'absolute',
-    top: -10,
-    left: -10,
-    width: 108,
-    height: 108,
+    top: -16,
+    left: -16,
+    width: 120,
+    height: 120,
     zIndex: 2,
   },
   simpleAvatar: {
@@ -1252,12 +1245,6 @@ const styles = StyleSheet.create({
     color: '#FF6B35',
     fontSize: 18,
     fontWeight: '600',
-  },
-  countryContainer: {
-    marginBottom: 20,
-  },
-  countryFlag: {
-    fontSize: 28,
   },
   followStatsContainer: {
     flexDirection: 'row',
