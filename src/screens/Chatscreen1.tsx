@@ -7569,20 +7569,20 @@ const styles = StyleSheet.create({
     color: '#2E7D32',
     fontWeight: '500',
   },
-  // Gift Text Notification Styles (no image, no bubble)
+  // Gift Text Notification Styles (purple capsule box)
   giftTextNotificationContainer: {
     alignItems: 'center',
     marginVertical: 4,
     paddingHorizontal: 16,
   },
   giftTextNotification: {
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
-    backgroundColor: 'rgba(128, 128, 128, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    fontSize: 14,
+    color: '#7c3aed', // Purple text
+    fontWeight: '500',
+    backgroundColor: 'rgba(147, 51, 234, 0.15)', // Semi-transparent purple
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16, // Capsule style
     overflow: 'hidden',
   },
 });
