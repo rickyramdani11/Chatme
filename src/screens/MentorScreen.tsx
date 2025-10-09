@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { BASE_URL } from '../utils/apiConfig';
 
 interface MerchantRecord {
   id: string;
@@ -49,8 +49,8 @@ export default function MentorScreen() {
         return;
       }
 
-      console.log('Fetching merchants from:', `${API_BASE_URL}/mentor/merchants`);
-      const response = await fetch(`${API_BASE_URL}/mentor/merchants`, {
+      console.log('Fetching merchants from:', `${BASE_URL}/mentor/merchants`);
+      const response = await fetch(`${BASE_URL}/mentor/merchants`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ export default function MentorScreen() {
       const requestBody = { username: username.trim() };
       console.log('Request body:', requestBody);
 
-      const response = await fetch(`${API_BASE_URL}/mentor/add-merchant`, {
+      const response = await fetch(`${BASE_URL}/mentor/add-merchant`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
