@@ -4418,119 +4418,65 @@ export default function ChatScreen() {
             return;
           }
 
-          // Calculate recipient and system shares
-          const isPrivateChat = chatTabs[activeTab]?.type === 'private';
-          const recipientPercentage = isPrivateChat ? 0.3 : 0.7;
-          const recipientShare = Math.floor(gift.price * recipientPercentage);
-          const systemShare = gift.price - recipientShare;
-          const remainingBalance = balanceData.currentBalance - gift.price;
-
-          // Show cost breakdown confirmation
-          const recipientText = recipientUsername ? `ke ${recipientUsername}` : 'ke room';
-          const shareText = isPrivateChat ? '30%' : '70%';
-          Alert.alert(
-            'Konfirmasi Gift',
-            `Kirim ${gift.name} ${recipientText}?\n\n` +
-            `Total: ${gift.price} coins\n` +
-            `${recipientUsername ? `${recipientUsername} mendapat: ${recipientShare} coins (${shareText})\n` : ''}` +
-            `System cut: ${systemShare} coins\n` +
-            `Sisa saldo: ${remainingBalance} coins`,
-            [
-              { 
-                text: 'Batal', 
-                style: 'cancel',
-                onPress: () => {
-                  isSendingGiftRef.current = false;
-                  setIsSendingGift(false);
-                }
+          // Send gift directly without confirmation popup
+          try {
+            // Process gift purchase through new endpoint
+            const purchaseResponse = await fetch(`${API_BASE_URL}/gift/purchase`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
               },
-              {
-                text: 'Kirim',
-                onPress: async () => {
-                  try {
-                    // Process gift purchase through new endpoint
-                    const purchaseResponse = await fetch(`${API_BASE_URL}/gift/purchase`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        giftId: gift.id,
-                        giftPrice: gift.price,
-                        recipientUsername: recipientUsername,
-                        roomId: chatTabs[activeTab]?.id,
-                        isPrivate: chatTabs[activeTab]?.type === 'private' || false
-                      }),
-                    });
+              body: JSON.stringify({
+                giftId: gift.id,
+                giftPrice: gift.price,
+                recipientUsername: recipientUsername,
+                roomId: chatTabs[activeTab]?.id,
+                isPrivate: chatTabs[activeTab]?.type === 'private' || false
+              }),
+            });
 
-                    if (purchaseResponse.ok) {
-                      const purchaseData = await purchaseResponse.json();
-                      console.log('Gift purchase successful:', purchaseData);
+            if (purchaseResponse.ok) {
+              const purchaseData = await purchaseResponse.json();
+              console.log('Gift purchase successful:', purchaseData);
 
-                      // Calculate system share and percentage
-                      const recipientEarnings = purchaseData.earnings || 0;
-                      const systemShare = gift.price - recipientEarnings;
-                      const sharePercentage = gift.price > 0 ? Math.round((recipientEarnings / gift.price) * 100) : 0;
+              // Send gift via socket for real-time display (no success popup)
+              const giftData = {
+                roomId: chatTabs[activeTab]?.id,
+                sender: user?.username,
+                gift,
+                recipient: recipientUsername,
+                timestamp: new Date().toISOString(),
+                role: user?.role || 'user',
+                level: user?.level || 1
+              };
 
-                      // Show success message
-                      Alert.alert(
-                        'Gift Sent!',
-                        `${gift.name} berhasil dikirim ke ${recipientUsername}!\n\n` +
-                        `Distribusi:\n` +
-                        `• ${recipientUsername} mendapat: ${recipientEarnings} coins (${sharePercentage}%)\n` +
-                        `• System: ${systemShare} coins\n\n` +
-                        `Saldo Anda: ${purchaseData.newBalance} coins`
-                      );
+              console.log('Sending gift via socket:', giftData);
+              socket.emit('sendGift', giftData);
 
-                      // Send gift via socket for real-time display
-                      const giftData = {
-                        roomId: chatTabs[activeTab]?.id,
-                        sender: user?.username,
-                        gift,
-                        recipient: recipientUsername,
-                        timestamp: new Date().toISOString(),
-                        role: user?.role || 'user',
-                        level: user?.level || 1
-                      };
-
-                      console.log('Sending gift via socket:', giftData);
-                      socket.emit('sendGift', giftData);
-
-                      setShowGiftPicker(false);
-                      setSelectedGift(null);
-                      // Close the user gift picker if it was open
-                      if (showUserGiftPicker) {
-                        setShowUserGiftPicker(false);
-                        setSelectedGiftForUser(null);
-                      }
-                      isSendingGiftRef.current = false;
-                      setIsSendingGift(false);
-
-                    } else {
-                      const errorData = await purchaseResponse.json();
-                      isSendingGiftRef.current = false;
-                      setIsSendingGift(false);
-                      Alert.alert('Error', errorData.error || 'Gagal mengirim gift');
-                    }
-
-                  } catch (purchaseError) {
-                    console.error('Error purchasing gift:', purchaseError);
-                    isSendingGiftRef.current = false;
-                    setIsSendingGift(false);
-                    Alert.alert('Error', 'Gagal memproses pembelian gift');
-                  }
-                }
+              setShowGiftPicker(false);
+              setSelectedGift(null);
+              // Close the user gift picker if it was open
+              if (showUserGiftPicker) {
+                setShowUserGiftPicker(false);
+                setSelectedGiftForUser(null);
               }
-            ],
-            {
-              cancelable: true,
-              onDismiss: () => {
-                isSendingGiftRef.current = false;
-                setIsSendingGift(false);
-              }
+              isSendingGiftRef.current = false;
+              setIsSendingGift(false);
+
+            } else {
+              const errorData = await purchaseResponse.json();
+              isSendingGiftRef.current = false;
+              setIsSendingGift(false);
+              Alert.alert('Error', errorData.error || 'Gagal mengirim gift');
             }
-          );
+
+          } catch (purchaseError) {
+            console.error('Error purchasing gift:', purchaseError);
+            isSendingGiftRef.current = false;
+            setIsSendingGift(false);
+            Alert.alert('Error', 'Gagal memproses pembelian gift');
+          }
 
         } else {
           isSendingGiftRef.current = false;
