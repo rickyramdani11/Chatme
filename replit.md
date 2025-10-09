@@ -65,6 +65,7 @@ Preferred communication style: Simple, everyday language.
 - **LowCardBot Card Icons**: Card images rendered from local bundled assets (assets/card/) with CARD_IMAGES mapping using require(), 20x28 pixel size. Command messages use View container with flexDirection: 'row' to render text (wrapped in Text) and card images (wrapped in transparent View) as siblings, avoiding React Native's Image-in-Text restriction. Copy message functionality strips `<card:...>` tags for clean copied text.
 - **Auto-Scroll Optimization**: Debounced scroll implementation with 50ms delay and animated:false for instant, lag-free scrolling. Uses dedicated scrollToBottom helper function to prevent multiple redundant scroll calls, improving chat room performance and reducing UI lag.
 - **Gender Icons**: Visual gender indicators displayed next to username in ProfileScreen using toilet-style icons (24x24px). Blue icon for male, pink icon for female from assets/gender/ folder. Backend API returns gender field from users table.
+- **ProfileScreen Design**: Compact button/badge design with purple-red gradient (#9333ea → #dc2626) for Follow, Message buttons and Family Badge. Button sizes reduced (padding: 18px/10px, fontSize: 14px, icons: 16px). Album section protected from over-scrolling with ScrollView bounces disabled and contentContainerStyle paddingBottom: 100px to ensure visibility.
 
 # External Dependencies
 
