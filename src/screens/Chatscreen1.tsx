@@ -1818,6 +1818,15 @@ export default function ChatScreen() {
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
         setIsKeyboardVisible(true);
+        
+        // Auto-scroll to bottom when keyboard appears - INSTANT for better UX
+        const currentTab = chatTabsRef.current[activeTabRef.current];
+        if (currentTab && autoScrollEnabledRef.current) {
+          // Use immediate scroll (no delay) for instant response
+          setTimeout(() => {
+            flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: false });
+          }, 100); // Minimal delay to let keyboard animation start
+        }
       }
     );
 
@@ -1826,6 +1835,14 @@ export default function ChatScreen() {
       () => {
         setKeyboardHeight(0);
         setIsKeyboardVisible(false);
+        
+        // Auto-scroll when keyboard hides - INSTANT for better UX
+        const currentTab = chatTabsRef.current[activeTabRef.current];
+        if (currentTab && autoScrollEnabledRef.current) {
+          setTimeout(() => {
+            flatListRefs.current[currentTab.id]?.scrollToEnd({ animated: false });
+          }, 100);
+        }
       }
     );
 
