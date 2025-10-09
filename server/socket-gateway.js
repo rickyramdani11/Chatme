@@ -925,30 +925,8 @@ io.on('connection', (socket) => {
         participant.lastSeen = new Date().toISOString();
         participant.lastActivityTime = Date.now(); // Track activity for 8-hour timeout
         
-        // Update status from database
-        try {
-          const statusResult = await pool.query('SELECT status FROM users WHERE id = $1', [socket.userId]);
-          if (statusResult.rows.length > 0) {
-            participant.status = statusResult.rows[0].status || 'online';
-          }
-        } catch (err) {
-          console.error('Error fetching user status:', err);
-          participant.status = 'online'; // Default fallback
-        }
-        
-        console.log(`✅ Updated existing participant: ${socket.username} in room ${roomId} (status: ${participant.status})`);
+        console.log(`✅ Updated existing participant: ${socket.username} in room ${roomId}`);
       } else {
-        // Get user status from database
-        let userStatus = 'online'; // Default
-        try {
-          const statusResult = await pool.query('SELECT status FROM users WHERE id = $1', [socket.userId]);
-          if (statusResult.rows.length > 0) {
-            userStatus = statusResult.rows[0].status || 'online';
-          }
-        } catch (err) {
-          console.error('Error fetching user status:', err);
-        }
-        
         // Add new participant using authenticated identity
         participant = {
           id: Date.now().toString(),
@@ -959,11 +937,10 @@ io.on('connection', (socket) => {
           socketId: socket.id,
           joinedAt: new Date().toISOString(),
           lastSeen: new Date().toISOString(),
-          lastActivityTime: Date.now(),  // Track activity for 8-hour timeout
-          status: userStatus              // Add status field
+          lastActivityTime: Date.now()  // Track activity for 8-hour timeout
         };
         roomParticipants[roomId].push(participant);
-        console.log(`➕ Added new participant: ${socket.username} to room ${roomId} (status: ${userStatus})`);
+        console.log(`➕ Added new participant: ${socket.username} to room ${roomId}`);
       }
 
       // Check if this is a private chat room
