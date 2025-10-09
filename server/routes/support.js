@@ -189,11 +189,14 @@ router.post('/tickets', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Subject and description are required' });
     }
 
+    // Generate unique ticket ID
+    const ticketId = `TICK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const result = await pool.query(`
-      INSERT INTO support_tickets (user_id, subject, message, category, priority)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO support_tickets (ticket_id, user_id, subject, message, category, priority)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [userId, subject.trim(), description.trim(), category, priority]);
+    `, [ticketId, userId, subject.trim(), description.trim(), category, priority]);
 
     const ticket = result.rows[0];
 
@@ -201,6 +204,8 @@ router.post('/tickets', authenticateToken, async (req, res) => {
       success: true,
       ticket: {
         id: ticket.id.toString(),
+        userId: ticket.user_id.toString(),
+        username: username,
         subject: ticket.subject,
         description: ticket.message,
         category: ticket.category,
@@ -484,7 +489,7 @@ router.get('/admin/tickets', authenticateToken, requireAdmin, async (req, res) =
         MAX(sm.created_at) as last_message_at
       FROM support_tickets st
       LEFT JOIN users u ON st.user_id = u.id
-      LEFT JOIN support_messages sm ON st.ticket_id = sm.ticket_id
+      LEFT JOIN support_messages sm ON st.id = sm.ticket_id
     `;
 
     const conditions = [];
@@ -511,7 +516,7 @@ router.get('/admin/tickets', authenticateToken, requireAdmin, async (req, res) =
     }
 
     query += `
-      GROUP BY st.id
+      GROUP BY st.id, st.user_id, u.username, st.subject, st.message, st.category, st.priority, st.status, st.created_at, st.updated_at
       ORDER BY 
         CASE st.status 
           WHEN 'open' THEN 1 
