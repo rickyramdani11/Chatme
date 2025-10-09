@@ -80,11 +80,18 @@ const initSupportTables = async () => {
         admin_id INTEGER,
         admin_username VARCHAR(50),
         session_status VARCHAR(20) DEFAULT 'waiting',
+        room_id INTEGER,
         started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ended_at TIMESTAMP,
         rating INTEGER,
         feedback TEXT
       )
+    `);
+    
+    // Add room_id column if it doesn't exist (migration)
+    await pool.query(`
+      ALTER TABLE live_chat_sessions 
+      ADD COLUMN IF NOT EXISTS room_id INTEGER
     `);
 
     console.log('✅ Support system tables initialized successfully');
@@ -328,29 +335,59 @@ router.post('/live-chat/start', authenticateToken, async (req, res) => {
       WHERE user_id = $1 AND session_status IN ('waiting', 'active')
     `, [userId]);
 
+    // If existing session found, close it first
     if (existingSession.rows.length > 0) {
-      return res.status(400).json({ 
-        error: 'You already have an active chat session',
-        sessionId: existingSession.rows[0].id.toString()
-      });
+      await pool.query(`
+        UPDATE live_chat_sessions 
+        SET session_status = 'ended', ended_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1 AND session_status IN ('waiting', 'active')
+      `, [userId]);
     }
 
-    // Create new live chat session
-    const result = await pool.query(`
-      INSERT INTO live_chat_sessions (user_id, username, session_status)
-      VALUES ($1, $2, 'waiting')
-      RETURNING *
-    `, [userId, username]);
+    // Find available admin
+    const adminResult = await pool.query(`
+      SELECT id, username FROM users 
+      WHERE role = 'admin' AND status = 'online'
+      ORDER BY RANDOM()
+      LIMIT 1
+    `);
 
-    const session = result.rows[0];
+    let adminId = null;
+    let adminUsername = 'Support';
+    
+    if (adminResult.rows.length > 0) {
+      adminId = adminResult.rows[0].id;
+      adminUsername = adminResult.rows[0].username;
+    }
+
+    // Create support room first
+    const roomName = `Support - ${username}`;
+    const roomResult = await pool.query(`
+      INSERT INTO rooms (name, description, created_by, max_users, is_private)
+      VALUES ($1, $2, $3, 2, true)
+      RETURNING id
+    `, [roomName, 'Live Support Chat', userId, 2]);
+
+    const supportRoomId = roomResult.rows[0].id;
+
+    // Create new live chat session with room reference
+    const sessionResult = await pool.query(`
+      INSERT INTO live_chat_sessions (user_id, username, admin_id, admin_username, session_status, room_id)
+      VALUES ($1, $2, $3, $4, 'active', $5)
+      RETURNING *
+    `, [userId, username, adminId, adminUsername, supportRoomId]);
+
+    const session = sessionResult.rows[0];
 
     res.json({
       success: true,
+      message: `Terhubung dengan ${adminUsername}`,
+      supportRoomId: supportRoomId.toString(),
+      adminUsername: adminUsername,
       session: {
         id: session.id.toString(),
         status: session.session_status,
-        startedAt: session.started_at,
-        message: 'Anda telah masuk dalam antrian. Admin akan segera membantu Anda.'
+        startedAt: session.started_at
       }
     });
   } catch (error) {
