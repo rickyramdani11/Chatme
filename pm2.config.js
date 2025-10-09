@@ -3,7 +3,8 @@ module.exports = {
     {
       name: "api-server",
       script: "server/index.js",
-      instances: 1,
+      exec_mode: "cluster",
+      instances: 2,
       autorestart: true,
       watch: false,
       max_memory_restart: "1500M",
@@ -25,6 +26,7 @@ module.exports = {
     {
       name: "gateway",
       script: "server/socket-gateway.js",
+      exec_mode: "fork",
       instances: 1,
       autorestart: true,
       watch: false,

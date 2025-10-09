@@ -50,6 +50,12 @@ Preferred communication style: Simple, everyday language.
 - **PIN Security**: Mandatory PIN for credit transfers.
 - **Code Protection**: Hermes engine for JavaScript bytecode compilation, ProGuard/R8 for Android native code obfuscation, auto-backup disabled to prevent sensitive data leakage to cloud storage.
 
+## Process Management & Stability
+- **PM2 Configuration**: Dual-process setup with API server (port 5000) in cluster mode with 2 instances for load balancing, and Gateway (port 8000) in fork mode with 1 instance due to Socket.IO stateful requirements. Auto-restart on crash (max 10 restarts with 4s delay), memory limits (1.5GB per process), and centralized logging to ./logs/ directory.
+- **Auto-Recovery**: Application-level crash recovery via PM2. Note: Reserved VM deployment does not auto-restart on VM-level crashes; consider Autoscale deployment for full auto-recovery.
+- **Monitoring Commands**: npm scripts for status checking (pm2:status), log viewing (pm2:logs), real-time monitoring (pm2:monit), and service management (pm2:start/stop/restart).
+- **Socket.IO Clustering**: Gateway uses single instance (fork mode) to maintain Socket.IO session state. For multi-instance Socket.IO, implement Redis adapter with sticky sessions.
+
 ## UI/UX Decisions
 - **Level Badges**: Dynamic gradient level badges (green to blue), with icon badges in chat rooms and text badges elsewhere.
 - **Chat Message Display**: Optimized message spacing, consistent font sizes for join/leave messages, improved text wrapping alignment.
@@ -70,9 +76,10 @@ Preferred communication style: Simple, everyday language.
 
 ## Backend Technologies
 - **Server**: Express.js v5, Socket.IO v4.7, CORS.
-- **Database**: PostgreSQL (pg driver).
+- **Database**: PostgreSQL (pg driver) with optimized connection pooling (max: 20, min: 2, idle timeout: 30s).
 - **Security**: bcrypt, jsonwebtoken.
 - **File Handling**: Multer.
+- **Process Manager**: PM2 v6.0.13 for auto-restart, memory management, and process monitoring.
 - **AI Integration**: OpenAI SDK with OpenRouter API (https://openrouter.ai/api/v1) for ChatMe Bot using Google Gemini 2.5 Flash Lite Preview model.
 
 ## Platform & Integrations
