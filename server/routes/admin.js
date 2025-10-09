@@ -939,4 +939,255 @@ router.get('/users/status', authenticateToken, adminOnly, async (req, res) => {
   }
 });
 
+// ============================================
+// FRAME MANAGEMENT ENDPOINTS
+// ============================================
+
+// Get all frames
+router.get('/frames', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, name, description, image, price, duration_days, is_active, created_at
+      FROM frame_items
+      ORDER BY created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching frames:', error);
+    res.status(500).json({ error: 'Failed to fetch frames' });
+  }
+});
+
+// Add new frame (with Cloudinary upload)
+router.post('/frames', authenticateToken, adminOnly, rateLimit(20, 60000), auditLog('ADD_FRAME', 'frame'), async (req, res) => {
+  try {
+    const { name, description, price, durationDays, frameImage, imageType, imageName } = req.body;
+
+    if (!name || !price || !frameImage) {
+      return res.status(400).json({ error: 'Name, price, and frame image are required' });
+    }
+
+    // Check for duplicate name
+    const nameCheck = await pool.query(
+      'SELECT id FROM frame_items WHERE LOWER(name) = LOWER($1)',
+      [name.trim()]
+    );
+    if (nameCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'Frame name already exists' });
+    }
+
+    let imagePath = null;
+
+    if (frameImage && imageType && imageName) {
+      try {
+        const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
+        const allowedExtensions = ['png', 'gif'];
+        
+        if (!allowedExtensions.includes(fileExtension)) {
+          return res.status(400).json({ 
+            error: `Invalid file type. Allowed: PNG, GIF only` 
+          });
+        }
+
+        // Validate base64 image
+        const validation = validateBase64Image(frameImage, allowedExtensions);
+        if (!validation.valid) {
+          return res.status(400).json({ error: validation.error });
+        }
+
+        // Upload to Cloudinary
+        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+        const filename = `frame_${uniqueSuffix}`;
+        
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadOptions = {
+            folder: 'chatme/frames',
+            public_id: filename,
+            resource_type: 'image',
+            format: fileExtension
+          };
+
+          const uploadStream = cloudinary.uploader.upload_stream(
+            uploadOptions,
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+
+          uploadStream.end(validation.buffer);
+        });
+
+        imagePath = uploadResult.secure_url;
+        console.log('Frame uploaded to Cloudinary:', imagePath);
+      } catch (uploadError) {
+        console.error('Cloudinary upload error:', uploadError);
+        return res.status(500).json({ error: 'Failed to upload frame to Cloudinary' });
+      }
+    }
+
+    // Insert into database
+    const result = await pool.query(`
+      INSERT INTO frame_items (name, description, image, price, duration_days, is_active)
+      VALUES ($1, $2, $3, $4, $5, true)
+      RETURNING *
+    `, [name.trim(), description || '', imagePath, parseInt(price), parseInt(durationDays) || 14]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error adding frame:', error);
+    res.status(500).json({ error: 'Failed to add frame' });
+  }
+});
+
+// Update frame (name, price, or image)
+router.put('/frames/:id', authenticateToken, adminOnly, rateLimit(20, 60000), auditLog('UPDATE_FRAME', 'frame'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, price, durationDays, frameImage, imageType, imageName } = req.body;
+
+    if (!name || !price) {
+      return res.status(400).json({ error: 'Name and price are required' });
+    }
+
+    // Check if frame exists
+    const existingFrame = await pool.query('SELECT * FROM frame_items WHERE id = $1', [id]);
+    if (existingFrame.rows.length === 0) {
+      return res.status(404).json({ error: 'Frame not found' });
+    }
+
+    // Check for duplicate name (excluding current frame)
+    const nameCheck = await pool.query(
+      'SELECT id FROM frame_items WHERE LOWER(name) = LOWER($1) AND id != $2',
+      [name.trim(), id]
+    );
+    if (nameCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'Frame name already exists' });
+    }
+
+    let imagePath = existingFrame.rows[0].image;
+
+    // If new image is provided, upload to Cloudinary
+    if (frameImage && imageType && imageName) {
+      try {
+        const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
+        const allowedExtensions = ['png', 'gif'];
+        
+        if (!allowedExtensions.includes(fileExtension)) {
+          return res.status(400).json({ 
+            error: `Invalid file type. Allowed: PNG, GIF only` 
+          });
+        }
+
+        const validation = validateBase64Image(frameImage, allowedExtensions);
+        if (!validation.valid) {
+          return res.status(400).json({ error: validation.error });
+        }
+
+        // Delete old Cloudinary image if exists
+        if (imagePath && imagePath.includes('cloudinary.com')) {
+          try {
+            const urlParts = imagePath.split('/upload/');
+            if (urlParts.length > 1) {
+              let pathAfterUpload = urlParts[1];
+              const pathSegments = pathAfterUpload.split('/');
+              if (pathSegments[0].startsWith('v')) {
+                pathSegments.shift();
+              }
+              const pathWithoutVersion = pathSegments.join('/');
+              const publicId = pathWithoutVersion.substring(0, pathWithoutVersion.lastIndexOf('.'));
+              await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+              console.log('Deleted old frame from Cloudinary:', publicId);
+            }
+          } catch (err) {
+            console.error('Error deleting old Cloudinary frame:', err);
+          }
+        }
+
+        // Upload new image
+        const uniqueSuffix = Date.now() + '_' + Math.round(Math.random() * 1E9);
+        const filename = `frame_${uniqueSuffix}`;
+        
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadOptions = {
+            folder: 'chatme/frames',
+            public_id: filename,
+            resource_type: 'image',
+            format: fileExtension
+          };
+
+          const uploadStream = cloudinary.uploader.upload_stream(
+            uploadOptions,
+            (error, result) => {
+              if (error) reject(error);
+              else resolve(result);
+            }
+          );
+
+          uploadStream.end(validation.buffer);
+        });
+
+        imagePath = uploadResult.secure_url;
+        console.log('New frame uploaded to Cloudinary:', imagePath);
+      } catch (uploadError) {
+        console.error('Cloudinary upload error:', uploadError);
+        return res.status(500).json({ error: 'Failed to upload frame to Cloudinary' });
+      }
+    }
+
+    // Update database
+    const result = await pool.query(`
+      UPDATE frame_items 
+      SET name = $1, description = $2, image = $3, price = $4, duration_days = $5
+      WHERE id = $6
+      RETURNING *
+    `, [name.trim(), description || '', imagePath, parseInt(price), parseInt(durationDays) || 14, id]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating frame:', error);
+    res.status(500).json({ error: 'Failed to update frame' });
+  }
+});
+
+// Delete frame
+router.delete('/frames/:id', authenticateToken, adminOnly, rateLimit(10, 60000), auditLog('DELETE_FRAME', 'frame'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get frame data before deleting
+    const frameResult = await pool.query('SELECT image FROM frame_items WHERE id = $1', [id]);
+    if (frameResult.rows.length > 0) {
+      const frame = frameResult.rows[0];
+      
+      // Delete from Cloudinary if exists
+      if (frame.image && frame.image.includes('cloudinary.com')) {
+        try {
+          const urlParts = frame.image.split('/upload/');
+          if (urlParts.length > 1) {
+            let pathAfterUpload = urlParts[1];
+            const pathSegments = pathAfterUpload.split('/');
+            if (pathSegments[0].startsWith('v')) {
+              pathSegments.shift();
+            }
+            const pathWithoutVersion = pathSegments.join('/');
+            const publicId = pathWithoutVersion.substring(0, pathWithoutVersion.lastIndexOf('.'));
+            await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+            console.log('Deleted Cloudinary frame:', publicId);
+          }
+        } catch (err) {
+          console.error('Error deleting Cloudinary frame:', err);
+        }
+      }
+    }
+
+    // Delete from database
+    await pool.query('DELETE FROM frame_items WHERE id = $1', [id]);
+    res.json({ message: 'Frame deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting frame:', error);
+    res.status(500).json({ error: 'Failed to delete frame' });
+  }
+});
+
 module.exports = router;
