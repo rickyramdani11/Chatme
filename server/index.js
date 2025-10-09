@@ -650,11 +650,13 @@ async function checkAndResetMonthlyRevenue() {
 
 // Check merchant status and auto-downgrade if revenue requirement not met
 async function checkMerchantStatusAndDowngrade() {
+  const client = await pool.connect();
+  
   try {
     console.log('🔍 Checking merchant revenue status...');
     
     // Get all active merchants
-    const merchants = await pool.query(`
+    const merchants = await client.query(`
       SELECT mp.*, u.username 
       FROM merchant_promotions mp
       JOIN users u ON mp.user_id = u.id
@@ -673,12 +675,12 @@ async function checkMerchantStatusAndDowngrade() {
       
       if (monthsPassed >= 1) {
         if (revenue < requirement) {
-          // Downgrade merchant
-          await pool.query('BEGIN');
+          // Downgrade merchant with atomic transaction
+          await client.query('BEGIN');
           
           try {
             // Update merchant promotion status
-            await pool.query(`
+            await client.query(`
               UPDATE merchant_promotions 
               SET status = 'downgraded',
                   downgrade_reason = $1
@@ -686,25 +688,26 @@ async function checkMerchantStatusAndDowngrade() {
             `, [`Failed to meet revenue requirement: ${revenue}/${requirement} coins`, merchant.id]);
             
             // Downgrade user role to 'user'
-            await pool.query(`
+            await client.query(`
               UPDATE users 
               SET role = 'user'
               WHERE id = $1
             `, [merchant.user_id]);
             
-            await pool.query('COMMIT');
+            await client.query('COMMIT');
             
             console.log(`⚠️ DOWNGRADED merchant ${merchant.username} (ID: ${merchant.user_id}) - Revenue: ${revenue}/${requirement}`);
             
             // TODO: Send notification to merchant
             
           } catch (error) {
-            await pool.query('ROLLBACK');
+            await client.query('ROLLBACK');
+            console.error(`❌ Failed to downgrade merchant ${merchant.username}:`, error);
             throw error;
           }
         } else {
           // Merchant met requirement, reset for next month
-          await pool.query(`
+          await client.query(`
             UPDATE merchant_promotions 
             SET monthly_revenue = 0,
                 revenue_reset_date = CURRENT_TIMESTAMP,
@@ -720,6 +723,8 @@ async function checkMerchantStatusAndDowngrade() {
     console.log('✅ Merchant status check completed');
   } catch (error) {
     console.error('Error checking merchant status:', error);
+  } finally {
+    client.release();
   }
 }
 
