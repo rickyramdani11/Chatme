@@ -275,12 +275,19 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Logout endpoint
+// Logout endpoint - explicitly set status to offline
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
-    // Note: We don't update status here because the socket gateway handles online/offline status
-    // based on active socket connections. This ensures multi-device support works correctly.
-    // The gateway will set status to 'offline' when the last socket connection disconnects.
+    const userId = req.user.id;
+    
+    // Explicitly set status to offline on logout
+    await pool.query(
+      'UPDATE users SET status = $1 WHERE id = $2',
+      ['offline', userId]
+    );
+
+    console.log(`📴 User ${userId} logged out - status set to OFFLINE`);
+
     res.json({ message: 'Logged out successfully', success: true });
   } catch (error) {
     console.error('Logout error:', error);

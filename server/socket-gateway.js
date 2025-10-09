@@ -924,8 +924,31 @@ io.on('connection', (socket) => {
         participant.socketId = socket.id;
         participant.lastSeen = new Date().toISOString();
         participant.lastActivityTime = Date.now(); // Track activity for 8-hour timeout
-        console.log(`✅ Updated existing participant: ${socket.username} in room ${roomId}`);
+        
+        // Update status from database
+        try {
+          const statusResult = await pool.query('SELECT status FROM users WHERE id = $1', [socket.userId]);
+          if (statusResult.rows.length > 0) {
+            participant.status = statusResult.rows[0].status || 'online';
+          }
+        } catch (err) {
+          console.error('Error fetching user status:', err);
+          participant.status = 'online'; // Default fallback
+        }
+        
+        console.log(`✅ Updated existing participant: ${socket.username} in room ${roomId} (status: ${participant.status})`);
       } else {
+        // Get user status from database
+        let userStatus = 'online'; // Default
+        try {
+          const statusResult = await pool.query('SELECT status FROM users WHERE id = $1', [socket.userId]);
+          if (statusResult.rows.length > 0) {
+            userStatus = statusResult.rows[0].status || 'online';
+          }
+        } catch (err) {
+          console.error('Error fetching user status:', err);
+        }
+        
         // Add new participant using authenticated identity
         participant = {
           id: Date.now().toString(),
@@ -936,10 +959,11 @@ io.on('connection', (socket) => {
           socketId: socket.id,
           joinedAt: new Date().toISOString(),
           lastSeen: new Date().toISOString(),
-          lastActivityTime: Date.now()  // Track activity for 8-hour timeout
+          lastActivityTime: Date.now(),  // Track activity for 8-hour timeout
+          status: userStatus              // Add status field
         };
         roomParticipants[roomId].push(participant);
-        console.log(`➕ Added new participant: ${socket.username} to room ${roomId}`);
+        console.log(`➕ Added new participant: ${socket.username} to room ${roomId} (status: ${userStatus})`);
       }
 
       // Check if this is a private chat room
@@ -2519,6 +2543,63 @@ io.on('connection', (socket) => {
     console.log('Report forwarded to admins via gateway');
   });
 
+  // Update user status (away/busy/online) and broadcast to all rooms
+  socket.on('update-status', async ({ status }) => {
+    const userInfo = connectedUsers.get(socket.id);
+    if (!userInfo || !userInfo.userId) {
+      console.log('❌ Cannot update status: user info not found');
+      return;
+    }
+
+    // SECURITY: Validate status - only allow online/away/busy (NOT offline)
+    const validStatuses = ['online', 'away', 'busy'];
+    if (!validStatuses.includes(status)) {
+      console.log(`❌ Invalid status "${status}" from ${userInfo.username} - rejecting`);
+      socket.emit('status-update-error', { 
+        error: 'Invalid status. Must be: online, away, or busy. Use logout to set offline.' 
+      });
+      return;
+    }
+
+    try {
+      // Persist to database
+      await pool.query(
+        'UPDATE users SET status = $1 WHERE id = $2',
+        [status, userInfo.userId]
+      );
+
+      // Get user's current rooms from roomParticipants
+      const userRooms = [];
+      for (const [roomId, participants] of Object.entries(roomParticipants)) {
+        const participant = participants.find(p => p.userId === userInfo.userId);
+        if (participant) {
+          // Update participant status
+          participant.status = status;
+          userRooms.push(roomId);
+        }
+      }
+
+      console.log(`✅ Updated status to ${status.toUpperCase()} for user ${userInfo.username} in ${userRooms.length} room(s)`);
+
+      // Broadcast status change to all rooms user is in
+      for (const roomId of userRooms) {
+        io.to(roomId).emit('user-status-changed', {
+          userId: userInfo.userId,
+          username: userInfo.username,
+          status: status,
+          timestamp: new Date().toISOString()
+        });
+
+        // Also update participants list
+        io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
+      }
+
+      console.log(`📢 Status change broadcast to ${userRooms.length} room(s)`);
+    } catch (error) {
+      console.error('Error updating user status in gateway:', error);
+    }
+  });
+
   // Disconnect event
   socket.on('disconnect', async () => {
     console.log(`🔴 ===========================================`);
@@ -2549,19 +2630,13 @@ io.on('connection', (socket) => {
       const hasOtherActiveConnections = userOtherConnections.length > 0;
       const hasAnyActiveConnections = userAllConnections.length > 0;
 
-      // Update database status to offline ONLY if user has NO other active connections
+      // DO NOT auto-set status to offline on disconnect
+      // Status is only set to offline via explicit logout endpoint
+      // This keeps status (online/away/busy) persistent across socket reconnections
       if (!hasAnyActiveConnections && userInfo.userId) {
-        try {
-          await pool.query(
-            'UPDATE users SET status = $1 WHERE id = $2',
-            ['offline', userInfo.userId]
-          );
-          console.log(`📴 Set status to OFFLINE for user ${userInfo.username} (ID: ${userInfo.userId}) in database`);
-        } catch (dbError) {
-          console.error('Error updating user status on disconnect:', dbError);
-        }
+        console.log(`🔌 User ${userInfo.username} (ID: ${userInfo.userId}) has NO active connections - keeping current status (NOT auto-offline)`);
       } else if (hasAnyActiveConnections) {
-        console.log(`🔌 User ${userInfo.username} still has ${userAllConnections.length} active connection(s) - keeping status ONLINE`);
+        console.log(`🔌 User ${userInfo.username} still has ${userAllConnections.length} active connection(s) - keeping current status`);
       }
 
       // Remove from room participants only if no other connections exist

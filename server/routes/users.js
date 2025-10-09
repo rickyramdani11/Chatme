@@ -355,6 +355,47 @@ router.get('/:userId/status', async (req, res) => {
   }
 });
 
+// Update user status (online/away/busy) - NOT for offline (use logout endpoint)
+// NOTE: This endpoint is kept for compatibility but clients should prefer using 
+// the socket 'update-status' event which both persists AND broadcasts in one atomic operation.
+// This REST endpoint only persists - client must emit socket event for broadcasts.
+router.post('/status', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ['online', 'away', 'busy'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be: online, away, or busy' });
+    }
+
+    // Update status in database
+    await pool.query(
+      'UPDATE users SET status = $1 WHERE id = $2',
+      [status, userId]
+    );
+
+    // Get username for logging
+    const userResult = await pool.query(
+      'SELECT username FROM users WHERE id = $1',
+      [userId]
+    );
+    const username = userResult.rows[0].username;
+
+    console.log(`✅ [REST] Updated status to ${status.toUpperCase()} for user ${username} (ID: ${userId})`);
+
+    res.json({ 
+      success: true, 
+      status: status,
+      message: `Status updated to ${status}. Emit 'update-status' socket event to broadcast to rooms.` 
+    });
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get user's family badge info
 router.get('/:userId/family-badge', async (req, res) => {
   try {
