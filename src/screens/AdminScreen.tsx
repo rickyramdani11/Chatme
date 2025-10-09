@@ -391,6 +391,116 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
+  const handleFrameImageUpload = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload frame image files.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1.0,
+        base64: true,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+        const allowedExtensions = ['png', 'gif'];
+
+        if (!allowedExtensions.includes(fileExtension || '')) {
+          Alert.alert('Invalid file type', 'Please select PNG or GIF files only for frames.');
+          return;
+        }
+
+        if (!asset.base64) {
+          Alert.alert('Error', 'Failed to process the image file. Please try again.');
+          return;
+        }
+
+        const fileSizeInBytes = (asset.base64.length * 3) / 4;
+        const maxSize = 5 * 1024 * 1024;
+
+        if (fileSizeInBytes > maxSize) {
+          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
+          return;
+        }
+
+        setUploadedFrameImage({
+          uri: asset.uri,
+          base64: asset.base64,
+          type: `image/${fileExtension}`,
+          name: `frame_${Date.now()}.${fileExtension}`,
+        });
+
+        Alert.alert('Success', 'Frame image selected successfully.');
+      }
+    } catch (error) {
+      console.error('Error picking frame image:', error);
+      Alert.alert('Error', 'Failed to pick frame image');
+    }
+  };
+
+  const handleAddFrame = async () => {
+    if (!frameName.trim()) {
+      Alert.alert('Error', 'Frame name is required');
+      return;
+    }
+    if (!framePrice.trim()) {
+      Alert.alert('Error', 'Frame price is required');
+      return;
+    }
+    if (!uploadedFrameImage || !uploadedFrameImage.base64) {
+      Alert.alert('Error', 'Frame image is required');
+      return;
+    }
+
+    setFramesLoading(true);
+    try {
+      const requestBody = {
+        name: frameName.trim(),
+        description: frameDescription.trim() || '',
+        price: parseInt(framePrice),
+        durationDays: parseInt(frameDurationDays) || 14,
+        frameImage: uploadedFrameImage.base64,
+        imageType: uploadedFrameImage.type,
+        imageName: uploadedFrameImage.name,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/admin/frames`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Frame added successfully with Cloudinary upload');
+        setFrameName('');
+        setFrameDescription('');
+        setFramePrice('');
+        setFrameDurationDays('14');
+        setUploadedFrameImage(null);
+        loadFrames();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add frame');
+      }
+    } catch (error) {
+      console.error('Error adding frame:', error);
+      Alert.alert('Error', error.message || 'Failed to add frame');
+    } finally {
+      setFramesLoading(false);
+    }
+  };
+
   const handleFileUpload = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -2107,7 +2217,7 @@ export default function AdminScreen({ navigation }: any) {
                 <Text style={styles.formLabel}>Upload Frame Image (PNG/GIF)</Text>
                 <TouchableOpacity
                   style={styles.uploadFormButton}
-                  onPress={handleGiftImageUpload}
+                  onPress={handleFrameImageUpload}
                 >
                   <Ionicons name="image-outline" size={24} color="#FF6B35" />
                   <Text style={styles.uploadFormText}>
@@ -2129,7 +2239,7 @@ export default function AdminScreen({ navigation }: any) {
 
               <TouchableOpacity
                 style={styles.submitButton}
-                onPress={() => Alert.alert('Coming Soon', 'Frame upload will be implemented')}
+                onPress={handleAddFrame}
                 disabled={framesLoading}
               >
                 {framesLoading ? (
