@@ -1061,7 +1061,7 @@ export default function ProfileScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#fff',
   },
   header: {
     position: 'absolute',
@@ -1116,7 +1116,7 @@ const styles = StyleSheet.create({
   backgroundImageContainer: {
     height: 300,
     position: 'relative',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
     overflow: 'hidden',
   },
   backgroundImage: {
@@ -1185,7 +1185,9 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: 44,
     overflow: 'visible',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    borderWidth: 3,
+    borderColor: '#667eea',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
