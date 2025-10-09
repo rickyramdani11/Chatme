@@ -665,116 +665,121 @@ export default function AdminScreen({ navigation }: any) {
 
   const handleFileUpload = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'We need camera roll permissions to upload animated gift files.');
+      // Use DocumentPicker to support JSON files for Lottie animations
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/gif', 'video/mp4', 'video/webm', 'video/quicktime', 'application/json'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsEditing: false,
-        quality: 0.8,
-        base64: true, // For GIF
-        allowsMultipleSelection: false,
-        videoMaxDuration: 30,
-      });
+      const asset = result.assets[0];
+      const fileExtension = asset.name.split('.').pop()?.toLowerCase();
+      const allowedExtensions = ['gif', 'mp4', 'webm', 'mov', 'json'];
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const asset = result.assets[0];
+      if (!allowedExtensions.includes(fileExtension || '')) {
+        Alert.alert('Invalid file type', 'Please select GIF, video files (MP4, WebM, MOV), or JSON (Lottie) files only.');
+        return;
+      }
 
-        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
-        const allowedExtensions = ['gif', 'mp4', 'webm', 'mov'];
+      // Handle JSON Lottie files
+      if (fileExtension === 'json') {
+        try {
+          const FileSystem = require('expo-file-system');
+          
+          const fileContent = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
 
-        if (!allowedExtensions.includes(fileExtension || '')) {
-          Alert.alert('Invalid file type', 'Please select GIF or video files (MP4, WebM, MOV) only for animated gifts.');
-          return;
-        }
-
-        const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
-
-        // For videos, read as base64 using FileSystem
-        if (isVideo && !asset.base64) {
-          try {
-            const FileSystem = require('expo-file-system');
-            
-            const base64Data = await FileSystem.readAsStringAsync(asset.uri, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
-
-            const fileSizeInBytes = (base64Data.length * 3) / 4;
-            const maxVideoSize = 15 * 1024 * 1024;
-
-            if (fileSizeInBytes > maxVideoSize) {
-              Alert.alert('File too large', 'Please select a video smaller than 15MB.');
-              return;
-            }
-
-            setSelectedFile({
-              uri: asset.uri,
-              base64: base64Data,
-              type: `video/${fileExtension}`,
-              name: `gift_animated_${Date.now()}.${fileExtension}`,
-              extension: fileExtension || 'mp4',
-              isAnimated: true,
-              duration: asset.duration || null,
-              width: asset.width || 0,
-              height: asset.height || 0
-            });
-
-            console.log('Animated video file selected:', {
-              name: `gift_animated_${Date.now()}.${fileExtension}`,
-              type: `video/${fileExtension}`,
-              size: fileSizeInBytes,
-              duration: asset.duration
-            });
-
-            Alert.alert('Success', 'Animated video file selected successfully.');
-            return;
-          } catch (error) {
-            console.error('Error reading animated video file:', error);
-            Alert.alert('Error', 'Failed to read animated video file. Please try again.');
+          // Validate JSON
+          const jsonData = JSON.parse(fileContent);
+          
+          // Check if it's a valid Lottie JSON (has required properties)
+          if (!jsonData.v || !jsonData.layers) {
+            Alert.alert('Invalid Lottie file', 'The JSON file does not appear to be a valid Lottie animation.');
             return;
           }
-        }
 
-        // For GIFs with base64
-        if (!asset.base64) {
-          Alert.alert('Error', 'Failed to process the animated file. Please try again.');
+          const base64Data = btoa(fileContent);
+          const fileSizeInBytes = asset.size || 0;
+          const maxLottieSize = 2 * 1024 * 1024; // 2MB for Lottie JSON
+
+          if (fileSizeInBytes > maxLottieSize) {
+            Alert.alert('File too large', 'Please select a Lottie JSON file smaller than 2MB.');
+            return;
+          }
+
+          setSelectedFile({
+            uri: asset.uri,
+            base64: base64Data,
+            type: 'application/json',
+            name: asset.name || `lottie_${Date.now()}.json`,
+            extension: 'json',
+            isAnimated: true,
+            duration: null,
+            width: jsonData.w || 0,
+            height: jsonData.h || 0
+          });
+
+          console.log('Lottie JSON file selected:', {
+            name: asset.name,
+            size: fileSizeInBytes,
+            type: 'application/json',
+            isAnimated: true,
+            lottieVersion: jsonData.v
+          });
+
+          Alert.alert('Success', 'Lottie animation file selected successfully.');
+          return;
+        } catch (error) {
+          console.error('Error reading Lottie JSON file:', error);
+          Alert.alert('Error', 'Failed to read Lottie JSON file. Make sure it\'s a valid Lottie animation.');
           return;
         }
-
-        const fileSizeInBytes = (asset.base64.length * 3) / 4;
-        const maxSize = 5 * 1024 * 1024; // 5MB for GIFs
-
-        if (fileSizeInBytes > maxSize) {
-          Alert.alert('File too large', 'Please select a file smaller than 5MB.');
-          return;
-        }
-
-        let contentType = `image/${fileExtension}`;
-
-        setSelectedFile({
-          uri: asset.uri,
-          base64: asset.base64,
-          type: contentType,
-          name: `gift_animated_${Date.now()}.${fileExtension}`,
-          extension: fileExtension || 'gif',
-          isAnimated: true,
-          duration: asset.duration || null,
-          width: asset.width || 0,
-          height: asset.height || 0
-        });
-
-        console.log('Animated GIF file selected:', {
-          name: `gift_animated_${Date.now()}.${fileExtension}`,
-          size: fileSizeInBytes,
-          type: contentType,
-          isAnimated: true
-        });
-
-        Alert.alert('Success', 'Animated file selected successfully.');
       }
+
+      // Handle video and GIF files
+      const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
+      const FileSystem = require('expo-file-system');
+      
+      const base64Data = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const fileSizeInBytes = (base64Data.length * 3) / 4;
+      const maxSize = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024; // 15MB for video, 5MB for GIF
+
+      if (fileSizeInBytes > maxSize) {
+        Alert.alert('File too large', `Please select a ${isVideo ? 'video' : 'file'} smaller than ${isVideo ? '15MB' : '5MB'}.`);
+        return;
+      }
+
+      const contentType = isVideo ? `video/${fileExtension}` : `image/${fileExtension}`;
+
+      setSelectedFile({
+        uri: asset.uri,
+        base64: base64Data,
+        type: contentType,
+        name: asset.name || `gift_animated_${Date.now()}.${fileExtension}`,
+        extension: fileExtension || 'mp4',
+        isAnimated: true,
+        duration: null,
+        width: 0,
+        height: 0
+      });
+
+      console.log('Animated file selected:', {
+        name: asset.name,
+        type: contentType,
+        size: fileSizeInBytes,
+        isAnimated: true
+      });
+
+      Alert.alert('Success', `${isVideo ? 'Video' : 'GIF'} file selected successfully.`);
+
     } catch (error) {
       console.error('Error picking animated file:', error);
       Alert.alert('Error', 'Failed to pick animated file: ' + (error as Error).message);
