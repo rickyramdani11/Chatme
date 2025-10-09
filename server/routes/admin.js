@@ -442,7 +442,8 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
         
         const allowedImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
         const allowedVideoExtensions = ['mp4', 'webm', 'mov'];
-        const allAllowedExtensions = [...allowedImageExtensions, ...allowedVideoExtensions];
+        const allowedLottieExtensions = ['json'];
+        const allAllowedExtensions = [...allowedImageExtensions, ...allowedVideoExtensions, ...allowedLottieExtensions];
         
         if (!allAllowedExtensions.includes(fileExtension)) {
           return res.status(400).json({ 
@@ -457,6 +458,28 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
             return res.status(400).json({ error: validation.error });
           }
           fileBuffer = validation.buffer;
+        } else if (allowedLottieExtensions.includes(fileExtension)) {
+          fileBuffer = Buffer.from(giftImage, 'base64');
+          const maxLottieSize = 2 * 1024 * 1024;
+          if (fileBuffer.length > maxLottieSize) {
+            return res.status(400).json({ 
+              error: `Lottie JSON file too large. Maximum size is ${maxLottieSize / (1024 * 1024)}MB.` 
+            });
+          }
+          
+          try {
+            const jsonContent = fileBuffer.toString('utf8');
+            const lottieData = JSON.parse(jsonContent);
+            if (!lottieData.v || !lottieData.layers) {
+              return res.status(400).json({ 
+                error: 'Invalid Lottie JSON format. Must contain "v" and "layers" properties.' 
+              });
+            }
+          } catch (parseError) {
+            return res.status(400).json({ 
+              error: 'Invalid JSON file. Please upload a valid Lottie animation JSON.' 
+            });
+          }
         } else {
           fileBuffer = Buffer.from(giftImage, 'base64');
           const maxVideoSize = 15 * 1024 * 1024;
@@ -471,10 +494,17 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
         const filename = `gift_${uniqueSuffix}`;
         
         const uploadResult = await new Promise((resolve, reject) => {
+          let resourceType = 'image';
+          if (allowedVideoExtensions.includes(fileExtension)) {
+            resourceType = 'video';
+          } else if (allowedLottieExtensions.includes(fileExtension)) {
+            resourceType = 'raw';
+          }
+          
           const uploadOptions = {
             folder: 'chatme/gifts',
             public_id: filename,
-            resource_type: allowedVideoExtensions.includes(fileExtension) ? 'video' : 'image',
+            resource_type: resourceType,
             format: fileExtension
           };
 
@@ -489,6 +519,10 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
         let mediaType = 'image';
         if (['mp4', 'webm', 'mov'].includes(fileExtension)) {
           mediaType = 'video';
+          animationPath = cloudinaryUrl;
+          imagePath = cloudinaryUrl;
+        } else if (fileExtension === 'json') {
+          mediaType = 'lottie';
           animationPath = cloudinaryUrl;
           imagePath = cloudinaryUrl;
         } else if (fileExtension === 'gif') {
@@ -513,13 +547,21 @@ router.post('/gifts', authenticateToken, adminOnly, rateLimit(20, 60000), auditL
     }
 
     // Determine media type - default to image if not set above
-    const mediaType = ['mp4', 'webm', 'mov'].some(ext => animationPath?.includes(ext)) ? 'video' : 'image';
+    let finalMediaType = 'image';
+    if (animationPath) {
+      if (animationPath.includes('.json')) {
+        finalMediaType = 'lottie';
+      } else if (['mp4', 'webm', 'mov'].some(ext => animationPath.includes(ext))) {
+        finalMediaType = 'video';
+      }
+    }
+    const mediaTypeToUse = mediaType || finalMediaType;
 
     const result = await pool.query(`
       INSERT INTO custom_gifts (name, icon, image, animation, price, type, category, created_by, media_type)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `, [name, icon, imagePath, animationPath, parseInt(price), type, category, req.user.id, mediaType]);
+    `, [name, icon, imagePath, animationPath, parseInt(price), type, category, req.user.id, mediaTypeToUse]);
 
     const gift = result.rows[0];
     if (gift.image && gift.image.startsWith('/')) {
@@ -570,6 +612,7 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
 
     const allowedImageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
     const allowedVideoExtensions = ['mp4', 'webm', 'mov'];
+    const allowedLottieExtensions = ['json'];
 
     let imagePath = existingGift.rows[0].image;
     let animationPath = existingGift.rows[0].animation;
@@ -579,7 +622,7 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
       try {
         const fileExtension = imageType.includes('/') ? imageType.split('/')[1] : imageType;
         
-        const allAllowedExtensions = [...allowedImageExtensions, ...allowedVideoExtensions];
+        const allAllowedExtensions = [...allowedImageExtensions, ...allowedVideoExtensions, ...allowedLottieExtensions];
         
         if (!allAllowedExtensions.includes(fileExtension)) {
           return res.status(400).json({ 
@@ -594,6 +637,28 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
             return res.status(400).json({ error: validation.error });
           }
           fileBuffer = validation.buffer;
+        } else if (allowedLottieExtensions.includes(fileExtension)) {
+          fileBuffer = Buffer.from(giftImage, 'base64');
+          const maxLottieSize = 2 * 1024 * 1024;
+          if (fileBuffer.length > maxLottieSize) {
+            return res.status(400).json({ 
+              error: `Lottie JSON file too large. Maximum size is ${maxLottieSize / (1024 * 1024)}MB.` 
+            });
+          }
+          
+          try {
+            const jsonContent = fileBuffer.toString('utf8');
+            const lottieData = JSON.parse(jsonContent);
+            if (!lottieData.v || !lottieData.layers) {
+              return res.status(400).json({ 
+                error: 'Invalid Lottie JSON format. Must contain "v" and "layers" properties.' 
+              });
+            }
+          } catch (parseError) {
+            return res.status(400).json({ 
+              error: 'Invalid JSON file. Please upload a valid Lottie animation JSON.' 
+            });
+          }
         } else {
           fileBuffer = Buffer.from(giftImage, 'base64');
           const maxVideoSize = 15 * 1024 * 1024;
@@ -608,10 +673,17 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
         const filename = `gift_${uniqueSuffix}`;
         
         const uploadResult = await new Promise((resolve, reject) => {
+          let resourceType = 'image';
+          if (allowedVideoExtensions.includes(fileExtension)) {
+            resourceType = 'video';
+          } else if (allowedLottieExtensions.includes(fileExtension)) {
+            resourceType = 'raw';
+          }
+          
           const uploadOptions = {
             folder: 'chatme/gifts',
             public_id: filename,
-            resource_type: allowedVideoExtensions.includes(fileExtension) ? 'video' : 'image',
+            resource_type: resourceType,
             format: fileExtension
           };
 
@@ -625,6 +697,10 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
         
         if (allowedVideoExtensions.includes(fileExtension)) {
           mediaType = 'video';
+          animationPath = cloudinaryUrl;
+          imagePath = cloudinaryUrl;
+        } else if (fileExtension === 'json') {
+          mediaType = 'lottie';
           animationPath = cloudinaryUrl;
           imagePath = cloudinaryUrl;
         } else if (fileExtension === 'gif') {
@@ -646,7 +722,12 @@ router.put('/gifts/:id', authenticateToken, adminOnly, rateLimit(20, 60000), aud
               }
               const pathWithoutVersion = pathSegments.join('/');
               const publicId = pathWithoutVersion.substring(0, pathWithoutVersion.lastIndexOf('.'));
-              const resourceType = existingGift.rows[0].media_type === 'video' ? 'video' : 'image';
+              let resourceType = 'image';
+              if (existingGift.rows[0].media_type === 'video') {
+                resourceType = 'video';
+              } else if (existingGift.rows[0].media_type === 'lottie') {
+                resourceType = 'raw';
+              }
               await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
               console.log('Deleted old Cloudinary asset:', publicId);
             }
