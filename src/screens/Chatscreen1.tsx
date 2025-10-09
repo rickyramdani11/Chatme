@@ -182,6 +182,7 @@ export default function ChatScreen() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [broadcastMessages, setBroadcastMessages] = useState<Record<string, string | null>>({});
   
   // Get user and token before any refs that depend on them
   const { user, token, logout } = useAuth();
@@ -678,6 +679,14 @@ export default function ChatScreen() {
                 console.log(`🔄 Updating existing tab for room ${roomId}`);
                 console.log(`📊 Room data:`, roomData);
                 
+                // Set broadcast message from room data
+                if (roomData.broadcastMessage) {
+                  setBroadcastMessages(prev => ({
+                    ...prev,
+                    [roomId]: roomData.broadcastMessage
+                  }));
+                }
+                
                 // Update ALL room_info messages AND tab metadata with latest owner info
                 const updatedTabs = [...chatTabs];
                 const ownerName = roomData.createdBy || roomData.created_by || roomData.managedBy || roomData.managed_by || 'System';
@@ -802,6 +811,14 @@ export default function ChatScreen() {
                 roomData = rooms.find((r: any) => r.id === roomId);
                 console.log('🔍 Retry result:', roomData ? 'Found!' : 'Still not found');
               }
+              
+              // Set broadcast message from room data
+              if (roomData && roomData.broadcastMessage) {
+                setBroadcastMessages(prev => ({
+                  ...prev,
+                  [roomId]: roomData.broadcastMessage
+                }));
+              }
             } else {
               console.error('❌ Room fetch failed with status:', roomResponse.status);
             }
@@ -864,6 +881,20 @@ export default function ChatScreen() {
             level: 1,
             type: 'room_info'
           });
+          
+          // Add broadcast message if exists
+          if (roomData?.broadcastMessage) {
+            roomInfoMessages.push({
+              id: `broadcast_${roomId}`,
+              sender: roomName,
+              content: roomData.broadcastMessage,
+              timestamp: new Date(currentTime.getTime() - 500), // After currently in room
+              roomId: roomId,
+              role: 'admin',
+              level: 1,
+              type: 'broadcast'
+            });
+          }
         }
 
         // Normalize room_info messages from database history to use correct owner name
@@ -1086,6 +1117,50 @@ export default function ChatScreen() {
             })
           );
         }
+      });
+
+      // Listen for broadcast updates
+      socketInstance.on('broadcast-updated', (data: { roomId: string; broadcastMessage: string | null }) => {
+        console.log('📢 Broadcast updated for room', data.roomId, ':', data.broadcastMessage);
+        setBroadcastMessages(prev => ({
+          ...prev,
+          [data.roomId]: data.broadcastMessage
+        }));
+        
+        // Update messages in chat tabs
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab => {
+            if (tab.id === data.roomId) {
+              // Remove old broadcast message if exists
+              let updatedMessages = tab.messages.filter(msg => msg.id !== `broadcast_${data.roomId}`);
+              
+              // Add new broadcast message if provided
+              if (data.broadcastMessage) {
+                const broadcastMsg = {
+                  id: `broadcast_${data.roomId}`,
+                  sender: tab.title,
+                  content: data.broadcastMessage,
+                  timestamp: new Date(),
+                  roomId: data.roomId,
+                  role: 'admin' as const,
+                  level: 1,
+                  type: 'broadcast' as const
+                };
+                
+                // Insert after room_info_current message
+                const currentIndex = updatedMessages.findIndex(msg => msg.id === `room_info_current_${data.roomId}`);
+                if (currentIndex !== -1) {
+                  updatedMessages.splice(currentIndex + 1, 0, broadcastMsg);
+                } else {
+                  updatedMessages.push(broadcastMsg);
+                }
+              }
+              
+              return { ...tab, messages: updatedMessages };
+            }
+            return tab;
+          })
+        );
       });
 
       // Listen for user kicked events
