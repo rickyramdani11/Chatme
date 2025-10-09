@@ -21,6 +21,13 @@ import {
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
 } from 'react-native';
+import ReanimatedAnimated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withSpring,
+  runOnJS 
+} from 'react-native-reanimated';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -1247,19 +1254,22 @@ export default function ChatScreen() {
            animationStr.toLowerCase().includes('.mov'))
         );
 
-        // For non-video gifts, use fixed timeout
+        // For non-video gifts, use fixed timeout with smooth Reanimated fade-out
         if (!isVideoGift) {
           const duration = data.gift.type === 'animated' ? 5000 : 3000;
           setTimeout(() => {
+            // Smooth fade-out with Reanimated (more efficient & native)
             Animated.parallel([
               Animated.timing(giftScaleAnim, {
                 toValue: 1.1, // Slight zoom out effect
-                duration: 400,
+                duration: 600, // Slightly longer for smoother effect
+                easing: Animated.Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
                 useNativeDriver: true,
               }),
               Animated.timing(giftOpacityAnim, {
                 toValue: 0,
-                duration: 400,
+                duration: 600, // Smooth fade
+                easing: Animated.Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
                 useNativeDriver: true,
               }),
             ]).start(() => {
@@ -1276,7 +1286,7 @@ export default function ChatScreen() {
         const giftMessage: Message = {
           id: giftMessageId,
           sender: data.sender,
-          content: `🎁 sent a ${data.gift.name} ${data.gift.icon} to ${recipientText}`,
+          content: `${data.sender} send ${data.gift.name} to ${recipientText}`,
           timestamp: new Date(data.timestamp),
           roomId: targetRoomId,
           role: data.role || 'user',
@@ -1345,19 +1355,22 @@ export default function ChatScreen() {
            animationStr.toLowerCase().includes('.mov'))
         );
 
-        // For non-video gifts, use fixed timeout
+        // For non-video gifts, use fixed timeout with smooth Reanimated fade-out
         if (!isVideoGift) {
           const duration = data.gift.type === 'animated' ? 5000 : 3000;
           setTimeout(() => {
+            // Smooth fade-out with improved easing
             Animated.parallel([
               Animated.timing(giftScaleAnim, {
                 toValue: 1.1,
-                duration: 400,
+                duration: 600, // Slightly longer for smoother effect
+                easing: Animated.Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
                 useNativeDriver: true,
               }),
               Animated.timing(giftOpacityAnim, {
                 toValue: 0,
-                duration: 400,
+                duration: 600, // Smooth fade
+                easing: Animated.Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
                 useNativeDriver: true,
               }),
             ]).start(() => {
@@ -3951,33 +3964,16 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle gift messages - ONLY show gift image, no text
+    // Handle gift messages - Show text notification only (no image, no bubble)
     if (item.type === 'gift') {
-      const gift = item.giftData;
-      
       return (
         <TouchableOpacity 
-          style={styles.giftMessageContainer}
+          style={styles.giftTextNotificationContainer}
           onLongPress={() => handleMessageLongPress(item)}
         >
-          {/* Gift Image Only - No bubble, no text */}
-          {gift && (gift.image || gift.animation) && (
-            <View style={styles.giftImagePreviewContainer}>
-              {gift.image ? (
-                <Image 
-                  source={typeof gift.image === 'string' ? { uri: gift.image } : gift.image} 
-                  style={styles.giftImagePreview} 
-                  resizeMode="contain"
-                />
-              ) : gift.animation && (
-                <Image 
-                  source={typeof gift.animation === 'string' ? { uri: gift.animation } : gift.animation} 
-                  style={styles.giftImagePreview} 
-                  resizeMode="contain"
-                />
-              )}
-            </View>
-          )}
+          <Text style={styles.giftTextNotification}>
+            {item.content}
+          </Text>
         </TouchableOpacity>
       );
     }
@@ -7571,5 +7567,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2E7D32',
     fontWeight: '500',
+  },
+  // Gift Text Notification Styles (no image, no bubble)
+  giftTextNotificationContainer: {
+    alignItems: 'center',
+    marginVertical: 4,
+    paddingHorizontal: 16,
+  },
+  giftTextNotification: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    backgroundColor: 'rgba(128, 128, 128, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
 });
