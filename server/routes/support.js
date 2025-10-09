@@ -71,7 +71,7 @@ const initSupportTables = async () => {
       )
     `);
 
-    // Live chat sessions table
+    // Live chat sessions table (no room needed)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS live_chat_sessions (
         id SERIAL PRIMARY KEY,
@@ -80,7 +80,6 @@ const initSupportTables = async () => {
         admin_id INTEGER,
         admin_username VARCHAR(50),
         session_status VARCHAR(20) DEFAULT 'waiting',
-        room_id INTEGER,
         started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         ended_at TIMESTAMP,
         rating INTEGER,
@@ -88,10 +87,17 @@ const initSupportTables = async () => {
       )
     `);
     
-    // Add room_id column if it doesn't exist (migration)
+    // Support chat messages table (separate from rooms)
     await pool.query(`
-      ALTER TABLE live_chat_sessions 
-      ADD COLUMN IF NOT EXISTS room_id INTEGER
+      CREATE TABLE IF NOT EXISTS support_chat_messages (
+        id SERIAL PRIMARY KEY,
+        session_id INTEGER REFERENCES live_chat_sessions(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL,
+        username VARCHAR(50) NOT NULL,
+        message TEXT NOT NULL,
+        is_admin BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
     `);
 
     console.log('✅ Support system tables initialized successfully');
@@ -323,7 +329,7 @@ router.get('/live-chat/status', async (req, res) => {
   }
 });
 
-// Start live chat session
+// Start live chat session (NO room creation - separate chat system)
 router.post('/live-chat/start', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -360,29 +366,18 @@ router.post('/live-chat/start', authenticateToken, async (req, res) => {
       adminUsername = adminResult.rows[0].username;
     }
 
-    // Create support room first
-    const roomName = `Support - ${username}`;
-    const roomResult = await pool.query(`
-      INSERT INTO rooms (name, description, created_by, max_users, is_private)
-      VALUES ($1, $2, $3, 2, true)
-      RETURNING id
-    `, [roomName, 'Live Support Chat', userId, 2]);
-
-    const supportRoomId = roomResult.rows[0].id;
-
-    // Create new live chat session with room reference
+    // Create new live chat session (NO ROOM - separate chat system)
     const sessionResult = await pool.query(`
-      INSERT INTO live_chat_sessions (user_id, username, admin_id, admin_username, session_status, room_id)
-      VALUES ($1, $2, $3, $4, 'active', $5)
+      INSERT INTO live_chat_sessions (user_id, username, admin_id, admin_username, session_status)
+      VALUES ($1, $2, $3, $4, 'active')
       RETURNING *
-    `, [userId, username, adminId, adminUsername, supportRoomId]);
+    `, [userId, username, adminId, adminUsername]);
 
     const session = sessionResult.rows[0];
 
     res.json({
       success: true,
       message: `Terhubung dengan ${adminUsername}`,
-      supportRoomId: supportRoomId.toString(),
       adminUsername: adminUsername,
       session: {
         id: session.id.toString(),
@@ -393,6 +388,99 @@ router.post('/live-chat/start', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error starting live chat:', error);
     res.status(500).json({ error: 'Failed to start live chat session' });
+  }
+});
+
+// Get live chat messages (separate from rooms)
+router.get('/live-chat/:sessionId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    // Verify session ownership or admin access
+    const sessionCheck = await pool.query(
+      `SELECT id, user_id FROM live_chat_sessions 
+       WHERE id = $1 AND (user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND role = 'admin'))`,
+      [sessionId, userId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found or access denied' });
+    }
+
+    const result = await pool.query(`
+      SELECT * FROM support_chat_messages
+      WHERE session_id = $1
+      ORDER BY created_at ASC
+    `, [sessionId]);
+
+    const messages = result.rows.map(row => ({
+      id: row.id.toString(),
+      message: row.message,
+      username: row.username,
+      isAdmin: row.is_admin,
+      createdAt: row.created_at
+    }));
+
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching live chat messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// Send message to live chat (separate from rooms)
+router.post('/live-chat/:sessionId/messages', authenticateToken, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { message } = req.body;
+    const userId = req.user.id;
+    const username = req.user.username;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    // Verify session ownership or admin access
+    const sessionCheck = await pool.query(
+      `SELECT id, session_status FROM live_chat_sessions 
+       WHERE id = $1 AND (user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND role = 'admin'))`,
+      [sessionId, userId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found or access denied' });
+    }
+
+    const session = sessionCheck.rows[0];
+
+    if (session.session_status === 'ended') {
+      return res.status(400).json({ error: 'Cannot send message to ended session' });
+    }
+
+    // Add message to support chat
+    const result = await pool.query(`
+      INSERT INTO support_chat_messages (session_id, user_id, username, message, is_admin)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [sessionId, userId, username, message.trim(), isAdmin]);
+
+    const newMessage = result.rows[0];
+
+    res.status(201).json({
+      success: true,
+      message: {
+        id: newMessage.id.toString(),
+        message: newMessage.message,
+        username: newMessage.username,
+        isAdmin: newMessage.is_admin,
+        createdAt: newMessage.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Error sending live chat message:', error);
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
 
