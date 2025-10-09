@@ -501,6 +501,104 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
+  const handleEditFrame = async (frame: any) => {
+    setEditingFrame(frame);
+    setFrameName(frame.name);
+    setFrameDescription(frame.description || '');
+    setFramePrice(frame.price.toString());
+    setFrameDurationDays(frame.duration_days?.toString() || '14');
+    Alert.alert('Edit Frame', 'Update frame details in the form above and submit');
+  };
+
+  const handleUpdateFrame = async () => {
+    if (!editingFrame) return;
+    
+    setFramesLoading(true);
+    try {
+      const requestBody: any = {
+        name: frameName.trim(),
+        description: frameDescription.trim() || '',
+        price: parseInt(framePrice),
+        durationDays: parseInt(frameDurationDays) || 14,
+      };
+
+      if (uploadedFrameImage && uploadedFrameImage.base64) {
+        requestBody.frameImage = uploadedFrameImage.base64;
+        requestBody.imageType = uploadedFrameImage.type;
+        requestBody.imageName = uploadedFrameImage.name;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/frames/${editingFrame.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Frame updated successfully');
+        setFrameName('');
+        setFrameDescription('');
+        setFramePrice('');
+        setFrameDurationDays('14');
+        setUploadedFrameImage(null);
+        setEditingFrame(null);
+        loadFrames();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update frame');
+      }
+    } catch (error) {
+      console.error('Error updating frame:', error);
+      Alert.alert('Error', error.message || 'Failed to update frame');
+    } finally {
+      setFramesLoading(false);
+    }
+  };
+
+  const handleDeleteFrame = async (frameId: number) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this frame?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setFramesLoading(true);
+            try {
+              const response = await fetch(`${API_BASE_URL}/admin/frames/${frameId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Frame deleted successfully');
+                loadFrames();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete frame');
+              }
+            } catch (error) {
+              console.error('Error deleting frame:', error);
+              Alert.alert('Error', error.message || 'Failed to delete frame');
+            } finally {
+              setFramesLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleFileUpload = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -2239,15 +2337,32 @@ export default function AdminScreen({ navigation }: any) {
 
               <TouchableOpacity
                 style={styles.submitButton}
-                onPress={handleAddFrame}
+                onPress={editingFrame ? handleUpdateFrame : handleAddFrame}
                 disabled={framesLoading}
               >
                 {framesLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.submitButtonText}>Submit Frame</Text>
+                  <Text style={styles.submitButtonText}>
+                    {editingFrame ? 'Update Frame' : 'Add Frame'}
+                  </Text>
                 )}
               </TouchableOpacity>
+              {editingFrame && (
+                <TouchableOpacity
+                  style={[styles.submitButton, { backgroundColor: '#666', marginTop: 10 }]}
+                  onPress={() => {
+                    setEditingFrame(null);
+                    setFrameName('');
+                    setFrameDescription('');
+                    setFramePrice('');
+                    setFrameDurationDays('14');
+                    setUploadedFrameImage(null);
+                  }}
+                >
+                  <Text style={styles.submitButtonText}>Cancel Edit</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.giftListContainer}>
@@ -2265,13 +2380,12 @@ export default function AdminScreen({ navigation }: any) {
                       key={item.id}
                       style={styles.giftCard}
                       onLongPress={() => {
-                        setEditingFrame(item);
                         Alert.alert(
                           'Frame Actions',
                           `Manage: ${item.name}`,
                           [
-                            { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit will be implemented') },
-                            { text: 'Delete', onPress: () => Alert.alert('Coming Soon', 'Delete will be implemented'), style: 'destructive' },
+                            { text: 'Edit', onPress: () => handleEditFrame(item) },
+                            { text: 'Delete', onPress: () => handleDeleteFrame(item.id), style: 'destructive' },
                             { text: 'Cancel', style: 'cancel' }
                           ]
                         );
