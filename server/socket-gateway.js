@@ -2520,63 +2520,6 @@ io.on('connection', (socket) => {
     console.log('Report forwarded to admins via gateway');
   });
 
-  // Update user status (away/busy/online) and broadcast to all rooms
-  socket.on('update-status', async ({ status }) => {
-    const userInfo = connectedUsers.get(socket.id);
-    if (!userInfo || !userInfo.userId) {
-      console.log('❌ Cannot update status: user info not found');
-      return;
-    }
-
-    // SECURITY: Validate status - only allow online/away/busy (NOT offline)
-    const validStatuses = ['online', 'away', 'busy'];
-    if (!validStatuses.includes(status)) {
-      console.log(`❌ Invalid status "${status}" from ${userInfo.username} - rejecting`);
-      socket.emit('status-update-error', { 
-        error: 'Invalid status. Must be: online, away, or busy. Use logout to set offline.' 
-      });
-      return;
-    }
-
-    try {
-      // Persist to database
-      await pool.query(
-        'UPDATE users SET status = $1 WHERE id = $2',
-        [status, userInfo.userId]
-      );
-
-      // Get user's current rooms from roomParticipants
-      const userRooms = [];
-      for (const [roomId, participants] of Object.entries(roomParticipants)) {
-        const participant = participants.find(p => p.userId === userInfo.userId);
-        if (participant) {
-          // Update participant status
-          participant.status = status;
-          userRooms.push(roomId);
-        }
-      }
-
-      console.log(`✅ Updated status to ${status.toUpperCase()} for user ${userInfo.username} in ${userRooms.length} room(s)`);
-
-      // Broadcast status change to all rooms user is in
-      for (const roomId of userRooms) {
-        io.to(roomId).emit('user-status-changed', {
-          userId: userInfo.userId,
-          username: userInfo.username,
-          status: status,
-          timestamp: new Date().toISOString()
-        });
-
-        // Also update participants list
-        io.to(roomId).emit('participants-updated', roomParticipants[roomId]);
-      }
-
-      console.log(`📢 Status change broadcast to ${userRooms.length} room(s)`);
-    } catch (error) {
-      console.error('Error updating user status in gateway:', error);
-    }
-  });
-
   // Disconnect event
   socket.on('disconnect', async () => {
     console.log(`🔴 ===========================================`);
