@@ -17,7 +17,7 @@ let roomParticipants = {};
 const loadRoomsFromDatabase = async () => {
   try {
     const result = await pool.query(`
-      SELECT id, name, description, managed_by, type, members, max_members, created_by, created_at
+      SELECT id, name, description, managed_by, type, members, max_members, created_by, created_at, broadcast_message
       FROM rooms 
       ORDER BY created_at ASC
     `);
@@ -31,7 +31,8 @@ const loadRoomsFromDatabase = async () => {
       members: row.members || 0,
       maxMembers: row.max_members || 25,
       createdBy: row.created_by,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      broadcastMessage: row.broadcast_message
     }));
 
     console.log(`Loaded ${rooms.length} rooms from database`);
@@ -60,7 +61,7 @@ router.get('/', async (req, res) => {
     
     // Query database for real-time room data (not in-memory cache)
     const result = await pool.query(`
-      SELECT id, name, description, managed_by, type, members, max_members, created_by, created_at
+      SELECT id, name, description, managed_by, type, members, max_members, created_by, created_at, broadcast_message
       FROM rooms 
       ORDER BY created_at ASC
     `);
@@ -74,7 +75,8 @@ router.get('/', async (req, res) => {
       members: row.members || 0,
       maxMembers: row.max_members || 25,
       createdBy: row.created_by,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      broadcastMessage: row.broadcast_message
     }));
 
     res.json(freshRooms);

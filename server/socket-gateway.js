@@ -1651,7 +1651,7 @@ io.on('connection', (socket) => {
       }
 
       // Handle /broadcast command (admin only)
-      if (trimmedContent.startsWith('/broadcast ')) {
+      if (trimmedContent.startsWith('/broadcast')) {
         console.log(`📢 Processing broadcast command from ${sender}`);
         
         try {
@@ -1707,6 +1707,21 @@ io.on('connection', (socket) => {
             return;
           }
 
+          // Check if command is /broadcast off
+          if (trimmedContent === '/broadcast off') {
+            // Clear broadcast message from database
+            await pool.query('UPDATE rooms SET broadcast_message = NULL WHERE id = $1', [roomId]);
+            
+            // Notify all users in the room to clear broadcast
+            io.to(roomId).emit('broadcast-updated', { 
+              roomId, 
+              broadcastMessage: null 
+            });
+            
+            console.log(`🔇 Broadcast cleared in room ${roomId} by ${actualUsername}`);
+            return;
+          }
+
           // Extract message content after /broadcast
           const broadcastContent = content.substring('/broadcast '.length).trim();
           
@@ -1714,7 +1729,7 @@ io.on('connection', (socket) => {
             socket.emit('new-message', {
               id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
               sender: 'System',
-              content: '❌ Broadcast message cannot be empty',
+              content: '❌ Broadcast message cannot be empty. Use /broadcast off to clear',
               timestamp: new Date().toISOString(),
               roomId: roomId,
               type: 'system',
@@ -1724,20 +1739,16 @@ io.on('connection', (socket) => {
             return;
           }
 
-          // Create broadcast message with actual sender info
-          const broadcastMessage = {
-            id: `broadcast_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            sender: actualUsername,
-            content: broadcastContent,
-            timestamp: new Date().toISOString(),
-            roomId,
-            type: 'broadcast',
-            role: 'admin'
-          };
+          // Save broadcast message to database
+          await pool.query('UPDATE rooms SET broadcast_message = $1 WHERE id = $2', [broadcastContent, roomId]);
 
-          // Broadcast to all users in the room
-          io.to(roomId).emit('new-message', broadcastMessage);
-          console.log(`📢 Broadcast message sent to room ${roomId} by ${actualUsername}: ${broadcastContent}`);
+          // Notify all users in the room about new broadcast
+          io.to(roomId).emit('broadcast-updated', { 
+            roomId, 
+            broadcastMessage: broadcastContent 
+          });
+          
+          console.log(`📢 Broadcast message saved and sent to room ${roomId} by ${actualUsername}: ${broadcastContent}`);
           
         } catch (error) {
           console.error('❌ Error processing /broadcast command:', error);
