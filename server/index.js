@@ -5297,6 +5297,39 @@ app.get('/api/users/:userId/profile', async (req, res) => {
       }
     ];
 
+    // Get merchant status if user is a merchant
+    let merchantStatus = null;
+    if (user.role === 'merchant') {
+      const merchantResult = await pool.query(`
+        SELECT 
+          mp.monthly_revenue,
+          mp.revenue_requirement,
+          mp.status,
+          mp.revenue_reset_date,
+          mp.downgrade_reason
+        FROM merchant_promotions mp
+        WHERE mp.user_id = $1 AND mp.status = 'active'
+        ORDER BY mp.created_at DESC
+        LIMIT 1
+      `, [actualUserId]);
+
+      if (merchantResult.rows.length > 0) {
+        const merchant = merchantResult.rows[0];
+        const revenue = merchant.monthly_revenue || 0;
+        const requirement = merchant.revenue_requirement || 800000;
+        const percentage = Math.round((revenue / requirement) * 100);
+        
+        merchantStatus = {
+          revenue: revenue,
+          requirement: requirement,
+          percentage: percentage,
+          status: merchant.status,
+          atRisk: revenue < requirement * 0.5, // At risk if below 50%
+          resetDate: merchant.revenue_reset_date
+        };
+      }
+    }
+
     // Construct avatar URL
     let avatarUrl = null;
     if (user.avatar) {
@@ -5321,6 +5354,8 @@ app.get('/api/users/:userId/profile', async (req, res) => {
       following: parseInt(followingResult.rows[0].count),
       avatar: avatarUrl,
       level: user.level || 1,
+      role: user.role || 'user',
+      merchantStatus: merchantStatus,
       achievements: achievements,
       isOnline: Math.random() > 0.5, // TODO: implement real online status
       country: user.country || 'ID',

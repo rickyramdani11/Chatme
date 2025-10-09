@@ -20,6 +20,15 @@ import { useAuth } from '../hooks';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
+interface MerchantStatus {
+  revenue: number;
+  requirement: number;
+  percentage: number;
+  status: string;
+  atRisk: boolean;
+  resetDate: string;
+}
+
 interface UserProfile {
   id: string;
   username: string;
@@ -31,6 +40,7 @@ interface UserProfile {
   profileBackground?: string;
   level: number;
   role?: string;
+  merchantStatus?: MerchantStatus | null;
   achievements: Achievement[];
   isOnline: boolean;
   country?: string;
@@ -813,6 +823,60 @@ export default function ProfileScreen({ navigation, route }: any) {
                 </LinearGradient>
               </TouchableOpacity>
             )}
+
+            {/* Merchant Badge with "Luntur Warna" Effect */}
+            {profile.role === 'merchant' && profile.merchantStatus && (
+              <View 
+                style={[
+                  styles.merchantBadgeContainer,
+                  profile.merchantStatus.atRisk && styles.merchantBadgeAtRisk
+                ]}
+              >
+                <LinearGradient
+                  colors={profile.merchantStatus.atRisk ? ['#888888', '#666666'] : ['#FFD700', '#FFA500']}
+                  style={[
+                    styles.merchantBadge,
+                    { opacity: profile.merchantStatus.atRisk ? 0.4 : 1.0 }
+                  ]}
+                >
+                  <View style={styles.merchantBadgeIcon}>
+                    <Ionicons 
+                      name="storefront" 
+                      size={16} 
+                      color={profile.merchantStatus.atRisk ? '#aaa' : '#FFD700'} 
+                    />
+                  </View>
+                  <View style={styles.merchantBadgeContent}>
+                    <Text style={[
+                      styles.merchantBadgeText,
+                      { color: profile.merchantStatus.atRisk ? '#999' : '#fff' }
+                    ]}>
+                      Merchant
+                    </Text>
+                    <View style={styles.merchantProgressBar}>
+                      <View 
+                        style={[
+                          styles.merchantProgress, 
+                          { 
+                            width: `${Math.min(profile.merchantStatus.percentage, 100)}%`,
+                            backgroundColor: profile.merchantStatus.atRisk ? '#666' : '#FFD700'
+                          }
+                        ]} 
+                      />
+                    </View>
+                    <Text style={[
+                      styles.merchantRevenueText,
+                      { color: profile.merchantStatus.atRisk ? '#888' : '#fff' }
+                    ]}>
+                      {profile.merchantStatus.revenue.toLocaleString()} / {profile.merchantStatus.requirement.toLocaleString()} coins ({profile.merchantStatus.percentage}%)
+                    </Text>
+                    {profile.merchantStatus.atRisk && (
+                      <Text style={styles.merchantWarningText}>⚠️ At Risk - Low Revenue</Text>
+                    )}
+                  </View>
+                </LinearGradient>
+              </View>
+            )}
           </View>
 
           {/* Achievements */}
@@ -1345,6 +1409,68 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
     flex: 1,
+  },
+  merchantBadgeContainer: {
+    marginTop: 16,
+    alignSelf: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+    minWidth: 250,
+    maxWidth: 320,
+  },
+  merchantBadgeAtRisk: {
+    shadowColor: '#666',
+    shadowOpacity: 0.15,
+  },
+  merchantBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  merchantBadgeIcon: {
+    marginRight: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  merchantBadgeContent: {
+    flex: 1,
+  },
+  merchantBadgeText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  merchantProgressBar: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  merchantProgress: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  merchantRevenueText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  merchantWarningText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#ff6b6b',
+    marginTop: 4,
   },
   actionButtons: {
     flexDirection: 'row',
