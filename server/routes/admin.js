@@ -251,6 +251,40 @@ function validateBase64Image(base64Data, allowedTypes = ['png', 'jpg', 'jpeg', '
   return { valid: true, type: detectedType, buffer };
 }
 
+// Get user statistics
+router.get('/user-stats', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const totalUsersResult = await pool.query('SELECT COUNT(*) as total FROM users');
+    const totalUsers = parseInt(totalUsersResult.rows[0].total);
+
+    const onlineUsersResult = await pool.query(`
+      SELECT COUNT(*) as online 
+      FROM user_status 
+      WHERE status = 'ONLINE'
+    `);
+    const onlineUsers = parseInt(onlineUsersResult.rows[0].online);
+
+    const registrationStatsResult = await pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as count
+      FROM users
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `);
+
+    res.json({
+      totalUsers,
+      onlineUsers,
+      registrationStats: registrationStatsResult.rows
+    });
+  } catch (error) {
+    console.error('Error fetching user stats:', error);
+    res.status(500).json({ error: 'Failed to fetch user statistics' });
+  }
+});
+
 // Get emojis
 router.get('/emojis', authenticateToken, adminOnly, async (req, res) => {
   try {

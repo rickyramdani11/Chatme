@@ -65,8 +65,8 @@ interface MenuItem {
 
 export default function AdminScreen({ navigation }: any) {
   const { user, token } = useAuth();
-  const [activeTab, setActiveTab] = useState('emoji');
-  const [emojis, setEmojis] = useState<Emoji[]>([]);
+  const [activeTab, setActiveTab] = useState('users');
+  const [userStats, setUserStats] = useState<any>(null);
   const [gifts, setGifts] = useState<Gift[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -158,11 +158,11 @@ export default function AdminScreen({ navigation }: any) {
 
   const menuItems: MenuItem[] = [
     {
-      id: 'emoji',
-      title: 'Kelola Emoji',
-      icon: 'happy-outline',
-      color: '#4CAF50',
-      description: 'Tambah dan kelola emoji custom'
+      id: 'users',
+      title: 'User Online',
+      icon: 'people-outline',
+      color: '#4ECDC4',
+      description: 'Statistik pengguna dan user online'
     },
     {
       id: 'gift',
@@ -241,9 +241,11 @@ export default function AdminScreen({ navigation }: any) {
 
   useEffect(() => {
     if (token && user?.role === 'admin') {
-      loadEmojis();
       loadGifts();
       loadDeviceInfo();
+      if (activeTab === 'users') {
+        loadUserStats();
+      }
       if (activeTab === 'status') {
         loadUserStatus();
       }
@@ -307,10 +309,9 @@ export default function AdminScreen({ navigation }: any) {
     toggleSideMenu();
   };
 
-  const loadEmojis = async () => {
+  const loadUserStats = async () => {
     try {
-      console.log('Loading emojis with token:', token ? 'Present' : 'Missing');
-      const response = await fetch(`${API_BASE_URL}/admin/emojis`, {
+      const response = await fetch(`${API_BASE_URL}/admin/user-stats`, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -318,20 +319,16 @@ export default function AdminScreen({ navigation }: any) {
         },
       });
 
-      console.log('Emojis response status:', response.status);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('Emojis loaded:', data.length);
-        setEmojis(data);
+        setUserStats(data);
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Failed to load emojis:', response.status, errorData);
-        Alert.alert('Error', `Failed to load emojis: ${response.status} ${errorData.error || response.statusText}`);
+        Alert.alert('Error', `Failed to load user stats: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error loading emojis:', error);
-      Alert.alert('Error', 'Network error loading emojis');
+      console.error('Error loading user stats:', error);
+      Alert.alert('Error', 'Network error loading user stats');
     }
   };
 
@@ -1257,58 +1254,7 @@ export default function AdminScreen({ navigation }: any) {
 
     setLoading(true);
     try {
-      if (activeTab === 'emoji') {
-        if (!uploadedEmojiFile && !itemIcon.trim()) {
-          Alert.alert('Error', 'Please upload an emoji file or enter emoji character');
-          return;
-        }
-
-        let requestBody;
-
-        if (uploadedEmojiFile) {
-          requestBody = {
-            name: itemName.trim(),
-            category: itemCategory?.trim() || 'general',
-            emojiFile: uploadedEmojiFile.base64,
-            emojiType: uploadedEmojiFile.extension,
-            fileName: uploadedEmojiFile.name
-          };
-        } else if (itemIcon.trim()) {
-          requestBody = {
-            name: itemName.trim(),
-            category: itemCategory?.trim() || 'general',
-            emoji: itemIcon.trim()
-          };
-        } else {
-          Alert.alert('Error', 'Please upload an emoji file or enter emoji character');
-          return;
-        }
-
-        console.log('Sending emoji request:', {
-          name: requestBody.name,
-          category: requestBody.category,
-          hasFile: !!requestBody.emojiFile,
-          hasEmoji: !!requestBody.emoji
-        });
-
-        const response = await fetch(`${API_BASE_URL}/admin/emojis`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'User-Agent': 'ChatMe-Mobile-App',
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        if (response.ok) {
-          Alert.alert('Success', 'Emoji added successfully');
-          loadEmojis();
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to add emoji');
-        }
-      } else {
+      {
         if (!itemIcon.trim()) {
           Alert.alert('Error', 'Please enter gift icon');
           return;
@@ -1888,7 +1834,7 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
-  const handleDeleteItem = async (id: string, type: 'emoji' | 'gift') => {
+  const handleDeleteItem = async (id: string, type: 'gift') => {
     Alert.alert(
       'Confirm Delete',
       `Are you sure you want to delete this ${type}?`,
@@ -1899,8 +1845,7 @@ export default function AdminScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const endpoint = type === 'emoji' ? 'emojis' : 'gifts';
-              const response = await fetch(`${API_BASE_URL}/admin/${endpoint}/${id}`, {
+              const response = await fetch(`${API_BASE_URL}/admin/gifts/${id}`, {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
@@ -1910,18 +1855,14 @@ export default function AdminScreen({ navigation }: any) {
               });
 
               if (response.ok) {
-                Alert.alert('Success', `${type} deleted successfully`);
-                if (type === 'emoji') {
-                  loadEmojis();
-                } else {
-                  loadGifts();
-                }
+                Alert.alert('Success', 'Gift deleted successfully');
+                loadGifts();
               } else {
-                throw new Error(`Failed to delete ${type}`);
+                throw new Error('Failed to delete gift');
               }
             } catch (error) {
-              console.error(`Error deleting ${type}:`, error);
-              Alert.alert('Error', `Failed to delete ${type}`);
+              console.error('Error deleting gift:', error);
+              Alert.alert('Error', 'Failed to delete gift');
             }
           }
         }
@@ -2115,23 +2056,42 @@ export default function AdminScreen({ navigation }: any) {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'emoji':
+      case 'users':
         return (
-          <FlatList
-            data={emojis}
-            renderItem={renderEmojiItem}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons name="happy-outline" size={60} color="#ccc" />
-                <Text style={styles.emptyTitle}>No Emojis Added</Text>
-                <Text style={styles.emptySubtitle}>Add emojis to show in chat emoji picker</Text>
+          <ScrollView style={styles.statsContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.statsCards}>
+              <View style={[styles.statCard, { backgroundColor: '#4ECDC4' }]}>
+                <Ionicons name="people" size={40} color="#fff" />
+                <Text style={styles.statNumber}>{userStats?.totalUsers || 0}</Text>
+                <Text style={styles.statLabel}>Total Users</Text>
               </View>
-            }
-          />
+              
+              <View style={[styles.statCard, { backgroundColor: '#45B7D1' }]}>
+                <Ionicons name="radio-button-on" size={40} color="#fff" />
+                <Text style={styles.statNumber}>{userStats?.onlineUsers || 0}</Text>
+                <Text style={styles.statLabel}>Online Now</Text>
+              </View>
+            </View>
+
+            {userStats?.registrationStats && userStats.registrationStats.length > 0 && (
+              <View style={styles.chartContainer}>
+                <Text style={styles.chartTitle}>Registrations (Last 30 Days)</Text>
+                <View style={styles.chartBars}>
+                  {userStats.registrationStats.slice(0, 10).reverse().map((stat: any, index: number) => {
+                    const maxCount = Math.max(...userStats.registrationStats.map((s: any) => parseInt(s.count)));
+                    const barHeight = (parseInt(stat.count) / maxCount) * 150;
+                    return (
+                      <View key={index} style={styles.barContainer}>
+                        <View style={[styles.bar, { height: barHeight, backgroundColor: '#4ECDC4' }]} />
+                        <Text style={styles.barLabel}>{stat.count}</Text>
+                        <Text style={styles.dateLabel}>{new Date(stat.date).getDate()}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+          </ScrollView>
         );
 
       case 'gift':
@@ -5646,5 +5606,81 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 15,
     fontWeight: '600',
+  },
+  statsContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  statsCards: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+  },
+  statCard: {
+    flex: 1,
+    padding: 25,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginHorizontal: 5,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  statNumber: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 10,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#fff',
+    marginTop: 5,
+    opacity: 0.9,
+  },
+  chartContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 20,
+  },
+  chartBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    height: 200,
+  },
+  barContainer: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  bar: {
+    width: 24,
+    backgroundColor: '#4ECDC4',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+  },
+  barLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 5,
+  },
+  dateLabel: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 2,
   },
 });
