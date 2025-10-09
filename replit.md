@@ -75,7 +75,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).
-- **Storage**: Cloudinary cloud storage for gift media (images/videos/GIFs) and avatar frame assets (PNG/GIF). Legacy local file system support maintained for backward compatibility.
+- **Storage**: Cloudinary cloud storage for gift media (images/videos/GIFs), avatar frame assets (PNG/GIF), and feed post media (photos/videos). Cloud-first storage with automatic CDN delivery.
 - **Networking**: HTTP/HTTPS, WebSockets.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.

@@ -4,6 +4,13 @@ const { Pool } = require('pg');
 const path = require('path');
 const fs = require('fs');
 const { authenticateToken } = require('./auth');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 const router = express.Router();
 const pool = new Pool({
@@ -349,8 +356,8 @@ router.post('/posts/:postId/share', (req, res) => {
   }
 });
 
-// Upload photo/video for posts
-router.post('/upload', (req, res) => {
+// Upload photo/video for posts - Using Cloudinary
+router.post('/upload', async (req, res) => {
   try {
     console.log('=== UPLOAD REQUEST DEBUG ===');
     console.log('Request body keys:', Object.keys(req.body || {}));
@@ -360,7 +367,6 @@ router.post('/upload', (req, res) => {
     console.log('Filename:', req.body?.filename);
     console.log('User:', req.body?.user);
 
-    // Check if request body exists
     if (!req.body || typeof req.body !== 'object') {
       console.error('Request body is missing or invalid');
       return res.status(400).json({
@@ -371,7 +377,6 @@ router.post('/upload', (req, res) => {
 
     const { type, data, filename, user } = req.body;
 
-    // Detailed validation with specific error messages
     const missingFields = [];
     if (!type) missingFields.push('type');
     if (!data) missingFields.push('data');
@@ -392,7 +397,6 @@ router.post('/upload', (req, res) => {
       });
     }
 
-    // Validate file type
     const validTypes = ['photo', 'video'];
     if (!validTypes.includes(type)) {
       console.error('Invalid file type:', type);
@@ -401,79 +405,64 @@ router.post('/upload', (req, res) => {
       });
     }
 
-    // Generate unique filename with proper extension
     const timestamp = Date.now();
     const randomSuffix = Math.random().toString(36).substring(2, 8);
     let fileExtension = path.extname(filename);
 
-    // If no extension, determine from type and content
     if (!fileExtension) {
       if (type === 'video') {
-        fileExtension = '.mp4'; // Default to mp4 for videos
+        fileExtension = '.mp4';
       } else {
-        fileExtension = '.jpg'; // Default to jpg for photos
+        fileExtension = '.jpg';
       }
     }
 
-    const fileId = `file_${timestamp}_${randomSuffix}${fileExtension}`;
-    const filePath = path.join(__dirname, '../uploads', 'media', fileId);
-
-    // Ensure the uploads/media directory exists
-    const uploadsDir = path.join(__dirname, '../uploads', 'media');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    const fileBuffer = Buffer.from(data, 'base64');
+    const maxFileSize = type === 'video' ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
+    
+    if (fileBuffer.length > maxFileSize) {
+      return res.status(400).json({ 
+        error: `File too large. Maximum size is ${maxFileSize / (1024 * 1024)}MB for ${type}.` 
+      });
     }
 
-    try {
-      // Write the base64 data to a file
-      fs.writeFileSync(filePath, data, 'base64');
+    const fileId = `feed_${timestamp}_${randomSuffix}`;
+    const resourceType = type === 'video' ? 'video' : 'image';
 
-      // Verify file was created and has content
-      if (!fs.existsSync(filePath)) {
-        throw new Error('File was not created successfully');
-      }
+    const uploadResult = await new Promise((resolve, reject) => {
+      const uploadOptions = {
+        folder: 'chatme/feed',
+        public_id: fileId,
+        resource_type: resourceType,
+        format: fileExtension.replace('.', '')
+      };
 
-      const stats = fs.statSync(filePath);
-      if (stats.size === 0) {
-        fs.unlinkSync(filePath); // Remove empty file
-        throw new Error('File was created but is empty');
-      }
+      cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }).end(fileBuffer);
+    });
 
-      console.log(`File saved successfully: ${fileId}, Size: ${stats.size} bytes`);
-    } catch (writeError) {
-      console.error('Error writing file:', writeError);
-      throw new Error(`Failed to save file: ${writeError.message}`);
-    }
+    const cloudinaryUrl = uploadResult.secure_url;
 
-    const uploadedFile = {
-      id: fileId,
-      filename,
-      type, // 'photo' or 'video'
-      data: data, // base64 data without data URL prefix
-      uploadedBy: user,
-      uploadedAt: new Date().toISOString(),
-      url: `/api/feed/media/${fileId}`, // URL to access the file
-      size: Buffer.byteLength(data, 'base64') // Accurate file size in bytes
-    };
-
-    // Store in memory (in production, use proper file storage)
-    if (!global.uploadedFiles) {
-      global.uploadedFiles = {};
-    }
-    global.uploadedFiles[fileId] = uploadedFile;
-
-    console.log(`${type} uploaded:`, filename, 'by', user, `Size: ${uploadedFile.size} bytes`);
+    console.log('Feed media uploaded to Cloudinary:', {
+      fileId,
+      url: cloudinaryUrl,
+      size: fileBuffer.length,
+      type,
+      resourceType
+    });
 
     res.json({
       success: true,
-      fileId: fileId.replace(fileExtension, ''), // Return ID without extension for compatibility
-      url: `/api/feed/media/${fileId}`, // But use full filename in URL
+      fileId: fileId,
+      url: cloudinaryUrl,
       filename: filename,
       type: type
     });
   } catch (error) {
-    console.error('Error uploading file:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error uploading file to Cloudinary:', error);
+    res.status(500).json({ error: 'Failed to upload file: ' + error.message });
   }
 });
 
