@@ -26,13 +26,6 @@ import { API_BASE_URL } from '../utils/apiConfig';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-interface Emoji {
-  id: string;
-  name: string;
-  emoji: string;
-  category: string;
-}
-
 interface Gift {
   id: string;
   name: string;
@@ -118,13 +111,12 @@ export default function AdminScreen({ navigation }: any) {
     deviceType: 'Unknown'
   });
 
-  // Form states for adding emoji/gift
+  // Form states for adding gift
   const [itemName, setItemName] = useState('');
   const [itemIcon, setItemIcon] = useState('');
   const [itemCategory, setItemCategory] = useState('');
   const [itemPrice, setItemPrice] = useState('');
   const [selectedFile, setSelectedFile] = useState<any>(null);
-  const [uploadedEmojiFile, setUploadedEmojiFile] = useState<any>(null);
   const [uploadedGiftImage, setUploadedGiftImage] = useState<any>(null);
 
   // Banner management states
@@ -714,63 +706,6 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
-  const handleEmojiFileUpload = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'We need camera roll permissions to upload emoji files.');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
-        allowsMultipleSelection: false,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const asset = result.assets[0];
-
-        if (!asset.base64) {
-          Alert.alert('Error', 'Failed to process the image. Please try again.');
-          return;
-        }
-
-        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
-        if (!['png', 'gif', 'jpg', 'jpeg'].includes(fileExtension || '')) {
-          Alert.alert('Invalid file type', 'Please select PNG, GIF, JPG, or JPEG files only.');
-          return;
-        }
-
-        const fileSizeInBytes = (asset.base64.length * 3) / 4;
-        if (fileSizeInBytes > 2 * 1024 * 1024) {
-          Alert.alert('File too large', 'Please select an image smaller than 2MB.');
-          return;
-        }
-
-        setUploadedEmojiFile({
-          uri: asset.uri,
-          base64: asset.base64,
-          type: `image/${fileExtension}`,
-          name: `emoji_${Date.now()}.${fileExtension}`,
-          extension: fileExtension || 'png'
-        });
-
-        console.log('Emoji file selected:', {
-          name: `emoji_${Date.now()}.${fileExtension}`,
-          size: fileSizeInBytes,
-          type: `image/${fileExtension}`
-        });
-      }
-    } catch (error) {
-      console.error('Error picking emoji file:', error);
-      Alert.alert('Error', 'Failed to pick emoji file');
-    }
-  };
-
   const loadBanners = async () => {
     try {
       setBannersLoading(true);
@@ -1313,7 +1248,6 @@ export default function AdminScreen({ navigation }: any) {
       setItemCategory('');
       setItemPrice('');
       setSelectedFile(null);
-      setUploadedEmojiFile(null);
       setUploadedGiftImage(null);
       setShowAddModal(false);
     } catch (error) {
@@ -1926,22 +1860,6 @@ export default function AdminScreen({ navigation }: any) {
       setLoading(false);
     }
   };
-
-  const renderEmojiItem = ({ item }: { item: Emoji }) => (
-    <View style={styles.itemCard}>
-      <View style={styles.itemHeader}>
-        <Text style={styles.itemEmoji}>{item.emoji}</Text>
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => handleDeleteItem(item.id, 'emoji')}
-        >
-          <Ionicons name="trash-outline" size={16} color="#F44336" />
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.itemName}>{item.name}</Text>
-      <Text style={styles.itemCategory}>{item.category}</Text>
-    </View>
-  );
 
   const renderGiftItem = ({ item }: { item: Gift }) => (
     <View style={styles.itemCard}>
@@ -3453,7 +3371,7 @@ export default function AdminScreen({ navigation }: any) {
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                Add {activeTab === 'emoji' ? 'Emoji' : 'Gift'}
+                Add Gift
               </Text>
               <TouchableOpacity onPress={() => setShowAddModal(false)}>
                 <Ionicons name="close" size={24} color="#333" />
@@ -3471,63 +3389,7 @@ export default function AdminScreen({ navigation }: any) {
                 />
               </View>
 
-              {activeTab === 'emoji' ? (
-                <>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Upload Emoji File</Text>
-                    <Text style={styles.inputSubLabel}>Supports PNG, GIF files</Text>
-                    <TouchableOpacity
-                      style={styles.uploadButton}
-                      onPress={handleEmojiFileUpload}
-                    >
-                      <Ionicons name="cloud-upload" size={24} color="#FF6B35" />
-                      <Text style={styles.uploadButtonText}>
-                        {uploadedEmojiFile ? uploadedEmojiFile.name : 'UPLOAD EMOJI FILE'}
-                      </Text>
-                    </TouchableOpacity>
-                    {uploadedEmojiFile && (
-                      <View style={styles.previewContainer}>
-                        <Image source={{ uri: uploadedEmojiFile.uri }} style={styles.emojiPreview} />
-                        <TouchableOpacity
-                          style={styles.removeFileButton}
-                          onPress={() => setUploadedEmojiFile(null)}
-                        >
-                          <Ionicons name="close-circle" size={20} color="#F44336" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={styles.dividerContainer}>
-                    <View style={styles.divider} />
-                    <Text style={styles.dividerText}>OR</Text>
-                    <View style={styles.divider} />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Emoji Character (Text)</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={itemIcon}
-                      onChangeText={setItemIcon}
-                      placeholder="😀"
-                      editable={!uploadedEmojiFile}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Category</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={itemCategory}
-                      onChangeText={setItemCategory}
-                      placeholder="general, smileys, animals, etc."
-                    />
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View style={styles.inputGroup}>
+              <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Upload Gift Image/Video</Text>
                     <Text style={styles.inputSubLabel}>Supports PNG, GIF, JPG, WebM files</Text>
                     <TouchableOpacity
@@ -3596,8 +3458,6 @@ export default function AdminScreen({ navigation }: any) {
                       </Text>
                     </TouchableOpacity>
                   </View>
-                </>
-              )}
             </ScrollView>
 
             <View style={styles.modalActions}>
@@ -4107,13 +3967,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     position: 'relative',
-  },
-  emojiPreview: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
   },
   removeFileButton: {
     position: 'absolute',
