@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **API**: RESTful endpoints with Bearer token authorization
 
 ## Core Features
-- **Chat System**: Multi-room chat (real-time only), private messaging (persisted), emoji support, media sharing, chat history notifications, hybrid emoji composer.
+- **Chat System**: Multi-room chat (real-time only), private messaging (persisted), emoji support, media sharing, chat history notifications, hybrid emoji composer. API endpoint URLs use consistent pattern: `${API_BASE_URL}/endpoint` where API_BASE_URL already contains `/api` prefix (e.g., `/api/chat/private`, `/api/messages/:roomId`, `/api/rooms`). Fixed October 2025: Removed duplicate `/api` prefix from Chatscreen1.tsx URLs to prevent 404 errors.
 - **Gift System**: Virtual gifts with real-time display, video gifts, atomic send prevention, duplicate message filtering, batched state updates. Gift earnings are standardized to 30% user / 70% system. Cloud storage integration with Cloudinary for scalable gift media management.
 - **Gaming Integration**: LowCard bot game with database persistence, automatic refund system, auto-advance feature (instantly proceeds to "Times up" when all players draw cards, no need to wait for 20s timer), and tie-breaker re-draw system (when multiple players have the same lowest card, only those tied players re-draw until there's a clear loser, without affecting other players or moving to the next round).
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat with rate limiting and conversation history.
