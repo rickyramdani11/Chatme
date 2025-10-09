@@ -146,6 +146,16 @@ export default function AdminScreen({ navigation }: any) {
   const [ticketStatusFilter, setTicketStatusFilter] = useState('all');
   const [ticketStats, setTicketStats] = useState<any>(null);
 
+  // Frame management states
+  const [frames, setFrames] = useState([]);
+  const [framesLoading, setFramesLoading] = useState(false);
+  const [editingFrame, setEditingFrame] = useState<any>(null);
+  const [uploadedFrameImage, setUploadedFrameImage] = useState<any>(null);
+  const [frameName, setFrameName] = useState('');
+  const [frameDescription, setFrameDescription] = useState('');
+  const [framePrice, setFramePrice] = useState('');
+  const [frameDurationDays, setFrameDurationDays] = useState('14');
+
   const menuItems: MenuItem[] = [
     {
       id: 'emoji',
@@ -160,6 +170,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'gift-outline',
       color: '#FF6B35',
       description: 'Tambah dan kelola gift virtual'
+    },
+    {
+      id: 'frames',
+      title: 'Kelola Frame Avatar',
+      icon: 'aperture-outline',
+      color: '#9C27B0',
+      description: 'Tambah dan kelola frame avatar'
     },
     {
       id: 'banners',
@@ -239,6 +256,9 @@ export default function AdminScreen({ navigation }: any) {
       }
       if (activeTab === 'banners') {
         loadBanners();
+      }
+      if (activeTab === 'frames') {
+        loadFrames();
       }
       if (activeTab === 'support-tickets') {
         loadSupportTickets();
@@ -340,6 +360,34 @@ export default function AdminScreen({ navigation }: any) {
     } catch (error) {
       console.error('Error loading gifts:', error);
       Alert.alert('Error', 'Network error loading gifts');
+    }
+  };
+
+  const loadFrames = async () => {
+    try {
+      setFramesLoading(true);
+      const response = await fetch(`${API_BASE_URL}/admin/frames`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Frames loaded:', data.length);
+        setFrames(data);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load frames:', response.status, errorData);
+        Alert.alert('Error', `Failed to load frames: ${response.status} ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading frames:', error);
+      Alert.alert('Error', 'Network error loading frames');
+    } finally {
+      setFramesLoading(false);
     }
   };
 
@@ -1997,6 +2045,143 @@ export default function AdminScreen({ navigation }: any) {
                 <View style={styles.emptyGiftList}>
                   <Ionicons name="gift-outline" size={40} color="#ccc" />
                   <Text style={styles.emptyGiftText}>Belum ada gift yang ditambahkan</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        );
+
+      case 'frames':
+        return (
+          <ScrollView style={styles.giftFormContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.giftFormCard}>
+              <Text style={styles.formTitle}>Add New Avatar Frame</Text>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Frame Name</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={frameName}
+                  onChangeText={setFrameName}
+                  placeholder="Enter frame name..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Description (Optional)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={frameDescription}
+                  onChangeText={setFrameDescription}
+                  placeholder="Enter description..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Price (Credits)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={framePrice}
+                  onChangeText={setFramePrice}
+                  placeholder="Enter price in credits..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Rental Duration (Days)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={frameDurationDays}
+                  onChangeText={setFrameDurationDays}
+                  placeholder="Enter duration (e.g., 7, 14, 30)..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Upload Frame Image (PNG/GIF)</Text>
+                <TouchableOpacity
+                  style={styles.uploadFormButton}
+                  onPress={handleGiftImageUpload}
+                >
+                  <Ionicons name="image-outline" size={24} color="#FF6B35" />
+                  <Text style={styles.uploadFormText}>
+                    {uploadedFrameImage ? uploadedFrameImage.name : 'Select PNG/GIF Image'}
+                  </Text>
+                </TouchableOpacity>
+                {uploadedFrameImage && (
+                  <View style={styles.formPreviewContainer}>
+                    <Image source={{ uri: uploadedFrameImage.uri }} style={styles.formPreviewImage} />
+                    <TouchableOpacity
+                      style={styles.formRemoveButton}
+                      onPress={() => setUploadedFrameImage(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#F44336" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={() => Alert.alert('Coming Soon', 'Frame upload will be implemented')}
+                disabled={framesLoading}
+              >
+                {framesLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Frame</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.giftListContainer}>
+              <Text style={styles.giftListTitle}>Avatar Frames ({frames.length})</Text>
+              <Text style={styles.giftHelpText}>Long press frame to edit/delete</Text>
+              {framesLoading ? (
+                <View style={styles.emptyGiftList}>
+                  <ActivityIndicator size="large" color="#FF6B35" />
+                  <Text style={styles.emptyGiftText}>Loading frames...</Text>
+                </View>
+              ) : frames.length > 0 ? (
+                <View style={styles.giftGridContainer}>
+                  {frames.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.giftCard}
+                      onLongPress={() => {
+                        setEditingFrame(item);
+                        Alert.alert(
+                          'Frame Actions',
+                          `Manage: ${item.name}`,
+                          [
+                            { text: 'Edit', onPress: () => Alert.alert('Coming Soon', 'Edit will be implemented') },
+                            { text: 'Delete', onPress: () => Alert.alert('Coming Soon', 'Delete will be implemented'), style: 'destructive' },
+                            { text: 'Cancel', style: 'cancel' }
+                          ]
+                        );
+                      }}
+                    >
+                      <Image
+                        source={{ uri: item.image }}
+                        style={{ width: 80, height: 80, borderRadius: 8 }}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.giftName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.giftPrice}>{item.price} credits</Text>
+                      <Text style={styles.giftPrice}>{item.duration_days} days</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyGiftList}>
+                  <Ionicons name="images-outline" size={40} color="#ccc" />
+                  <Text style={styles.emptyGiftText}>No frames added yet</Text>
                 </View>
               )}
             </View>
