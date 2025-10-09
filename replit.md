@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat with rate limiting and conversation history.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
-- **Administrative Tools**: Admin panel for moderation, user management, configuration, and support ticket management with access control and audit logging.
+- **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, and frame management with full CRUD operations. All admin actions protected by role-based access control, rate limiting, and comprehensive audit logging. Frame management includes Cloudinary upload support for PNG/GIF assets with file validation (5MB limit).
 - **Notification System**: Real-time notifications via Socket.IO.
 - **User Presence System**: Real-time online/offline status with multi-device support.
 - **Device & Location Tracking**: Collects device information and city/country level location.
@@ -75,7 +75,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).
-- **Storage**: Cloudinary cloud storage for gift media (images/videos/GIFs), legacy local file system support maintained for backward compatibility.
+- **Storage**: Cloudinary cloud storage for gift media (images/videos/GIFs) and avatar frame assets (PNG/GIF). Legacy local file system support maintained for backward compatibility.
 - **Networking**: HTTP/HTTPS, WebSockets.
 - **Authentication**: Custom JWT.
 - **Push Notifications**: Expo notifications.
