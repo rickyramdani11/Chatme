@@ -2748,7 +2748,7 @@ export default function AdminScreen({ navigation }: any) {
             </View>
 
             {userStatusList.map((user, index) => (
-              <View key={user.id} style={styles.userStatusCard}>
+              <View key={`user-status-${user.id}-${index}`} style={styles.userStatusCard}>
                 <View style={styles.userStatusHeader}>
                   <View style={styles.userBasicInfo}>
                     <Text style={styles.userStatusName}>{user.username}</Text>
@@ -2883,7 +2883,7 @@ export default function AdminScreen({ navigation }: any) {
             <View style={styles.activeUsersSection}>
               <Text style={styles.sectionTitle}>Active Users</Text>
               {userStatusList.map((userItem, index) => (
-                <View key={userItem.id} style={styles.deviceInfoCard}>
+                <View key={`active-user-${userItem.id}-${index}`} style={styles.deviceInfoCard}>
                   <View style={styles.userDeviceHeader}>
                     <View style={styles.userBasicInfo}>
                       <Text style={styles.userDeviceName}>{userItem.username}</Text>
