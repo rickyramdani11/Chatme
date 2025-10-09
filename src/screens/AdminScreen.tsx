@@ -56,6 +56,81 @@ interface MenuItem {
   description: string;
 }
 
+interface UserStatus {
+  id: string;
+  username: string;
+  status: string;
+  role: string;
+  email?: string;
+  phone?: string;
+  credits?: number;
+  device?: string;
+  ip?: string;
+  location?: string;
+  lastLogin?: string;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  description?: string;
+  members?: number;
+  maxMembers?: number;
+  createdBy?: string;
+  managedBy?: string;
+  createdAt?: string;
+}
+
+interface BannedDevice {
+  id: string;
+  userId?: string;
+  type: string;
+  target: string;
+  reason?: string;
+  bannedBy?: string;
+  bannedAt?: string;
+}
+
+interface Banner {
+  id: string;
+  imageUrl: string;
+  title: string;
+  description?: string;
+  displayOrder?: number;
+  clickCount?: number;
+}
+
+interface Ticket {
+  id: string;
+  ticketId: string;
+  userId: string;
+  username?: string;
+  subject: string;
+  description: string;
+  status: string;
+  createdAt?: string;
+  messages?: any[];
+  category?: string;
+  priority?: string;
+}
+
+interface Frame {
+  id: string;
+  name: string;
+  image?: string;
+  price: number;
+  durationDays?: number;
+  description?: string;
+}
+
+interface CreditHistory {
+  id: string;
+  type: string;
+  amount: number;
+  otherParty?: string;
+  createdAt?: string;
+}
+
 export default function AdminScreen({ navigation }: any) {
   const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
@@ -84,16 +159,16 @@ export default function AdminScreen({ navigation }: any) {
   const [adminCreditLoading, setAdminCreditLoading] = useState(false);
 
   // User status states
-  const [userStatusList, setUserStatusList] = useState([]);
-  const [selectedUserForHistory, setSelectedUserForHistory] = useState(null);
-  const [userCreditHistory, setUserCreditHistory] = useState([]);
+  const [userStatusList, setUserStatusList] = useState<UserStatus[]>([]);
+  const [selectedUserForHistory, setSelectedUserForHistory] = useState<UserStatus | null>(null);
+  const [userCreditHistory, setUserCreditHistory] = useState<CreditHistory[]>([]);
   const [statusLoading, setStatusLoading] = useState(false);
 
   // Room management states
-  const [rooms, setRooms] = useState([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
   const [searchRoomText, setSearchRoomText] = useState('');
-  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [showEditRoomModal, setShowEditRoomModal] = useState(false);
   const [editRoomName, setEditRoomName] = useState('');
   const [editRoomDescription, setEditRoomDescription] = useState('');
@@ -103,7 +178,7 @@ export default function AdminScreen({ navigation }: any) {
   const [editingRoom, setEditingRoom] = useState(false);
 
   // Ban management states
-  const [bannedDevicesList, setBannedDevicesList] = useState([]);
+  const [bannedDevicesList, setBannedDevicesList] = useState<BannedDevice[]>([]);
   const [banLoading, setBanLoading] = useState(false);
   const [deviceInfo, setDeviceInfo] = useState({
     brand: 'Unknown',
@@ -120,7 +195,7 @@ export default function AdminScreen({ navigation }: any) {
   const [uploadedGiftImage, setUploadedGiftImage] = useState<any>(null);
 
   // Banner management states
-  const [banners, setBanners] = useState([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [bannersLoading, setBannersLoading] = useState(false);
   const [bannerTitle, setBannerTitle] = useState('');
   const [bannerDescription, setBannerDescription] = useState('');
@@ -129,19 +204,19 @@ export default function AdminScreen({ navigation }: any) {
   const [uploadedBannerImage, setUploadedBannerImage] = useState<any>(null);
 
   // Support tickets states
-  const [tickets, setTickets] = useState([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketsLoading, setTicketsLoading] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<any>(null);
-  const [ticketMessages, setTicketMessages] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [ticketMessages, setTicketMessages] = useState<any[]>([]);
   const [ticketReply, setTicketReply] = useState('');
   const [showTicketDetailModal, setShowTicketDetailModal] = useState(false);
   const [ticketStatusFilter, setTicketStatusFilter] = useState('all');
   const [ticketStats, setTicketStats] = useState<any>(null);
 
   // Frame management states
-  const [frames, setFrames] = useState([]);
+  const [frames, setFrames] = useState<Frame[]>([]);
   const [framesLoading, setFramesLoading] = useState(false);
-  const [editingFrame, setEditingFrame] = useState<any>(null);
+  const [editingFrame, setEditingFrame] = useState<Frame | null>(null);
   const [uploadedFrameImage, setUploadedFrameImage] = useState<any>(null);
   const [frameName, setFrameName] = useState('');
   const [frameDescription, setFrameDescription] = useState('');
@@ -484,7 +559,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error adding frame:', error);
-      Alert.alert('Error', error.message || 'Failed to add frame');
+      Alert.alert('Error', (error as Error).message || 'Failed to add frame');
     } finally {
       setFramesLoading(false);
     }
@@ -542,7 +617,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error updating frame:', error);
-      Alert.alert('Error', error.message || 'Failed to update frame');
+      Alert.alert('Error', (error as Error).message || 'Failed to update frame');
     } finally {
       setFramesLoading(false);
     }
@@ -578,7 +653,7 @@ export default function AdminScreen({ navigation }: any) {
               }
             } catch (error) {
               console.error('Error deleting frame:', error);
-              Alert.alert('Error', error.message || 'Failed to delete frame');
+              Alert.alert('Error', (error as Error).message || 'Failed to delete frame');
             } finally {
               setFramesLoading(false);
             }
@@ -702,7 +777,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error picking animated file:', error);
-      Alert.alert('Error', 'Failed to pick animated file: ' + error.message);
+      Alert.alert('Error', 'Failed to pick animated file: ' + (error as Error).message);
     }
   };
 
@@ -841,7 +916,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error adding banner:', error);
-      Alert.alert('Error', error.message || 'Failed to add banner');
+      Alert.alert('Error', (error as Error).message || 'Failed to add banner');
     } finally {
       setLoading(false);
     }
@@ -876,7 +951,7 @@ export default function AdminScreen({ navigation }: any) {
               }
             } catch (error) {
               console.error('Error deleting banner:', error);
-              Alert.alert('Error', error.message || 'Failed to delete banner');
+              Alert.alert('Error', (error as Error).message || 'Failed to delete banner');
             }
           }
         }
@@ -1090,7 +1165,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error picking gift file:', error);
-      Alert.alert('Error', 'Failed to pick gift file: ' + error.message);
+      Alert.alert('Error', 'Failed to pick gift file: ' + (error as Error).message);
     }
   };
 
@@ -1175,7 +1250,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error adding gift:', error);
-      Alert.alert('Error', error.message || 'Gagal menambahkan gift');
+      Alert.alert('Error', (error as Error).message || 'Gagal menambahkan gift');
     } finally {
       setLoading(false);
     }
@@ -1252,7 +1327,7 @@ export default function AdminScreen({ navigation }: any) {
       setShowAddModal(false);
     } catch (error) {
       console.error('Error adding item:', error);
-      Alert.alert('Error', error.message || 'Failed to add item');
+      Alert.alert('Error', (error as Error).message || 'Failed to add item');
     } finally {
       setLoading(false);
     }
@@ -1324,7 +1399,7 @@ export default function AdminScreen({ navigation }: any) {
               }
             } catch (error) {
               console.error('Error promoting user:', error);
-              Alert.alert('Error', error.message || 'Failed to promote user');
+              Alert.alert('Error', (error as Error).message || 'Failed to promote user');
             } finally {
               setLoading(false);
             }
@@ -1452,7 +1527,7 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
-  const loadUserCreditHistory = async (userId) => {
+  const loadUserCreditHistory = async (userId: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/admin/credits/history/${userId}`, {
         headers: {
@@ -1527,7 +1602,7 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
-  const deleteRoom = async (roomId, roomName) => {
+  const deleteRoom = async (roomId: string, roomName: string) => {
     Alert.alert(
       'Confirm Delete',
       `Are you sure you want to delete room "${roomName}"? This action cannot be undone.`,
@@ -1557,7 +1632,7 @@ export default function AdminScreen({ navigation }: any) {
               }
             } catch (error) {
               console.error('Error deleting room:', error);
-              Alert.alert('Error', error.message || 'Failed to delete room');
+              Alert.alert('Error', (error as Error).message || 'Failed to delete room');
             } finally {
               setRoomsLoading(false);
             }
@@ -1567,7 +1642,7 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
-  const openEditRoomModal = (room) => {
+  const openEditRoomModal = (room: Room) => {
     setSelectedRoom(room);
     setEditRoomName(room.name);
     setEditRoomDescription(room.description);
@@ -1624,13 +1699,13 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error updating room:', error);
-      Alert.alert('Error', error.message || 'Failed to update room');
+      Alert.alert('Error', (error as Error).message || 'Failed to update room');
     } finally {
       setEditingRoom(false);
     }
   };
 
-  const handleBanDevice = async (userId, username, deviceId, userIp) => {
+  const handleBanDevice = async (userId: string, username: string, deviceId: string, userIp: string) => {
     Alert.alert(
       'Ban Device',
       `Are you sure you want to ban the device used by ${username}?\n\nDevice: ${deviceId || 'Unknown Device'}\nIP: ${userIp || 'Unknown IP'}`,
@@ -1657,7 +1732,7 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
-  const handleBanIP = async (userId, username, userIp) => {
+  const handleBanIP = async (userId: string, username: string, userIp: string) => {
     Alert.alert(
       'Ban IP Address',
       `Are you sure you want to ban the IP address used by ${username}?\n\nIP: ${userIp || 'Unknown IP'}\n\nThis will affect all users from this IP.`,
@@ -1684,7 +1759,7 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
-  const executeBan = async (banType, userId, username, target, reason) => {
+  const executeBan = async (banType: string, userId: string, username: string, target: string, reason: string) => {
     setBanLoading(true);
     try {
       console.log('Executing ban:', { banType, userId, username, target, reason });
@@ -1719,13 +1794,13 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error(`Error banning ${banType}:`, error);
-      Alert.alert('Error', error.message || `Failed to ban ${banType}. Please check your connection.`);
+      Alert.alert('Error', (error as Error).message || `Failed to ban ${banType}. Please check your connection.`);
     } finally {
       setBanLoading(false);
     }
   };
 
-  const handleUnban = async (banId, banType, target) => {
+  const handleUnban = async (banId: string, banType: string, target: string) => {
     Alert.alert(
       'Confirm Unban',
       `Are you sure you want to unban this ${banType}?\n\nTarget: ${target}`,
@@ -1758,7 +1833,7 @@ export default function AdminScreen({ navigation }: any) {
               }
             } catch (error) {
               console.error('Error unbanning:', error);
-              Alert.alert('Error', error.message || 'Failed to unban');
+              Alert.alert('Error', (error as Error).message || 'Failed to unban');
             } finally {
               setBanLoading(false);
             }
@@ -1855,7 +1930,7 @@ export default function AdminScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error updating gift:', error);
-      Alert.alert('Error', error.message || 'Gagal mengupdate gift');
+      Alert.alert('Error', (error as Error).message || 'Gagal mengupdate gift');
     } finally {
       setLoading(false);
     }
@@ -2002,7 +2077,7 @@ export default function AdminScreen({ navigation }: any) {
                       <View key={index} style={styles.barContainer}>
                         <View style={[styles.bar, { height: barHeight, backgroundColor: '#4ECDC4' }]} />
                         <Text style={styles.barLabel}>{stat.count}</Text>
-                        <Text style={styles.dateLabel}>{new Date(stat.date).getDate()}</Text>
+                        <Text style={styles.dateLabel}>{stat.date ? new Date(stat.date).getDate() : ''}</Text>
                       </View>
                     );
                   })}
@@ -2276,7 +2351,7 @@ export default function AdminScreen({ navigation }: any) {
                       />
                       <Text style={styles.giftName} numberOfLines={1}>{item.name}</Text>
                       <Text style={styles.giftPrice}>{item.price} credits</Text>
-                      <Text style={styles.giftPrice}>{item.duration_days} days</Text>
+                      <Text style={styles.giftPrice}>{item.durationDays} days</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -2589,7 +2664,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Text style={styles.roomDetailLabel}>Members:</Text> {room.members || 0}/{room.maxMembers || 25}
                     </Text>
                     <Text style={styles.roomDetailText}>
-                      <Text style={styles.roomDetailLabel}>Created:</Text> {new Date(room.createdAt).toLocaleDateString()}
+                      <Text style={styles.roomDetailLabel}>Created:</Text> {room.createdAt ? new Date(room.createdAt).toLocaleDateString() : 'Unknown'}
                     </Text>
                   </View>
 
@@ -2826,7 +2901,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Text style={styles.historyType}>{transaction.type}</Text>
                       <Text style={styles.historyOther}>{transaction.otherParty}</Text>
                       <Text style={styles.historyDate}>
-                        {new Date(transaction.createdAt).toLocaleString()}
+                        {transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : 'Unknown'}
                       </Text>
                     </View>
                   ))}
@@ -2957,7 +3032,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Text style={styles.bannedType}>{banned.type.toUpperCase()} Ban</Text>
                     </View>
                     <Text style={styles.bannedDate}>
-                      {new Date(banned.bannedAt).toLocaleDateString()}
+                      {banned.bannedAt ? new Date(banned.bannedAt).toLocaleDateString() : 'Unknown'}
                     </Text>
                   </View>
 
@@ -3082,7 +3157,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Ionicons name="person-outline" size={12} /> {ticket.username}
                     </Text>
                     <Text style={styles.ticketDate}>
-                      {new Date(ticket.createdAt).toLocaleDateString()}
+                      {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : 'Unknown'}
                     </Text>
                   </View>
                   {ticket.messageCount > 0 && (
@@ -3139,7 +3214,7 @@ export default function AdminScreen({ navigation }: any) {
                         </Text>
                         <Text style={styles.ticketDetailMetaText}>
                           Created: <Text style={{ fontWeight: '600' }}>
-                            {new Date(selectedTicket.createdAt).toLocaleString()}
+                            {selectedTicket.createdAt ? new Date(selectedTicket.createdAt).toLocaleString() : 'Unknown'}
                           </Text>
                         </Text>
                       </View>
@@ -3185,7 +3260,7 @@ export default function AdminScreen({ navigation }: any) {
                             {msg.username} {msg.isAdmin && '(Admin)'}
                           </Text>
                           <Text style={styles.messageTime}>
-                            {new Date(msg.createdAt).toLocaleString()}
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : 'Unknown'}
                           </Text>
                         </View>
                         <Text style={styles.messageText}>{msg.message}</Text>
@@ -3826,27 +3901,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 20,
-    maxHeight: '80%',
-    minWidth: 300,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
   modalContent: {
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -4091,10 +4145,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  userActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   actionBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -4236,6 +4286,38 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingBottom: 10,
+  },
+  giftCard: {
+    width: '30%',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  giftName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  giftPrice: {
+    fontSize: 11,
+    color: '#FF6B35',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
   },
   emptyGiftList: {
     alignItems: 'center',
@@ -4388,10 +4470,6 @@ const styles = StyleSheet.create({
   infoValue: {
     color: '#333',
     fontWeight: '500',
-  },
-  userActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   historyButton: {
     flexDirection: 'row',
@@ -4778,16 +4856,6 @@ const styles = StyleSheet.create({
   },
   searchRoomContainer: {
     marginBottom: 20,
-  },
-  searchInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
   },
   searchTextInput: {
     flex: 1,
@@ -5315,24 +5383,6 @@ const styles = StyleSheet.create({
   ticketMessageCountText: {
     fontSize: 11,
     color: '#666',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
   },
   ticketDetailContainer: {
     flex: 1,
