@@ -275,18 +275,12 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Logout endpoint - explicitly set status to offline
+// Logout endpoint
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    
-    // Explicitly set status to offline on logout
-    await pool.query(
-      'UPDATE users SET status = $1 WHERE id = $2',
-      ['offline', userId]
-    );
 
-    console.log(`📴 User ${userId} logged out - status set to OFFLINE`);
+    console.log(`📴 User ${userId} logged out successfully`);
 
     res.json({ message: 'Logged out successfully', success: true });
   } catch (error) {
