@@ -8,7 +8,18 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "pm2:start": "pm2 start pm2.config.js",
+    "pm2:stop": "pm2 stop all",
+    "pm2:restart": "pm2 restart all",
+    "pm2:reload": "pm2 reload all",
+    "pm2:delete": "pm2 delete all",
+    "pm2:logs": "pm2 logs",
+    "pm2:logs:api": "pm2 logs api-server",
+    "pm2:logs:gateway": "pm2 logs gateway",
+    "pm2:status": "pm2 status",
+    "pm2:monit": "pm2 monit",
+    "pm2:flush": "pm2 flush"
   },
   "dependencies": {
     "@daily-co/config-plugin-rn-daily-js": "^0.0.10",
