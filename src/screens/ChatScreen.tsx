@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
@@ -123,6 +124,7 @@ export default function ChatScreen() {
 
   // Get user and token before any refs that depend on them
   const { user, token } = useAuth();
+  const { colors, isDarkMode } = useTheme();
 
   // Get room data from navigation params
   const routeParams = (route.params as any) || {};
@@ -194,6 +196,9 @@ export default function ChatScreen() {
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
   const [callRinging, setCallRinging] = useState(false);
+
+  // Create themed styles
+  const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   // Helper functions for role checking
   const isRoomOwner = () => {
@@ -3980,7 +3985,7 @@ export default function ChatScreen() {
                 <Text style={[
                   styles.senderName,
                   {
-                    color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                    color: isBotCommand ? colors.success : isSystemCommand ? colors.warning : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                   }
                 ]}>
                   {item.sender}:
@@ -3988,7 +3993,7 @@ export default function ChatScreen() {
                 <Text style={[
                   styles.messageContent,
                   {
-                    color: isBotCommand ? '#0f23bd' : '#8B4513',
+                    color: isBotCommand ? colors.info : colors.warning,
                     fontWeight: 'bold',
                     fontStyle: isBotCommand ? 'italic' : 'normal'
                   }
@@ -4020,7 +4025,7 @@ export default function ChatScreen() {
                 ]}>
                   {item.sender}:
                 </Text>
-                <Text style={[styles.messageContent, { color: '#8B4513', fontWeight: 'bold' }]}>
+                <Text style={[styles.messageContent, { color: colors.warning, fontWeight: 'bold' }]}>
                   {item.content}
                 </Text>
               </Text>
@@ -4041,10 +4046,10 @@ export default function ChatScreen() {
           <View style={styles.messageRow}>
             <View style={styles.messageContentRow}>
               <Text style={styles.messageText}>
-                <Text style={[styles.senderName, { color: '#d2691e' }]}>
+                <Text style={[styles.senderName, { color: colors.primary }]}>
                   {item.sender}:
                 </Text>
-                <Text style={[styles.messageContent, { color: '#333' }]}>
+                <Text style={[styles.messageContent, { color: colors.text }]}>
                   {' '}{item.content}
                 </Text>
               </Text>
@@ -4081,7 +4086,7 @@ export default function ChatScreen() {
             <View style={styles.commandMessageRow}>
               <Text style={[
                 styles.commandMessageText,
-                { color: '#8B4513', flex: 1 } // Coklat untuk semua command
+                { color: colors.warning, flex: 1 } // Coklat untuk semua command
               ]}>
                 {item.content}
               </Text>
@@ -4101,7 +4106,7 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.systemMessageRow}>
-            <Text style={[styles.systemMessageText, { color: '#8B4513', fontWeight: 'bold' }]}>
+            <Text style={[styles.systemMessageText, { color: colors.warning, fontWeight: 'bold' }]}>
               {item.content}
             </Text>
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
@@ -4198,7 +4203,7 @@ export default function ChatScreen() {
                     <Text style={[styles.senderName, { color: senderColor }]}>
                       {item.sender} {senderIsAdmin && '(Admin)'}:
                     </Text>
-                    <Text style={[styles.messageContent, { color: '#333' }]}>
+                    <Text style={[styles.messageContent, { color: colors.text }]}>
                       {renderMessageContent(item.content)}
                     </Text>
                   </Text>
@@ -4225,13 +4230,13 @@ export default function ChatScreen() {
               <Text style={styles.messageText}>
                 <Text style={[
                   styles.senderName,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? colors.success : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id) }
                 ]}>
                   {item.sender}:
                 </Text>
                 <Text style={[
                   styles.messageContent,
-                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333' }
+                  { color: (item.sender === 'LowCardBot' || item.sender === 'chatme_bot') ? colors.info : colors.text }
                 ]}>
                   {renderMessageContent(item.content)}
                 </Text>
@@ -4855,8 +4860,8 @@ export default function ChatScreen() {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, { color: '#fff' }]}>Chat</Text>
-              <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>No active rooms</Text>
+              <Text style={[styles.headerTitle, { color: colors.badgeTextLight }]}>Chat</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.badgeTextLight }]}>No active rooms</Text>
             </View>
           </View>
         </LinearGradient>
@@ -4902,8 +4907,8 @@ export default function ChatScreen() {
           ) : (
             // Regular Room Header
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, { color: '#fff' }]}>{chatTabs[activeTab]?.title}</Text>
-              <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
+              <Text style={[styles.headerTitle, { color: colors.badgeTextLight }]}>{chatTabs[activeTab]?.title}</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.badgeTextLight }]}>
                 Chatroom
                 {!isSocketConnected && ' • Reconnecting...'}
               </Text>
@@ -5117,7 +5122,7 @@ export default function ChatScreen() {
                     onPress={() => handlePopupMenuPress('clear')}
                   >
                     <Ionicons name="trash-outline" size={20} color="#FF6B35" />
-                    <Text style={[styles.menuText, { color: '#FF6B35' }]}>Clear Chat</Text>
+                    <Text style={[styles.menuText, { color: colors.error }]}>Clear Chat</Text>
                   </TouchableOpacity>
                 )}
 
@@ -5126,7 +5131,7 @@ export default function ChatScreen() {
                   onPress={handleLeaveRoom}
                 >
                   <Ionicons name="exit-outline" size={20} color="#F44336" />
-                  <Text style={[styles.menuText, { color: '#F44336' }]}>Close Chat</Text>
+                  <Text style={[styles.menuText, { color: colors.error }]}>Close Chat</Text>
                 </TouchableOpacity>
               </>
             ) : chatTabs[activeTab]?.isSupport ? (
@@ -5147,7 +5152,7 @@ export default function ChatScreen() {
                   onPress={handleLeaveRoom}
                 >
                   <Ionicons name="exit-outline" size={20} color="#F44336" />
-                  <Text style={[styles.menuText, { color: '#F44336' }]}>End Support Session</Text>
+                  <Text style={[styles.menuText, { color: colors.error }]}>End Support Session</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -5158,7 +5163,7 @@ export default function ChatScreen() {
                   onPress={handleLeaveRoom}
                 >
                   <Ionicons name="exit-outline" size={20} color="#F44336" />
-                  <Text style={[styles.menuText, { color: '#F44336' }]}>Leave Room</Text>
+                  <Text style={[styles.menuText, { color: colors.error }]}>Leave Room</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -5301,7 +5306,7 @@ export default function ChatScreen() {
                     </View>
                     <View style={[
                       styles.participantStatus,
-                      { backgroundColor: participant.isOnline ? '#4CAF50' : '#9E9E9E' }
+                      { backgroundColor: participant.isOnline ? colors.success : colors.textSecondary }
                     ]}>
                       <Text style={styles.participantStatusText}>
                         {participant.isOnline ? 'Online' : 'Offline'}
@@ -5363,7 +5368,7 @@ export default function ChatScreen() {
                 onPress={handleKickUser}
               >
                 <Ionicons name="exit-outline" size={20} color="#F44336" />
-                <Text style={[styles.participantMenuText, { color: '#F44336' }]}>Kick User</Text>
+                <Text style={[styles.participantMenuText, { color: colors.error }]}>Kick User</Text>
               </TouchableOpacity>
             )}
 
@@ -5372,7 +5377,7 @@ export default function ChatScreen() {
               onPress={handleBlockUser}
             >
               <Ionicons name="ban-outline" size={20} color="#FF9800" />
-              <Text style={[styles.participantMenuText, { color: '#FF9800' }]}>
+              <Text style={[styles.participantMenuText, { color: colors.warning }]}>
                 {blockedUsers.includes(selectedParticipant?.username) ? 'Unblock User' : 'Block User'}
               </Text>
             </TouchableOpacity>
@@ -5383,7 +5388,7 @@ export default function ChatScreen() {
                 onPress={handleMuteUser}
               >
                 <Ionicons name="volume-mute-outline" size={20} color="#9C27B0" />
-                <Text style={[styles.participantMenuText, { color: '#9C27B0' }]}>
+                <Text style={[styles.participantMenuText, { color: colors.primary }]}>
                   {mutedUsers.includes(selectedParticipant?.username) ? 'Unmute User' : 'Mute User'}
                 </Text>
               </TouchableOpacity>
@@ -5396,7 +5401,7 @@ export default function ChatScreen() {
                   onPress={handleBanUser}
                 >
                   <Ionicons name="remove-circle-outline" size={20} color="#E91E63" />
-                  <Text style={[styles.participantMenuText, { color: '#E91E63' }]}>
+                  <Text style={[styles.participantMenuText, { color: colors.error }]}>
                     {bannedUsers.includes(selectedParticipant?.username) ? 'Unban User' : 'Ban User'}
                   </Text>
                 </TouchableOpacity>
@@ -5406,7 +5411,7 @@ export default function ChatScreen() {
                   onPress={handleLockRoom}
                 >
                   <Ionicons name="lock-closed-outline" size={20} color="#FF5722" />
-                  <Text style={[styles.participantMenuText, { color: '#FF5722' }]}>Lock Room</Text>
+                  <Text style={[styles.participantMenuText, { color: colors.error }]}>Lock Room</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -5416,7 +5421,7 @@ export default function ChatScreen() {
               onPress={handleReportUser}
             >
               <Ionicons name="flag-outline" size={20} color="#F44336" />
-              <Text style={[styles.participantMenuText, { color: '#F44336' }]}>Report User</Text>
+              <Text style={[styles.participantMenuText, { color: colors.error }]}>Report User</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -5786,7 +5791,7 @@ export default function ChatScreen() {
               }}
             >
               <Ionicons name="close-outline" size={20} color="#666" />
-              <Text style={[styles.messageMenuText, { color: '#666' }]}>Cancel</Text>
+              <Text style={[styles.messageMenuText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -5932,14 +5937,14 @@ export default function ChatScreen() {
 
           <View style={styles.videoCallContainer}>
             {isInCall && (
-              <View style={{ flex: 1, backgroundColor: '#000' }}>
-                <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
+              <View style={{ flex: 1, backgroundColor: colors.background }}>
+                <Text style={{ color: colors.badgeTextLight, textAlign: 'center', marginTop: 50 }}>
                   Call Active with {selectedParticipant?.username}
                 </Text>
-                <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
+                <Text style={{ color: colors.badgeTextLight, textAlign: 'center', marginTop: 10 }}>
                   {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
                 </Text>
-                <Text style={{ color: '#FFD700', textAlign: 'center', marginTop: 5 }}>
+                <Text style={{ color: colors.warning, textAlign: 'center', marginTop: 5 }}>
                   Cost: {callCost} coins
                 </Text>
                 {/* Daily.co video implementation will be added here */}
@@ -6011,10 +6016,10 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   '@keyframes blink': {
     '0%, 50%': { opacity: 1 },
@@ -6037,20 +6042,20 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginTop: 20,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 10,
     textAlign: 'center',
     lineHeight: 22,
   },
   privateChatHistory: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.surface,
   },
   privateChatSection: {
     padding: 20,
@@ -6058,12 +6063,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 20,
   },
   emptyPrivateChats: {
@@ -6073,12 +6078,12 @@ const styles = StyleSheet.create({
   emptyPrivateChatsText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 15,
   },
   emptyPrivateChatsSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textSecondary,
     marginTop: 5,
     textAlign: 'center',
   },
@@ -6107,11 +6112,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   privateChatHeaderContent: {
@@ -6145,7 +6150,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   privateChatInfo: {
     flex: 1,
@@ -6154,12 +6159,12 @@ const styles = StyleSheet.create({
   privateChatName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
     marginBottom: 2,
   },
   privateChatStatus: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: colors.badgeTextLight,
   },
   headerIcons: {
     flexDirection: 'row',
@@ -6180,19 +6185,19 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(51, 51, 51, 0.4)',
+    backgroundColor: colors.border,
     marginHorizontal: 4,
   },
   activeIndicator: {
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
   },
   unreadIndicator: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: colors.error,
   },
   tabNavigation: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
     maxHeight: 50,
   },
   tabNavigationContent: {
@@ -6204,37 +6209,37 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginRight: 8,
     borderRadius: 20,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.card,
   },
   activeTabNavItem: {
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
   },
   tabNavText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
+    color: colors.textSecondary,
   },
   activeTabNavText: {
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   roomDescriptionContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   roomDescription: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   managedByText: {
     fontSize: 13,
-    color: '#888',
+    color: colors.textSecondary,
   },
   roomNameHighlight: {
-    color: '#d6510f',
+    color: colors.primary,
     fontWeight: 'bold',
   },
   currentlyInRoomContainer: {
@@ -6245,12 +6250,12 @@ const styles = StyleSheet.create({
   },
   currentlyInRoomText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   currentlyText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
   },
   participantInRoomName: {
     fontSize: 13,
@@ -6258,11 +6263,11 @@ const styles = StyleSheet.create({
   },
   participantSeparator: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
   },
   noParticipantsInRoom: {
     fontSize: 13,
-    color: '#999',
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   tabContainer: {
@@ -6288,23 +6293,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   supportMessageBubble: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.infoBadgeBg,
     borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
+    borderLeftColor: colors.info,
     borderRadius: 8,
     padding: 8,
   },
   botCommandContainer: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: colors.successBadgeBg,
     borderLeftWidth: 3,
-    borderLeftColor: '#167027',
+    borderLeftColor: colors.success,
     borderRadius: 8,
     marginVertical: 2,
   },
   systemCommandContainer: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.card,
     borderLeftWidth: 3,
-    borderLeftColor: '#8B4513',
+    borderLeftColor: colors.warning,
     borderRadius: 8,
     marginVertical: 2,
   },
@@ -6326,7 +6331,7 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   levelBadgeContainer: {
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     paddingHorizontal: 4,
     paddingVertical: 2,
@@ -6341,12 +6346,12 @@ const styles = StyleSheet.create({
   levelBadgeText: {
     fontSize: 8,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
     textAlign: 'center',
   },
   levelBadge: {
-    backgroundColor: '#229c93',
-    color: 'white',
+    backgroundColor: colors.primary,
+    color: colors.badgeTextLight,
     fontSize: 8,
     fontWeight: 'bold',
     paddingHorizontal: 4,
@@ -6368,7 +6373,7 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontSize: 12,
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   senderName: {
     fontSize: 14,
@@ -6376,13 +6381,13 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    color: '#999',
+    color: colors.textSecondary,
     marginLeft: 6,
     alignSelf: 'flex-start',
   },
   messageContent: {
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
   },
   inlineEmojiImage: {
     width: 18,
@@ -6397,7 +6402,7 @@ const styles = StyleSheet.create({
     height: 20,
     marginTop: 8,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.card,
   },
   messageTextContainer: {
     flex: 1,
@@ -6408,26 +6413,26 @@ const styles = StyleSheet.create({
     height: 25,
     marginTop: 8,
     borderRadius: 6,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.card,
     alignSelf: 'flex-start',
   },
   inputContainer: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     paddingBottom: 4,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: colors.border,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 24,
     paddingHorizontal: 4,
     paddingVertical: 4,
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -6435,7 +6440,7 @@ const styles = StyleSheet.create({
   },
   emojiButton: {
     padding: 10,
-    backgroundColor: '#FFA726',
+    backgroundColor: colors.warning,
     borderRadius: 20,
     marginRight: 8,
     marginLeft: 4,
@@ -6446,14 +6451,14 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     paddingHorizontal: 12,
     paddingVertical: 12,
     maxHeight: 100,
     minHeight: 40,
   },
   sendButton: {
-    backgroundColor: '#FF7043',
+    backgroundColor: colors.primary,
     borderRadius: 24,
     width: 48,
     height: 48,
@@ -6462,7 +6467,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 4,
     elevation: 2,
-    shadowColor: '#FF7043',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -6474,13 +6479,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   popupMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 12,
     paddingVertical: 8,
     marginHorizontal: 20,
     minWidth: 180,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6491,24 +6496,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   lastMenuItem: {
     borderBottomWidth: 0,
   },
   menuText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     marginLeft: 12,
     fontWeight: '500',
   },
   roomInfoModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 16,
     marginHorizontal: 20,
     maxHeight: '80%',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6520,12 +6525,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   roomInfoTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   roomInfoContent: {
     padding: 20,
@@ -6541,21 +6546,21 @@ const styles = StyleSheet.create({
   },
   roomInfoLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   roomInfoValue: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     fontWeight: '500',
   },
   participantsModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 16,
     marginHorizontal: 20,
     maxHeight: '80%',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6567,12 +6572,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   participantsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },  participantsList: {
     maxHeight: 400,
   },
@@ -6582,12 +6587,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
     marginHorizontal: 8,
     marginVertical: 2,
     borderRadius: 8,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -6596,14 +6601,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.surface,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -6611,7 +6616,7 @@ const styles = StyleSheet.create({
   participantAvatarText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   participantInfo: {
     flex: 1,
@@ -6619,12 +6624,12 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#333',
+    color: colors.text,
     marginBottom: 2,
   },
   participantRole: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   participantStatus: {
@@ -6634,7 +6639,7 @@ const styles = StyleSheet.create({
   },
   participantStatusText: {
     fontSize: 12,
-    color: 'white',
+    color: colors.badgeTextLight,
     fontWeight: '500',
   },
   noParticipants: {
@@ -6643,7 +6648,7 @@ const styles = StyleSheet.create({
   },
   noParticipantsText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   // Emoji Picker Styles
@@ -6657,27 +6662,27 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Position above input area
   },
   emojiPickerModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 16,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
   },
   emojiPickerHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
     alignItems: 'center',
   },
   emojiPickerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   emojiPickerContent: {
     maxHeight: 200, // Increased height for vertical scrolling
@@ -6699,10 +6704,10 @@ const styles = StyleSheet.create({
     margin: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.card,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E9ECEF',
+    borderColor: colors.border,
   },
   emojiText: {
     fontSize: 18,
@@ -6722,37 +6727,37 @@ const styles = StyleSheet.create({
   emptyEmojiTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
     marginBottom: 4,
   },
   emptyEmojiSubtitle: {
     fontSize: 12,
-    color: '#999',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 16,
   },
   joinRoomButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
     marginTop: 20,
   },
   joinRoomButtonText: {
-    color: 'white',
+    color: colors.badgeTextLight,
     fontSize: 16,
     fontWeight: '600',
   },
   // Participant context menu styles
   participantContextMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 12,
     paddingVertical: 8,
     marginHorizontal: 20,
     minWidth: 200,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6763,13 +6768,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   participantMenuAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -6777,12 +6782,12 @@ const styles = StyleSheet.create({
   participantMenuAvatarText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   participantMenuName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   participantMenuItem: {
     flexDirection: 'row',
@@ -6790,14 +6795,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   lastParticipantMenuItem: {
     borderBottomWidth: 0,
   },
   participantMenuText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     marginLeft: 12,
     fontWeight: '500',
   },
@@ -6808,13 +6813,13 @@ const styles = StyleSheet.create({
   },
   mutedIndicator: {
     fontSize: 12,
-    color: '#9C27B0',
+    color: colors.primary,
     fontWeight: '500',
     marginTop: 2,
   },
   blockedIndicator: {
     fontSize: 12,
-    color: '#FF9800',
+    color: colors.warning,
     fontWeight: '500',
     marginTop: 2,
   },
@@ -6827,7 +6832,7 @@ const styles = StyleSheet.create({
   },
   joinLeaveMessageText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '500',
     textAlign: 'left',
     flexDirection: 'row',
@@ -6843,12 +6848,12 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   joinLeaveTime: {
     fontSize: 11,
-    color: '#999',
+    color: colors.textSecondary,
     fontWeight: '400',
   },
   commandMessageContainer: {
@@ -6864,23 +6869,23 @@ const styles = StyleSheet.create({
   commandMessageText: {
     flex: 1,
     fontSize: 14,
-    color: '#8B4513', // Warna coklat untuk command
+    color: colors.warning,
     lineHeight: 18,
     textAlignVertical: 'top',
   },
   commandContentText: {
     fontSize: 14,
-    color: '#8B4513', // Warna coklat untuk content
+    color: colors.warning,
   },
   systemMessageContainer: {
     marginVertical: 4,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFF3E0',
+    backgroundColor: colors.successBadgeBg,
     borderRadius: 8,
     marginHorizontal: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#FF9800',
+    borderLeftColor: colors.warning,
   },
   systemMessageRow: {
     flexDirection: 'row',
@@ -6889,7 +6894,7 @@ const styles = StyleSheet.create({
   },
   systemMessageText: {
     fontSize: 14,
-    color: '#E65100',
+    color: colors.warning,
     fontWeight: '500',
     flex: 1,
     lineHeight: 20,
@@ -6899,7 +6904,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#FF6B35',
+    backgroundColor: colors.error,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -6908,7 +6913,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   unreadBadgeText: {
-    color: 'white',
+    color: colors.badgeTextLight,
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -6919,12 +6924,12 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.card,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '50%',
     paddingBottom: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -6937,18 +6942,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: colors.border,
   },
   giftPickerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: colors.text,
   },
   giftCategoryTabs: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: colors.border,
   },
   tabRow: {
     flexDirection: 'row',
@@ -6958,7 +6963,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: colors.border,
   },
   sendToAllToggle: {
     flexDirection: 'row',
@@ -6966,7 +6971,7 @@ const styles = StyleSheet.create({
   },
   sendToAllText: {
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
     marginLeft: 8,
     fontWeight: '500',
   },
@@ -6980,16 +6985,16 @@ const styles = StyleSheet.create({
   activeCategoryTab: {
     backgroundColor: 'transparent',
     borderBottomWidth: 2,
-    borderBottomColor: '#FF8C00',
+    borderBottomColor: colors.primary,
     borderRadius: 0,
   },
   categoryTabText: {
     fontSize: 16,
-    color: '#888',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   activeCategoryTabText: {
-    color: '#FF8C00',
+    color: colors.primary,
     fontWeight: 'bold',
   },
   giftPickerContent: {
@@ -7009,18 +7014,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   newGiftItem: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
     position: 'relative',
     minHeight: 140,
   },
   selectedGiftItem: {
-    borderColor: '#FF8C00',
-    backgroundColor: '#4A3C2A',
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
   },
   giftCoinIndicators: {
     position: 'absolute',
@@ -7034,7 +7039,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.warning,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -7045,7 +7050,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.warning,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -7058,7 +7063,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.warning,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -7069,7 +7074,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     right: 8,
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -7082,7 +7087,7 @@ const styles = StyleSheet.create({
   coinMultiplier: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   newGiftIconContainer: {
     marginTop: 16,
@@ -7101,7 +7106,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#FF69B4',
+    backgroundColor: colors.error,
     borderRadius: 8,
     width: 16,
     height: 16,
@@ -7110,12 +7115,12 @@ const styles = StyleSheet.create({
   },
   animatedBadgeText: {
     fontSize: 10,
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   newGiftName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
     marginBottom: 6,
     textAlign: 'center',
     minHeight: 28,
@@ -7124,7 +7129,7 @@ const styles = StyleSheet.create({
   newGiftPrice: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
     marginLeft: 2,
   },
   giftGridContainer: {
@@ -7144,7 +7149,7 @@ const styles = StyleSheet.create({
   newGiftPrice: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
   },
   // Legacy styles for backward compatibility
   giftGrid: {
@@ -7159,14 +7164,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   giftItem: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
@@ -7188,7 +7193,7 @@ const styles = StyleSheet.create({
   },
   sendToUserButton: {
     flex: 1,
-    backgroundColor: '#E91E63',
+    backgroundColor: colors.error,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -7196,7 +7201,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   giftActionText: {
-    color: '#fff',
+    color: colors.badgeTextLight,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -7219,11 +7224,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -7232,7 +7237,7 @@ const styles = StyleSheet.create({
   // Styles for userGiftRole, etc.
   userGiftRole: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   // Added styles for private chat history display when no rooms are active
@@ -7245,7 +7250,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: colors.border,
   },
   userGiftInfo: {
     flex: 1,
@@ -7254,11 +7259,11 @@ const styles = StyleSheet.create({
   userGiftName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.text,
   },
   selfLabel: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   // Live Streaming Style Gift Animation Overlay
@@ -7326,7 +7331,7 @@ const styles = StyleSheet.create({
   giftSenderName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
     marginBottom: 5,
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
@@ -7335,7 +7340,7 @@ const styles = StyleSheet.create({
   },
   giftDescription: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.badgeTextLight,
     textAlign: 'center',
     opacity: 0.9,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
@@ -7355,7 +7360,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: colors.border,
   },
   coinBalanceRow: {
     flexDirection: 'row',
@@ -7365,7 +7370,7 @@ const styles = StyleSheet.create({
   coinBalanceText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
     marginLeft: 8,
   },
   // User Tag Menu Styles
@@ -7376,12 +7381,12 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   userTagMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 12,
     marginHorizontal: 16,
     maxHeight: 200,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -7390,12 +7395,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   userTagTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   userTagList: {
     maxHeight: 150,
@@ -7406,7 +7411,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: colors.border,
   },
   userTagInfo: {
     marginLeft: 12,
@@ -7415,11 +7420,11 @@ const styles = StyleSheet.create({
   userTagName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   userTagRole: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   // Connection Status Styles
@@ -7433,23 +7438,23 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   disconnectedDot: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error,
   },
   reconnectingDot: {
-    backgroundColor: '#FF9800',
+    backgroundColor: colors.warning,
   },
   // Message Context Menu Styles
   messageContextMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 12,
     paddingVertical: 8,
     marginHorizontal: 20,
     minWidth: 180,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -7458,12 +7463,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   messageMenuTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     textAlign: 'center',
   },
   messageMenuItem: {
@@ -7472,26 +7477,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   lastMessageMenuItem: {
     borderBottomWidth: 0,
   },
   messageMenuText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     marginLeft: 12,
     fontWeight: '500',
   },
   // Mention Text Style
   mentionText: {
-    color: '#007AFF',
+    color: colors.info,
     fontWeight: '600',
   },
   // Call Modal Styles
   callModalContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.background,
   },
   callHeader: {
     paddingTop: 50,
@@ -7503,23 +7508,23 @@ const styles = StyleSheet.create({
   callHeaderText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
     marginBottom: 5,
   },
   callTargetName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
     marginBottom: 10,
   },
   callTimer: {
     fontSize: 16,
-    color: '#4CAF50',
+    color: colors.success,
     marginBottom: 5,
   },
   callCost: {
     fontSize: 14,
-    color: '#FFD700',
+    color: colors.warning,
   },
   videoCallContainer: {
     flex: 1,
@@ -7540,7 +7545,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
   },
   endCallButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error,
   },
   // Incoming Call Modal Styles
   incomingCallOverlay: {
@@ -7550,7 +7555,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   incomingCallModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.card,
     borderRadius: 20,
     padding: 30,
     alignItems: 'center',
@@ -7564,24 +7569,24 @@ const styles = StyleSheet.create({
   incomingCallTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 5,
   },
   incomingCallSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 10,
   },
   callerName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: colors.info,
   },
   callerAvatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.info,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
@@ -7589,7 +7594,7 @@ const styles = StyleSheet.create({
   callerAvatarText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   callRateInfo: {
     alignItems: 'center',
@@ -7599,12 +7604,12 @@ const styles = StyleSheet.create({
   callRateText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 10,
   },
   callRateDetail: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 5,
   },
   incomingCallButtons: {
@@ -7621,13 +7626,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   acceptButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   declineButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error,
   },
   callActionText: {
-    color: 'white',
+    color: colors.badgeTextLight,
     fontSize: 12,
     fontWeight: 'bold',
     marginTop: 5,
@@ -7638,11 +7643,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   giftMessageBubble: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: colors.successBadgeBg,
     borderRadius: 12,
     padding: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF69B4',
+    borderLeftColor: colors.error,
   },
   giftMessageHeader: {
     flexDirection: 'row',
@@ -7659,7 +7664,7 @@ const styles = StyleSheet.create({
   },
   giftInlineText: {
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
     fontWeight: '500',
   },
   // Room Info Message Styles
@@ -7667,11 +7672,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#E8F5E8',
+    backgroundColor: colors.successBadgeBg,
     marginHorizontal: 8,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    borderLeftColor: colors.success,
   },
   roomInfoMessageRow: {
     flexDirection: 'row',
@@ -7685,7 +7690,7 @@ const styles = StyleSheet.create({
   },
   roomInfoContent: {
     fontSize: 14,
-    color: '#2E7D32',
+    color: colors.success,
     fontWeight: '500',
   },
 });
