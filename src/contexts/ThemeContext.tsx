@@ -36,6 +36,8 @@ interface ThemeContextType {
     roleMerchantBg: string;
     roleUser: string;
     roleUserBg: string;
+    roleOwner: string;
+    roleOwnerBg: string;
   };
 }
 
@@ -73,6 +75,8 @@ const lightTheme = {
   roleMerchantBg: '#F3E5F5',
   roleUser: '#2196F3',
   roleUserBg: '#E3F2FD',
+  roleOwner: '#e8d31a',
+  roleOwnerBg: '#fefce8',
 };
 
 const darkTheme = {
@@ -107,6 +111,8 @@ const darkTheme = {
   roleMerchantBg: 'rgba(186, 104, 200, 0.2)',
   roleUser: '#64B5F6',
   roleUserBg: 'rgba(100, 181, 246, 0.2)',
+  roleOwner: '#fbbf24',
+  roleOwnerBg: 'rgba(251, 191, 36, 0.2)',
 };
 
 const THEME_STORAGE_KEY = '@theme_mode';

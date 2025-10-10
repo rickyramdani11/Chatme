@@ -198,7 +198,7 @@ export default function ChatScreen() {
   const [callRinging, setCallRinging] = useState(false);
 
   // Create themed styles
-  const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
+  const styles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   // Helper functions for role checking
   const isRoomOwner = () => {
@@ -2275,7 +2275,7 @@ export default function ChatScreen() {
 
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
-    if (role === 'admin') return '#FF6B35'; // Orange Red for admin
+    if (role === 'admin') return colors.roleAdmin;
 
     // Check if user is owner of current room
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
@@ -2284,20 +2284,20 @@ export default function ChatScreen() {
     // Check if user is moderator of current room
     const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
 
-    if (isOwner) return '#e8d31a'; // Gold/Yellow for room owner
-    if (isModerator) return '#e8d31a'; // Gold/Yellow for room moderator
+    if (isOwner) return colors.roleOwner;
+    if (isModerator) return colors.roleOwner;
 
     switch (role) {
-      case 'user': return '#2196F3'; // Blue
-      case 'merchant': return '#9C27B0'; // Purple
-      case 'mentor': return '#eb0e0e'; // Deep Orange
-      default: return '#2196F3'; // Default to blue
+      case 'user': return colors.roleUser;
+      case 'merchant': return colors.roleMerchant;
+      case 'mentor': return colors.roleMentor;
+      default: return colors.roleUser;
     }
   };
 
   const getRoleBackgroundColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
-    if (role === 'admin') return '#FFEBEE'; // Light red background for admin
+    if (role === 'admin') return colors.roleAdminBg;
 
     // Check if user is owner of current room
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
@@ -2306,14 +2306,14 @@ export default function ChatScreen() {
     // Check if user is moderator of current room
     const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
 
-    if (isOwner) return '#fefce8'; // Light yellow background for room owner
-    if (isModerator) return '#fefce8'; // Light yellow background for room moderator
+    if (isOwner) return colors.roleOwnerBg;
+    if (isModerator) return colors.roleOwnerBg;
 
     switch (role) {
-      case 'user': return '#E3F2FD'; // Light blue background
-      case 'merchant': return '#F3E5F5'; // Light purple background
-      case 'mentor': return '#FBE9E7'; // Light orange background
-      default: return '#E3F2FD'; // Default light blue background
+      case 'user': return colors.roleUserBg;
+      case 'merchant': return colors.roleMerchantBg;
+      case 'mentor': return colors.roleMentorBg;
+      default: return colors.roleUserBg;
     }
   };
 
@@ -4133,8 +4133,8 @@ export default function ChatScreen() {
       };
 
       const actionText = item.type === 'join' ? 'has entered' : 'has left';
-      // Use fixed dark orange color for room name instead of user role color
-      const roomColor = '#d2691e'; // Dark orange color for room name
+      // Use warning color for room name
+      const roomColor = colors.warning; // Warning/orange color for room name
 
       return (
         <TouchableOpacity
@@ -4187,7 +4187,7 @@ export default function ChatScreen() {
     // Render support messages differently
     if (item.type === 'support') {
       const senderIsAdmin = item.role === 'admin';
-      const senderColor = senderIsAdmin ? '#FF6B35' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
+      const senderColor = senderIsAdmin ? colors.error : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
 
       return (
         <TouchableOpacity
@@ -4850,14 +4850,14 @@ export default function ChatScreen() {
       <SafeAreaView style={styles.container}>
         {/* Header with Gradient */}
         <LinearGradient
-          colors={['#8B5CF6', '#3B82F6']}
+          colors={[colors.primary, colors.info]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name="arrow-back" size={24} color={colors.badgeTextLight} />
             </TouchableOpacity>
             <View style={styles.headerTextContainer}>
               <Text style={[styles.headerTitle, { color: colors.badgeTextLight }]}>Chat</Text>
@@ -4868,7 +4868,7 @@ export default function ChatScreen() {
 
         {/* Empty State */}
         <View style={styles.emptyStateContainer}>
-          <Ionicons name="chatbubbles-outline" size={80} color="#ccc" />
+          <Ionicons name="chatbubbles-outline" size={80} color={colors.textSecondary} />
           <Text style={styles.emptyStateTitle}>No Active Rooms</Text>
           <Text style={styles.emptyStateSubtitle}>Go back to join a room to start chatting</Text>
           <TouchableOpacity
@@ -4886,14 +4886,14 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header with Gradient */}
       <LinearGradient
-        colors={chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
+        colors={chatTabs[activeTab]?.isSupport ? [colors.success, `${colors.success}CC`] : [colors.primary, colors.info]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={colors.badgeTextLight} />
           </TouchableOpacity>
 
           {chatTabs[activeTab]?.isSupport ? (
@@ -4920,20 +4920,20 @@ export default function ChatScreen() {
               // Support Chat Icons (e.g., options for support)
               <>
                 <TouchableOpacity style={styles.headerIcon}>
-                  <Ionicons name="help-circle-outline" size={24} color="#fff" />
+                  <Ionicons name="help-circle-outline" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
-                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                  <Ionicons name="ellipsis-vertical" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
               </>
             ) : (
               // Room Chat Icons
               <>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleListPress}>
-                  <Ionicons name="list-outline" size={24} color="#fff" />
+                  <Ionicons name="list-outline" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
-                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                  <Ionicons name="ellipsis-vertical" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
               </>
             )}
@@ -5035,7 +5035,7 @@ export default function ChatScreen() {
             <Ionicons
               name={autoScrollEnabled ? "arrow-down-circle" : "arrow-down-circle-outline"}
               size={30}
-              color="white"
+              color={colors.badgeTextLight}
             />
           </TouchableOpacity>
         </View>
@@ -5044,18 +5044,18 @@ export default function ChatScreen() {
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.emojiButton} onPress={handleEmojiPress}>
-              <Ionicons name="happy-outline" size={24} color="white" />
+              <Ionicons name="happy-outline" size={24} color={colors.badgeTextLight} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.giftButton} onPress={() => {
               loadGifts();
               setShowGiftPicker(true);
             }}>
-              <Ionicons name="gift-outline" size={24} color="#FF69B4" />
+              <Ionicons name="gift-outline" size={24} color={colors.error} />
             </TouchableOpacity>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               value={message}
               onChangeText={handleMessageChange}
               multiline
@@ -5071,7 +5071,7 @@ export default function ChatScreen() {
               maxLength={2000}
             />
             <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-              <Ionicons name="send" size={24} color="white" />
+              <Ionicons name="send" size={24} color={colors.badgeTextLight} />
             </TouchableOpacity>
           </View>
         </View>
@@ -5100,7 +5100,7 @@ export default function ChatScreen() {
                     navigation.navigate('Profile', { userId: selectedParticipant?.username });
                   }}
                 >
-                  <Ionicons name="person-outline" size={20} color="#333" />
+                  <Ionicons name="person-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>View Profile</Text>
                 </TouchableOpacity>
 
@@ -5111,7 +5111,7 @@ export default function ChatScreen() {
                     Alert.alert('Search Messages', 'Search functionality will be added soon');
                   }}
                 >
-                  <Ionicons name="search-outline" size={20} color="#333" />
+                  <Ionicons name="search-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>Search Messages</Text>
                 </TouchableOpacity>
 
@@ -5121,7 +5121,7 @@ export default function ChatScreen() {
                     style={styles.menuItem}
                     onPress={() => handlePopupMenuPress('clear')}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#FF6B35" />
+                    <Ionicons name="trash-outline" size={20} color={colors.error} />
                     <Text style={[styles.menuText, { color: colors.error }]}>Clear Chat</Text>
                   </TouchableOpacity>
                 )}
@@ -5130,7 +5130,7 @@ export default function ChatScreen() {
                   style={[styles.menuItem, styles.lastMenuItem]}
                   onPress={handleLeaveRoom}
                 >
-                  <Ionicons name="exit-outline" size={20} color="#F44336" />
+                  <Ionicons name="exit-outline" size={20} color={colors.error} />
                   <Text style={[styles.menuText, { color: colors.error }]}>Close Chat</Text>
                 </TouchableOpacity>
               </>
@@ -5144,14 +5144,14 @@ export default function ChatScreen() {
                     Alert.alert('Support Options', 'More support options will be available soon.');
                   }}
                 >
-                  <Ionicons name="settings-outline" size={20} color="#333" />
+                  <Ionicons name="settings-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>Support Settings</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.menuItem, styles.lastMenuItem]}
                   onPress={handleLeaveRoom}
                 >
-                  <Ionicons name="exit-outline" size={20} color="#F44336" />
+                  <Ionicons name="exit-outline" size={20} color={colors.error} />
                   <Text style={[styles.menuText, { color: colors.error }]}>End Support Session</Text>
                 </TouchableOpacity>
               </>
@@ -5162,7 +5162,7 @@ export default function ChatScreen() {
                   style={styles.menuItem}
                   onPress={handleLeaveRoom}
                 >
-                  <Ionicons name="exit-outline" size={20} color="#F44336" />
+                  <Ionicons name="exit-outline" size={20} color={colors.error} />
                   <Text style={[styles.menuText, { color: colors.error }]}>Leave Room</Text>
                 </TouchableOpacity>
 
@@ -5170,7 +5170,7 @@ export default function ChatScreen() {
                   style={[styles.menuItem, styles.lastMenuItem]}
                   onPress={handleRoomInfo}
                 >
-                  <Ionicons name="information-circle-outline" size={20} color="#333" />
+                  <Ionicons name="information-circle-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>Info Room</Text>
                 </TouchableOpacity>
               </>
@@ -5191,13 +5191,13 @@ export default function ChatScreen() {
             <View style={styles.roomInfoHeader}>
               <Text style={styles.roomInfoTitle}>Room Information</Text>
               <TouchableOpacity onPress={() => setShowRoomInfo(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.roomInfoContent}>
               <View style={styles.roomInfoItem}>
-                <Ionicons name="home-outline" size={20} color="#666" />
+                <Ionicons name="home-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Room Name</Text>
                   <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.title}</Text>
@@ -5205,7 +5205,7 @@ export default function ChatScreen() {
               </View>
 
               <View style={styles.roomInfoItem}>
-                <Ionicons name="calendar-outline" size={20} color="#666" />
+                <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Created Date</Text>
                   <Text style={styles.roomInfoValue}>18 August 2025</Text>
@@ -5213,7 +5213,7 @@ export default function ChatScreen() {
               </View>
 
               <View style={styles.roomInfoItem}>
-                <Ionicons name="person-outline" size={20} color="#666" />
+                <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Owner</Text>
                   <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.managedBy || 'admin'}</Text>
@@ -5221,7 +5221,7 @@ export default function ChatScreen() {
               </View>
 
               <View style={styles.roomInfoItem}>
-                <Ionicons name="shield-outline" size={20} color="#666" />
+                <Ionicons name="shield-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Moderator</Text>
                   <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.managedBy || 'admin'}</Text>
@@ -5244,7 +5244,7 @@ export default function ChatScreen() {
             <View style={styles.participantsHeader}>
               <Text style={styles.participantsTitle}>Room Participants</Text>
               <TouchableOpacity onPress={() => setShowParticipants(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -5350,7 +5350,7 @@ export default function ChatScreen() {
               style={styles.participantMenuItem}
               onPress={handleViewProfile}
             >
-              <Ionicons name="person-outline" size={20} color="#333" />
+              <Ionicons name="person-outline" size={20} color={colors.text} />
               <Text style={styles.participantMenuText}>View Profile</Text>
             </TouchableOpacity>
 
@@ -5358,7 +5358,7 @@ export default function ChatScreen() {
               style={styles.participantMenuItem}
               onPress={handleOpenChat}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#333" />
+              <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
               <Text style={styles.participantMenuText}>Private Chat</Text>
             </TouchableOpacity>
 
@@ -5367,7 +5367,7 @@ export default function ChatScreen() {
                 style={styles.participantMenuItem}
                 onPress={handleKickUser}
               >
-                <Ionicons name="exit-outline" size={20} color="#F44336" />
+                <Ionicons name="exit-outline" size={20} color={colors.error} />
                 <Text style={[styles.participantMenuText, { color: colors.error }]}>Kick User</Text>
               </TouchableOpacity>
             )}
@@ -5376,7 +5376,7 @@ export default function ChatScreen() {
               style={styles.participantMenuItem}
               onPress={handleBlockUser}
             >
-              <Ionicons name="ban-outline" size={20} color="#FF9800" />
+              <Ionicons name="ban-outline" size={20} color={colors.warning} />
               <Text style={[styles.participantMenuText, { color: colors.warning }]}>
                 {blockedUsers.includes(selectedParticipant?.username) ? 'Unblock User' : 'Block User'}
               </Text>
@@ -5387,7 +5387,7 @@ export default function ChatScreen() {
                 style={styles.participantMenuItem}
                 onPress={handleMuteUser}
               >
-                <Ionicons name="volume-mute-outline" size={20} color="#9C27B0" />
+                <Ionicons name="volume-mute-outline" size={20} color={colors.primary} />
                 <Text style={[styles.participantMenuText, { color: colors.primary }]}>
                   {mutedUsers.includes(selectedParticipant?.username) ? 'Unmute User' : 'Mute User'}
                 </Text>
@@ -5400,7 +5400,7 @@ export default function ChatScreen() {
                   style={styles.participantMenuItem}
                   onPress={handleBanUser}
                 >
-                  <Ionicons name="remove-circle-outline" size={20} color="#E91E63" />
+                  <Ionicons name="remove-circle-outline" size={20} color={colors.error} />
                   <Text style={[styles.participantMenuText, { color: colors.error }]}>
                     {bannedUsers.includes(selectedParticipant?.username) ? 'Unban User' : 'Ban User'}
                   </Text>
@@ -5410,7 +5410,7 @@ export default function ChatScreen() {
                   style={styles.participantMenuItem}
                   onPress={handleLockRoom}
                 >
-                  <Ionicons name="lock-closed-outline" size={20} color="#FF5722" />
+                  <Ionicons name="lock-closed-outline" size={20} color={colors.error} />
                   <Text style={[styles.participantMenuText, { color: colors.error }]}>Lock Room</Text>
                 </TouchableOpacity>
               </>
@@ -5420,7 +5420,7 @@ export default function ChatScreen() {
               style={[styles.participantMenuItem, styles.lastParticipantMenuItem]}
               onPress={handleReportUser}
             >
-              <Ionicons name="flag-outline" size={20} color="#F44336" />
+              <Ionicons name="flag-outline" size={20} color={colors.error} />
               <Text style={[styles.participantMenuText, { color: colors.error }]}>Report User</Text>
             </TouchableOpacity>
           </View>
@@ -5478,7 +5478,7 @@ export default function ChatScreen() {
                   </ScrollView>
                 ) : (
                   <View style={styles.emptyEmojiContainer}>
-                    <Ionicons name="cloud-upload-outline" size={40} color="#ccc" />
+                    <Ionicons name="cloud-upload-outline" size={40} color={colors.textSecondary} />
                     <Text style={styles.emptyEmojiTitle}>No Emojis Available</Text>
                     <Text style={styles.emptyEmojiSubtitle}>
                       Add emojis via the Admin Panel to make them available here.
@@ -5503,7 +5503,7 @@ export default function ChatScreen() {
             <View style={styles.giftPickerHeader}>
               <Text style={styles.giftPickerTitle}>Send Gift 🎁</Text>
               <TouchableOpacity onPress={() => setShowGiftPicker(false)}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={colors.badgeTextLight} />
               </TouchableOpacity>
             </View>
 
@@ -5534,7 +5534,7 @@ export default function ChatScreen() {
                 <Ionicons
                   name={sendToAllUsers ? "checkbox" : "square-outline"}
                   size={20}
-                  color={sendToAllUsers ? "#4ADE80" : "#666"}
+                  color={sendToAllUsers ? colors.success : colors.textSecondary}
                 />
                 <Text style={styles.sendToAllText}>Kirim ke semua user di room</Text>
               </TouchableOpacity>
@@ -5543,7 +5543,7 @@ export default function ChatScreen() {
             {/* Coin Balance Display */}
             <View style={styles.coinBalanceDisplay}>
               <View style={styles.coinBalanceRow}>
-                <Ionicons name="diamond" size={20} color="#FFD700" />
+                <Ionicons name="diamond" size={20} color={colors.warning} />
                 <Text style={styles.coinBalanceText}>Balance: {user?.balance || 0} coins</Text>
               </View>
             </View>
@@ -5597,7 +5597,7 @@ export default function ChatScreen() {
                     </View>
                     <Text style={styles.newGiftName} numberOfLines={1}>{gift.name}</Text>
                     <View style={styles.giftPriceContainer}>
-                      <Ionicons name="diamond-outline" size={12} color="#FFD700" />
+                      <Ionicons name="diamond-outline" size={12} color={colors.warning} />
                       <Text style={styles.newGiftPrice}>{gift.price}</Text>
                     </View>
                   </TouchableOpacity>
@@ -5634,7 +5634,7 @@ export default function ChatScreen() {
                 Send {selectedGiftForUser?.name} {selectedGiftForUser?.icon} to User
               </Text>
               <TouchableOpacity onPress={() => setShowUserGiftPicker(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -5765,7 +5765,7 @@ export default function ChatScreen() {
               style={styles.messageMenuItem}
               onPress={handleCopyMessage}
             >
-              <Ionicons name="copy-outline" size={20} color="#333" />
+              <Ionicons name="copy-outline" size={20} color={colors.text} />
               <Text style={styles.messageMenuText}>Copy Message</Text>
             </TouchableOpacity>
 
@@ -5779,7 +5779,7 @@ export default function ChatScreen() {
                 setSelectedMessage(null);
               }}
             >
-              <Ionicons name="at-outline" size={20} color="#333" />
+              <Ionicons name="at-outline" size={20} color={colors.text} />
               <Text style={styles.messageMenuText}>Reply to User</Text>
             </TouchableOpacity>
 
@@ -5790,7 +5790,7 @@ export default function ChatScreen() {
                 setSelectedMessage(null);
               }}
             >
-              <Ionicons name="close-outline" size={20} color="#666" />
+              <Ionicons name="close-outline" size={20} color={colors.textSecondary} />
               <Text style={[styles.messageMenuText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -6143,7 +6143,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: isDarkMode ? `${colors.surface}4D` : `${colors.border}80`,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -6246,7 +6246,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: colors.border,
   },
   currentlyInRoomText: {
     fontSize: 13,
@@ -6474,7 +6474,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: isDarkMode ? `${colors.background}CC` : '#00000080',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -6920,7 +6920,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   // Gift Picker Styles
   giftModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: isDarkMode ? `${colors.background}CC` : '#00000080',
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
@@ -7185,7 +7185,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   },
   sendToRoomButton: {
     flex: 1,
-    backgroundColor: 'rgba(139, 92, 246, 0.8)',
+    backgroundColor: `${colors.primary}CC`,
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 8,
@@ -7302,10 +7302,10 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     height: 70,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: isDarkMode ? `${colors.surface}1A` : `${colors.border}33`,
     borderRadius: 30,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: isDarkMode ? `${colors.border}4D` : `${colors.border}80`,
   },
   smallGiftImage: {
     width: 60,
@@ -7320,7 +7320,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     bottom: 120,
     left: '25%',
     right: '25%',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: isDarkMode ? `${colors.background}B3` : '#0000004D',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -7334,7 +7334,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     color: colors.badgeTextLight,
     marginBottom: 5,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowColor: isDarkMode ? `${colors.shadow}CC` : '#000000CC',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
@@ -7343,7 +7343,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     color: colors.badgeTextLight,
     textAlign: 'center',
     opacity: 0.9,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowColor: isDarkMode ? `${colors.shadow}CC` : '#000000CC',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
@@ -7502,7 +7502,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: isDarkMode ? `${colors.background}CC` : '#000000CC',
     alignItems: 'center',
   },
   callHeaderText: {
@@ -7550,7 +7550,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   // Incoming Call Modal Styles
   incomingCallOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    backgroundColor: isDarkMode ? `${colors.background}E6` : '#000000E6',
     justifyContent: 'center',
     alignItems: 'center',
   },
