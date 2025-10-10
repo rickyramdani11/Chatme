@@ -4099,7 +4099,6 @@ export default function ChatScreen() {
 
     // Handle system messages (from System sender) - INCLUDING roll messages
     if (item.sender === 'System' || item.role === 'system') {
-      console.log('Rendering system message:', item.content);
       return (
         <TouchableOpacity 
           style={styles.systemMessageContainer}
