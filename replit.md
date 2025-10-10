@@ -15,12 +15,17 @@ Preferred communication style: Simple, everyday language.
   - **Pending**: AdminScreen and secondary screens can be themed as follow-up
 - **Chatscreen1.tsx - LIGHT MODE ONLY (User Request)**: Dark mode implementation REMOVED from Chatscreen1.tsx (active 7669-line production chat screen) per user request. Screen now uses hardcoded light theme colors exclusively:
   - **Implementation**: Removed useTheme hook, useMemo, and ThemeContext dependency
-  - **Color System**: Uses local COLORS constant (46 hardcoded light theme values from lightTheme palette)
+  - **Color System**: Uses local COLORS constant (46 hardcoded light theme values from lightTheme palette) defined outside component function
   - **Styles**: createThemedStyles() function references COLORS constant directly
   - **Coverage**: All colors (background, text, LinearGradient, Ionicons) use hardcoded values - no theme tokens
   - **Helper Functions**: getRoleColor, getRoleBackgroundColor, getLevelBadgeColor use COLORS constant
-  - **Gift Modal**: Fixed styling with COLORS.surface backgrounds and COLORS.border, icon colors set for visibility
-  - **Status**: Architect-verified, zero theme dependencies, functionality preserved
+  - **Gift Picker Modal**: Gray transparent background (`rgba(128, 128, 128, 0.3)`) for gift item cards
+  - **Status**: Zero theme dependencies, functionality preserved
+- **Participant Auto-Removal on Leave**: Changed disconnect/leave behavior to completely remove participants from room instead of marking offline:
+  - **Backend**: Modified socket disconnect handler to remove user from `roomParticipants` array entirely when they leave
+  - **Database Sync**: Participant count automatically synced to database on removal
+  - **Frontend**: Participant list and "Currently in room" info automatically updated via `participants-updated` event
+  - **Result**: Clean participant list showing only active users, offline users no longer displayed
 - **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
 
 # System Architecture

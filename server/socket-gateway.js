@@ -2681,10 +2681,12 @@ io.on('connection', (socket) => {
         const participantBefore = roomParticipants[userInfo.roomId].find(p => p.userId === userInfo.userId);
 
         if (participantBefore) {
-          // Mark as offline instead of removing completely
-          participantBefore.isOnline = false;
-          participantBefore.lastSeen = new Date().toISOString();
-          participantBefore.socketId = null;
+          // Remove participant completely from the room
+          roomParticipants[userInfo.roomId] = roomParticipants[userInfo.roomId].filter(p => p.userId !== userInfo.userId);
+          console.log(`🗑️ Removed ${userInfo.username} from room ${userInfo.roomId} participants (disconnect)`);
+
+          // Sync participant count to database
+          syncParticipantCountToDatabase(userInfo.roomId);
 
           // Notify room about updated participants
           io.to(userInfo.roomId).emit('participants-updated', roomParticipants[userInfo.roomId]);
