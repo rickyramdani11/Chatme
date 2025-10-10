@@ -6242,7 +6242,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 24,
     paddingHorizontal: 4,
     paddingVertical: 4,
@@ -6278,7 +6278,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     position: 'relative',
     marginRight: 8,
     padding: 4,
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
@@ -6329,7 +6329,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     alignItems: 'center',
   },
   popupMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 8,
     marginHorizontal: 20,
@@ -6358,7 +6358,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     fontWeight: '500',
   },
   roomInfoModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     marginHorizontal: 20,
     maxHeight: '80%',
@@ -6405,7 +6405,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     fontWeight: '500',
   },
   participantsModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     marginHorizontal: 20,
     maxHeight: '80%',
@@ -6512,7 +6512,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     paddingBottom: 100, // Position above input area
   },
   emojiPickerModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     elevation: 8,
     shadowColor: colors.shadow,
@@ -6601,7 +6601,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   },
   // Participant context menu styles
   participantContextMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 8,
     marginHorizontal: 20,
@@ -7052,7 +7052,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     marginBottom: 16,
   },
   giftItem: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
@@ -7319,7 +7319,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     paddingBottom: 120,
   },
   userTagMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginHorizontal: 16,
     maxHeight: 200,
@@ -7386,7 +7386,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   },
   // Message Context Menu Styles
   messageContextMenu: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 8,
     marginHorizontal: 20,
@@ -7493,7 +7493,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     alignItems: 'center',
   },
   incomingCallModal: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 30,
     alignItems: 'center',
