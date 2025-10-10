@@ -1267,6 +1267,16 @@ export default function ChatScreen() {
         }
       });
 
+      // Listen for rate limit errors (anti-flood)
+      socketInstance.on('rate-limit-error', (data: any) => {
+        console.log('⚠️ Rate limit error:', data);
+        Alert.alert(
+          data.type === 'cooldown' ? 'Slow Down!' : 'Temporarily Muted',
+          data.error,
+          [{ text: 'OK' }]
+        );
+      });
+
       // Listen for gift broadcasts from server
       socketInstance.on('receiveGift', (data: any) => {
         console.log('Received gift broadcast:', data);

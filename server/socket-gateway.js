@@ -604,6 +604,65 @@ const pendingBroadcasts = new Map(); // key: "userId_roomId", value: { type: 'jo
 // Track recently broadcast messages to prevent duplicates (key: messageId, value: timestamp)
 const recentBroadcasts = new Map();
 
+// Anti-flood rate limiting system
+const messageRateLimiter = new Map(); // userId -> array of message timestamps
+const cooldownUsers = new Map(); // userId -> cooldown end timestamp
+
+// Rate limit configuration
+const RATE_LIMIT = {
+  MAX_MESSAGES: 5,        // Maximum messages allowed
+  TIME_WINDOW: 5000,      // Time window in milliseconds (5 seconds)
+  COOLDOWN_DURATION: 30000 // Cooldown duration in milliseconds (30 seconds)
+};
+
+// Function to check if user is rate limited
+function checkRateLimit(userId, username) {
+  const now = Date.now();
+  
+  // Check if user is in cooldown
+  if (cooldownUsers.has(userId)) {
+    const cooldownEnd = cooldownUsers.get(userId);
+    if (now < cooldownEnd) {
+      const remainingSeconds = Math.ceil((cooldownEnd - now) / 1000);
+      return {
+        allowed: false,
+        reason: 'cooldown',
+        remainingSeconds
+      };
+    } else {
+      // Cooldown expired, remove from map
+      cooldownUsers.delete(userId);
+      messageRateLimiter.delete(userId);
+    }
+  }
+  
+  // Get user's message history
+  let messageHistory = messageRateLimiter.get(userId) || [];
+  
+  // Remove old timestamps outside time window
+  messageHistory = messageHistory.filter(timestamp => now - timestamp < RATE_LIMIT.TIME_WINDOW);
+  
+  // Check if user exceeded rate limit
+  if (messageHistory.length >= RATE_LIMIT.MAX_MESSAGES) {
+    // Apply cooldown
+    const cooldownEnd = now + RATE_LIMIT.COOLDOWN_DURATION;
+    cooldownUsers.set(userId, cooldownEnd);
+    console.log(`🚫 RATE LIMIT: ${username} (ID: ${userId}) exceeded limit - cooldown for ${RATE_LIMIT.COOLDOWN_DURATION / 1000}s`);
+    
+    return {
+      allowed: false,
+      reason: 'exceeded',
+      cooldownSeconds: RATE_LIMIT.COOLDOWN_DURATION / 1000
+    };
+  }
+  
+  // Add current timestamp and update history
+  messageHistory.push(now);
+  messageRateLimiter.set(userId, messageHistory);
+  
+  return { allowed: true };
+}
+
 // Helper function to sync participant count to database
 async function syncParticipantCountToDatabase(roomId) {
   if (!roomId || roomId.startsWith('private_')) {
@@ -1207,6 +1266,30 @@ io.on('connection', (socket) => {
       }
 
       console.log(`📨 Gateway relaying message from ${sender} in room ${roomId}: "${content}"`);
+
+      // Anti-flood rate limiting check (skip for admin/mentor)
+      if (socket.userId && role !== 'admin' && role !== 'mentor') {
+        const rateLimitResult = checkRateLimit(socket.userId, sender);
+        
+        if (!rateLimitResult.allowed) {
+          if (rateLimitResult.reason === 'cooldown') {
+            socket.emit('rate-limit-error', {
+              error: `Slow down! You're sending messages too fast. Please wait ${rateLimitResult.remainingSeconds} seconds.`,
+              remainingSeconds: rateLimitResult.remainingSeconds,
+              type: 'cooldown'
+            });
+            console.log(`⏸️  Rate limit: ${sender} in cooldown, ${rateLimitResult.remainingSeconds}s remaining`);
+          } else if (rateLimitResult.reason === 'exceeded') {
+            socket.emit('rate-limit-error', {
+              error: `You've been temporarily muted for ${rateLimitResult.cooldownSeconds} seconds due to sending too many messages.`,
+              cooldownSeconds: rateLimitResult.cooldownSeconds,
+              type: 'exceeded'
+            });
+            console.log(`🚫 Rate limit exceeded: ${sender} muted for ${rateLimitResult.cooldownSeconds}s`);
+          }
+          return; // Block message
+        }
+      }
 
       // Check if this is a private chat
       const isPrivateChat = roomId.startsWith('private_');

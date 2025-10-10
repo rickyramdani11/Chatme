@@ -27,6 +27,13 @@ Preferred communication style: Simple, everyday language.
   - **Database Sync**: Participant count automatically synced to database on removal
   - **Frontend**: Participant list and "Currently in room" info automatically updated via `participants-updated` event
   - **Result**: Clean participant list showing only active users, offline users no longer displayed
+- **Anti-Flood Rate Limiting System**: Comprehensive protection against message spam from third-party auto-send tools:
+  - **Rate Limit**: Maximum 5 messages per 5 seconds per user
+  - **Auto-Cooldown**: 30-second mute when limit exceeded
+  - **Exempt Roles**: Admin and Mentor users bypass rate limiting
+  - **Backend**: Real-time message timestamp tracking with automatic cleanup
+  - **Frontend**: Alert notifications for cooldown and exceeded states
+  - **Protection**: Prevents flood attacks from automated bots and scripts
 - **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
 
 # System Architecture
