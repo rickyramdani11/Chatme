@@ -251,6 +251,7 @@ export default function SettingsScreen({ navigation }: any) {
             iconColor={colors.primary}
           />
 
+          {/* Temporarily hidden - Dark Mode menu
           <SettingsItem
             icon="moon"
             title="Mode Gelap"
@@ -259,6 +260,7 @@ export default function SettingsScreen({ navigation }: any) {
             onSwitchChange={toggleDarkMode}
             iconColor={colors.primary}
           />
+          */}
 
           <SettingsItem
             icon="shield-checkmark"
