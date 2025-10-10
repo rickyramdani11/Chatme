@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
@@ -195,6 +196,7 @@ export default function ChatScreen() {
   
   // Get user and token before any refs that depend on them
   const { user, token, logout } = useAuth();
+  const { colors, isDarkMode } = useTheme();
   
   // Get room data from navigation params  
   const routeParams = (route.params as any) || {};
@@ -295,6 +297,9 @@ export default function ChatScreen() {
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
   const [callRinging, setCallRinging] = useState(false);
   const [isCaller, setIsCaller] = useState(false);
+
+  // Create themed styles
+  const styles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   // Helper functions for role checking
   const isRoomOwner = () => {
@@ -2039,7 +2044,7 @@ export default function ChatScreen() {
 
   const getRoleColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
-    if (role === 'admin') return '#FF6B35'; // Orange Red for admin
+    if (role === 'admin') return colors.roleAdmin;
 
     // Check if user is owner of current room
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
@@ -2048,21 +2053,21 @@ export default function ChatScreen() {
     // Check if user is moderator of current room
     const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
 
-    if (isOwner) return '#e8d31a'; // Gold/Yellow for room owner
-    if (isModerator) return '#e8d31a'; // Gold/Yellow for room moderator
+    if (isOwner) return colors.roleOwner;
+    if (isModerator) return colors.roleOwner;
 
     switch (role) {
-      case 'user': return '#2196F3'; // Blue
-      case 'merchant': return '#9C27B0'; // Purple
-      case 'mentor': return '#eb0e0e'; // Deep Orange
-      default: return '#2196F3'; // Default to blue
+      case 'user': return colors.roleUser;
+      case 'merchant': return colors.roleMerchant;
+      case 'mentor': return colors.roleMentor;
+      default: return colors.roleUser;
     }
   };
 
   // Helper function to get level badge color (gradient green to blue)
   const getLevelBadgeColor = (level: number) => {
     if (level >= 10) {
-      return '#2196F3'; // Full blue at level 10+
+      return colors.info; // Full blue at level 10+
     }
     // Gradient from green to blue (levels 1-9)
     const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
@@ -2075,7 +2080,7 @@ export default function ChatScreen() {
 
   const getRoleBackgroundColor = (role?: string, username?: string, currentRoomId?: string) => {
     // Admin role takes highest precedence
-    if (role === 'admin') return '#FFEBEE'; // Light red background for admin
+    if (role === 'admin') return colors.roleAdminBg;
 
     // Check if user is owner of current room
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
@@ -2084,14 +2089,14 @@ export default function ChatScreen() {
     // Check if user is moderator of current room
     const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
 
-    if (isOwner) return '#fefce8'; // Light yellow background for room owner
-    if (isModerator) return '#fefce8'; // Light yellow background for room moderator
+    if (isOwner) return colors.roleOwnerBg;
+    if (isModerator) return colors.roleOwnerBg;
 
     switch (role) {
-      case 'user': return '#E3F2FD'; // Light blue background
-      case 'merchant': return '#F3E5F5'; // Light purple background
-      case 'mentor': return '#FBE9E7'; // Light orange background
-      default: return '#E3F2FD'; // Default light blue background
+      case 'user': return colors.roleUserBg;
+      case 'merchant': return colors.roleMerchantBg;
+      case 'mentor': return colors.roleMentorBg;
+      default: return colors.roleUserBg;
     }
   };
 
@@ -3799,7 +3804,7 @@ export default function ChatScreen() {
                 styles.senderName,
                 styles.messageContent,
                 { 
-                  color: isBotCommand ? '#167027' : isSystemCommand ? '#8B4513' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                  color: isBotCommand ? colors.success : isSystemCommand ? colors.roleAdminBg : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                 }
               ]}>
                 {item.sender}
@@ -3807,7 +3812,7 @@ export default function ChatScreen() {
               <Text style={[
                 styles.messageContent,
                 { 
-                  color: isBotCommand ? '#0f23bd' : '#8B4513', 
+                  color: isBotCommand ? colors.info : colors.roleAdminBg, 
                   fontWeight: 'bold',
                   fontStyle: isBotCommand ? 'italic' : 'normal'
                 }
@@ -3817,7 +3822,7 @@ export default function ChatScreen() {
               {renderMessageContent(item.content, [
                 styles.messageContent,
                 { 
-                  color: isBotCommand ? '#0f23bd' : '#8B4513', 
+                  color: isBotCommand ? colors.info : colors.roleAdminBg, 
                   fontWeight: 'bold',
                   fontStyle: isBotCommand ? 'italic' : 'normal'
                 }
@@ -3846,7 +3851,7 @@ export default function ChatScreen() {
               </Text>
               
               {/* Colon and content */}
-              <Text style={{ color: '#8B4513', fontWeight: 'bold' }}>
+              <Text style={{ color: colors.roleAdminBg, fontWeight: 'bold' }}>
                 : {renderMessageContent(item.content)}
               </Text>
             </Text>
@@ -3865,10 +3870,10 @@ export default function ChatScreen() {
           <View style={styles.messageRow}>
             <View style={[styles.messageContentRow, { flexDirection: 'row', alignItems: 'flex-start', flex: 1 }]}>
               <Text style={{ flex: 1 }}>
-                <Text style={[styles.senderName, { color: '#d2691e' }]}>
+                <Text style={[styles.senderName, { color: colors.warning }]}>
                   {item.sender}:{' '}
                 </Text>
-                <Text style={[styles.messageContent, { color: '#333' }]}>
+                <Text style={[styles.messageContent, { color: colors.text }]}>
                   {renderMessageContent(item.content)}
                 </Text>
               </Text>
@@ -3902,7 +3907,7 @@ export default function ChatScreen() {
             <View style={styles.commandMessageRow}>
               <Text style={[
                 styles.commandMessageText,
-                { color: '#8B4513', flex: 1 } // Coklat untuk semua command
+                { color: colors.roleAdminBg, flex: 1 } // Coklat untuk semua command
               ]}>
                 {renderMessageContent(item.content)}
               </Text>
@@ -3920,7 +3925,7 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.broadcastMessageRow}>
-            <Ionicons name="megaphone" size={18} color="#22c55e" style={{ marginRight: 8 }} />
+            <Ionicons name="megaphone" size={18} color={colors.success} style={{ marginRight: 8 }} />
             <View style={{ flex: 1 }}>
               {renderMessageContent(item.content, styles.broadcastMessageText)}
             </View>
@@ -3938,7 +3943,7 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.systemMessageRow}>
-            <Text style={[styles.systemMessageText, { color: '#8B4513', fontWeight: 'bold' }]}>
+            <Text style={[styles.systemMessageText, { color: colors.roleAdminBg, fontWeight: 'bold' }]}>
               {renderMessageContent(item.content)}
             </Text>
           </View>
@@ -3972,7 +3977,7 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <Text style={styles.joinLeaveMessageText}>
-            <Text style={[styles.roomNameText, { color: '#d2691e' }]}>{roomName} </Text>
+            <Text style={[styles.roomNameText, { color: colors.warning }]}>{roomName} </Text>
             <Text style={[styles.usernameText, { color: getRoleColor(userRole, username, chatTabs[activeTab]?.id) }]}>{username} </Text>
             <Text style={styles.roleBadgeText}>{getRoleBadgeText(userRole)} </Text>
             <Text style={styles.actionText}>{actionText} </Text>
@@ -3999,7 +4004,7 @@ export default function ChatScreen() {
     // Render support messages differently
     if (item.type === 'support') {
       const senderIsAdmin = item.role === 'admin';
-      const senderColor = senderIsAdmin ? '#FF6B35' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
+      const senderColor = senderIsAdmin ? colors.roleAdmin : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
 
       return (
         <TouchableOpacity 
@@ -4015,7 +4020,7 @@ export default function ChatScreen() {
                 </Text>
                 
                 {/* Colon and message content */}
-                <Text style={{ color: '#333' }}>
+                <Text style={{ color: colors.text }}>
                   : {renderMessageContent(item.content)}
                 </Text>
               </Text>
@@ -4026,8 +4031,8 @@ export default function ChatScreen() {
     }
 
     // Regular message
-    const userColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'chatme_bot') ? '#167027' : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
-    const contentColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'chatme_bot') ? '#0f23bd' : '#333';
+    const userColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'chatme_bot') ? colors.success : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
+    const contentColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'chatme_bot') ? colors.info : colors.text;
     
     return (
       <TouchableOpacity 
@@ -4562,25 +4567,25 @@ export default function ChatScreen() {
       <SafeAreaView style={styles.container}>
         {/* Header with Gradient */}
         <LinearGradient
-          colors={['#8B5CF6', '#3B82F6']}
+          colors={[colors.primary, colors.info]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.header}
         >
           <View style={styles.headerContent}>
             <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name="arrow-back" size={24} color={colors.badgeTextLight} />
             </TouchableOpacity>
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, { color: '#fff' }]}>Chat</Text>
-              <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>No active rooms</Text>
+              <Text style={[styles.headerTitle, { color: colors.badgeTextLight }]}>Chat</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>No active rooms</Text>
             </View>
           </View>
         </LinearGradient>
 
         {/* Empty State */}
         <View style={styles.emptyStateContainer}>
-          <Ionicons name="chatbubbles-outline" size={80} color="#ccc" />
+          <Ionicons name="chatbubbles-outline" size={80} color={colors.iconDefault} />
           <Text style={styles.emptyStateTitle}>No Active Rooms</Text>
           <Text style={styles.emptyStateSubtitle}>Go back to join a room to start chatting</Text>
           <TouchableOpacity
@@ -4598,14 +4603,14 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header with Gradient */}
       <LinearGradient
-        colors={chatTabs[activeTab]?.type === 'private' ? ['#FF9800', '#FF5722'] : chatTabs[activeTab]?.isSupport ? ['#4CAF50', '#388E3C'] : ['#8B5CF6', '#3B82F6']}
+        colors={chatTabs[activeTab]?.type === 'private' ? [colors.warning, colors.error] : chatTabs[activeTab]?.isSupport ? [colors.success, colors.success] : [colors.primary, colors.info]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.header}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={colors.badgeTextLight} />
           </TouchableOpacity>
 
           {chatTabs[activeTab]?.type === 'private' ? (
@@ -4640,8 +4645,8 @@ export default function ChatScreen() {
           ) : (
             // Regular Room Header
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, { color: '#ffffff' }]}>{chatTabs[activeTab]?.title}</Text>
-              <Text style={[styles.headerSubtitle, { color: '#e0f2f1' }]}>
+              <Text style={[styles.headerTitle, { color: colors.badgeTextLight }]}>{chatTabs[activeTab]?.title}</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
                 {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
                 {!isSocketConnected && ' • Reconnecting...'}
               </Text>
@@ -4653,33 +4658,33 @@ export default function ChatScreen() {
               // Private Chat Icons
               <>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
-                  <Ionicons name="videocam-outline" size={24} color="#fff" />
+                  <Ionicons name="videocam-outline" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
-                  <Ionicons name="call-outline" size={24} color="#fff" />
+                  <Ionicons name="call-outline" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
-                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                  <Ionicons name="ellipsis-vertical" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
               </>
             ) : chatTabs[activeTab]?.isSupport ? (
               // Support Chat Icons (e.g., options for support)
               <>
                 <TouchableOpacity style={styles.headerIcon}>
-                  <Ionicons name="help-circle-outline" size={24} color="#fff" />
+                  <Ionicons name="help-circle-outline" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
-                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                  <Ionicons name="ellipsis-vertical" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
               </>
             ) : (
               // Room Chat Icons
               <>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleListPress}>
-                  <Ionicons name="list-outline" size={24} color="#fff" />
+                  <Ionicons name="list-outline" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
-                  <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+                  <Ionicons name="ellipsis-vertical" size={24} color={colors.badgeTextLight} />
                 </TouchableOpacity>
               </>
             )}
@@ -4780,7 +4785,7 @@ export default function ChatScreen() {
             <Ionicons
               name={autoScrollEnabled ? "arrow-down-circle" : "arrow-down-circle-outline"}
               size={30}
-              color="white"
+              color={colors.badgeTextLight}
             />
           </TouchableOpacity>
         </View>
@@ -4807,7 +4812,7 @@ export default function ChatScreen() {
                       style={styles.emojiPreviewRemoveButton}
                       onPress={() => handleRemoveImageEmoji(emoji.uniqueId)}
                     >
-                      <Ionicons name="close-circle" size={16} color="white" />
+                      <Ionicons name="close-circle" size={16} color={colors.badgeTextLight} />
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -4817,18 +4822,18 @@ export default function ChatScreen() {
 
           <View style={styles.inputWrapper}>
             <TouchableOpacity style={styles.emojiButton} onPress={handleEmojiPress}>
-              <Ionicons name="happy-outline" size={24} color="white" />
+              <Ionicons name="happy-outline" size={24} color={colors.badgeTextLight} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.giftButton} onPress={() => {
               loadGifts();
               setShowGiftPicker(true);
             }}>
-              <Ionicons name="gift-outline" size={24} color="#FF69B4" />
+              <Ionicons name="gift-outline" size={24} color={colors.error} />
             </TouchableOpacity>
             <TextInput
               style={styles.textInput}
               placeholder="Type a message"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               value={message}
               onChangeText={handleMessageChange}
               multiline
@@ -4844,7 +4849,7 @@ export default function ChatScreen() {
               maxLength={2000}
             />
             <TouchableOpacity style={styles.sendButton} onPress={handleSendMessage}>
-              <Ionicons name="send" size={24} color="white" />
+              <Ionicons name="send" size={24} color={colors.badgeTextLight} />
             </TouchableOpacity>
           </View>
         </View>
@@ -4873,7 +4878,7 @@ export default function ChatScreen() {
                     navigation.navigate('Profile', { userId: targetUser?.id || targetUser?.username });
                   }}
                 >
-                  <Ionicons name="person-outline" size={20} color="#333" />
+                  <Ionicons name="person-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>View Profile</Text>
                 </TouchableOpacity>
 
@@ -4884,7 +4889,7 @@ export default function ChatScreen() {
                     Alert.alert('Search Messages', 'Search functionality will be added soon');
                   }}
                 >
-                  <Ionicons name="search-outline" size={20} color="#333" />
+                  <Ionicons name="search-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>Search Messages</Text>
                 </TouchableOpacity>
 
@@ -4895,16 +4900,16 @@ export default function ChatScreen() {
                     Alert.alert('Clear Chat', 'Clear chat functionality will be added soon');
                   }}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#FF9800" />
-                  <Text style={[styles.menuText, { color: '#FF9800' }]}>Clear Chat</Text>
+                  <Ionicons name="trash-outline" size={20} color={colors.warning} />
+                  <Text style={[styles.menuText, { color: colors.warning }]}>Clear Chat</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.menuItem, styles.lastMenuItem]}
                   onPress={handleLeaveRoom}
                 >
-                  <Ionicons name="exit-outline" size={20} color="#F44336" />
-                  <Text style={[styles.menuText, { color: '#F44336' }]}>Close Chat</Text>
+                  <Ionicons name="exit-outline" size={20} color={colors.error} />
+                  <Text style={[styles.menuText, { color: colors.error }]}>Close Chat</Text>
                 </TouchableOpacity>
               </>
             ) : chatTabs[activeTab]?.isSupport ? (
@@ -4917,15 +4922,15 @@ export default function ChatScreen() {
                     Alert.alert('Support Options', 'More support options will be available soon.');
                   }}
                 >
-                  <Ionicons name="settings-outline" size={20} color="#333" />
+                  <Ionicons name="settings-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>Support Settings</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.menuItem, styles.lastMenuItem]}
                   onPress={handleLeaveRoom}
                 >
-                  <Ionicons name="exit-outline" size={20} color="#F44336" />
-                  <Text style={[styles.menuText, { color: '#F44336' }]}>End Support Session</Text>
+                  <Ionicons name="exit-outline" size={20} color={colors.error} />
+                  <Text style={[styles.menuText, { color: colors.error }]}>End Support Session</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -4935,15 +4940,15 @@ export default function ChatScreen() {
                   style={styles.menuItem}
                   onPress={handleLeaveRoom}
                 >
-                  <Ionicons name="exit-outline" size={20} color="#F44336" />
-                  <Text style={[styles.menuText, { color: '#F44336' }]}>Leave Room</Text>
+                  <Ionicons name="exit-outline" size={20} color={colors.error} />
+                  <Text style={[styles.menuText, { color: colors.error }]}>Leave Room</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.menuItem, styles.lastMenuItem]}
                   onPress={handleRoomInfo}
                 >
-                  <Ionicons name="information-circle-outline" size={20} color="#333" />
+                  <Ionicons name="information-circle-outline" size={20} color={colors.text} />
                   <Text style={styles.menuText}>Info Room</Text>
                 </TouchableOpacity>
               </>
@@ -4964,13 +4969,13 @@ export default function ChatScreen() {
             <View style={styles.roomInfoHeader}>
               <Text style={styles.roomInfoTitle}>Room Information</Text>
               <TouchableOpacity onPress={() => setShowRoomInfo(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.roomInfoContent}>
               <View style={styles.roomInfoItem}>
-                <Ionicons name="home-outline" size={20} color="#666" />
+                <Ionicons name="home-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Room Name</Text>
                   <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.title}</Text>
@@ -4978,7 +4983,7 @@ export default function ChatScreen() {
               </View>
 
               <View style={styles.roomInfoItem}>
-                <Ionicons name="calendar-outline" size={20} color="#666" />
+                <Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Created Date</Text>
                   <Text style={styles.roomInfoValue}>18 August 2025</Text>
@@ -4986,7 +4991,7 @@ export default function ChatScreen() {
               </View>
 
               <View style={styles.roomInfoItem}>
-                <Ionicons name="person-outline" size={20} color="#666" />
+                <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Owner</Text>
                   <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.managedBy || 'admin'}</Text>
@@ -4994,7 +4999,7 @@ export default function ChatScreen() {
               </View>
 
               <View style={styles.roomInfoItem}>
-                <Ionicons name="shield-outline" size={20} color="#666" />
+                <Ionicons name="shield-outline" size={20} color={colors.textSecondary} />
                 <View style={styles.roomInfoText}>
                   <Text style={styles.roomInfoLabel}>Moderator</Text>
                   <Text style={styles.roomInfoValue}>{chatTabs[activeTab]?.managedBy || 'admin'}</Text>
@@ -5017,7 +5022,7 @@ export default function ChatScreen() {
             <View style={styles.participantsHeader}>
               <Text style={styles.participantsTitle}>Room Participants</Text>
               <TouchableOpacity onPress={() => setShowParticipants(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -5078,7 +5083,7 @@ export default function ChatScreen() {
                     </View>
                     <View style={[
                       styles.participantStatus,
-                      { backgroundColor: participant.isOnline ? '#4CAF50' : '#9E9E9E' }
+                      { backgroundColor: participant.isOnline ? colors.success : colors.iconDefault }
                     ]}>
                       <Text style={styles.participantStatusText}>
                         {participant.isOnline ? 'Online' : 'Offline'}
@@ -5122,7 +5127,7 @@ export default function ChatScreen() {
               style={styles.participantMenuItem}
               onPress={handleViewProfile}
             >
-              <Ionicons name="person-outline" size={20} color="#333" />
+              <Ionicons name="person-outline" size={20} color={colors.text} />
               <Text style={styles.participantMenuText}>View Profile</Text>
             </TouchableOpacity>
 
@@ -5130,7 +5135,7 @@ export default function ChatScreen() {
               style={styles.participantMenuItem}
               onPress={handleOpenChat}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#333" />
+              <Ionicons name="chatbubble-outline" size={20} color={colors.text} />
               <Text style={styles.participantMenuText}>Private Chat</Text>
             </TouchableOpacity>
 
@@ -5139,8 +5144,8 @@ export default function ChatScreen() {
                 style={styles.participantMenuItem}
                 onPress={handleKickUser}
               >
-                <Ionicons name="exit-outline" size={20} color="#F44336" />
-                <Text style={[styles.participantMenuText, { color: '#F44336' }]}>Kick User</Text>
+                <Ionicons name="exit-outline" size={20} color={colors.error} />
+                <Text style={[styles.participantMenuText, { color: colors.error }]}>Kick User</Text>
               </TouchableOpacity>
             )}
 
@@ -5148,8 +5153,8 @@ export default function ChatScreen() {
               style={styles.participantMenuItem}
               onPress={handleBlockUser}
             >
-              <Ionicons name="ban-outline" size={20} color="#FF9800" />
-              <Text style={[styles.participantMenuText, { color: '#FF9800' }]}>
+              <Ionicons name="ban-outline" size={20} color={colors.warning} />
+              <Text style={[styles.participantMenuText, { color: colors.warning }]}>
                 {blockedUsers.includes(selectedParticipant?.username) ? 'Unblock User' : 'Block User'}
               </Text>
             </TouchableOpacity>
@@ -5159,8 +5164,8 @@ export default function ChatScreen() {
                 style={styles.participantMenuItem}
                 onPress={handleMuteUser}
               >
-                <Ionicons name="volume-mute-outline" size={20} color="#9C27B0" />
-                <Text style={[styles.participantMenuText, { color: '#9C27B0' }]}>
+                <Ionicons name="volume-mute-outline" size={20} color={colors.primary} />
+                <Text style={[styles.participantMenuText, { color: colors.primary }]}>
                   {mutedUsers.includes(selectedParticipant?.username) ? 'Unmute User' : 'Mute User'}
                 </Text>
               </TouchableOpacity>
@@ -5172,8 +5177,8 @@ export default function ChatScreen() {
                   style={styles.participantMenuItem}
                   onPress={handleBanUser}
                 >
-                  <Ionicons name="remove-circle-outline" size={20} color="#E91E63" />
-                  <Text style={[styles.participantMenuText, { color: '#E91E63' }]}>
+                  <Ionicons name="remove-circle-outline" size={20} color={colors.error} />
+                  <Text style={[styles.participantMenuText, { color: colors.error }]}>
                     {bannedUsers.includes(selectedParticipant?.username) ? 'Unban User' : 'Ban User'}
                   </Text>
                 </TouchableOpacity>
@@ -5182,8 +5187,8 @@ export default function ChatScreen() {
                   style={styles.participantMenuItem}
                   onPress={handleLockRoom}
                 >
-                  <Ionicons name="lock-closed-outline" size={20} color="#FF5722" />
-                  <Text style={[styles.participantMenuText, { color: '#FF5722' }]}>Lock Room</Text>
+                  <Ionicons name="lock-closed-outline" size={20} color={colors.error} />
+                  <Text style={[styles.participantMenuText, { color: colors.error }]}>Lock Room</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -5192,8 +5197,8 @@ export default function ChatScreen() {
               style={[styles.participantMenuItem, styles.lastParticipantMenuItem]}
               onPress={handleReportUser}
             >
-              <Ionicons name="flag-outline" size={20} color="#F44336" />
-              <Text style={[styles.participantMenuText, { color: '#F44336' }]}>Report User</Text>
+              <Ionicons name="flag-outline" size={20} color={colors.error} />
+              <Text style={[styles.participantMenuText, { color: colors.error }]}>Report User</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -5244,7 +5249,7 @@ export default function ChatScreen() {
                   </ScrollView>
                 ) : (
                   <View style={styles.emptyEmojiContainer}>
-                    <Ionicons name="cloud-upload-outline" size={40} color="#ccc" />
+                    <Ionicons name="cloud-upload-outline" size={40} color={colors.iconDefault} />
                     <Text style={styles.emptyEmojiTitle}>No Emojis Available</Text>
                     <Text style={styles.emptyEmojiSubtitle}>
                       Add emojis via the Admin Panel to make them available here.
@@ -5286,14 +5291,14 @@ export default function ChatScreen() {
                 onPress={() => setShowGiftPicker(false)}
                 style={styles.closeButtonInTab}
               >
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={colors.badgeTextLight} />
               </TouchableOpacity>
             </View>
 
             {/* Coin Balance Display */}
             <View style={styles.coinBalanceDisplay}>
               <View style={styles.coinBalanceRow}>
-                <Ionicons name="diamond" size={18} color="#FFD700" />
+                <Ionicons name="diamond" size={18} color={colors.warning} />
                 <Text style={styles.coinBalanceText}>{user?.balance?.toLocaleString() || 0}</Text>
               </View>
             </View>
@@ -5352,7 +5357,7 @@ export default function ChatScreen() {
                     </View>
                     <Text style={styles.newGiftName} numberOfLines={1}>{gift.name}</Text>
                     <View style={styles.giftPriceContainer}>
-                      <Ionicons name="diamond-outline" size={12} color="#FFD700" />
+                      <Ionicons name="diamond-outline" size={12} color={colors.warning} />
                       <Text style={styles.newGiftPrice}>{gift.price}</Text>
                     </View>
                   </TouchableOpacity>
@@ -5389,7 +5394,7 @@ export default function ChatScreen() {
                 Send {selectedGiftForUser?.name} {selectedGiftForUser?.icon} to User
               </Text>
               <TouchableOpacity onPress={() => setShowUserGiftPicker(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -5520,7 +5525,7 @@ export default function ChatScreen() {
               style={styles.messageMenuItem}
               onPress={handleCopyMessage}
             >
-              <Ionicons name="copy-outline" size={20} color="#333" />
+              <Ionicons name="copy-outline" size={20} color={colors.text} />
               <Text style={styles.messageMenuText}>Copy Message</Text>
             </TouchableOpacity>
 
@@ -5534,7 +5539,7 @@ export default function ChatScreen() {
                 setSelectedMessage(null);
               }}
             >
-              <Ionicons name="at-outline" size={20} color="#333" />
+              <Ionicons name="at-outline" size={20} color={colors.text} />
               <Text style={styles.messageMenuText}>Reply to User</Text>
             </TouchableOpacity>
 
@@ -5545,8 +5550,8 @@ export default function ChatScreen() {
                 setSelectedMessage(null);
               }}
             >
-              <Ionicons name="close-outline" size={20} color="#666" />
-              <Text style={[styles.messageMenuText, { color: '#666' }]}>Cancel</Text>
+              <Ionicons name="close-outline" size={20} color={colors.textSecondary} />
+              <Text style={[styles.messageMenuText, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -5760,14 +5765,14 @@ export default function ChatScreen() {
 
           <View style={styles.videoCallContainer}>
             {isInCall && (
-              <View style={{ flex: 1, backgroundColor: '#000' }}>
-                <Text style={{ color: 'white', textAlign: 'center', marginTop: 50 }}>
+              <View style={{ flex: 1, backgroundColor: colors.shadow }}>
+                <Text style={{ color: colors.badgeTextLight, textAlign: 'center', marginTop: 50 }}>
                   Call Active with {targetUser?.username}
                 </Text>
-                <Text style={{ color: 'white', textAlign: 'center', marginTop: 10 }}>
+                <Text style={{ color: colors.badgeTextLight, textAlign: 'center', marginTop: 10 }}>
                   {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
                 </Text>
-                <Text style={{ color: '#FFD700', textAlign: 'center', marginTop: 5 }}>
+                <Text style={{ color: colors.warning, textAlign: 'center', marginTop: 5 }}>
                   Cost: {callCost} coins
                 </Text>
                 {/* Daily.co video implementation will be added here */}
@@ -5839,10 +5844,10 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.background,
   },
   '@keyframes blink': {
     '0%, 50%': { opacity: 1 },
@@ -5865,20 +5870,20 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginTop: 20,
     textAlign: 'center',
   },
   emptyStateSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 10,
     textAlign: 'center',
     lineHeight: 22,
   },
   privateChatHistory: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   privateChatSection: {
     padding: 20,
@@ -5886,12 +5891,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 20,
   },
   emptyPrivateChats: {
@@ -5901,12 +5906,12 @@ const styles = StyleSheet.create({
   emptyPrivateChatsText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 15,
   },
   emptyPrivateChatsSubtext: {
     fontSize: 14,
-    color: '#999',
+    color: colors.textSecondary,
     marginTop: 5,
     textAlign: 'center',
   },
@@ -5934,11 +5939,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   privateChatHeaderContent: {
@@ -5970,7 +5975,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   privateChatInfo: {
     flex: 1,
@@ -5978,7 +5983,7 @@ const styles = StyleSheet.create({
   privateChatName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   privateChatStatus: {
     fontSize: 14,
@@ -6006,15 +6011,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeIndicator: {
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
   },
   unreadIndicator: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: colors.roleAdmin,
   },
   tabNavigation: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
     maxHeight: 50,
   },
   tabNavigationContent: {
@@ -6026,53 +6031,53 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginRight: 8,
     borderRadius:    20,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
   },
   activeTabNavItem: {
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
   },
   tabNavText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
+    color: colors.textSecondary,
   },
   activeTabNavText: {
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   roomDescriptionContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   roomDescription: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   managedByText: {
     fontSize: 13,
-    color: '#888',
+    color: colors.textSecondary,
   },
   roomNameHighlight: {
-    color: '#d6510f',
+    color: colors.error,
     fontWeight: 'bold',
   },
   currentlyInRoomContainer: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: colors.border,
   },
   currentlyInRoomText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   currentlyText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
   },
   participantInRoomName: {
     fontSize: 13,
@@ -6080,11 +6085,11 @@ const styles = StyleSheet.create({
   },
   participantSeparator: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
   },
   noParticipantsInRoom: {
     fontSize: 13,
-    color: '#999',
+    color: colors.textSecondary,
     fontStyle: 'italic',
   },
   tabContainer: {
@@ -6110,23 +6115,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   supportMessageBubble: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: colors.roleUserBg,
     borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
+    borderLeftColor: colors.info,
     borderRadius: 8,
     padding: 8,
   },
   botCommandContainer: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: colors.successBadgeBg,
     borderLeftWidth: 3,
-    borderLeftColor: '#167027',
+    borderLeftColor: colors.success,
     borderRadius: 8,
     marginVertical: 2,
   },
   systemCommandContainer: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background,
     borderLeftWidth: 3,
-    borderLeftColor: '#8B4513',
+    borderLeftColor: colors.roleAdminBg,
     borderRadius: 8,
     marginVertical: 2,
   },
@@ -6150,7 +6155,7 @@ const styles = StyleSheet.create({
   levelText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   roleBadge: {
     borderRadius: 8,
@@ -6162,7 +6167,7 @@ const styles = StyleSheet.create({
   },
   roleBadgeText: {
     fontSize: 12,
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   senderName: {
     fontSize: 15,
@@ -6170,13 +6175,13 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 11,
-    color: '#999',
+    color: colors.textSecondary,
     marginLeft: 6,
     alignSelf: 'flex-start',
   },
   messageContent: {
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
   },
   inlineEmojiImage: {
     width: 16,
@@ -6212,7 +6217,7 @@ const styles = StyleSheet.create({
     height: 20,
     marginTop: 8,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.background,
   },
   messageTextContainer: {
     flex: 1,
@@ -6223,16 +6228,16 @@ const styles = StyleSheet.create({
     height: 25,
     marginTop: 8,
     borderRadius: 6,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.background,
     alignSelf: 'flex-start',
   },
   inputContainer: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingVertical: 8,
     paddingBottom: 4,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: colors.border,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -6242,7 +6247,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 4,
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 6,
@@ -6250,7 +6255,7 @@ const styles = StyleSheet.create({
   },
   emojiButton: {
     padding: 10,
-    backgroundColor: '#FFA726',
+    backgroundColor: colors.warning,
     borderRadius: 20,
     marginRight: 8,
     marginLeft: 4,
@@ -6276,7 +6281,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.border,
   },
   emojiPreviewImage: {
     width: 32,
@@ -6286,7 +6291,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#FF5252',
+    backgroundColor: colors.error,
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -6296,14 +6301,14 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
     paddingHorizontal: 12,
     paddingVertical: 12,
     maxHeight: 100,
     minHeight: 40,
   },
   sendButton: {
-    backgroundColor: '#FF7043',
+    backgroundColor: colors.error,
     borderRadius: 24,
     width: 48,
     height: 48,
@@ -6312,7 +6317,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 4,
     elevation: 2,
-    shadowColor: '#FF7043',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -6330,7 +6335,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     minWidth: 180,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6341,14 +6346,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   lastMenuItem: {
     borderBottomWidth: 0,
   },
   menuText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     marginLeft: 12,
     fontWeight: '500',
   },
@@ -6358,7 +6363,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     maxHeight: '80%',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6370,12 +6375,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   roomInfoTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   roomInfoContent: {
     padding: 20,
@@ -6391,12 +6396,12 @@ const styles = StyleSheet.create({
   },
   roomInfoLabel: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   roomInfoValue: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     fontWeight: '500',
   },
   participantsModal: {
@@ -6405,7 +6410,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     maxHeight: '80%',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6417,12 +6422,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   participantsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },  participantsList: {
     maxHeight: 400,
   },
@@ -6432,12 +6437,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
     marginHorizontal: 8,
     marginVertical: 2,
     borderRadius: 8,
     elevation: 1,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -6446,14 +6451,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.badgeTextLight,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -6461,7 +6466,7 @@ const styles = StyleSheet.create({
   participantAvatarText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   participantInfo: {
     flex: 1,
@@ -6469,12 +6474,12 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#333',
+    color: colors.text,
     marginBottom: 2,
   },
   participantRole: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   participantStatus: {
@@ -6484,7 +6489,7 @@ const styles = StyleSheet.create({
   },
   participantStatusText: {
     fontSize: 12,
-    color: 'white',
+    color: colors.badgeTextLight,
     fontWeight: '500',
   },
   noParticipants: {
@@ -6493,7 +6498,7 @@ const styles = StyleSheet.create({
   },
   noParticipantsText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   // Emoji Picker Styles
@@ -6510,24 +6515,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 16,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: colors.border,
   },
   emojiPickerHeader: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
     alignItems: 'center',
   },
   emojiPickerTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   emojiPickerContent: {
     maxHeight: 200, // Increased height for vertical scrolling
@@ -6549,10 +6554,10 @@ const styles = StyleSheet.create({
     margin: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E9ECEF',
+    borderColor: colors.border,
   },
   emojiText: {
     fontSize: 18,
@@ -6572,25 +6577,25 @@ const styles = StyleSheet.create({
   emptyEmojiTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 8,
     marginBottom: 4,
   },
   emptyEmojiSubtitle: {
     fontSize: 12,
-    color: '#999',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 16,
   },
   joinRoomButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
     marginTop: 20,
   },
   joinRoomButtonText: {
-    color: 'white',
+    color: colors.badgeTextLight,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -6602,7 +6607,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     minWidth: 200,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -6613,13 +6618,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   participantMenuAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#229c93',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -6627,12 +6632,12 @@ const styles = StyleSheet.create({
   participantMenuAvatarText: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   participantMenuName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   participantMenuItem: {
     flexDirection: 'row',
@@ -6640,14 +6645,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   lastParticipantMenuItem: {
     borderBottomWidth: 0,
   },
   participantMenuText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     marginLeft: 12,
     fontWeight: '500',
   },
@@ -6658,13 +6663,13 @@ const styles = StyleSheet.create({
   },
   mutedIndicator: {
     fontSize: 12,
-    color: '#9C27B0',
+    color: colors.primary,
     fontWeight: '500',
     marginTop: 2,
   },
   blockedIndicator: {
     fontSize: 12,
-    color: '#FF9800',
+    color: colors.warning,
     fontWeight: '500',
     marginTop: 2,
   },
@@ -6677,7 +6682,7 @@ const styles = StyleSheet.create({
   },
   joinLeaveMessageText: {
     fontSize: 13,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '500',
     textAlign: 'left',
     flexDirection: 'row',
@@ -6694,12 +6699,12 @@ const styles = StyleSheet.create({
   // roleBadgeText is defined above
   actionText: {
     fontSize: 15,
-    color: '#666',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   joinLeaveTime: {
     fontSize: 11,
-    color: '#999',
+    color: colors.textSecondary,
     fontWeight: '400',
   },
   commandMessageContainer: {
@@ -6715,23 +6720,23 @@ const styles = StyleSheet.create({
   commandMessageText: {
     flex: 1,
     fontSize: 14,
-    color: '#8B4513', // Warna coklat untuk command
+    color: colors.roleAdminBg, // Warna coklat untuk command
     lineHeight: 18,
     textAlignVertical: 'top',
   },
   commandContentText: {
     fontSize: 14,
-    color: '#8B4513', // Warna coklat untuk content
+    color: colors.roleAdminBg, // Warna coklat untuk content
   },
   systemMessageContainer: {
     marginVertical: 4,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFF3E0',
+    backgroundColor: colors.successBadgeBg,
     borderRadius: 8,
     marginHorizontal: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#FF9800',
+    borderLeftColor: colors.warning,
   },
   systemMessageRow: {
     flexDirection: 'row',
@@ -6740,7 +6745,7 @@ const styles = StyleSheet.create({
   },
   systemMessageText: {
     fontSize: 14,
-    color: '#E65100',
+    color: colors.error,
     fontWeight: '500',
     flex: 1,
     lineHeight: 20,
@@ -6754,7 +6759,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#22c55e',
+    borderLeftColor: colors.success,
   },
   broadcastMessageRow: {
     flexDirection: 'row',
@@ -6763,7 +6768,7 @@ const styles = StyleSheet.create({
   },
   broadcastMessageText: {
     fontSize: 14,
-    color: '#166534',
+    color: colors.success,
     fontWeight: '600',
     lineHeight: 20,
   },
@@ -6771,7 +6776,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#FF6B35',
+    backgroundColor: colors.roleAdmin,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -6780,7 +6785,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   unreadBadgeText: {
-    color: 'white',
+    color: colors.badgeTextLight,
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -6796,7 +6801,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     height: '50%',
     paddingBottom: 20,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -6809,12 +6814,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: colors.border,
   },
   giftPickerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   giftCategoryTabs: {
     flexDirection: 'row',
@@ -6823,7 +6828,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: colors.border,
   },
   tabRow: {
     flexDirection: 'row',
@@ -6838,7 +6843,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: colors.border,
   },
   sendToAllToggle: {
     flexDirection: 'row',
@@ -6846,7 +6851,7 @@ const styles = StyleSheet.create({
   },
   sendToAllText: {
     fontSize: 14,
-    color: '#fff',
+    color: colors.badgeTextLight,
     marginLeft: 8,
     fontWeight: '500',
   },
@@ -6860,23 +6865,23 @@ const styles = StyleSheet.create({
   activeCategoryTab: {
     backgroundColor: 'transparent',
     borderBottomWidth: 2,
-    borderBottomColor: '#FF8C00',
+    borderBottomColor: colors.warning,
     borderRadius: 0,
   },
   categoryTabText: {
     fontSize: 16,
-    color: '#888',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   activeCategoryTabText: {
-    color: '#FF8C00',
+    color: colors.warning,
     fontWeight: 'bold',
   },
   coinBalanceContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: colors.border,
   },
   coinBalance: {
     flexDirection: 'row',
@@ -6890,11 +6895,11 @@ const styles = StyleSheet.create({
   coinText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
   },
   coinDescription: {
     fontSize: 14,
-    color: '#888',
+    color: colors.textSecondary,
   },
   giftPickerContent: {
     paddingHorizontal: 20,
@@ -6913,7 +6918,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   newGiftItem: {
-    backgroundColor: '#3C3C3E',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -6923,8 +6928,8 @@ const styles = StyleSheet.create({
     minHeight: 140,
   },
   selectedGiftItem: {
-    borderColor: '#FF8C00',
-    backgroundColor: '#4A3C2A',
+    borderColor: colors.warning,
+    backgroundColor: colors.card,
   },
   giftCoinIndicators: {
     position: 'absolute',
@@ -6938,7 +6943,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.warning,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -6949,7 +6954,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.warning,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -6962,7 +6967,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: '#FFD700',
+    backgroundColor: colors.warning,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -6973,7 +6978,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 8,
     right: 8,
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderRadius: 12,
     width: 24,
     height: 24,
@@ -6986,7 +6991,7 @@ const styles = StyleSheet.create({
   coinMultiplier: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   newGiftIconContainer: {
     marginTop: 16,
@@ -7005,14 +7010,14 @@ const styles = StyleSheet.create({
   newGiftName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.badgeTextLight,
     marginBottom: 6,
     textAlign: 'center',
   },
   newGiftPrice: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
     marginLeft: 4,
   },
   giftGridContainer: {
@@ -7032,7 +7037,7 @@ const styles = StyleSheet.create({
   newGiftPrice: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
   },
   // Legacy styles for backward compatibility
   giftGrid: {
@@ -7054,7 +7059,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
@@ -7102,7 +7107,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#FF69B4',
+    backgroundColor: colors.error,
     borderRadius: 8,
     width: 16,
     height: 16,
@@ -7111,7 +7116,7 @@ const styles = StyleSheet.create({
   },
   animatedBadgeText: {
     fontSize: 10,
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   giftName: {
     fontSize: 11,
@@ -7130,7 +7135,7 @@ const styles = StyleSheet.create({
   giftPrice: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
     marginLeft: 2,
   },
   giftPreviewImage: {
@@ -7147,11 +7152,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -7160,7 +7165,7 @@ const styles = StyleSheet.create({
   // Styles for userGiftRole, etc.
   userGiftRole: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   // Added styles for private chat history display when no rooms are active
@@ -7173,7 +7178,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: colors.border,
   },
   userGiftInfo: {
     flex: 1,
@@ -7182,11 +7187,11 @@ const styles = StyleSheet.create({
   userGiftName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.badgeTextLight,
   },
   selfLabel: {
     fontSize: 12,
-    color: '#888',
+    color: colors.textSecondary,
     marginLeft: 8,
   },
   // Live Streaming Style Gift Animation Overlay
@@ -7264,7 +7269,7 @@ const styles = StyleSheet.create({
   giftSenderName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.badgeTextLight,
     marginBottom: 5,
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
@@ -7273,7 +7278,7 @@ const styles = StyleSheet.create({
   },
   giftDescription: {
     fontSize: 16,
-    color: '#fff',
+    color: colors.badgeTextLight,
     textAlign: 'center',
     opacity: 0.9,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
@@ -7293,7 +7298,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#444',
+    borderBottomColor: colors.border,
   },
   coinBalanceRow: {
     flexDirection: 'row',
@@ -7303,7 +7308,7 @@ const styles = StyleSheet.create({
   coinBalanceText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFD700',
+    color: colors.warning,
     marginLeft: 6,
   },
   // User Tag Menu Styles
@@ -7319,7 +7324,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     maxHeight: 200,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -7328,12 +7333,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   userTagTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
   },
   userTagList: {
     maxHeight: 150,
@@ -7344,7 +7349,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: colors.border,
   },
   userTagInfo: {
     marginLeft: 12,
@@ -7353,11 +7358,11 @@ const styles = StyleSheet.create({
   userTagName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text,
   },
   userTagRole: {
     fontSize: 12,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   // Connection Status Styles
@@ -7371,13 +7376,13 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   disconnectedDot: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error,
   },
   reconnectingDot: {
-    backgroundColor: '#FF9800',
+    backgroundColor: colors.warning,
   },
   // Message Context Menu Styles
   messageContextMenu: {
@@ -7387,7 +7392,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     minWidth: 180,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
@@ -7396,12 +7401,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   messageMenuTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     textAlign: 'center',
   },
   messageMenuItem: {
@@ -7410,26 +7415,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   lastMessageMenuItem: {
     borderBottomWidth: 0,
   },
   messageMenuText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
     marginLeft: 12,
     fontWeight: '500',
   },
   // Mention Text Style
   mentionText: {
-    color: '#007AFF',
+    color: colors.info,
     fontWeight: '600',
   },
   // Call Modal Styles
   callModalContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.card,
   },
   callHeader: {
     paddingTop: 50,
@@ -7441,23 +7446,23 @@ const styles = StyleSheet.create({
   callHeaderText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
     marginBottom: 5,
   },
   callTargetName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
     marginBottom: 10,
   },
   callTimer: {
     fontSize: 16,
-    color: '#4CAF50',
+    color: colors.success,
     marginBottom: 5,
   },
   callCost: {
     fontSize: 14,
-    color: '#FFD700',
+    color: colors.warning,
   },
   videoCallContainer: {
     flex: 1,
@@ -7478,7 +7483,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
   },
   endCallButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error,
   },
   // Incoming Call Modal Styles
   incomingCallOverlay: {
@@ -7502,24 +7507,24 @@ const styles = StyleSheet.create({
   incomingCallTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 5,
   },
   incomingCallSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 10,
   },
   callerName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2196F3',
+    color: colors.info,
   },
   callerAvatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#2196F3',
+    backgroundColor: colors.info,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30,
@@ -7527,7 +7532,7 @@ const styles = StyleSheet.create({
   callerAvatarText: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: 'white',
+    color: colors.badgeTextLight,
   },
   callRateInfo: {
     alignItems: 'center',
@@ -7537,12 +7542,12 @@ const styles = StyleSheet.create({
   callRateText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text,
     marginBottom: 10,
   },
   callRateDetail: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
     marginBottom: 5,
   },
   incomingCallButtons: {
@@ -7559,13 +7564,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
   },
   acceptButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   declineButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: colors.error,
   },
   callActionText: {
-    color: 'white',
+    color: colors.badgeTextLight,
     fontSize: 12,
     fontWeight: 'bold',
     marginTop: 5,
@@ -7576,11 +7581,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   giftMessageBubble: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: colors.successBadgeBg,
     borderRadius: 12,
     padding: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF69B4',
+    borderLeftColor: colors.error,
   },
   giftImagePreviewContainer: {
     marginTop: 8,
@@ -7607,7 +7612,7 @@ const styles = StyleSheet.create({
   },
   giftInlineText: {
     fontSize: 14,
-    color: '#333',
+    color: colors.text,
     fontWeight: '500',
   },
   giftLevelCircle: {
@@ -7620,7 +7625,7 @@ const styles = StyleSheet.create({
   },
   giftLevelText: {
     fontSize: 10,
-    color: 'white',
+    color: colors.badgeTextLight,
     fontWeight: 'bold',
   },
   // Room Info Message Styles
@@ -7642,7 +7647,7 @@ const styles = StyleSheet.create({
   },
   roomInfoContent: {
     fontSize: 14,
-    color: '#2E7D32',
+    color: colors.success,
     fontWeight: '500',
   },
   // Gift Text Notification Styles (purple capsule box)
@@ -7653,9 +7658,9 @@ const styles = StyleSheet.create({
   },
   giftTextNotification: {
     fontSize: 14,
-    color: '#7c3aed', // Purple text
+    color: colors.primary, // Purple text
     fontWeight: '500',
-    backgroundColor: 'rgba(147, 51, 234, 0.15)', // Semi-transparent purple
+    backgroundColor: `${colors.primary}26`, // Semi-transparent purple
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16, // Capsule style
