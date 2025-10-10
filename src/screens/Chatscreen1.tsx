@@ -5145,14 +5145,6 @@ export default function ChatScreen() {
                         )}
                       </View>
                     </View>
-                    <View style={[
-                      styles.participantStatus,
-                      { backgroundColor: participant.isOnline ? COLORS.success : COLORS.iconDefault }
-                    ]}>
-                      <Text style={styles.participantStatusText}>
-                        {participant.isOnline ? 'Online' : 'Offline'}
-                      </Text>
-                    </View>
                   </TouchableOpacity>
                 ))
               ) : (

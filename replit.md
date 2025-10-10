@@ -26,6 +26,7 @@ Preferred communication style: Simple, everyday language.
   - **Backend**: Modified socket disconnect handler to remove user from `roomParticipants` array entirely when they leave
   - **Database Sync**: Participant count automatically synced to database on removal
   - **Frontend**: Participant list and "Currently in room" info automatically updated via `participants-updated` event
+  - **UI Cleanup**: Removed online/offline status badges from participant modal (no longer needed since offline users are auto-removed)
   - **Result**: Clean participant list showing only active users, offline users no longer displayed
 - **Anti-Flood Rate Limiting System**: Comprehensive protection against message spam from third-party auto-send tools:
   - **Rate Limit**: Maximum 5 messages per 5 seconds per user
