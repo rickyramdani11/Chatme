@@ -256,7 +256,8 @@ export default function RoomScreen() {
   // Filter rooms based on search text and category
   const filteredRooms = rooms.filter(room => {
     const matchesSearch = room.name.toLowerCase().includes(searchText.toLowerCase());
-    const matchesCategory = activeCategory === 'all' || (room.category || 'social') === activeCategory;
+    const roomCategory = (room.category || 'social').toLowerCase();
+    const matchesCategory = activeCategory === 'all' || roomCategory === activeCategory.toLowerCase();
     return matchesSearch && matchesCategory;
   });
 
