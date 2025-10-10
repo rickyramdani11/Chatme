@@ -243,6 +243,7 @@ export default function ChatScreen() {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [broadcastMessages, setBroadcastMessages] = useState<Record<string, string | null>>({});
+  const listenersSetupRef = useRef<boolean>(false); // Track if listeners are already set up
   
   // Get user and token before any refs that depend on them
   const { user, token, logout } = useAuth();
@@ -1038,6 +1039,12 @@ export default function ChatScreen() {
   // Initialize socket with persistent connection and auto-reconnect
   useEffect(() => {
     const setupSocketListeners = (socketInstance) => {
+      // If listeners are already set up for this socket, skip setup to prevent duplicates
+      if (listenersSetupRef.current) {
+        console.log('Listeners already set up, skipping duplicate setup');
+        return;
+      }
+      
       // Clear existing listeners to prevent duplicates
       socketInstance.removeAllListeners('new-message');
       socketInstance.removeAllListeners('user-joined');
@@ -1626,6 +1633,10 @@ export default function ChatScreen() {
         endCall();
         Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
       });
+      
+      // Mark listeners as set up
+      listenersSetupRef.current = true;
+      console.log('Socket listeners set up successfully');
     };
 
     const initializeSocket = () => {
@@ -1698,6 +1709,10 @@ export default function ChatScreen() {
       newSocket.on('disconnect', (reason) => {
         console.log('🔌 Socket disconnected from gateway:', reason);
         setIsSocketConnected(false);
+        
+        // Reset listeners flag so they can be set up again on reconnection
+        listenersSetupRef.current = false;
+        console.log('Listeners flag reset on disconnect');
 
         // Log disconnect reasons for debugging
         const disconnectReasons: { [key: string]: string } = {
@@ -1776,6 +1791,8 @@ export default function ChatScreen() {
         console.error('⚠️ Socket error:', error);
       });
 
+      // Reset listeners flag before setting new socket
+      listenersSetupRef.current = false;
       setSocket(newSocket);
     };
 
