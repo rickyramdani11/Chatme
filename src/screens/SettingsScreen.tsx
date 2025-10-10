@@ -180,6 +180,13 @@ export default function SettingsScreen({ navigation }: any) {
           />
 
           <SettingsItem
+            icon="information-circle"
+            title="Info"
+            iconColor="#2196F3"
+            onPress={() => navigation.navigate('InfoScreen')}
+          />
+
+          <SettingsItem
             icon="help-circle"
             title="Bantuan & Dukungan"
             iconColor="#9C27B0"

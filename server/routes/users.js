@@ -458,4 +458,45 @@ router.put('/status', authenticateToken, async (req, res) => {
   }
 });
 
+// Get merchants and mentors list
+router.get('/merchants-mentors', authenticateToken, async (req, res) => {
+  try {
+    const merchantsResult = await pool.query(`
+      SELECT id, username, role, level, avatar, status
+      FROM users
+      WHERE role = 'merchant'
+      ORDER BY username ASC
+    `);
+
+    const mentorsResult = await pool.query(`
+      SELECT id, username, role, level, avatar, status
+      FROM users
+      WHERE role = 'mentor'
+      ORDER BY username ASC
+    `);
+
+    res.json({
+      merchants: merchantsResult.rows.map(user => ({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        level: user.level || 1,
+        avatar: user.avatar,
+        status: user.status || 'offline'
+      })),
+      mentors: mentorsResult.rows.map(user => ({
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        level: user.level || 1,
+        avatar: user.avatar,
+        status: user.status || 'offline'
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching merchants and mentors:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

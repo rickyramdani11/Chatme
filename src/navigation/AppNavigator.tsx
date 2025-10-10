@@ -49,6 +49,8 @@ import CreateFamilyScreen from '../screens/CreateFamilyScreen';
 import FamilyDetailScreen from '../screens/FamilyDetailScreen';
 // Import ChatHistoryScreen
 import ChatHistoryScreen from '../screens/ChatHistoryScreen';
+// Import InfoScreen
+import InfoScreen from '../screens/InfoScreen';
 // Import GlobalIncomingCallManager
 import { GlobalIncomingCallManager } from '../components/GlobalIncomingCallManager';
 
@@ -155,6 +157,11 @@ export default function AppNavigator() {
           <Stack.Screen
             name="HelpSupport"
             component={HelpSupportScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="InfoScreen"
+            component={InfoScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen
