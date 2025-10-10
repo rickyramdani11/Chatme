@@ -6,73 +6,6 @@ ChatMe is a cross-platform React Native chat application built with Expo, design
 
 Preferred communication style: Simple, everyday language.
 
-# Recent Changes
-
-## October 10, 2025
-- **Dark Mode System - PARTIAL**: Implemented comprehensive dark mode across 9 core screens (SettingsScreen, HomeScreen, RoomScreen, ProfileScreen, EditProfileScreen, FriendsScreen, PrivacySecurityScreen, FeedScreen) with ThemeContext and AsyncStorage persistence.
-  - **Pattern**: useTheme hook + useMemo + createThemedStyles function
-  - **Dark Mode UI Control**: Menu "Mode Gelap" temporarily hidden in SettingsScreen (commented out) - ThemeContext functionality remains active for other screens
-  - **Pending**: AdminScreen and secondary screens can be themed as follow-up
-- **Chatscreen1.tsx - LIGHT MODE ONLY (User Request)**: Dark mode implementation REMOVED from Chatscreen1.tsx (active 7726-line production chat screen) per user request. Screen now uses hardcoded light theme colors exclusively:
-  - **Implementation**: Removed useTheme hook, useMemo, and ThemeContext dependency
-  - **Color System**: Uses local COLORS constant (46 hardcoded light theme values from lightTheme palette) defined outside component function
-  - **Styles**: createThemedStyles() function references COLORS constant directly
-  - **Coverage**: All colors (background, text, LinearGradient, Ionicons) use hardcoded values - no theme tokens
-  - **Helper Functions**: getRoleColor, getRoleBackgroundColor, getLevelBadgeColor use COLORS constant
-  - **Gift Picker Modal Light Theme**: Fully converted to light theme with white background and dark text:
-    - Modal overlay: `COLORS.overlay` (light semi-transparent)
-    - Modal background: `COLORS.surface` (white)
-    - All text colors: `COLORS.text` (dark text for readability)
-    - Gift item cards: Gray transparent background (`rgba(128, 128, 128, 0.3)`)
-    - Tab titles, gift names, and UI labels: All use dark text on light background
-    - Animated gift badge: `COLORS.warning` background with `COLORS.text` for proper contrast
-  - **Keyboard Auto-Close**: Keyboard automatically closes after sending any message (text, commands, game commands) for better UX
-  - **Gift Notification Display**: Gift notification messages displayed as compact purple semi-transparent bubbles in chat with format "sender send gift_name to recipient" (e.g., "chatme send Bunny to hana"):
-    - Background: rgba(139, 92, 246, 0.3) - purple semi-transparent
-    - Text: #8B5CF6 - purple, fontSize 13, fontWeight 600, left-aligned
-    - Left-aligned display (alignItems: 'flex-start') matching room info message style
-    - Compact bubble size: paddingHorizontal 12px, paddingVertical 6px, borderRadius 12px
-    - Single-line display: numberOfLines={1} to prevent text wrapping
-    - Message type: 'gift' with recipient and giftName fields in Message interface
-    - Duplicate prevention: Checks sender, recipient, giftName within 2-second window to prevent duplicate notifications
-  - **Command Message Color Fix**: Fixed command message text visibility issue (residual from dark mode removal):
-    - Changed color from `COLORS.roleAdminBg` (#FFEBEE - light pink background) to `COLORS.roleAdmin` (#FF6B35 - orange/brown text)
-    - Applied to all command message text styles (commandMessageText, commandContentText, inline styles)
-    - Command messages now properly visible with brown/orange color against white background
-  - **Status**: Zero theme dependencies, functionality preserved
-- **Participant Auto-Removal on Leave**: Changed disconnect/leave behavior to completely remove participants from room instead of marking offline:
-  - **Backend**: Modified socket disconnect handler to remove user from `roomParticipants` array entirely when they leave
-  - **Database Sync**: Participant count automatically synced to database on removal
-  - **Frontend**: Participant list and "Currently in room" info automatically updated via `participants-updated` event
-  - **UI Cleanup**: Removed online/offline status badges from participant modal (no longer needed since offline users are auto-removed)
-  - **Duplicate Join Fix**: Fixed race condition in join broadcast by setting `announcedJoins` flag BEFORE scheduling broadcast (prevents duplicate "has entered" messages)
-  - **Result**: Clean participant list showing only active users, no duplicate join messages, offline users no longer displayed
-- **Anti-Flood Rate Limiting System**: Comprehensive protection against message spam from third-party auto-send tools:
-  - **Rate Limit**: Maximum 5 messages per 5 seconds per user
-  - **Auto-Cooldown**: 30-second mute when limit exceeded
-  - **Exempt Roles**: Admin and Mentor users bypass rate limiting
-  - **Backend**: Real-time message timestamp tracking with automatic cleanup
-  - **Frontend**: Alert notifications for cooldown and exceeded states
-  - **Protection**: Prevents flood attacks from automated bots and scripts
-- **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
-- **Room Management Navigation**: Added Room Management menu option to ellipsis menu (⋮) in Chatscreen1:
-  - **Menu Location**: Accessible from room chat's ellipsis menu alongside "Leave Room" and "Info Room"
-  - **Integration**: Uses RoomManagement component from `src/components/RoomManagement.tsx`
-  - **Features**: Access moderator management and banned users list directly from chat
-  - **UI**: Settings icon with "Room Management" label in popup menu
-- **Room Management UX Improvements**: Enhanced Room Management modal with better usability:
-  - **Modal Height**: Increased from 80% to 90% screen height for better list visibility
-  - **Participant Picker**: Replaced text input with modal picker showing room participants for moderator selection
-  - **Owner-Only Permissions**: Only room owner can add moderators (button hidden for non-owners)
-  - **Unban Functionality**: Fully functional unban button with confirmation dialog
-  - **Smart Filtering**: Participant picker excludes current user and existing moderators
-- **Socket Listener Stacking Fix**: Eliminated duplicate join/leave messages caused by listener stacking:
-  - **Root Cause**: Multiple socket connections (up to 19 simultaneous) causing duplicate event broadcasts
-  - **Solution**: Implemented `listenersSetupRef` boolean flag to prevent duplicate listener attachment
-  - **Mechanism**: Listeners set up only once per socket instance; flag reset on disconnect and new socket creation
-  - **AppState Handling**: Skip listener setup if already configured when app resumes from background
-  - **Result**: Clean single connection, no duplicate join/leave messages, proper socket lifecycle management
-
 # System Architecture
 
 ## Frontend
@@ -92,25 +25,25 @@ Preferred communication style: Simple, everyday language.
 - **API**: RESTful endpoints with Bearer token authorization
 
 ## Core Features
-- **Chat System**: Multi-room chat, private messaging, emoji support, media sharing, chat history notifications.
-- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations (with auto-detection), and Cloudinary integration for media. AdminScreen supports JSON file upload via DocumentPicker for Lottie animations.
-- **Gaming Integration**: LowCard bot game with database persistence, automatic refunds, and tie-breaker re-draw system.
-- **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat.
+- **Chat System**: Multi-room chat, private messaging, emoji support, media sharing, chat history notifications. Includes anti-flood rate limiting with auto-cooldown.
+- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration.
+- **Gaming Integration**: LowCard bot game with database persistence.
+- **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
-- **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Role-based access control and audit logging are implemented.
-- **Merchant Recas System**: Monthly revenue requirement system for merchant promotions with automatic downgrade logic and visual status indicators.
-- **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time chat status, operating independently from the main chat rooms.
+- **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Supports admin-created special accounts with custom IDs bypassing OTP.
+- **Merchant Recas System**: Monthly revenue requirement system for merchant promotions.
+- **Help & Support System**: Live chat support with ticket creation and FAQ.
 - **Privacy & Security System**: Privacy settings management with user-scoped access control, data download requests, password/PIN changes.
-- **Notification System**: Real-time notifications via Socket.IO with system notifications for follow and friend add events (e.g., "Andromeda has followed you", "John has added you as a friend").
-- **User Presence System**: Friends list displays real-time status with smart sorting.
+- **Notification System**: Real-time notifications via Socket.IO for follow and friend add events.
+- **User Presence System**: Friends list displays real-time status with smart sorting. Participant auto-removal on leave.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
-- **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection.
+- **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection. Socket listener stacking fix implemented.
 - **Room Capacity Management**: Real-time participant count sync and client-side validation.
-- **Video Call System**: Private video/audio calls with Daily.co integration and real-time streaming.
+- **Video Call System**: Private video/audio calls with Daily.co integration.
 - **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
-- **Info Center**: Accessible from Settings, displays game commands (LowCard, Bacarat, Sicbo) and merchant/mentor contacts with direct chat navigation and pull-to-refresh.
+- **Info Center**: Displays game commands and merchant/mentor contacts.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
@@ -125,30 +58,24 @@ Preferred communication style: Simple, everyday language.
 - **Auto-Recovery**: Application-level crash recovery via PM2.
 
 ## UI/UX Decisions
+- **Theming**: Dark Mode partially implemented for core screens with ThemeContext, Chatscreen1.tsx uses hardcoded light theme.
 - **Level Badges**: Dynamic gradient level badges.
-- **Chat Message Display**: Optimized spacing, consistent font sizes, and improved text wrapping.
-- **Emoji/Gift Display**: Standardized sizing.
+- **Chat Message Display**: Optimized spacing, consistent font sizes, and improved text wrapping. Gift notifications are compact, purple, and auto-disappear.
 - **Android Back Button**: Hardware back button handling for proper navigation.
-- **PNG Transparency**: Preserved transparency for uploaded images.
-- **LowCardBot Card Icons**: Card images rendered from local assets.
-- **Auto-Scroll Optimization**: Debounced scroll implementation for lag-free scrolling.
-- **Gender Icons**: Visual gender indicators in user profiles.
 - **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
-- **Album Photo Visibility**: Removed opacity animation to ensure immediate visibility of loaded photos.
-- **Profile Background Auto-Refresh**: useFocusEffect with memoized fetch functions ensures profile background updates when returning from EditProfileScreen.
-- **Friends Refresh Visual Feedback**: Refresh button shows loading state, disables during fetch, and displays "Loading..." text for clear user feedback.
+- **Room Management UX**: Increased modal height, participant picker for moderator selection, owner-only moderator adding, functional unban, and smart filtering.
 
 # External Dependencies
 
 ## Core Framework & Libraries
 - **React Native Ecosystem**: React 19, React Native 0.79, Expo SDK 53.
-- **Navigation**: @react-navigation/native and related navigation libraries.
+- **Navigation**: @react-navigation/native.
 - **UI/UX**: expo-linear-gradient, @expo/vector-icons, expo-blur, expo-haptics.
 - **Media**: expo-image, expo-image-picker, expo-document-picker, expo-av, expo-video, expo-audio.
 
 ## Backend Technologies
-- **Server**: Express.js v5, Socket.IO v4.7, CORS.
-- **Database**: PostgreSQL (pg driver) with connection pooling.
+- **Server**: Express.js v5, Socket.IO v4.7.
+- **Database**: PostgreSQL (pg driver).
 - **Security**: bcrypt, jsonwebtoken.
 - **File Handling**: Multer.
 - **Process Manager**: PM2 v6.0.13.
@@ -157,9 +84,5 @@ Preferred communication style: Simple, everyday language.
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).
 - **Storage**: Cloudinary for gift media, avatar frame assets, and feed post media.
-- **Networking**: HTTP/HTTPS, WebSockets.
-- **Authentication**: Custom JWT.
-- **Push Notifications**: Expo notifications.
-- **Video Calls**: Daily.co (@daily-co/react-native-daily-js, @daily-co/react-native-webrtc, @daily-co/config-plugin-rn-daily-js).
+- **Video Calls**: Daily.co.
 - **Payment Gateway**: Xendit Payout API.
-- **Media CDN**: Cloudinary.
