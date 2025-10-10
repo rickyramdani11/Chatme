@@ -35,13 +35,17 @@ export default function RoomManagement({
   const [activeTab, setActiveTab] = useState<'moderators' | 'banned'>('moderators');
   const [moderators, setModerators] = useState<any[]>([]);
   const [bannedUsers, setBannedUsers] = useState<any[]>([]);
-  const [newModeratorUsername, setNewModeratorUsername] = useState('');
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [roomOwner, setRoomOwner] = useState<string>('');
+  const [showParticipantPicker, setShowParticipantPicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (visible) {
       loadModerators();
       loadBannedUsers();
+      loadParticipants();
+      loadRoomInfo();
     }
   }, [visible, roomId]);
 
@@ -81,9 +85,55 @@ export default function RoomManagement({
     }
   };
 
-  const addModerator = async () => {
-    if (!newModeratorUsername.trim()) {
-      Alert.alert('Error', 'Please enter a username');
+  const loadParticipants = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/rooms/${roomId}/participants`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setParticipants(data);
+      }
+    } catch (error) {
+      console.error('Error loading participants:', error);
+    }
+  };
+
+  const loadRoomInfo = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/rooms`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const rooms = await response.json();
+        const currentRoom = rooms.find((r: any) => r.id === roomId);
+        if (currentRoom) {
+          const owner = currentRoom.createdBy || currentRoom.managedBy || '';
+          setRoomOwner(owner);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading room info:', error);
+    }
+  };
+
+  const addModerator = async (username: string) => {
+    // Check if current user is room owner
+    if (currentUser?.username !== roomOwner) {
+      Alert.alert('Error', 'Only the room owner can add moderators');
+      return;
+    }
+
+    if (!username.trim()) {
+      Alert.alert('Error', 'Please select a participant');
       return;
     }
 
@@ -96,13 +146,13 @@ export default function RoomManagement({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: newModeratorUsername.trim()
+          username: username.trim()
         }),
       });
 
       if (response.ok) {
-        Alert.alert('Success', `${newModeratorUsername} has been added as moderator`);
-        setNewModeratorUsername('');
+        Alert.alert('Success', `${username} has been added as moderator`);
+        setShowParticipantPicker(false);
         loadModerators();
       } else {
         const error = await response.json();
@@ -267,22 +317,15 @@ export default function RoomManagement({
           <View style={styles.content}>
             {activeTab === 'moderators' ? (
               <View style={styles.tabContent}>
-                <View style={styles.addSection}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter username to add as moderator"
-                    value={newModeratorUsername}
-                    onChangeText={setNewModeratorUsername}
-                    autoCapitalize="none"
-                  />
+                {currentUser?.username === roomOwner && (
                   <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={addModerator}
-                    disabled={loading}
+                    style={styles.addModeratorButton}
+                    onPress={() => setShowParticipantPicker(true)}
                   >
-                    <Text style={styles.addButtonText}>Add</Text>
+                    <Ionicons name="person-add" size={20} color="#fff" />
+                    <Text style={styles.addModeratorButtonText}>Add Moderator from Participants</Text>
                   </TouchableOpacity>
-                </View>
+                )}
 
                 <FlatList
                   data={moderators}
@@ -308,6 +351,48 @@ export default function RoomManagement({
               </View>
             )}
           </View>
+
+          {/* Participant Picker Modal */}
+          <Modal
+            visible={showParticipantPicker}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowParticipantPicker(false)}
+          >
+            <View style={styles.pickerOverlay}>
+              <View style={styles.pickerContainer}>
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerTitle}>Select Participant</Text>
+                  <TouchableOpacity onPress={() => setShowParticipantPicker(false)}>
+                    <Ionicons name="close" size={24} color="#333" />
+                  </TouchableOpacity>
+                </View>
+                <FlatList
+                  data={participants.filter(p => 
+                    p.username !== currentUser?.username && 
+                    !moderators.find(m => m.username === p.username)
+                  )}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.participantItem}
+                      onPress={() => addModerator(item.username)}
+                    >
+                      <View style={styles.userAvatar}>
+                        <Text style={styles.userAvatarText}>
+                          {item.username?.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <Text style={styles.participantName}>{item.username}</Text>
+                    </TouchableOpacity>
+                  )}
+                  keyExtractor={(item) => item.userId || item.username}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>No participants available to add</Text>
+                  }
+                />
+              </View>
+            </View>
+          </Modal>
         </View>
       </View>
     </Modal>
@@ -325,7 +410,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
-    maxHeight: '80%',
+    height: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -374,30 +459,21 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  addSection: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    gap: 10,
-  },
-  input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-  },
-  addButton: {
+  addModeratorButton: {
     backgroundColor: '#8B5CF6',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 8,
   },
-  addButtonText: {
+  addModeratorButtonText: {
     color: '#fff',
     fontWeight: '600',
+    fontSize: 16,
   },
   list: {
     flex: 1,
@@ -459,5 +535,48 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     marginTop: 40,
+  },
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  pickerContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    width: '100%',
+    maxHeight: '70%',
+    padding: 20,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  participantItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  participantName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    marginLeft: 12,
   },
 });
