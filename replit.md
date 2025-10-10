@@ -43,6 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Room Capacity Management**: Real-time participant count sync and client-side validation.
 - **Video Call System**: Private video/audio calls with Daily.co integration and real-time streaming.
 - **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
+- **Info Center**: Accessible from Settings, displays game commands (LowCard, Bacarat, Sicbo) and merchant/mentor contacts with direct chat navigation and pull-to-refresh.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.
