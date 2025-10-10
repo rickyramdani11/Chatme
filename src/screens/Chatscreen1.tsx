@@ -3024,6 +3024,9 @@ export default function ChatScreen() {
         setMessage('');
         setSelectedImageEmojis([]);
         setShowUserTagMenu(false);
+        
+        // Auto-close keyboard for special commands
+        Keyboard.dismiss();
         return;
       }
 
@@ -3032,6 +3035,9 @@ export default function ChatScreen() {
         setMessage('');
         setSelectedImageEmojis([]);
         setShowUserTagMenu(false);
+        
+        // Auto-close keyboard for game commands
+        Keyboard.dismiss();
         
         // Send game command to server (no optimistic message)
         socket.emit('sendMessage', {
@@ -3061,6 +3067,9 @@ export default function ChatScreen() {
       setMessage('');
       setSelectedImageEmojis([]);
       setShowUserTagMenu(false);
+      
+      // Auto-close keyboard after sending message
+      Keyboard.dismiss();
       
       // Reset scroll state to ensure autoscroll works after sending message
       setIsUserScrolling(false);

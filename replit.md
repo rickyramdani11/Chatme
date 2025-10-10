@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language.
   - **Coverage**: All colors (background, text, LinearGradient, Ionicons) use hardcoded values - no theme tokens
   - **Helper Functions**: getRoleColor, getRoleBackgroundColor, getLevelBadgeColor use COLORS constant
   - **Gift Picker Modal**: Gray transparent background (`rgba(128, 128, 128, 0.3)`) for gift item cards
+  - **Keyboard Auto-Close**: Keyboard automatically closes after sending any message (text, commands, game commands) for better UX
   - **Status**: Zero theme dependencies, functionality preserved
 - **Participant Auto-Removal on Leave**: Changed disconnect/leave behavior to completely remove participants from room instead of marking offline:
   - **Backend**: Modified socket disconnect handler to remove user from `roomParticipants` array entirely when they leave
