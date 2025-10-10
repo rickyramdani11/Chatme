@@ -38,6 +38,17 @@ interface ThemeContextType {
     roleUserBg: string;
     roleOwner: string;
     roleOwnerBg: string;
+    overlay: string;
+    overlayDark: string;
+    overlayLight: string;
+    avatarOverlay: string;
+    textOverlay: string;
+    borderOverlay: string;
+    cardSubtle: string;
+    successSubtle: string;
+    callAccept: string;
+    callDecline: string;
+    textEmphasis: string;
   };
 }
 
@@ -77,6 +88,17 @@ const lightTheme = {
   roleUserBg: '#E3F2FD',
   roleOwner: '#e8d31a',
   roleOwnerBg: '#fefce8',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlayDark: 'rgba(0, 0, 0, 0.8)',
+  overlayLight: 'rgba(0, 0, 0, 0.3)',
+  avatarOverlay: 'rgba(255, 255, 255, 0.3)',
+  textOverlay: 'rgba(255, 255, 255, 0.8)',
+  borderOverlay: 'rgba(255, 255, 255, 0.3)',
+  cardSubtle: 'rgba(0, 0, 0, 0.05)',
+  successSubtle: 'rgba(34, 197, 94, 0.15)',
+  callAccept: 'rgba(139, 92, 246, 0.8)',
+  callDecline: 'rgba(255, 105, 180, 0.8)',
+  textEmphasis: 'rgba(255, 255, 255, 0.9)',
 };
 
 const darkTheme = {
@@ -113,6 +135,17 @@ const darkTheme = {
   roleUserBg: 'rgba(100, 181, 246, 0.2)',
   roleOwner: '#fbbf24',
   roleOwnerBg: 'rgba(251, 191, 36, 0.2)',
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  overlayDark: 'rgba(0, 0, 0, 0.9)',
+  overlayLight: 'rgba(51, 51, 51, 0.4)',
+  avatarOverlay: 'rgba(255, 255, 255, 0.1)',
+  textOverlay: 'rgba(255, 255, 255, 0.9)',
+  borderOverlay: 'rgba(255, 255, 255, 0.3)',
+  cardSubtle: 'rgba(255, 255, 255, 0.05)',
+  successSubtle: 'rgba(34, 197, 94, 0.15)',
+  callAccept: 'rgba(139, 92, 246, 0.8)',
+  callDecline: 'rgba(255, 105, 180, 0.8)',
+  textEmphasis: 'rgba(255, 255, 255, 0.9)',
 };
 
 const THEME_STORAGE_KEY = '@theme_mode';
