@@ -6,6 +6,12 @@ ChatMe is a cross-platform React Native chat application built with Expo, design
 
 Preferred communication style: Simple, everyday language.
 
+# Recent Changes
+
+## October 10, 2025
+- **Dark Mode System**: Implemented comprehensive dark mode with ThemeContext and AsyncStorage persistence. All colors in SettingsScreen now use semantic theme tokens (zero hardcoded color literals). Memoized themedStyles pattern for performance optimization.
+- **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
+
 # System Architecture
 
 ## Frontend
