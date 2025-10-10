@@ -1299,10 +1299,24 @@ export default function ChatScreen() {
           type: 'gift'
         };
 
-        // Add message to appropriate room tab
+        // Add message to appropriate room tab with duplicate check
         setChatTabs(prevTabs => {
           return prevTabs.map(tab => {
             if (tab.id === data.roomId) {
+              // Check for duplicate gift messages (same sender, recipient, gift within 2 seconds)
+              const isDuplicate = tab.messages.some(msg => 
+                msg.type === 'gift' &&
+                msg.sender === data.sender &&
+                msg.recipient === data.recipient &&
+                msg.giftName === (data.gift?.name || 'Gift') &&
+                Math.abs(new Date(msg.timestamp).getTime() - new Date(data.timestamp || Date.now()).getTime()) < 2000
+              );
+
+              if (isDuplicate) {
+                console.log('Duplicate gift message filtered out');
+                return tab; // Don't add duplicate
+              }
+
               return {
                 ...tab,
                 messages: [...tab.messages, giftNotificationMessage]
@@ -6824,13 +6838,13 @@ const createThemedStyles = () => StyleSheet.create({
   },
   giftNotificationBubble: {
     backgroundColor: 'rgba(139, 92, 246, 0.3)', // Purple semi-transparent
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
-    maxWidth: '80%',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    maxWidth: '70%',
   },
   giftNotificationText: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#8B5CF6', // Purple text
     fontWeight: '600',
     textAlign: 'center',
