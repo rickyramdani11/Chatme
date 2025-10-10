@@ -4071,11 +4071,8 @@ export default function ChatScreen() {
             </View>
           ) : (
             <View style={styles.commandMessageRow}>
-              <Text style={[
-                styles.commandMessageText,
-                { color: COLORS.roleAdmin, flex: 1 } // Coklat untuk semua command
-              ]}>
-                {renderMessageContent(item.content)}
+              <Text style={styles.commandContentText}>
+                {renderMessageContent(item.content, { color: COLORS.text })}
               </Text>
             </View>
           )}
