@@ -4051,18 +4051,9 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle gift messages - Show text notification only (no image, no bubble)
+    // Handle gift messages - Hidden (no display)
     if (item.type === 'gift') {
-      return (
-        <TouchableOpacity 
-          style={styles.giftTextNotificationContainer}
-          onLongPress={() => handleMessageLongPress(item)}
-        >
-          <Text style={styles.giftTextNotification}>
-            {item.content}
-          </Text>
-        </TouchableOpacity>
-      );
+      return null;
     }
 
     // Render support messages differently
@@ -7706,21 +7697,5 @@ const createThemedStyles = () => StyleSheet.create({
     fontSize: 14,
     color: COLORS.success,
     fontWeight: '500',
-  },
-  // Gift Text Notification Styles (purple capsule box)
-  giftTextNotificationContainer: {
-    alignItems: 'center',
-    marginVertical: 4,
-    paddingHorizontal: 16,
-  },
-  giftTextNotification: {
-    fontSize: 14,
-    color: COLORS.primary, // Purple text
-    fontWeight: '500',
-    backgroundColor: `${COLORS.primary}26`, // Semi-transparent purple
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16, // Capsule style
-    overflow: 'hidden',
   },
 });
