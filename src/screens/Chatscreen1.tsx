@@ -4106,7 +4106,7 @@ export default function ChatScreen() {
       return (
         <View style={styles.giftNotificationContainer}>
           <View style={styles.giftNotificationBubble}>
-            <Text style={styles.giftNotificationText}>
+            <Text style={styles.giftNotificationText} numberOfLines={1}>
               {item.content}
             </Text>
           </View>
@@ -6832,22 +6832,22 @@ const createThemedStyles = () => StyleSheet.create({
   },
   // Gift notification styles
   giftNotificationContainer: {
-    alignItems: 'center',
-    marginVertical: 8,
-    paddingHorizontal: 16,
+    alignItems: 'flex-start',
+    marginVertical: 2,
+    paddingHorizontal: 0,
   },
   giftNotificationBubble: {
     backgroundColor: 'rgba(139, 92, 246, 0.3)', // Purple semi-transparent
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    maxWidth: '70%',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
   },
   giftNotificationText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#8B5CF6', // Purple text
     fontWeight: '600',
-    textAlign: 'center',
+    textAlign: 'left',
   },
   commandMessageContainer: {
     marginBottom: 6,
