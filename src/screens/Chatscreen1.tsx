@@ -6918,18 +6918,18 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     marginBottom: 12,
   },
   newGiftItem: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: colors.border,
     position: 'relative',
     minHeight: 140,
   },
   selectedGiftItem: {
     borderColor: colors.warning,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
   },
   giftCoinIndicators: {
     position: 'absolute',
@@ -7006,6 +7006,7 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   },
   newGiftIcon: {
     fontSize: 48,
+    color: colors.text,
   },
   newGiftName: {
     fontSize: 14,

@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
   - **ThemeContext Extensions**: Added role-specific color tokens (admin, mentor, merchant, user, owner/moderator) for consistent role badge theming across all screens
   - **Chatscreen1.tsx Dark Mode - VERIFIED**: Successfully themed ACTIVE 7669-line production chat screen with ZERO hardcoded colors - all rgba(), hex colors, LinearGradient, and Ionicons colors now use theme tokens. Architect-verified with grep validation (0 hex, 0 rgba, 0 string literals). Helper functions updated for owner/moderator gold color support. Fixed text input visibility issue - replaced hardcoded 'white' backgrounds (11 instances) with colors.surface token.
   - **Dark Mode UI Control**: Menu "Mode Gelap" temporarily hidden in SettingsScreen (commented out) - can be re-enabled when needed
+  - **Gift Picker Modal Fix**: Updated gift card styling to use colors.surface instead of colors.card (white), added visible borders with colors.border, and set gift icon text color for better visibility in all themes
   - **Pending**: AdminScreen and secondary screens (25 screens remaining) - can be themed as follow-up
 - **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
 
