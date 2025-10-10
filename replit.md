@@ -9,17 +9,18 @@ Preferred communication style: Simple, everyday language.
 # Recent Changes
 
 ## October 10, 2025
-- **Dark Mode System - COMPLETE**: Implemented comprehensive dark mode across 10 core screens with ThemeContext and AsyncStorage persistence. Uses memoized themedStyles pattern for optimal performance with zero hardcoded colors.
-  - **Themed Screens**: SettingsScreen, HomeScreen, RoomScreen, ProfileScreen, EditProfileScreen, FriendsScreen, PrivacySecurityScreen, FeedScreen, and **Chatscreen1.tsx (ACTIVE production chat screen - 7669 lines, 100% themed)**
+- **Dark Mode System - PARTIAL**: Implemented comprehensive dark mode across 9 core screens (SettingsScreen, HomeScreen, RoomScreen, ProfileScreen, EditProfileScreen, FriendsScreen, PrivacySecurityScreen, FeedScreen) with ThemeContext and AsyncStorage persistence.
   - **Pattern**: useTheme hook + useMemo + createThemedStyles function
-  - **Semantic Tokens**: background, surface, card, text, textSecondary, primary, success, error, warning, info, avatarBg, badgeTextLight, switchThumb, shadow, border, iconDefault, roleAdmin, roleAdminBg, roleMentor, roleMentorBg, roleMerchant, roleMerchantBg, roleUser, roleUserBg, roleOwner, roleOwnerBg
-  - **Overlay Tokens (NEW)**: overlay, overlayDark, overlayLight, avatarOverlay, textOverlay, borderOverlay, cardSubtle, successSubtle, callAccept, callDecline, textEmphasis - added to ThemeContext for transparency/opacity variants, eliminating all rgba() hardcoded colors
-  - **Helper Functions**: Adapted for dark mode (getStatusColor, getRoleColor, getRoleBackgroundColor, getLevelBadgeColor, getRandomAvatarColor) - all using theme tokens exclusively
-  - **ThemeContext Extensions**: Added role-specific color tokens (admin, mentor, merchant, user, owner/moderator) for consistent role badge theming across all screens
-  - **Chatscreen1.tsx Dark Mode - VERIFIED**: Successfully themed ACTIVE 7669-line production chat screen with ZERO hardcoded colors - all rgba(), hex colors, LinearGradient, and Ionicons colors now use theme tokens. Architect-verified with grep validation (0 hex, 0 rgba, 0 string literals). Helper functions updated for owner/moderator gold color support. Fixed text input visibility issue - replaced hardcoded 'white' backgrounds (11 instances) with colors.surface token.
-  - **Dark Mode UI Control**: Menu "Mode Gelap" temporarily hidden in SettingsScreen (commented out) - can be re-enabled when needed
-  - **Gift Picker Modal Fix**: Updated gift card styling to use colors.surface instead of colors.card (white), added visible borders with colors.border, and set gift icon text color for better visibility in all themes
-  - **Pending**: AdminScreen and secondary screens (25 screens remaining) - can be themed as follow-up
+  - **Dark Mode UI Control**: Menu "Mode Gelap" temporarily hidden in SettingsScreen (commented out) - ThemeContext functionality remains active for other screens
+  - **Pending**: AdminScreen and secondary screens can be themed as follow-up
+- **Chatscreen1.tsx - LIGHT MODE ONLY (User Request)**: Dark mode implementation REMOVED from Chatscreen1.tsx (active 7669-line production chat screen) per user request. Screen now uses hardcoded light theme colors exclusively:
+  - **Implementation**: Removed useTheme hook, useMemo, and ThemeContext dependency
+  - **Color System**: Uses local COLORS constant (46 hardcoded light theme values from lightTheme palette)
+  - **Styles**: createThemedStyles() function references COLORS constant directly
+  - **Coverage**: All colors (background, text, LinearGradient, Ionicons) use hardcoded values - no theme tokens
+  - **Helper Functions**: getRoleColor, getRoleBackgroundColor, getLevelBadgeColor use COLORS constant
+  - **Gift Modal**: Fixed styling with COLORS.surface backgrounds and COLORS.border, icon colors set for visibility
+  - **Status**: Architect-verified, zero theme dependencies, functionality preserved
 - **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
 
 # System Architecture
