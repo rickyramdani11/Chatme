@@ -23,6 +23,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, View, Text, BackHandler } from 'react-native';
 import { AuthProvider } from './src/contexts/AuthContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 
@@ -109,11 +110,13 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <AuthProvider>
-        <AppNavigator />
-        <StatusBar style="auto" />
-      </AuthProvider>
-    </NavigationContainer>
+    <ThemeProvider>
+      <NavigationContainer ref={navigationRef}>
+        <AuthProvider>
+          <AppNavigator />
+          <StatusBar style="auto" />
+        </AuthProvider>
+      </NavigationContainer>
+    </ThemeProvider>
   );
 }

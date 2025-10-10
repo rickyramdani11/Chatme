@@ -12,13 +12,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
 export default function SettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
+  const { isDarkMode, toggleDarkMode, colors } = useTheme();
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
 
   const ProfileSection = () => (
     <View style={styles.profileSection}>
@@ -167,8 +168,8 @@ export default function SettingsScreen({ navigation }: any) {
             icon="moon"
             title="Mode Gelap"
             hasSwitch
-            switchValue={darkMode}
-            onSwitchChange={setDarkMode}
+            switchValue={isDarkMode}
+            onSwitchChange={toggleDarkMode}
             iconColor="#9C27B0"
           />
 
