@@ -536,7 +536,7 @@ pool.connect(async (err, client, release) => {
     // Load existing rooms from database
     try {
       const result = await client.query(`
-        SELECT id, name, description, managed_by, type, members, max_members, created_by, created_at
+        SELECT id, name, description, managed_by, type, category, members, max_members, created_by, created_at
         FROM rooms 
         ORDER BY created_at ASC
       `);
@@ -547,6 +547,7 @@ pool.connect(async (err, client, release) => {
         description: row.description,
         managedBy: row.managed_by,
         type: row.type,
+        category: row.category || 'social',
         members: row.members || 0,
         maxMembers: row.max_members || 25,
         createdBy: row.created_by,
