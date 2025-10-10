@@ -44,6 +44,11 @@ Preferred communication style: Simple, everyday language.
   - **Frontend**: Alert notifications for cooldown and exceeded states
   - **Protection**: Prevents flood attacks from automated bots and scripts
 - **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
+- **Room Management Navigation**: Added Room Management menu option to ellipsis menu (⋮) in Chatscreen1:
+  - **Menu Location**: Accessible from room chat's ellipsis menu alongside "Leave Room" and "Info Room"
+  - **Integration**: Uses RoomManagement component from `src/components/RoomManagement.tsx`
+  - **Features**: Access moderator management and banned users list directly from chat
+  - **UI**: Settings icon with "Room Management" label in popup menu
 
 # System Architecture
 
