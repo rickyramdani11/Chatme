@@ -3970,7 +3970,7 @@ export default function ChatScreen() {
                 styles.senderName,
                 styles.messageContent,
                 { 
-                  color: isBotCommand ? COLORS.success : isSystemCommand ? COLORS.roleAdminBg : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
+                  color: isBotCommand ? COLORS.success : isSystemCommand ? COLORS.text : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id)
                 }
               ]}>
                 {item.sender}
@@ -3978,7 +3978,7 @@ export default function ChatScreen() {
               <Text style={[
                 styles.messageContent,
                 { 
-                  color: isBotCommand ? COLORS.info : COLORS.roleAdminBg, 
+                  color: isBotCommand ? COLORS.info : COLORS.text, 
                   fontWeight: 'bold',
                   fontStyle: isBotCommand ? 'italic' : 'normal'
                 }
@@ -3988,7 +3988,7 @@ export default function ChatScreen() {
               {renderMessageContent(item.content, [
                 styles.messageContent,
                 { 
-                  color: isBotCommand ? COLORS.info : COLORS.roleAdminBg, 
+                  color: isBotCommand ? COLORS.info : COLORS.text, 
                   fontWeight: 'bold',
                   fontStyle: isBotCommand ? 'italic' : 'normal'
                 }
@@ -4017,7 +4017,7 @@ export default function ChatScreen() {
               </Text>
               
               {/* Colon and content */}
-              <Text style={{ color: COLORS.roleAdminBg, fontWeight: 'bold' }}>
+              <Text style={{ color: COLORS.text, fontWeight: 'bold' }}>
                 : {renderMessageContent(item.content)}
               </Text>
             </Text>
@@ -4105,7 +4105,7 @@ export default function ChatScreen() {
           onLongPress={() => handleMessageLongPress(item)}
         >
           <View style={styles.systemMessageRow}>
-            <Text style={[styles.systemMessageText, { color: COLORS.roleAdminBg, fontWeight: 'bold' }]}>
+            <Text style={[styles.systemMessageText, { color: COLORS.text, fontWeight: 'bold' }]}>
               {renderMessageContent(item.content)}
             </Text>
           </View>
@@ -6910,13 +6910,13 @@ const createThemedStyles = () => StyleSheet.create({
   commandMessageText: {
     flex: 1,
     fontSize: 14,
-    color: COLORS.roleAdmin, // Warna coklat untuk command
+    color: COLORS.text, // Dark text for light background visibility
     lineHeight: 18,
     textAlignVertical: 'top',
   },
   commandContentText: {
     fontSize: 14,
-    color: COLORS.roleAdmin, // Warna coklat untuk content
+    color: COLORS.text, // Dark text for light background visibility
   },
   systemMessageContainer: {
     marginVertical: 4,
