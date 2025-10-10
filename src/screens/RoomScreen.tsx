@@ -23,6 +23,7 @@ interface Room {
   name: string;
   description?: string;
   type: string;
+  category?: string;
   members?: number;
   maxMembers?: number;
   avatar?: string;
@@ -46,6 +47,7 @@ export default function RoomScreen() {
   const [newRoomManagedBy, setNewRoomManagedBy] = useState(user?.username || '');
   const [newRoomCapacity, setNewRoomCapacity] = useState(25);
   const [creatingRoom, setCreatingRoom] = useState(false);
+  const [activeCategory, setActiveCategory] = useState('all');
   
 
   // Fetch rooms from server
@@ -251,10 +253,12 @@ export default function RoomScreen() {
     }
   }, [user]);
 
-  // Filter rooms based on search text
-  const filteredRooms = rooms.filter(room =>
-    room.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+  // Filter rooms based on search text and category
+  const filteredRooms = rooms.filter(room => {
+    const matchesSearch = room.name.toLowerCase().includes(searchText.toLowerCase());
+    const matchesCategory = activeCategory === 'all' || (room.category || 'social') === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   // Generate avatar and color for room
   const generateRoomDisplay = (room: Room) => {
@@ -332,6 +336,46 @@ export default function RoomScreen() {
           onChangeText={setSearchText}
           placeholderTextColor="#999"
         />
+      </View>
+
+      {/* Category Tabs */}
+      <View style={styles.categoryTabs}>
+        <TouchableOpacity
+          style={[styles.categoryTab, activeCategory === 'all' && styles.categoryTabActive]}
+          onPress={() => setActiveCategory('all')}
+        >
+          <Text style={[styles.categoryTabText, activeCategory === 'all' && styles.categoryTabTextActive]}>
+            All
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.categoryTab, activeCategory === 'game' && styles.categoryTabActive]}
+          onPress={() => setActiveCategory('game')}
+        >
+          <Ionicons 
+            name="game-controller" 
+            size={16} 
+            color={activeCategory === 'game' ? '#fff' : '#666'} 
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.categoryTabText, activeCategory === 'game' && styles.categoryTabTextActive]}>
+            Game
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.categoryTab, activeCategory === 'social' && styles.categoryTabActive]}
+          onPress={() => setActiveCategory('social')}
+        >
+          <Ionicons 
+            name="people" 
+            size={16} 
+            color={activeCategory === 'social' ? '#fff' : '#666'} 
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.categoryTabText, activeCategory === 'social' && styles.categoryTabTextActive]}>
+            Social
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -523,6 +567,34 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#374151',
+  },
+  categoryTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  categoryTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  categoryTabActive: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  categoryTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  categoryTabTextActive: {
+    color: '#fff',
   },
   scrollView: {
     flex: 1,
