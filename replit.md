@@ -26,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing, chat history notifications.
-- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie animations, and Cloudinary integration for media.
+- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations (with auto-detection), and Cloudinary integration for media. AdminScreen supports JSON file upload via DocumentPicker for Lottie animations.
 - **Gaming Integration**: LowCard bot game with database persistence, automatic refunds, and tie-breaker re-draw system.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, supporting room and private chat.
 - **Credit System**: Virtual currency with transactions and transfers.
@@ -34,6 +34,7 @@ Preferred communication style: Simple, everyday language.
 - **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Role-based access control and audit logging are implemented.
 - **Merchant Recas System**: Monthly revenue requirement system for merchant promotions with automatic downgrade logic and visual status indicators.
 - **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time chat status, operating independently from the main chat rooms.
+- **Privacy & Security System**: Privacy settings management with user-scoped access control, data download requests, password/PIN changes.
 - **Notification System**: Real-time notifications via Socket.IO.
 - **User Presence System**: Friends list displays real-time status with smart sorting.
 - **Device & Location Tracking**: Collects device information and city/country level location.

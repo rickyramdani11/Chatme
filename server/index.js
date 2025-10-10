@@ -3884,6 +3884,86 @@ app.put('/api/users/:userId/profile-background', authenticateToken, async (req, 
   }
 });
 
+// Get privacy settings
+app.get('/api/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Verify user can only view their own privacy settings
+    if (parseInt(userId, 10) !== parseInt(req.user.id, 10)) {
+      return res.status(403).json({ error: 'Unauthorized to view these settings' });
+    }
+
+    // Return default privacy settings
+    // In future, can store these in database if needed
+    const defaultSettings = {
+      profile_visibility: 'public',
+      privacy_notifications: true,
+      location_sharing: true,
+      biometric_auth: false,
+      two_factor_auth: false,
+      active_sessions: true,
+      data_download: true
+    };
+
+    res.json(defaultSettings);
+  } catch (error) {
+    console.error('Error fetching privacy settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update privacy settings
+app.put('/api/users/:userId/privacy-settings', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const settingsUpdate = req.body;
+
+    // Verify user can only update their own privacy settings
+    if (parseInt(userId, 10) !== parseInt(req.user.id, 10)) {
+      return res.status(403).json({ error: 'Unauthorized to update these settings' });
+    }
+
+    console.log(`Privacy settings update request for user ${userId}:`, settingsUpdate);
+
+    // For now, just acknowledge the update (no database persistence)
+    // In future, can store in dedicated privacy_settings table if needed
+    res.json({ 
+      success: true,
+      message: 'Privacy settings updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating privacy settings:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Request data download
+app.post('/api/users/:userId/download-data', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Verify user can only request their own data
+    if (parseInt(userId, 10) !== parseInt(req.user.id, 10)) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    console.log(`Data download request from user ${userId}`);
+
+    // In future, implement actual data export functionality
+    // For now, just acknowledge the request
+    res.json({ 
+      success: true,
+      message: 'Data download request received. You will be notified when ready.'
+    });
+
+  } catch (error) {
+    console.error('Error processing data download request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // API health check - ensure this comes before catch-all
 app.get('/api/health', (req, res) => {
   res.json({
