@@ -1289,6 +1289,7 @@ export default function ChatScreen() {
       });
 
       // Listen for gift broadcasts from server
+      socketInstance.off('receiveGift');
       socketInstance.on('receiveGift', (data: any) => {
         console.log('Received gift broadcast:', data);
 
@@ -1332,6 +1333,22 @@ export default function ChatScreen() {
             return tab;
           });
         });
+
+        // Auto-remove gift notification message after 5 seconds
+        setTimeout(() => {
+          setChatTabs(prevTabs => {
+            return prevTabs.map(tab => {
+              if (tab.id === data.roomId) {
+                return {
+                  ...tab,
+                  messages: tab.messages.filter(msg => msg.id !== giftNotificationMessage.id)
+                };
+              }
+              return tab;
+            });
+          });
+          console.log('Gift notification message auto-removed after 5 seconds');
+        }, 5000);
 
         // Show animation for all users (including sender for consistency)
         setActiveGiftAnimation({
