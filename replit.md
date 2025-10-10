@@ -49,6 +49,12 @@ Preferred communication style: Simple, everyday language.
   - **Integration**: Uses RoomManagement component from `src/components/RoomManagement.tsx`
   - **Features**: Access moderator management and banned users list directly from chat
   - **UI**: Settings icon with "Room Management" label in popup menu
+- **Room Management UX Improvements**: Enhanced Room Management modal with better usability:
+  - **Modal Height**: Increased from 80% to 90% screen height for better list visibility
+  - **Participant Picker**: Replaced text input with modal picker showing room participants for moderator selection
+  - **Owner-Only Permissions**: Only room owner can add moderators (button hidden for non-owners)
+  - **Unban Functionality**: Fully functional unban button with confirmation dialog
+  - **Smart Filtering**: Participant picker excludes current user and existing moderators
 
 # System Architecture
 
