@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL } from '../utils/apiConfig';
 
 interface Room {
@@ -37,6 +38,7 @@ interface Room {
 export default function RoomScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
+  const { colors, isDarkMode } = useTheme();
   const [searchText, setSearchText] = useState('');
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,14 +263,18 @@ export default function RoomScreen() {
     return matchesSearch && matchesCategory;
   });
 
-  // Generate avatar and color for room
+  // Generate avatar and color for room (theme-aware)
   const generateRoomDisplay = (room: Room) => {
-    const colors = ['#8B5CF6', '#6366F1', '#10B981', '#EF4444', '#F59E0B', '#06B6D4'];
+    const roomColors = isDarkMode 
+      ? ['#BB86FC', '#64B5F6', '#03DAC6', '#CF6679', '#FFB74D', '#4FC3F7']
+      : ['#8B5CF6', '#6366F1', '#10B981', '#EF4444', '#F59E0B', '#06B6D4'];
     return {
       avatar: room.avatar || room.name.charAt(0).toUpperCase(),
-      color: room.color || colors[parseInt(room.id) % colors.length],
+      color: room.color || roomColors[parseInt(room.id) % roomColors.length],
     };
   };
+
+  const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   const RoomCard = ({ room }: { room: Room }) => {
     const { avatar, color } = generateRoomDisplay(room);
@@ -276,38 +282,38 @@ export default function RoomScreen() {
 
     return (
       <TouchableOpacity 
-        style={styles.roomCard} 
+        style={themedStyles.roomCard} 
         activeOpacity={0.7}
         onPress={() => joinRoom(room.id, room.name, room.description)}
       >
         <View style={styles.roomHeader}>
           <View style={styles.avatarContainer}>
             <View style={[styles.avatar, { backgroundColor: color }]}>
-              <Text style={styles.avatarText}>{avatar}</Text>
+              <Text style={themedStyles.avatarText}>{avatar}</Text>
             </View>
-            <View style={styles.onlineIndicator} />
+            <View style={themedStyles.onlineIndicator} />
           </View>
 
           <View style={styles.roomInfo}>
             <View style={styles.roomNameContainer}>
-              <Text style={styles.roomName}>{room.name}</Text>
+              <Text style={themedStyles.roomName}>{room.name}</Text>
               {isLocked && (
                 <Ionicons 
                   name="lock-closed" 
                   size={16} 
-                  color="#F59E0B" 
+                  color={colors.warning} 
                   style={styles.lockIcon}
                 />
               )}
             </View>
-            <Text style={styles.roomDescription}>
+            <Text style={themedStyles.roomDescription}>
               {room.description || `${room.type} room`}
             </Text>
           </View>
 
-          <View style={styles.memberCount}>
-            <Ionicons name="people" size={16} color="#666" />
-            <Text style={styles.memberText}>
+          <View style={themedStyles.memberCount}>
+            <Ionicons name="people" size={16} color={colors.iconDefault} />
+            <Text style={themedStyles.memberText}>
               {room.members || 0}/{room.maxMembers || 25}
             </Text>
           </View>
@@ -323,57 +329,57 @@ export default function RoomScreen() {
   
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Chat Rooms</Text>
+    <SafeAreaView style={themedStyles.container}>
+      <View style={themedStyles.header}>
+        <Text style={themedStyles.title}>Chat Rooms</Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+      <View style={themedStyles.searchContainer}>
+        <Ionicons name="search" size={20} color={colors.iconDefault} style={styles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={themedStyles.searchInput}
           placeholder="Search rooms..."
           value={searchText}
           onChangeText={setSearchText}
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.textSecondary}
         />
       </View>
 
       {/* Category Tabs */}
       <View style={styles.categoryTabs}>
         <TouchableOpacity
-          style={[styles.categoryTab, activeCategory === 'all' && styles.categoryTabActive]}
+          style={[themedStyles.categoryTab, activeCategory === 'all' && themedStyles.categoryTabActive]}
           onPress={() => setActiveCategory('all')}
         >
-          <Text style={[styles.categoryTabText, activeCategory === 'all' && styles.categoryTabTextActive]}>
+          <Text style={[themedStyles.categoryTabText, activeCategory === 'all' && themedStyles.categoryTabTextActive]}>
             All
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.categoryTab, activeCategory === 'game' && styles.categoryTabActive]}
+          style={[themedStyles.categoryTab, activeCategory === 'game' && themedStyles.categoryTabActive]}
           onPress={() => setActiveCategory('game')}
         >
           <Ionicons 
             name="game-controller" 
             size={16} 
-            color={activeCategory === 'game' ? '#fff' : '#666'} 
+            color={activeCategory === 'game' ? colors.badgeTextLight : colors.iconDefault} 
             style={{ marginRight: 4 }}
           />
-          <Text style={[styles.categoryTabText, activeCategory === 'game' && styles.categoryTabTextActive]}>
+          <Text style={[themedStyles.categoryTabText, activeCategory === 'game' && themedStyles.categoryTabTextActive]}>
             Game
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.categoryTab, activeCategory === 'social' && styles.categoryTabActive]}
+          style={[themedStyles.categoryTab, activeCategory === 'social' && themedStyles.categoryTabActive]}
           onPress={() => setActiveCategory('social')}
         >
           <Ionicons 
             name="people" 
             size={16} 
-            color={activeCategory === 'social' ? '#fff' : '#666'} 
+            color={activeCategory === 'social' ? colors.badgeTextLight : colors.iconDefault} 
             style={{ marginRight: 4 }}
           />
-          <Text style={[styles.categoryTabText, activeCategory === 'social' && styles.categoryTabTextActive]}>
+          <Text style={[themedStyles.categoryTabText, activeCategory === 'social' && themedStyles.categoryTabTextActive]}>
             Social
           </Text>
         </TouchableOpacity>
@@ -381,8 +387,8 @@ export default function RoomScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Loading rooms...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={themedStyles.loadingText}>Loading rooms...</Text>
         </View>
       ) : (
         <ScrollView 
@@ -395,19 +401,19 @@ export default function RoomScreen() {
                 setRefreshing(true);
                 fetchRooms();
               }}
-              colors={['#8B5CF6']}
+              colors={[colors.primary]}
             />
           }
         >
           <View style={styles.categorySection}>
             <View style={styles.categoryHeader}>
-              <Text style={styles.categoryTitle}>AVAILABLE ROOMS</Text>
+              <Text style={themedStyles.categoryTitle}>AVAILABLE ROOMS</Text>
               <TouchableOpacity 
-                style={styles.createRoomButton}
+                style={themedStyles.createRoomButton}
                 onPress={() => setShowCreateRoomModal(true)}
               >
-                <Ionicons name="add" size={20} color="#8B5CF6" />
-                <Text style={styles.createRoomButtonText}>New Room</Text>
+                <Ionicons name="add" size={20} color={colors.primary} />
+                <Text style={themedStyles.createRoomButtonText}>New Room</Text>
               </TouchableOpacity>
             </View>
             {filteredRooms.length > 0 ? (
@@ -416,11 +422,11 @@ export default function RoomScreen() {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Ionicons name="chatbubbles-outline" size={48} color="#ccc" />
-                <Text style={styles.emptyStateText}>
+                <Ionicons name="chatbubbles-outline" size={48} color={colors.textSecondary} />
+                <Text style={themedStyles.emptyStateText}>
                   {searchText ? 'No rooms found' : 'No rooms available'}
                 </Text>
-                <Text style={styles.emptyStateSubtext}>
+                <Text style={themedStyles.emptyStateSubtext}>
                   {searchText ? 'Try a different search term' : 'Create a new room to get started'}
                 </Text>
               </View>
@@ -438,81 +444,81 @@ export default function RoomScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowCreateRoomModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={themedStyles.modalContainer}>
+          <View style={themedStyles.modalHeader}>
             <TouchableOpacity
               onPress={() => setShowCreateRoomModal(false)}
               style={styles.modalCloseButton}
             >
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.iconDefault} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Create New Room</Text>
+            <Text style={themedStyles.modalTitle}>Create New Room</Text>
             <TouchableOpacity
               onPress={createRoom}
               disabled={creatingRoom}
-              style={[styles.modalSaveButton, creatingRoom && styles.modalSaveButtonDisabled]}
+              style={[themedStyles.modalSaveButton, creatingRoom && styles.modalSaveButtonDisabled]}
             >
               {creatingRoom ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.badgeTextLight} />
               ) : (
-                <Text style={styles.modalSaveButtonText}>Create</Text>
+                <Text style={themedStyles.modalSaveButtonText}>Create</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Room Name *</Text>
+              <Text style={themedStyles.formLabel}>Room Name *</Text>
               <TextInput
-                style={styles.formInput}
+                style={themedStyles.formInput}
                 placeholder="Enter room name"
                 value={newRoomName}
                 onChangeText={setNewRoomName}
                 maxLength={50}
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Description *</Text>
+              <Text style={themedStyles.formLabel}>Description *</Text>
               <TextInput
-                style={[styles.formInput, styles.formInputMultiline]}
+                style={[themedStyles.formInput, styles.formInputMultiline]}
                 placeholder="Enter room description (will be shown in chat screen)"
                 value={newRoomDescription}
                 onChangeText={setNewRoomDescription}
                 maxLength={200}
                 multiline
                 numberOfLines={3}
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Managed By</Text>
+              <Text style={themedStyles.formLabel}>Managed By</Text>
               <TextInput
-                style={[styles.formInput, styles.formInputDisabled]}
+                style={[themedStyles.formInput, themedStyles.formInputDisabled]}
                 value={newRoomManagedBy}
                 editable={false}
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
               />
-              <Text style={styles.formHelpText}>This field cannot be edited</Text>
+              <Text style={themedStyles.formHelpText}>This field cannot be edited</Text>
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Room Capacity</Text>
+              <Text style={themedStyles.formLabel}>Room Capacity</Text>
               <View style={styles.capacityContainer}>
                 {[25, 40, 80].map((capacity) => (
                   <TouchableOpacity
                     key={capacity}
                     style={[
-                      styles.capacityOption,
-                      newRoomCapacity === capacity && styles.capacityOptionSelected
+                      themedStyles.capacityOption,
+                      newRoomCapacity === capacity && themedStyles.capacityOptionSelected
                     ]}
                     onPress={() => setNewRoomCapacity(capacity)}
                   >
                     <Text style={[
-                      styles.capacityOptionText,
-                      newRoomCapacity === capacity && styles.capacityOptionTextSelected
+                      themedStyles.capacityOptionText,
+                      newRoomCapacity === capacity && themedStyles.capacityOptionTextSelected
                     ]}>
                       {capacity}
                     </Text>
@@ -528,10 +534,166 @@ export default function RoomScreen() {
   );
 }
 
+const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
+  container: {
+    ...styles.container,
+    backgroundColor: colors.background,
+  },
+  header: {
+    ...styles.header,
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
+  },
+  title: {
+    ...styles.title,
+    color: colors.text,
+  },
+  searchContainer: {
+    ...styles.searchContainer,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  searchInput: {
+    ...styles.searchInput,
+    color: colors.text,
+  },
+  categoryTab: {
+    ...styles.categoryTab,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  categoryTabActive: {
+    ...styles.categoryTabActive,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  categoryTabText: {
+    ...styles.categoryTabText,
+    color: colors.textSecondary,
+  },
+  categoryTabTextActive: {
+    ...styles.categoryTabTextActive,
+    color: colors.badgeTextLight,
+  },
+  categoryTitle: {
+    ...styles.categoryTitle,
+    color: colors.textSecondary,
+  },
+  createRoomButton: {
+    ...styles.createRoomButton,
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+  },
+  createRoomButtonText: {
+    ...styles.createRoomButtonText,
+    color: colors.primary,
+  },
+  roomCard: {
+    ...styles.roomCard,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    shadowColor: colors.shadow,
+  },
+  avatarText: {
+    ...styles.avatarText,
+    color: colors.badgeTextLight,
+  },
+  onlineIndicator: {
+    ...styles.onlineIndicator,
+    backgroundColor: colors.success,
+    borderColor: colors.surface,
+  },
+  roomName: {
+    ...styles.roomName,
+    color: colors.warning,
+  },
+  roomDescription: {
+    ...styles.roomDescription,
+    color: colors.textSecondary,
+  },
+  memberCount: {
+    ...styles.memberCount,
+    backgroundColor: colors.surface,
+  },
+  memberText: {
+    ...styles.memberText,
+    color: colors.textSecondary,
+  },
+  loadingText: {
+    ...styles.loadingText,
+    color: colors.textSecondary,
+  },
+  emptyStateText: {
+    ...styles.emptyStateText,
+    color: colors.textSecondary,
+  },
+  emptyStateSubtext: {
+    ...styles.emptyStateSubtext,
+    color: colors.textSecondary,
+  },
+  modalContainer: {
+    ...styles.modalContainer,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    ...styles.modalHeader,
+    backgroundColor: colors.surface,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    ...styles.modalTitle,
+    color: colors.text,
+  },
+  modalSaveButton: {
+    ...styles.modalSaveButton,
+    backgroundColor: colors.primary,
+  },
+  modalSaveButtonText: {
+    ...styles.modalSaveButtonText,
+    color: colors.badgeTextLight,
+  },
+  formLabel: {
+    ...styles.formLabel,
+    color: colors.text,
+  },
+  formInput: {
+    ...styles.formInput,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    color: colors.text,
+  },
+  formInputDisabled: {
+    ...styles.formInputDisabled,
+    backgroundColor: colors.background,
+    color: colors.textSecondary,
+  },
+  formHelpText: {
+    ...styles.formHelpText,
+    color: colors.textSecondary,
+  },
+  capacityOption: {
+    ...styles.capacityOption,
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  capacityOptionSelected: {
+    ...styles.capacityOptionSelected,
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
+  },
+  capacityOptionText: {
+    ...styles.capacityOptionText,
+    color: colors.text,
+  },
+  capacityOptionTextSelected: {
+    ...styles.capacityOptionTextSelected,
+    color: colors.primary,
+  },
+});
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   header: {
     flexDirection: 'row',
@@ -539,27 +701,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1f2937',
   },
   
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
     marginHorizontal: 20,
     marginVertical: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   searchIcon: {
     marginRight: 10,
@@ -567,7 +724,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#374151',
   },
   categoryTabs: {
     flexDirection: 'row',
@@ -581,21 +737,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
   categoryTabActive: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
   },
   categoryTabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
   },
   categoryTabTextActive: {
-    color: '#fff',
   },
   scrollView: {
     flex: 1,
@@ -613,35 +763,28 @@ const styles = StyleSheet.create({
   categoryTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   createRoomButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#8B5CF6',
   },
   createRoomButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8B5CF6',
     marginLeft: 4,
   },
   roomCard: {
-    backgroundColor: 'white',
     marginHorizontal: 20,
     marginBottom: 10,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 1,
@@ -666,7 +809,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -677,9 +819,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#10B981',
     borderWidth: 2,
-    borderColor: 'white',
   },
   roomInfo: {
     flex: 1,
@@ -693,7 +833,6 @@ const styles = StyleSheet.create({
   roomName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#CC5500', // Dark orange color
     marginRight: 8,
   },
   
@@ -702,19 +841,16 @@ const styles = StyleSheet.create({
   },
   roomDescription: {
     fontSize: 14,
-    color: '#6b7280',
   },
   memberCount: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   memberText: {
     fontSize: 12,
-    color: '#666',
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -729,7 +865,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
     marginTop: 10,
   },
   emptyState: {
@@ -740,20 +875,17 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#666',
     marginTop: 15,
     textAlign: 'center',
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#999',
     marginTop: 5,
     textAlign: 'center',
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -761,9 +893,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
   modalCloseButton: {
     padding: 4,
@@ -771,10 +901,8 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
   },
   modalSaveButton: {
-    backgroundColor: '#8B5CF6',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
@@ -783,7 +911,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   modalSaveButtonText: {
-    color: 'white',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -797,30 +924,23 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
     marginBottom: 8,
   },
   formInput: {
-    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    color: '#374151',
   },
   formInputMultiline: {
     height: 80,
     textAlignVertical: 'top',
   },
   formInputDisabled: {
-    backgroundColor: '#f9fafb',
-    color: '#6b7280',
   },
   formHelpText: {
     fontSize: 12,
-    color: '#6b7280',
     marginTop: 4,
     fontStyle: 'italic',
   },
@@ -830,24 +950,18 @@ const styles = StyleSheet.create({
   },
   capacityOption: {
     flex: 1,
-    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
   },
   capacityOptionSelected: {
-    borderColor: '#8B5CF6',
-    backgroundColor: '#f3f4f6',
   },
   capacityOptionText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#374151',
   },
   capacityOptionTextSelected: {
-    color: '#8B5CF6',
     fontWeight: '600',
   },
 });
