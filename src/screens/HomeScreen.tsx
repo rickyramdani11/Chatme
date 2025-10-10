@@ -556,6 +556,82 @@ const HomeScreen = ({ navigation }: any) => {
     return { bg: colors.info, text: colors.badgeTextLight };
   };
 
+  const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
+    container: { backgroundColor: colors.background },
+    header: { borderBottomColor: colors.border },
+    userAvatar: { backgroundColor: colors.avatarBg },
+    userAvatarText: { color: colors.badgeTextLight },
+    userStatusIndicator: { borderColor: colors.surface },
+    username: { color: colors.badgeTextLight },
+    statusTextSmall: { color: colors.badgeTextLight },
+    coinTextSmall: { color: colors.warning },
+    friendsTitle: { color: colors.text },
+    trophyButton: { 
+      backgroundColor: colors.card, 
+      borderColor: colors.warning 
+    },
+    refreshButton: { 
+      backgroundColor: colors.card, 
+      borderColor: colors.primary 
+    },
+    refreshText: { color: colors.primary },
+    searchContainer: { 
+      backgroundColor: colors.card, 
+      borderColor: colors.border 
+    },
+    searchInput: { color: colors.text },
+    searchTypeIndicator: { backgroundColor: colors.primary },
+    searchTypeText: { color: colors.badgeTextLight },
+    friendCard: { 
+      backgroundColor: colors.card, 
+      shadowColor: colors.shadow 
+    },
+    friendAvatarBorder: { borderColor: colors.surface },
+    friendName: { color: colors.text },
+    friendStatus: { color: colors.textSecondary },
+    statusIndicatorBorder: { borderColor: colors.card },
+    actionButton: { backgroundColor: colors.surface },
+    loadingText: { color: colors.textSecondary },
+    emptyTitle: { color: colors.textSecondary },
+    emptySubtitle: { color: colors.textSecondary },
+    activeUsersContainer: { 
+      backgroundColor: isDarkMode ? 'rgba(3, 218, 198, 0.2)' : 'rgba(76, 175, 80, 0.2)', 
+      borderColor: isDarkMode ? 'rgba(3, 218, 198, 0.3)' : 'rgba(76, 175, 80, 0.3)' 
+    },
+    activeUsersText: { color: colors.success },
+    notificationBadge: { backgroundColor: colors.error },
+    notificationText: { color: colors.badgeTextLight },
+    modalOverlay: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
+    friendContextMenu: { 
+      backgroundColor: colors.card, 
+      shadowColor: colors.shadow 
+    },
+    friendMenuName: { color: colors.text },
+    friendMenuText: { color: colors.text },
+    friendMenuAvatarText: { color: colors.badgeTextLight },
+    friendMenuItem: { borderTopColor: colors.border },
+    messageHistoryModal: { 
+      backgroundColor: colors.card, 
+      shadowColor: colors.shadow 
+    },
+    messageHistoryHeader: { borderBottomColor: colors.border },
+    messageHistoryTitle: { color: colors.text },
+    emptyChatText: { color: colors.textSecondary },
+    emptyChatSubtext: { color: colors.textSecondary },
+    chatHistoryItemBorder: { borderBottomColor: colors.border },
+    chatName: { color: colors.text },
+    chatLastMessage: { color: colors.textSecondary },
+    chatTime: { color: colors.textSecondary },
+    chatAvatarText: { color: colors.badgeTextLight },
+    onlineIndicatorBorder: { borderColor: colors.card },
+    unreadBadge: { backgroundColor: colors.error },
+    unreadText: { color: colors.badgeTextLight },
+    bannerContainer: { shadowColor: colors.shadow },
+    bannerTitle: { color: colors.badgeTextLight },
+    bannerIndicatorActive: { backgroundColor: colors.primary },
+    bannerIndicatorInactive: { backgroundColor: 'rgba(255,255,255,0.5)' },
+  });
+
   const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   const formatLastSeen = (lastSeen?: string) => {
@@ -968,82 +1044,6 @@ const HomeScreen = ({ navigation }: any) => {
       </View>
     );
   };
-
-  const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
-    container: { backgroundColor: colors.background },
-    header: { borderBottomColor: colors.border },
-    userAvatar: { backgroundColor: colors.avatarBg },
-    userAvatarText: { color: colors.badgeTextLight },
-    userStatusIndicator: { borderColor: colors.surface },
-    username: { color: colors.badgeTextLight },
-    statusTextSmall: { color: colors.badgeTextLight },
-    coinTextSmall: { color: colors.warning },
-    friendsTitle: { color: colors.text },
-    trophyButton: { 
-      backgroundColor: colors.card, 
-      borderColor: colors.warning 
-    },
-    refreshButton: { 
-      backgroundColor: colors.card, 
-      borderColor: colors.primary 
-    },
-    refreshText: { color: colors.primary },
-    searchContainer: { 
-      backgroundColor: colors.card, 
-      borderColor: colors.border 
-    },
-    searchInput: { color: colors.text },
-    searchTypeIndicator: { backgroundColor: colors.primary },
-    searchTypeText: { color: colors.badgeTextLight },
-    friendCard: { 
-      backgroundColor: colors.card, 
-      shadowColor: colors.shadow 
-    },
-    friendAvatarBorder: { borderColor: colors.surface },
-    friendName: { color: colors.text },
-    friendStatus: { color: colors.textSecondary },
-    statusIndicatorBorder: { borderColor: colors.card },
-    actionButton: { backgroundColor: colors.surface },
-    loadingText: { color: colors.textSecondary },
-    emptyTitle: { color: colors.textSecondary },
-    emptySubtitle: { color: colors.textSecondary },
-    activeUsersContainer: { 
-      backgroundColor: isDarkMode ? 'rgba(3, 218, 198, 0.2)' : 'rgba(76, 175, 80, 0.2)', 
-      borderColor: isDarkMode ? 'rgba(3, 218, 198, 0.3)' : 'rgba(76, 175, 80, 0.3)' 
-    },
-    activeUsersText: { color: colors.success },
-    notificationBadge: { backgroundColor: colors.error },
-    notificationText: { color: colors.badgeTextLight },
-    modalOverlay: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
-    friendContextMenu: { 
-      backgroundColor: colors.card, 
-      shadowColor: colors.shadow 
-    },
-    friendMenuName: { color: colors.text },
-    friendMenuText: { color: colors.text },
-    friendMenuAvatarText: { color: colors.badgeTextLight },
-    friendMenuItem: { borderTopColor: colors.border },
-    messageHistoryModal: { 
-      backgroundColor: colors.card, 
-      shadowColor: colors.shadow 
-    },
-    messageHistoryHeader: { borderBottomColor: colors.border },
-    messageHistoryTitle: { color: colors.text },
-    emptyChatText: { color: colors.textSecondary },
-    emptyChatSubtext: { color: colors.textSecondary },
-    chatHistoryItemBorder: { borderBottomColor: colors.border },
-    chatName: { color: colors.text },
-    chatLastMessage: { color: colors.textSecondary },
-    chatTime: { color: colors.textSecondary },
-    chatAvatarText: { color: colors.badgeTextLight },
-    onlineIndicatorBorder: { borderColor: colors.card },
-    unreadBadge: { backgroundColor: colors.error },
-    unreadText: { color: colors.badgeTextLight },
-    bannerContainer: { shadowColor: colors.shadow },
-    bannerTitle: { color: colors.badgeTextLight },
-    bannerIndicatorActive: { backgroundColor: colors.primary },
-    bannerIndicatorInactive: { backgroundColor: 'rgba(255,255,255,0.5)' },
-  });
 
   return (
     <View style={[styles.container, themedStyles.container]}>
