@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import * as ImagePicker from 'expo-image-picker';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
@@ -29,6 +30,10 @@ interface AlbumPhoto {
 
 export default function EditProfileScreen({ navigation }: any) {
   const { user, token, updateProfile } = useAuth();
+  const { colors, isDarkMode } = useTheme();
+  
+  const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
+  
   const [profileData, setProfileData] = useState({
     username: user?.username || '',
     email: user?.email || '',
@@ -322,55 +327,55 @@ export default function EditProfileScreen({ navigation }: any) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={themedStyles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={themedStyles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Sunting</Text>
+        <Text style={themedStyles.headerTitle}>Sunting</Text>
         <View style={styles.headerRight} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Avatar Section */}
-        <View style={styles.section}>
+        <View style={themedStyles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Avatar</Text>
+            <Text style={themedStyles.sectionTitle}>Avatar</Text>
             <TouchableOpacity 
               style={styles.avatarContainer} 
               onPress={() => handleImagePicker('avatar')}
             >
-              <View style={styles.avatar}>
+              <View style={themedStyles.avatar}>
                 {profileData.avatar ? (
                   <Image source={{ uri: `${BASE_URL}${profileData.avatar}` }} style={styles.avatarImage} />
                 ) : (
-                  <Text style={styles.avatarText}>
+                  <Text style={themedStyles.avatarText}>
                     {profileData.username.charAt(0).toUpperCase()}
                   </Text>
                 )}
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
+              <Ionicons name="chevron-forward" size={20} color={colors.iconDefault} />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Album Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Album</Text>
-          <Text style={styles.sectionSubtitle}>
+        <View style={themedStyles.section}>
+          <Text style={themedStyles.sectionTitle}>Album</Text>
+          <Text style={themedStyles.sectionSubtitle}>
             Klik untuk mengubah atau menghapus foto. Seret foto untuk mengubah urutan.
           </Text>
           
           <View style={styles.albumContainer}>
             <TouchableOpacity 
-              style={styles.addPhotoButton}
+              style={themedStyles.addPhotoButton}
               onPress={() => handleImagePicker('album')}
             >
-              <Ionicons name="add" size={30} color="#999" />
+              <Ionicons name="add" size={30} color={colors.iconDefault} />
             </TouchableOpacity>
             
             {albumPhotos.map((photo) => (
@@ -387,20 +392,21 @@ export default function EditProfileScreen({ navigation }: any) {
             ))}
           </View>
           
-          <Text style={styles.albumNote}>* Hanya tampilkan 5 foto pertama di beranda</Text>
+          <Text style={themedStyles.albumNote}>* Hanya tampilkan 5 foto pertama di beranda</Text>
         </View>
 
         {/* Profile Form */}
-        <View style={styles.section}>
+        <View style={themedStyles.section}>
           {/* Bio */}
-          <View style={styles.formItem}>
+          <View style={themedStyles.formItem}>
             <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Bio</Text>
+              <Text style={themedStyles.formLabel}>Bio</Text>
               <TextInput
-                style={[styles.textInput, styles.multilineInput]}
+                style={[themedStyles.textInput, styles.multilineInput]}
                 value={profileData.bio}
                 onChangeText={(text) => setProfileData(prev => ({ ...prev, bio: text }))}
                 placeholder="Ceritakan tentang diri Anda"
+                placeholderTextColor={colors.textSecondary}
                 multiline
                 numberOfLines={3}
               />
@@ -408,64 +414,66 @@ export default function EditProfileScreen({ navigation }: any) {
           </View>
 
           {/* Phone */}
-          <View style={styles.formItem}>
+          <View style={themedStyles.formItem}>
             <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Telepon</Text>
+              <Text style={themedStyles.formLabel}>Telepon</Text>
               <TextInput
-                style={styles.textInput}
+                style={themedStyles.textInput}
                 value={profileData.phone}
                 onChangeText={(text) => setProfileData(prev => ({ ...prev, phone: text }))}
                 placeholder="Nomor telepon"
+                placeholderTextColor={colors.textSecondary}
                 keyboardType="phone-pad"
               />
             </View>
           </View>
 
           {/* Gender */}
-          <TouchableOpacity style={styles.formItem} onPress={() => setShowGenderPicker(true)}>
+          <TouchableOpacity style={themedStyles.formItem} onPress={() => setShowGenderPicker(true)}>
             <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Jenis kelamin</Text>
-              <Text style={styles.formValue}>{profileData.gender}</Text>
+              <Text style={themedStyles.formLabel}>Jenis kelamin</Text>
+              <Text style={themedStyles.formValue}>{profileData.gender}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#999" />
+            <Ionicons name="chevron-forward" size={16} color={colors.iconDefault} />
           </TouchableOpacity>
 
           {/* Birth Date */}
-          <TouchableOpacity style={styles.formItem} onPress={() => setShowDatePicker(true)}>
+          <TouchableOpacity style={themedStyles.formItem} onPress={() => setShowDatePicker(true)}>
             <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Ulang tahun</Text>
-              <Text style={styles.formValue}>{profileData.birthDate}</Text>
+              <Text style={themedStyles.formLabel}>Ulang tahun</Text>
+              <Text style={themedStyles.formValue}>{profileData.birthDate}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#999" />
+            <Ionicons name="chevron-forward" size={16} color={colors.iconDefault} />
           </TouchableOpacity>
 
           {/* Country */}
-          <TouchableOpacity style={styles.formItem} onPress={() => setShowCountryPicker(true)}>
+          <TouchableOpacity style={themedStyles.formItem} onPress={() => setShowCountryPicker(true)}>
             <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Negara/Wilayah</Text>
-              <Text style={styles.formValue}>{profileData.country}</Text>
+              <Text style={themedStyles.formLabel}>Negara/Wilayah</Text>
+              <Text style={themedStyles.formValue}>{profileData.country}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#999" />
+            <Ionicons name="chevron-forward" size={16} color={colors.iconDefault} />
           </TouchableOpacity>
 
           {/* Signature */}
-          <View style={styles.formItem}>
+          <View style={themedStyles.formItem}>
             <View style={styles.formHeader}>
-              <Text style={styles.formLabel}>Tanda tangan</Text>
+              <Text style={themedStyles.formLabel}>Tanda tangan</Text>
               <TextInput
-                style={styles.textInput}
+                style={themedStyles.textInput}
                 value={profileData.signature}
                 onChangeText={(text) => setProfileData(prev => ({ ...prev, signature: text }))}
                 placeholder="Tanda tangan Anda"
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
           </View>
         </View>
 
         {/* Save Button */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>Simpan Perubahan</Text>
+        <View style={themedStyles.section}>
+          <TouchableOpacity style={themedStyles.saveButton} onPress={handleSave}>
+            <Text style={themedStyles.saveButtonText}>Simpan Perubahan</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -477,35 +485,35 @@ export default function EditProfileScreen({ navigation }: any) {
         animationType="slide"
         onRequestClose={() => setShowGenderPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Pilih Jenis Kelamin</Text>
+        <View style={themedStyles.modalOverlay}>
+          <View style={themedStyles.modalContent}>
+            <Text style={themedStyles.modalTitle}>Pilih Jenis Kelamin</Text>
             
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={themedStyles.modalButton} 
               onPress={() => {
                 setProfileData(prev => ({ ...prev, gender: 'Pria' }));
                 setShowGenderPicker(false);
               }}
             >
-              <Text style={styles.modalButtonText}>Pria</Text>
+              <Text style={themedStyles.modalButtonText}>Pria</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={themedStyles.modalButton} 
               onPress={() => {
                 setProfileData(prev => ({ ...prev, gender: 'Wanita' }));
                 setShowGenderPicker(false);
               }}
             >
-              <Text style={styles.modalButtonText}>Wanita</Text>
+              <Text style={themedStyles.modalButtonText}>Wanita</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]} 
+              style={[themedStyles.modalButton, themedStyles.cancelButton]} 
               onPress={() => setShowGenderPicker(false)}
             >
-              <Text style={styles.cancelButtonText}>Batal</Text>
+              <Text style={themedStyles.cancelButtonText}>Batal</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -518,45 +526,45 @@ export default function EditProfileScreen({ navigation }: any) {
         animationType="slide"
         onRequestClose={() => setShowCountryPicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Pilih Negara/Wilayah</Text>
+        <View style={themedStyles.modalOverlay}>
+          <View style={themedStyles.modalContent}>
+            <Text style={themedStyles.modalTitle}>Pilih Negara/Wilayah</Text>
             
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={themedStyles.modalButton} 
               onPress={() => {
                 setProfileData(prev => ({ ...prev, country: 'Indonesia' }));
                 setShowCountryPicker(false);
               }}
             >
-              <Text style={styles.modalButtonText}>Indonesia</Text>
+              <Text style={themedStyles.modalButtonText}>Indonesia</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={themedStyles.modalButton} 
               onPress={() => {
                 setProfileData(prev => ({ ...prev, country: 'Malaysia' }));
                 setShowCountryPicker(false);
               }}
             >
-              <Text style={styles.modalButtonText}>Malaysia</Text>
+              <Text style={themedStyles.modalButtonText}>Malaysia</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={themedStyles.modalButton} 
               onPress={() => {
                 setProfileData(prev => ({ ...prev, country: 'Singapura' }));
                 setShowCountryPicker(false);
               }}
             >
-              <Text style={styles.modalButtonText}>Singapura</Text>
+              <Text style={themedStyles.modalButtonText}>Singapura</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]} 
+              style={[themedStyles.modalButton, themedStyles.cancelButton]} 
               onPress={() => setShowCountryPicker(false)}
             >
-              <Text style={styles.cancelButtonText}>Batal</Text>
+              <Text style={themedStyles.cancelButtonText}>Batal</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -569,30 +577,31 @@ export default function EditProfileScreen({ navigation }: any) {
         animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Pilih Tanggal Lahir</Text>
-            <Text style={styles.modalSubtitle}>Format: YYYY-MM-DD</Text>
+        <View style={themedStyles.modalOverlay}>
+          <View style={themedStyles.modalContent}>
+            <Text style={themedStyles.modalTitle}>Pilih Tanggal Lahir</Text>
+            <Text style={themedStyles.modalSubtitle}>Format: YYYY-MM-DD</Text>
             
             <TextInput
-              style={styles.dateInput}
+              style={themedStyles.dateInput}
               value={profileData.birthDate}
               onChangeText={(text) => setProfileData(prev => ({ ...prev, birthDate: text }))}
               placeholder="1995-03-24"
+              placeholderTextColor={colors.textSecondary}
             />
             
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={themedStyles.modalButton} 
               onPress={() => setShowDatePicker(false)}
             >
-              <Text style={styles.modalButtonText}>Simpan</Text>
+              <Text style={themedStyles.modalButtonText}>Simpan</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]} 
+              style={[themedStyles.modalButton, themedStyles.cancelButton]} 
               onPress={() => setShowDatePicker(false)}
             >
-              <Text style={styles.cancelButtonText}>Batal</Text>
+              <Text style={themedStyles.cancelButtonText}>Batal</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -605,26 +614,26 @@ export default function EditProfileScreen({ navigation }: any) {
         animationType="slide"
         onRequestClose={() => setShowImagePicker(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Upload Photo</Text>
-            <Text style={styles.modalSubtitle}>Pilih sumber foto</Text>
+        <View style={themedStyles.modalOverlay}>
+          <View style={themedStyles.modalContent}>
+            <Text style={themedStyles.modalTitle}>Upload Photo</Text>
+            <Text style={themedStyles.modalSubtitle}>Pilih sumber foto</Text>
             
-            <TouchableOpacity style={styles.modalButton} onPress={takePhoto}>
-              <Ionicons name="camera" size={24} color="#007AFF" />
-              <Text style={styles.modalButtonText}>Camera</Text>
+            <TouchableOpacity style={themedStyles.modalButton} onPress={takePhoto}>
+              <Ionicons name="camera" size={24} color={colors.primary} />
+              <Text style={themedStyles.modalButtonText}>Camera</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.modalButton} onPress={pickImageFromLibrary}>
-              <Ionicons name="images" size={24} color="#007AFF" />
-              <Text style={styles.modalButtonText}>Gallery</Text>
+            <TouchableOpacity style={themedStyles.modalButton} onPress={pickImageFromLibrary}>
+              <Ionicons name="images" size={24} color={colors.primary} />
+              <Text style={themedStyles.modalButtonText}>Gallery</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]} 
+              style={[themedStyles.modalButton, themedStyles.cancelButton]} 
               onPress={() => setShowImagePicker(false)}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={themedStyles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -637,32 +646,32 @@ export default function EditProfileScreen({ navigation }: any) {
         animationType="slide"
         onRequestClose={() => setShowPhotoMenu(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Opsi Foto</Text>
-            <Text style={styles.modalSubtitle}>Pilih tindakan untuk foto ini</Text>
+        <View style={themedStyles.modalOverlay}>
+          <View style={themedStyles.modalContent}>
+            <Text style={themedStyles.modalTitle}>Opsi Foto</Text>
+            <Text style={themedStyles.modalSubtitle}>Pilih tindakan untuk foto ini</Text>
             
             <TouchableOpacity 
-              style={styles.modalButton} 
+              style={themedStyles.modalButton} 
               onPress={handleSaveAsBackground}
             >
-              <Ionicons name="image" size={24} color="#007AFF" />
-              <Text style={styles.modalButtonText}>Save Background</Text>
+              <Ionicons name="image" size={24} color={colors.primary} />
+              <Text style={themedStyles.modalButtonText}>Save Background</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.modalButton, styles.deleteButton]} 
+              style={[themedStyles.modalButton, themedStyles.deleteButton]} 
               onPress={handleDeletePhoto}
             >
-              <Ionicons name="trash" size={24} color="#FF3B30" />
-              <Text style={styles.deleteButtonText}>Delete Photo</Text>
+              <Ionicons name="trash" size={24} color={colors.error} />
+              <Text style={themedStyles.deleteButtonText}>Delete Photo</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={[styles.modalButton, styles.cancelButton]} 
+              style={[themedStyles.modalButton, themedStyles.cancelButton]} 
               onPress={() => setShowPhotoMenu(false)}
             >
-              <Text style={styles.cancelButtonText}>Batal</Text>
+              <Text style={themedStyles.cancelButtonText}>Batal</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -671,29 +680,195 @@ export default function EditProfileScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E9ECEF',
-  },
-  backButton: {
-    padding: 5,
+    borderBottomColor: colors.border,
+    shadowColor: colors.shadow,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '600' as const,
+    color: colors.text,
+  },
+  section: {
+    backgroundColor: colors.surface,
+    marginTop: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    shadowColor: colors.shadow,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.text,
+    marginBottom: 5,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.avatarBg,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginRight: 10,
+    overflow: 'hidden' as const,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  avatarText: {
+    color: colors.badgeTextLight,
+    fontWeight: 'bold' as const,
+    fontSize: 18,
+  },
+  addPhotoButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    marginRight: 10,
+    marginBottom: 10,
+  },
+  albumNote: {
+    fontSize: 12,
+    color: colors.error,
+    fontStyle: 'italic' as const,
+  },
+  formItem: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  formLabel: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.text,
+    marginBottom: 2,
+  },
+  formValue: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end' as const,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold' as const,
+    color: colors.text,
+    textAlign: 'center' as const,
+    marginBottom: 5,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center' as const,
+    marginBottom: 30,
+  },
+  modalButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    marginBottom: 10,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    color: colors.primary,
+    marginLeft: 15,
+    fontWeight: '500' as const,
+  },
+  cancelButton: {
+    backgroundColor: colors.error,
+    marginTop: 10,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: colors.badgeTextLight,
+    fontWeight: '500' as const,
+    textAlign: 'center' as const,
+    flex: 1,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginTop: 5,
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: 'center' as const,
+    marginHorizontal: 20,
+  },
+  saveButtonText: {
+    color: colors.badgeTextLight,
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    color: colors.text,
+  },
+  deleteButton: {
+    backgroundColor: colors.errorBadgeBg,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+    color: colors.error,
+    marginLeft: 15,
+    fontWeight: '500' as const,
+  },
+});
+
+const styles = StyleSheet.create({
+  backButton: {
+    padding: 5,
   },
   headerRight: {
     width: 34,
@@ -701,44 +876,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  section: {
-    backgroundColor: '#fff',
-    marginTop: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 5,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 15,
-    lineHeight: 20,
-  },
   avatarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#ffffff',
   },
   avatarImage: {
     width: '100%',
@@ -746,26 +891,9 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     resizeMode: 'cover',
   },
-  avatarText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
   albumContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  addPhotoButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#E0E0E0',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
     marginBottom: 10,
   },
   albumPhotoContainer: {
@@ -780,125 +908,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  albumNote: {
-    fontSize: 12,
-    color: '#FF6B6B',
-    fontStyle: 'italic',
-  },
-  formItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
   formHeader: {
     flex: 1,
-  },
-  formLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  formValue: {
-    fontSize: 14,
-    color: '#666',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  modalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    backgroundColor: '#F8F9FA',
-    marginBottom: 10,
-  },
-  modalButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-    marginLeft: 15,
-    fontWeight: '500',
-  },
-  cancelButton: {
-    backgroundColor: '#FF6B6B',
-    marginTop: 10,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '500',
-    textAlign: 'center',
-    flex: 1,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    marginTop: 5,
   },
   multilineInput: {
     minHeight: 60,
     textAlignVertical: 'top',
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 20,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 20,
-    width: '100%',
-  },
-  deleteButton: {
-    backgroundColor: '#FFEBEE',
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    color: '#FF3B30',
-    marginLeft: 15,
-    fontWeight: '500',
   },
 });
