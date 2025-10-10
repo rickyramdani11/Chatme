@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
-import { useTheme } from '../contexts/ThemeContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
@@ -196,7 +195,6 @@ export default function ChatScreen() {
   
   // Get user and token before any refs that depend on them
   const { user, token, logout } = useAuth();
-  const { colors, isDarkMode } = useTheme();
   
   // Get room data from navigation params  
   const routeParams = (route.params as any) || {};
@@ -298,8 +296,56 @@ export default function ChatScreen() {
   const [callRinging, setCallRinging] = useState(false);
   const [isCaller, setIsCaller] = useState(false);
 
-  // Create themed styles
-  const styles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
+  // Hardcoded color constants (restored from original theme)
+  const COLORS = {
+    background: '#f5f5f5',
+    surface: '#ffffff',
+    card: '#ffffff',
+    text: '#333333',
+    textSecondary: '#666666',
+    border: '#e0e0e0',
+    primary: '#9C27B0',
+    success: '#4CAF50',
+    error: '#F44336',
+    warning: '#FF9800',
+    info: '#2196F3',
+    successBadgeBg: '#E8F5E8',
+    successBadgeText: '#4CAF50',
+    errorBadgeBg: '#FFEBEE',
+    errorBadgeText: '#F44336',
+    infoBadgeBg: '#E3F2FD',
+    infoBadgeText: '#2196F3',
+    iconDefault: '#666666',
+    statusOnline: '#4CAF50',
+    badgeTextLight: '#ffffff',
+    avatarBg: '#333333',
+    switchThumb: '#ffffff',
+    shadow: '#000000',
+    roleAdmin: '#FF6B35',
+    roleAdminBg: '#FFEBEE',
+    roleMentor: '#FF5722',
+    roleMentorBg: '#FBE9E7',
+    roleMerchant: '#9C27B0',
+    roleMerchantBg: '#F3E5F5',
+    roleUser: '#2196F3',
+    roleUserBg: '#E3F2FD',
+    roleOwner: '#e8d31a',
+    roleOwnerBg: '#fefce8',
+    overlay: 'rgba(0, 0, 0, 0.5)',
+    overlayDark: 'rgba(0, 0, 0, 0.8)',
+    overlayLight: 'rgba(0, 0, 0, 0.3)',
+    avatarOverlay: 'rgba(255, 255, 255, 0.3)',
+    textOverlay: 'rgba(255, 255, 255, 0.8)',
+    borderOverlay: 'rgba(255, 255, 255, 0.3)',
+    cardSubtle: 'rgba(0, 0, 0, 0.05)',
+    successSubtle: 'rgba(34, 197, 94, 0.15)',
+    callAccept: 'rgba(139, 92, 246, 0.8)',
+    callDecline: 'rgba(255, 105, 180, 0.8)',
+    textEmphasis: 'rgba(255, 255, 255, 0.9)',
+  };
+
+  // Create styles with hardcoded colors
+  const styles = createThemedStyles(COLORS, false);
 
   // Helper functions for role checking
   const isRoomOwner = () => {
