@@ -1522,13 +1522,9 @@ export default function ChatScreen() {
         // For video gifts, auto-close is handled by video completion callback
       });
 
-      // Listen for gift animations (legacy support)
+      // Listen for gift animations (legacy support) - DISABLED to prevent duplicate gift messages
+      // The receiveGift listener already handles all gift broadcasts
       socketInstance.off('gift-animation');
-      socketInstance.on('gift-animation', (data: any) => {
-        console.log('Received legacy gift animation:', data);
-        // Redirect to receiveGift handler for consistency
-        socketInstance.emit('receiveGift', data);
-      });
 
       // Listen for admin joined support chat
       socketInstance.off('admin-joined');
