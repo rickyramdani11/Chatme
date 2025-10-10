@@ -4021,7 +4021,7 @@ export default function ChatScreen() {
             <View style={styles.commandMessageRow}>
               <Text style={[
                 styles.commandMessageText,
-                { color: COLORS.roleAdminBg, flex: 1 } // Coklat untuk semua command
+                { color: COLORS.roleAdmin, flex: 1 } // Coklat untuk semua command
               ]}>
                 {renderMessageContent(item.content)}
               </Text>
@@ -6862,13 +6862,13 @@ const createThemedStyles = () => StyleSheet.create({
   commandMessageText: {
     flex: 1,
     fontSize: 14,
-    color: COLORS.roleAdminBg, // Warna coklat untuk command
+    color: COLORS.roleAdmin, // Warna coklat untuk command
     lineHeight: 18,
     textAlignVertical: 'top',
   },
   commandContentText: {
     fontSize: 14,
-    color: COLORS.roleAdminBg, // Warna coklat untuk content
+    color: COLORS.roleAdmin, // Warna coklat untuk content
   },
   systemMessageContainer: {
     marginVertical: 4,
