@@ -7098,7 +7098,7 @@ const createThemedStyles = () => StyleSheet.create({
     marginBottom: 16,
   },
   giftItem: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'rgba(128, 128, 128, 0.3)',
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
