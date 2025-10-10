@@ -1,0 +1,5716 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  SafeAreaView,
+  Alert,
+  TextInput,
+  Modal,
+  FlatList,
+  Image,
+  ActivityIndicator,
+  Animated,
+  Dimensions
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
+import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
+import * as Device from 'expo-device';
+import * as Location from 'expo-location';
+import { API_BASE_URL } from '../utils/apiConfig';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+interface Gift {
+  id: string;
+  name: string;
+  icon: string;
+  animation?: string;
+  price: number;
+  type: string;
+  category?: string;
+  image?: string;
+  mediaType?: string;
+  thumbnailUrl?: string;
+  duration?: number;
+}
+
+interface User {
+  id: string;
+  username: string;
+  role: string;
+  email?: string;
+  verified?: boolean;
+}
+
+interface MenuItem {
+  id: string;
+  title: string;
+  icon: string;
+  color: string;
+  description: string;
+}
+
+interface UserStatus {
+  id: string;
+  username: string;
+  status: string;
+  role: string;
+  email?: string;
+  phone?: string;
+  credits?: number;
+  device?: string;
+  ip?: string;
+  location?: string;
+  lastLogin?: string;
+}
+
+interface Room {
+  id: string;
+  name: string;
+  description?: string;
+  members?: number;
+  maxMembers?: number;
+  createdBy?: string;
+  managedBy?: string;
+  createdAt?: string;
+}
+
+interface BannedDevice {
+  id: string;
+  userId?: string;
+  type: string;
+  target: string;
+  reason?: string;
+  bannedBy?: string;
+  bannedAt?: string;
+}
+
+interface Banner {
+  id: string;
+  imageUrl: string;
+  title: string;
+  description?: string;
+  displayOrder?: number;
+  clickCount?: number;
+}
+
+interface Ticket {
+  id: string;
+  ticketId: string;
+  userId: string;
+  username?: string;
+  subject: string;
+  description: string;
+  status: string;
+  createdAt?: string;
+  messages?: any[];
+  category?: string;
+  priority?: string;
+}
+
+interface Frame {
+  id: string;
+  name: string;
+  image?: string;
+  price: number;
+  durationDays?: number;
+  description?: string;
+}
+
+interface CreditHistory {
+  id: string;
+  type: string;
+  amount: number;
+  otherParty?: string;
+  createdAt?: string;
+}
+
+
+const createThemedStyles = (colors: any) => ({
+  actionBtn: {
+    paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        minWidth: 80,
+        alignItems: 'center',
+  },
+  actionBtnText: {
+    fontSize: 12,
+        fontWeight: '600',
+  },
+  actionButton: {
+    flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginHorizontal: 4,
+  },
+  activeMenuIndicator: {
+    width: 8,
+        height: 8,
+        borderRadius: 4,
+        position: 'absolute',
+        right: 16,
+  },
+  activeMenuItem: {
+    borderLeftWidth: 4,
+  },
+  activeUsersSection: {
+    borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+  },
+  addBannerButton: {
+    backgroundColor: colors.primary,
+  },
+  addBannerButtonText: {
+    color: colors.badgeTextLight,
+  },
+  addButton: {
+    marginTop: 8,,
+    backgroundColor: colors.success,
+  },
+  addButtonText: {
+    color: colors.badgeTextLight,
+  },
+  addFrameButton: {
+    backgroundColor: colors.primary,
+  },
+  addFrameButtonText: {
+    color: colors.badgeTextLight,
+  },
+  adminAvatar: {
+    width: 70,
+        height: 70,
+        borderRadius: 35,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+  },
+  adminMessageCard: {
+    backgroundColor: colors.infoBadgeBg,
+  },
+  adminMessageSender: {
+    color: colors.info,
+  },
+  adminName: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 4,
+  },
+  adminRole: {
+    fontSize: 14,
+  },
+  backButton: {
+    paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+        fontWeight: '600',
+  },
+  banActionButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        flex: 1,
+        marginHorizontal: 4,
+        justifyContent: 'center',
+  },
+  banActionText: {
+    fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,,
+    color: colors.badgeTextLight,
+  },
+  banActions: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+  },
+  banButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        flex: 1,,
+    backgroundColor: colors.errorBadgeBg,
+  },
+  banButtonText: {
+    fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,,
+    color: colors.error,
+  },
+  banDeviceButton: {
+    backgroundColor: colors.warning,
+  },
+  banIpButton: {
+    backgroundColor: colors.error,
+  },
+  banManageContainer: {
+    flex: 1,
+  },
+  banManageHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+  },
+  banManageTitle: {
+    fontSize: 20,
+        fontWeight: 'bold',,
+    color: colors.text,
+  },
+  bannedDate: {
+    fontSize: 12,,
+    color: colors.textSecondary,
+  },
+  bannedDetailLabel: {
+    fontWeight: '600',,
+    color: colors.text,
+  },
+  bannedDetailText: {
+    fontSize: 14,
+        marginBottom: 4,,
+    color: colors.textSecondary,
+  },
+  bannedDetails: {
+    marginBottom: 12,
+  },
+  bannedItemCard: {
+    borderRadius: 8,
+        padding: 12,
+        marginBottom: 12,
+        borderLeftWidth: 4,,
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  bannedItemHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+  },
+  bannedItemInfo: {
+    flex: 1,
+  },
+  bannedListSection: {
+    borderRadius: 12,
+        padding: 16,
+  },
+  bannedType: {
+    fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase',,
+    backgroundColor: colors.errorBadgeBg,
+        color: colors.errorBadgeText,
+  },
+  bannedUsername: {
+    fontSize: 16,
+        fontWeight: 'bold',,
+    color: colors.text,
+  },
+  bannerCard: {
+    borderRadius: 8,
+        padding: 12,
+        marginBottom: 12,
+        borderWidth: 1,,
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  bannerCardClicks: {
+    fontSize: 12,,
+    color: colors.textSecondary,
+  },
+  bannerCardContent: {
+    flex: 1,
+  },
+  bannerCardDescription: {
+    fontSize: 14,
+        marginBottom: 8,,
+    color: colors.textSecondary,
+  },
+  bannerCardImage: {
+    width: '100%',
+        height: 80,
+        borderRadius: 6,
+        marginBottom: 8,
+  },
+  bannerCardMeta: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+  },
+  bannerCardOrder: {
+    fontSize: 12,,
+    color: colors.textSecondary,
+  },
+  bannerCardTitle: {
+    fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 4,,
+    color: colors.text,
+  },
+  bannerContainer: {
+    flex: 1,
+  },
+  bannerFormCard: {
+    borderRadius: 12,
+        padding: 20,
+        marginBottom: 20,
+  },
+  bannerFormContainer: {
+    backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+  },
+  bannerFormSubtitle: {
+    color: colors.textSecondary,
+  },
+  bannerFormTitle: {
+    color: colors.text,
+  },
+  bannerImagePreviewText: {
+    color: colors.text,
+  },
+  bannerListContainer: {
+    borderRadius: 12,
+        padding: 20,
+  },
+  bannerListTitle: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+  },
+  bannerPreviewImage: {
+    width: '100%',
+        height: 100,
+        borderRadius: 8,
+  },
+  bar: {
+    width: 24,
+        borderTopLeftRadius: 4,
+        borderTopRightRadius: 4,,
+    backgroundColor: colors.success,
+  },
+  barContainer: {
+    alignItems: 'center',
+        flex: 1,
+  },
+  barLabel: {
+    fontSize: 11,
+        fontWeight: '600',
+        marginTop: 5,,
+    color: colors.text,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+        fontWeight: '600',
+  },
+  capacityEditContainer: {
+    flexDirection: 'row',
+        gap: 12,
+  },
+  capacityEditOption: {
+    flex: 1,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingVertical: 12,
+        alignItems: 'center',,
+    backgroundColor: colors.surface,
+        borderColor: colors.border,
+  },
+  capacityEditOptionSelected: {
+    borderColor: colors.primary,
+        backgroundColor: colors.card,
+  },
+  capacityEditOptionText: {
+    fontSize: 16,
+        fontWeight: '500',,
+    color: colors.text,
+  },
+  capacityEditOptionTextSelected: {
+    fontWeight: '600',,
+    color: colors.primary,
+  },
+  chartBars: {
+    flexDirection: 'row',
+        alignItems: 'flex-end',
+        justifyContent: 'space-around',
+        height: 200,
+  },
+  chartContainer: {
+    borderRadius: 16,
+        padding: 20,
+        elevation: 3,,
+    backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+  },
+  chartTitle: {
+    fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 20,,
+    color: colors.text,
+  },
+  closeMenuButton: {
+    position: 'absolute',
+        top: 50,
+        right: 20,
+        padding: 8,
+  },
+  comingSoonContainer: {
+    alignItems: 'center',
+        paddingVertical: 60,
+  },
+  comingSoonSubtitle: {
+    fontSize: 16,
+        textAlign: 'center',
+        paddingHorizontal: 40,
+        lineHeight: 24,
+  },
+  comingSoonTitle: {
+    fontSize: 24,
+        fontWeight: 'bold',
+        marginTop: 16,
+        marginBottom: 8,
+  },
+  container: {
+    flex: 1,,
+    backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
+        padding: 16,
+  },
+  createAccountButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        marginTop: 10,
+        gap: 8,,
+    backgroundColor: colors.success,
+  },
+  createAccountButtonDisabled: {
+    opacity: 0.6,
+  },
+  createAccountButtonText: {
+    fontSize: 16,
+        fontWeight: '600',,
+    color: colors.badgeTextLight,
+  },
+  createAccountContainer: {
+    borderRadius: 12,
+        padding: 20,
+        marginTop: 20,
+        marginBottom: 20,,
+    backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+  },
+  creditButton: {
+    backgroundColor: colors.warning,
+  },
+  creditButtonText: {
+    color: colors.badgeTextLight,
+  },
+  creditFormContainer: {
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  creditInput: {
+    borderWidth: 1,
+        borderRadius: 8,
+        padding: 16,
+        fontSize: 16,
+  },
+  creditInputGroup: {
+    marginBottom: 20,
+  },
+  creditInputLabel: {
+    fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 8,
+  },
+  creditTransferCard: {
+    borderRadius: 12,
+        padding: 24,
+  },
+  creditTransferContainer: {
+    flex: 1,
+        padding: 16,
+  },
+  creditTransferTitle: {
+    fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 24,
+        textAlign: 'center',
+  },
+  currentDeviceSection: {
+    borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderLeftWidth: 4,
+  },
+  dateLabel: {
+    fontSize: 10,
+        marginTop: 2,,
+    color: colors.textSecondary,
+  },
+  deleteBannerButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+        alignSelf: 'flex-start',,
+    backgroundColor: colors.errorBadgeBg,
+  },
+  deleteBannerText: {
+    fontSize: 12,
+        marginLeft: 5,,
+    color: colors.error,
+  },
+  deleteButton: {
+    padding: 4,
+        borderRadius: 4,,
+    backgroundColor: colors.errorBadgeBg,
+  },
+  deleteButtonText: {
+    color: colors.error,
+  },
+  deleteFrameButton: {
+    backgroundColor: colors.errorBadgeBg,
+  },
+  deleteFrameButtonText: {
+    color: colors.error,
+  },
+  deleteRoomButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        flex: 1,
+        justifyContent: 'center',,
+    backgroundColor: colors.errorBadgeBg,
+  },
+  deleteRoomButtonText: {
+    fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,,
+    color: colors.error,
+  },
+  deviceDetailInfo: {
+    marginBottom: 12,
+  },
+  deviceInfoCard: {
+    borderRadius: 8,
+        padding: 12,
+        marginBottom: 12,
+        borderLeftWidth: 4,,
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  deviceInfoLabel: {
+    fontSize: 14,
+        marginLeft: 8,
+        marginRight: 8,
+        minWidth: 80,,
+    color: colors.textSecondary,
+  },
+  deviceInfoRow: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+  },
+  deviceInfoValue: {
+    fontSize: 14,
+        fontWeight: '500',
+        flex: 1,,
+    color: colors.text,
+  },
+  divider: {
+    flex: 1,
+        height: 1,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 20,
+  },
+  dividerText: {
+    marginHorizontal: 16,
+        fontSize: 14,
+        fontWeight: '600',
+  },
+  editButton: {
+    padding: 6,
+        borderRadius: 4,,
+    backgroundColor: colors.infoBadgeBg,
+  },
+  editFormInput: {
+    borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 16,,
+    backgroundColor: colors.surface,
+        borderColor: colors.border,
+        color: colors.text,
+  },
+  editFormInputMultiline: {
+    height: 80,
+        textAlignVertical: 'top',
+  },
+  editFormLabel: {
+    fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 8,,
+    color: colors.text,
+  },
+  editFormSection: {
+    marginBottom: 20,
+  },
+  editFrameButton: {
+    backgroundColor: colors.infoBadgeBg,
+  },
+  editFrameButtonText: {
+    color: colors.info,
+  },
+  editModal: {
+    borderRadius: 12,
+        padding: 20,
+        width: '90%',
+        maxWidth: 400,,
+    backgroundColor: colors.card,
+  },
+  editModalActions: {
+    flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 10,
+        marginTop: 20,
+  },
+  editModalCancelButton: {
+    paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,,
+    backgroundColor: colors.surface,
+  },
+  editModalCancelText: {
+    fontSize: 14,
+        fontWeight: '600',,
+    color: colors.textSecondary,
+  },
+  editModalCloseButton: {
+    padding: 4,
+  },
+  editModalContent: {
+    gap: 15,
+  },
+  editModalDeleteButton: {
+    paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,,
+    backgroundColor: colors.error,
+  },
+  editModalDeleteText: {
+    fontSize: 14,
+        fontWeight: '600',,
+    color: colors.badgeTextLight,
+  },
+  editModalHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+  },
+  editModalSaveButton: {
+    paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 6,,
+    backgroundColor: colors.warning,
+  },
+  editModalSaveText: {
+    fontSize: 14,
+        fontWeight: '600',,
+    color: colors.badgeTextLight,
+  },
+  editModalTitle: {
+    fontSize: 18,
+        fontWeight: 'bold',,
+    color: colors.text,
+  },
+  editRoomButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        flex: 1,
+        marginRight: 8,
+        justifyContent: 'center',,
+    backgroundColor: colors.infoBadgeBg,
+  },
+  editRoomButtonText: {
+    fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,,
+    color: colors.primary,
+  },
+  editRoomCloseButton: {
+    padding: 4,
+  },
+  editRoomContent: {
+    flex: 1,
+        padding: 20,
+  },
+  editRoomHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        borderBottomWidth: 1,,
+    backgroundColor: colors.surface,
+        borderBottomColor: colors.border,
+  },
+  editRoomModal: {
+    flex: 1,,
+    backgroundColor: colors.background,
+  },
+  editRoomSaveButton: {
+    paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 8,,
+    backgroundColor: colors.primary,
+  },
+  editRoomSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  editRoomSaveButtonText: {
+    fontSize: 14,
+        fontWeight: '600',,
+    color: colors.badgeTextLight,
+  },
+  editRoomTitle: {
+    fontSize: 18,
+        fontWeight: 'bold',,
+    color: colors.text,
+  },
+  emptyBannedList: {
+    alignItems: 'center',
+        paddingVertical: 30,
+  },
+  emptyBannedText: {
+    fontSize: 14,
+        marginTop: 10,,
+    color: colors.textSecondary,
+  },
+  emptyBannerList: {
+    alignItems: 'center',
+        paddingVertical: 30,
+  },
+  emptyBannerText: {
+    fontSize: 14,
+        marginTop: 10,,
+    color: colors.textSecondary,
+  },
+  emptyContainer: {
+    flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 60,
+  },
+  emptyFramesText: {
+    color: colors.textSecondary,
+  },
+  emptyGiftList: {
+    alignItems: 'center',
+        paddingVertical: 30,
+  },
+  emptyGiftText: {
+    fontSize: 14,
+        marginTop: 10,
+  },
+  emptyRoomsList: {
+    alignItems: 'center',
+        paddingVertical: 40,
+  },
+  emptyRoomsText: {
+    fontSize: 16,
+        marginTop: 10,
+        textAlign: 'center',,
+    color: colors.textSecondary,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+        textAlign: 'center',,
+    color: colors.textSecondary,
+  },
+  emptyTitle: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 16,
+        marginBottom: 8,,
+    color: colors.text,
+  },
+  fileUploadButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+  },
+  fileUploadText: {
+    fontSize: 14,
+        marginLeft: 8,
+  },
+  filterButton: {
+    flex: 1,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        borderWidth: 1,
+        alignItems: 'center',,
+    backgroundColor: colors.surface,
+        borderColor: colors.border,
+  },
+  filterButtonActive: {
+    backgroundColor: colors.info,
+        borderColor: colors.info,
+  },
+  filterButtonText: {
+    fontSize: 12,
+        fontWeight: '500',,
+    color: colors.textSecondary,
+  },
+  filterButtonTextActive: {
+    fontWeight: '600',,
+    color: colors.badgeTextLight,
+  },
+  filterButtonsRow: {
+    flexDirection: 'row',
+        paddingHorizontal: 15,
+        gap: 8,
+        marginBottom: 15,
+  },
+  formFileInfo: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 12,
+        padding: 12,
+        borderRadius: 8,
+  },
+  formFileName: {
+    fontSize: 14,
+        flex: 1,
+  },
+  formGroup: {
+    marginBottom: 20,
+  },
+  formInput: {
+    borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+  },
+  formLabel: {
+    fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 8,
+  },
+  formPreviewContainer: {
+    marginTop: 12,
+        position: 'relative',
+        alignItems: 'center',
+  },
+  formPreviewImage: {
+    width: 100,
+        height: 100,
+        borderRadius: 8,
+  },
+  formRemoveButton: {
+    position: 'absolute',
+        top: -5,
+        right: 5,
+        borderRadius: 10,
+  },
+  formTitle: {
+    fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+  },
+  frameCard: {
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  frameCardDescription: {
+    color: colors.textSecondary,
+  },
+  frameCardDuration: {
+    color: colors.textSecondary,
+  },
+  frameCardName: {
+    color: colors.text,
+  },
+  frameCardPrice: {
+    color: colors.success,
+  },
+  frameImagePreviewText: {
+    color: colors.text,
+  },
+  framesFormContainer: {
+    backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+  },
+  framesFormSubtitle: {
+    color: colors.textSecondary,
+  },
+  framesFormTitle: {
+    color: colors.text,
+  },
+  giftActionButtons: {
+    flexDirection: 'row',
+        gap: 5,
+  },
+  giftCard: {
+    width: '30%',
+        borderRadius: 8,
+        padding: 8,
+        marginBottom: 12,
+        alignItems: 'center',
+  },
+  giftDisplayContainer: {
+    width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+  },
+  giftFormCard: {
+    borderRadius: 12,
+        padding: 20,
+        marginBottom: 20,
+  },
+  giftFormContainer: {
+    flex: 1,
+  },
+  giftGrid: {
+    paddingBottom: 10,
+  },
+  giftGridCard: {
+    flex: 1,
+        borderRadius: 12,
+        marginHorizontal: 4,
+        maxWidth: '30%',
+        elevation: 2,,
+    backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+  },
+  giftGridCategory: {
+    fontSize: 10,
+        textAlign: 'center',
+        marginTop: 2,,
+    color: colors.textSecondary,
+  },
+  giftGridContainer: {
+    flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingBottom: 10,
+  },
+  giftGridEmoji: {
+    fontSize: 32,
+        textAlign: 'center',
+  },
+  giftGridEmojiContainer: {
+    width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',,
+    backgroundColor: colors.surface,
+  },
+  giftGridImage: {
+    width: '100%',
+        height: '100%',
+  },
+  giftGridImageContainer: {
+    aspectRatio: 1,
+        position: 'relative',,
+    backgroundColor: colors.surface,
+  },
+  giftGridInfo: {
+    padding: 8,
+  },
+  giftGridListContainer: {
+    paddingHorizontal: 5,
+        paddingVertical: 10,
+  },
+  giftGridName: {
+    fontSize: 12,
+        fontWeight: '600',
+        textAlign: 'center',,
+    color: colors.text,
+  },
+  giftGridOverlay: {
+    position: 'absolute',
+        bottom: 0,
+        right: 0,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderTopLeftRadius: 8,
+  },
+  giftGridPrice: {
+    fontSize: 10,
+        fontWeight: 'bold',,
+    color: colors.badgeTextLight,
+  },
+  giftGridRow: {
+    justifyContent: 'space-between',
+        paddingHorizontal: 5,
+  },
+  giftHelpText: {
+    fontSize: 12,
+        fontStyle: 'italic',
+        marginBottom: 10,
+        textAlign: 'center',,
+    color: colors.textSecondary,
+  },
+  giftImagePreview: {
+    width: 100,
+        height: 100,
+        borderRadius: 12,
+        borderWidth: 2,
+  },
+  giftItemImage: {
+    width: 36,
+        height: 36,
+        borderRadius: 6,
+  },
+  giftListContainer: {
+    borderRadius: 12,
+        padding: 20,
+  },
+  giftListTitle: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+  },
+  giftName: {
+    fontSize: 12,
+        fontWeight: '600',
+        marginTop: 4,
+        textAlign: 'center',
+  },
+  giftPrice: {
+    fontSize: 11,
+        fontWeight: '500',
+        marginTop: 2,
+  },
+  header: {
+    paddingTop: 10,
+        paddingBottom: 15,
+        paddingHorizontal: 16,,
+    backgroundColor: colors.surface,
+        shadowColor: colors.shadow,
+  },
+  headerContent: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+  },
+  headerTitle: {
+    fontSize: 20,
+        fontWeight: 'bold',
+        flex: 1,
+        textAlign: 'center',
+        marginHorizontal: 16,,
+    color: colors.text,
+  },
+  historyAmount: {
+    fontSize: 14,
+        fontWeight: 'bold',
+        width: 60,,
+    color: colors.success,
+  },
+  historyButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        flex: 1,
+        marginRight: 8,,
+    backgroundColor: colors.infoBadgeBg,
+  },
+  historyButtonText: {
+    fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,,
+    color: colors.info,
+  },
+  historyDate: {
+    fontSize: 10,
+        width: 80,,
+    color: colors.textSecondary,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,,
+    borderBottomColor: colors.border,
+  },
+  historyItem: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 8,
+        borderBottomWidth: 1,,
+    backgroundColor: colors.surface,
+        borderBottomColor: colors.border,
+  },
+  historyList: {
+    maxHeight: 300,
+        padding: 16,
+  },
+  historyModal: {
+    borderRadius: 12,
+        margin: 16,
+        maxHeight: 400,,
+    backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+  },
+  historyOther: {
+    fontSize: 12,
+        flex: 1,,
+    color: colors.textSecondary,
+  },
+  historyTitle: {
+    fontSize: 16,
+        fontWeight: 'bold',,
+    color: colors.text,
+  },
+  historyType: {
+    fontSize: 12,
+        width: 60,,
+    color: colors.text,
+  },
+  infoLabel: {
+    fontSize: 14,
+        marginBottom: 4,,
+    color: colors.textSecondary,
+  },
+  infoValue: {
+    fontWeight: '500',,
+    color: colors.text,
+  },
+  input: {
+    backgroundColor: colors.surface,
+        borderColor: colors.border,
+        color: colors.text,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 8,
+  },
+  inputSubLabel: {
+    fontSize: 12,
+        marginBottom: 8,
+        fontStyle: 'italic',
+  },
+  itemCard: {
+    flex: 1,
+        margin: 4,
+        padding: 16,
+        borderRadius: 12,,
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  itemCategory: {
+    fontSize: 12,,
+    color: colors.textSecondary,
+  },
+  itemEmoji: {
+    fontSize: 24,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+  },
+  itemName: {
+    fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 4,,
+    color: colors.text,
+  },
+  itemPrice: {
+    fontSize: 12,
+        fontWeight: '600',,
+    color: colors.success,
+  },
+  itemType: {
+    fontSize: 10,
+        marginTop: 2,
+  },
+  label: {
+    color: colors.text,
+  },
+  listContainer: {
+    flexGrow: 1,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+  },
+  logoutButtonText: {
+    fontSize: 16,
+        marginLeft: 8,
+        fontWeight: '500',
+  },
+  manageTitle: {
+    color: colors.text,
+  },
+  menuButton: {
+    paddingVertical: 8,
+        paddingHorizontal: 4,
+  },
+  menuHeader: {
+    backgroundColor: colors.primary,
+  },
+  menuHeaderTitle: {
+    color: colors.badgeTextLight,
+  },
+  menuItem: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        marginHorizontal: 12,
+        marginVertical: 2,
+        borderRadius: 12,
+        position: 'relative',
+  },
+  menuItemActive: {
+    backgroundColor: colors.card,
+  },
+  menuItemDescription: {
+    fontSize: 12,
+        lineHeight: 16,,
+    color: colors.textSecondary,
+  },
+  menuItemIcon: {
+    width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+  },
+  menuItemText: {
+    flex: 1,,
+    color: colors.text,
+  },
+  menuItemTitle: {
+    fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 2,
+  },
+  messageCard: {
+    padding: 12,
+        borderRadius: 8,
+        marginBottom: 10,,
+    backgroundColor: colors.card,
+  },
+  messageHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 6,
+  },
+  messageSender: {
+    fontSize: 13,
+        fontWeight: '600',,
+    color: colors.text,
+  },
+  messageText: {
+    fontSize: 14,,
+    color: colors.textSecondary,
+  },
+  messageTime: {
+    fontSize: 11,,
+    color: colors.textSecondary,
+  },
+  messagesTitle: {
+    fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 10,,
+    color: colors.text,
+  },
+  modalActions: {
+    flexDirection: 'row',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderTopWidth: 1,
+  },
+  modalContainer: {
+    flex: 1,,
+    backgroundColor: colors.background,
+  },
+  modalContent: {
+    paddingHorizontal: 20,
+        paddingVertical: 16,
+        maxHeight: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        borderBottomWidth: 1,,
+    backgroundColor: colors.surface,
+        borderBottomColor: colors.border,
+  },
+  modalOverlay: {
+    flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+        fontWeight: '600',,
+    color: colors.text,
+  },
+  overlay: {
+    position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 999,
+  },
+  previewContainer: {
+    alignItems: 'center',
+        marginTop: 12,
+        position: 'relative',,
+    backgroundColor: colors.card,
+  },
+  previewText: {
+    color: colors.text,
+  },
+  promoteButton: {
+    backgroundColor: colors.successBadgeBg,
+  },
+  promoteButtonText: {
+    color: colors.success,
+  },
+  refreshButton: {
+    padding: 8,
+        borderRadius: 8,,
+    backgroundColor: colors.infoBadgeBg,
+  },
+  removeFileButton: {
+    position: 'absolute',
+        top: -8,
+        right: -8,
+        borderRadius: 10,
+        elevation: 2,
+  },
+  replyButton: {
+    flexDirection: 'row',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 10,
+        gap: 8,,
+    backgroundColor: colors.info,
+  },
+  replyButtonText: {
+    fontSize: 15,
+        fontWeight: '600',,
+    color: colors.badgeTextLight,
+  },
+  replyInput: {
+    borderWidth: 1,
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 14,
+        minHeight: 100,
+        textAlignVertical: 'top',,
+    borderColor: colors.border,
+        color: colors.text,
+  },
+  replySection: {
+    padding: 15,
+        borderRadius: 8,
+        marginTop: 10,
+        marginBottom: 20,,
+    backgroundColor: colors.card,
+  },
+  replyTitle: {
+    fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 10,,
+    color: colors.text,
+  },
+  roleBadge: {
+    paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 12,
+  },
+  roleText: {
+    fontSize: 12,
+        fontWeight: '600',
+  },
+  roomBasicInfo: {
+    flex: 1,
+  },
+  roomCard: {
+    borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,,
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  roomCardActions: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+  },
+  roomCardDescription: {
+    fontSize: 14,
+        lineHeight: 20,,
+    color: colors.textSecondary,
+  },
+  roomCardDetails: {
+    marginBottom: 12,
+  },
+  roomCardHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 12,
+  },
+  roomCardName: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 4,,
+    color: colors.text,
+  },
+  roomDetailLabel: {
+    fontWeight: '600',,
+    color: colors.text,
+  },
+  roomDetailText: {
+    fontSize: 14,
+        marginBottom: 4,,
+    color: colors.textSecondary,
+  },
+  roomId: {
+    fontSize: 12,
+        fontWeight: '500',,
+    color: colors.textSecondary,
+  },
+  roomManageContainer: {
+    flex: 1,
+        padding: 16,
+  },
+  roomManageHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+  },
+  roomManageTitle: {
+    fontSize: 20,
+        fontWeight: 'bold',,
+    color: colors.text,
+  },
+  roomsList: {
+    flex: 1,
+  },
+  saveButtonText: {
+    fontSize: 16,
+        fontWeight: '600',
+  },
+  searchButton: {
+    paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minWidth: 50,,
+    backgroundColor: colors.primary,
+  },
+  searchButtonText: {
+    color: colors.badgeTextLight,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+        marginBottom: 16,
+        gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 16,,
+    color: colors.text,
+  },
+  searchInputContainer: {
+    backgroundColor: colors.surface,
+        borderColor: colors.border,
+  },
+  searchRoomContainer: {
+    marginBottom: 20,
+  },
+  searchTextInput: {
+    flex: 1,
+        marginLeft: 8,
+        fontSize: 16,,
+    color: colors.text,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+        marginBottom: 20,,
+    color: colors.textSecondary,
+  },
+  sectionTitle: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 5,,
+    color: colors.text,
+  },
+  shadowOffset: {
+    shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+  },
+  sideMenu: {
+    position: 'absolute',
+        top: 0,
+        left: 0,
+        width: screenWidth * 0.75,
+        height: '100%',,
+    backgroundColor: colors.surface,
+        shadowColor: colors.shadow,
+  },
+  sideMenuContent: {
+    flex: 1,
+        paddingTop: 20,
+  },
+  sideMenuFooter: {
+    padding: 20,
+        borderTopWidth: 1,
+  },
+  sideMenuHeader: {
+    paddingTop: 50,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+  },
+  sideMenuProfile: {
+    alignItems: 'center',
+  },
+  sideMenuScrollContent: {
+    paddingTop: 20,
+        paddingBottom: 20,
+        flexGrow: 1,
+  },
+  statCard: {
+    flex: 1,
+        padding: 12,
+        borderRadius: 8,
+        borderLeftWidth: 3,,
+    backgroundColor: colors.card,
+        shadowColor: colors.shadow,
+  },
+  statLabel: {
+    fontSize: 12,
+        marginTop: 4,,
+    color: colors.textSecondary,
+  },
+  statNumber: {
+    fontSize: 24,
+        fontWeight: 'bold',,
+    color: colors.text,
+  },
+  statsCards: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 30,
+  },
+  statsContainer: {
+    flex: 1,
+        padding: 20,
+  },
+  statusActionButton: {
+    flex: 1,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        alignItems: 'center',
+        borderWidth: 1,,
+    backgroundColor: colors.surface,
+        borderColor: colors.border,
+  },
+  statusActionButtonActive: {
+    backgroundColor: colors.info,
+        borderColor: colors.info,
+  },
+  statusActionButtonText: {
+    fontSize: 13,
+        fontWeight: '600',,
+    color: colors.text,
+  },
+  statusActionsRow: {
+    flexDirection: 'row',
+        gap: 8,
+        marginTop: 15,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 12,,
+    backgroundColor: colors.successBadgeBg,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+        fontWeight: '600',,
+    color: colors.badgeTextLight,
+  },
+  statusCard: {
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  statusContainer: {
+    flex: 1,
+        padding: 16,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+  },
+  statusTitle: {
+    fontSize: 20,
+        fontWeight: 'bold',
+  },
+  submitButton: {
+    borderRadius: 8,
+        padding: 16,
+        alignItems: 'center',
+        marginTop: 10,,
+    backgroundColor: colors.primary,
+  },
+  submitButtonText: {
+    fontSize: 18,
+        fontWeight: 'bold',,
+    color: colors.badgeTextLight,
+  },
+  textInput: {
+    borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 16,
+  },
+  ticketCard: {
+    marginHorizontal: 15,
+        marginBottom: 12,
+        padding: 15,
+        borderRadius: 8,
+        borderWidth: 1,,
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+  },
+  ticketDate: {
+    fontSize: 12,,
+    color: colors.textSecondary,
+  },
+  ticketDescription: {
+    fontSize: 14,
+        marginBottom: 8,,
+    color: colors.textSecondary,
+  },
+  ticketDetailCard: {
+    padding: 15,
+        borderRadius: 8,
+        marginBottom: 15,,
+    backgroundColor: colors.card,
+  },
+  ticketDetailContainer: {
+    flex: 1,
+        padding: 15,
+  },
+  ticketDetailDescription: {
+    fontSize: 14,
+        marginBottom: 12,,
+    color: colors.textSecondary,
+  },
+  ticketDetailMeta: {
+    gap: 6,
+  },
+  ticketDetailMetaText: {
+    fontSize: 13,,
+    color: colors.textSecondary,
+  },
+  ticketDetailSubject: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 8,,
+    color: colors.text,
+  },
+  ticketFooter: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+  },
+  ticketHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 8,
+  },
+  ticketMessageCount: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 8,
+  },
+  ticketMessageCountText: {
+    fontSize: 11,,
+    color: colors.textSecondary,
+  },
+  ticketStatsRow: {
+    flexDirection: 'row',
+        padding: 15,
+        gap: 10,
+  },
+  ticketStatusBadge: {
+    paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+  },
+  ticketStatusText: {
+    fontSize: 11,
+        fontWeight: '600',
+        textTransform: 'capitalize',,
+    color: colors.badgeTextLight,
+  },
+  ticketSubject: {
+    fontSize: 16,
+        fontWeight: '600',
+        flex: 1,,
+    color: colors.text,
+  },
+  ticketTitleRow: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        gap: 6,
+  },
+  ticketUsername: {
+    fontSize: 12,,
+    color: colors.textSecondary,
+  },
+  ticketsContainer: {
+    flex: 1,,
+    backgroundColor: colors.background,
+  },
+  transferButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 40,
+        borderRadius: 25,
+        minWidth: 200,
+  },
+  transferButtonContainer: {
+    marginTop: 30,
+        alignItems: 'center',
+  },
+  transferButtonText: {
+    fontSize: 18,
+        fontWeight: 'bold',
+        marginLeft: 8,
+  },
+  unauthorizedContainer: {
+    flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 40,
+  },
+  unauthorizedSubtitle: {
+    fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 30,
+  },
+  unauthorizedTitle: {
+    fontSize: 24,
+        fontWeight: 'bold',
+        marginTop: 20,
+        marginBottom: 10,
+  },
+  unbanButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        alignSelf: 'flex-start',,
+    backgroundColor: colors.successBadgeBg,
+  },
+  unbanButtonText: {
+    fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,,
+    color: colors.success,
+  },
+  uploadBannerButton: {
+    backgroundColor: colors.infoBadgeBg,
+  },
+  uploadBannerButtonText: {
+    color: colors.info,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderRadius: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 20,,
+    backgroundColor: colors.infoBadgeBg,
+  },
+  uploadButtonText: {
+    fontSize: 16,
+        fontWeight: '600',
+        marginLeft: 8,,
+    color: colors.info,
+  },
+  uploadFormButton: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderRadius: 8,
+        padding: 20,
+  },
+  uploadFormText: {
+    fontSize: 16,
+        marginLeft: 10,
+        fontWeight: '500',
+  },
+  uploadFrameButton: {
+    backgroundColor: colors.infoBadgeBg,
+  },
+  uploadFrameButtonText: {
+    color: colors.info,
+  },
+  userActions: {
+    flexDirection: 'row',
+        gap: 8,
+        marginTop: 8,
+  },
+  userBasicInfo: {
+    flexDirection: 'row',
+        alignItems: 'center',
+  },
+  userCard: {
+    marginBottom: 8,
+        padding: 16,
+        borderRadius: 12,,
+    backgroundColor: colors.card,
+        borderColor: colors.border,
+        shadowColor: colors.shadow,
+  },
+  userDetailInfo: {
+    marginBottom: 12,
+  },
+  userDeviceHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+  },
+  userDeviceName: {
+    fontSize: 16,
+        fontWeight: 'bold',
+        marginRight: 8,,
+    color: colors.text,
+  },
+  userEmail: {
+    fontSize: 14,,
+    color: colors.textSecondary,
+  },
+  userHeader: {
+    flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+        fontWeight: '600',
+        marginRight: 8,,
+    color: colors.text,
+  },
+  userRole: {
+    fontSize: 14,
+        fontStyle: 'italic',,
+    backgroundColor: colors.infoBadgeBg,
+        color: colors.infoBadgeText,
+  },
+  userSearchContainer: {
+    flex: 1,
+  },
+  userStatusCard: {
+    borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+  },
+  userStatusHeader: {
+    flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+  },
+  userStatusName: {
+    fontSize: 16,
+        fontWeight: 'bold',
+        marginRight: 8,,
+    color: colors.text,
+  },
+  videoDurationText: {
+    marginTop: 4,
+        fontSize: 12,
+        textAlign: 'center',,
+    color: colors.textSecondary,
+  },
+  videoIndicatorBadge: {
+    position: 'absolute',
+        top: 4,
+        right: 4,
+        borderRadius: 12,
+        width: 24,
+        height: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+  },
+  videoPreviewContainer: {
+    alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+        padding: 20,
+        marginTop: 10,,
+    backgroundColor: colors.surface,
+  },
+  videoPreviewText: {
+    marginTop: 8,
+        fontSize: 14,
+        textAlign: 'center',,
+    color: colors.text,
+  }
+});
+
+
+export default function AdminScreen({ navigation }: any) {
+  const { user, token } = useAuth();
+  const { colors } = useTheme();
+  const [activeTab, setActiveTab] = useState('users');
+  const [userStats, setUserStats] = useState<any>(null);
+  const [gifts, setGifts] = useState<Gift[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showSideMenu, setShowSideMenu] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-screenWidth * 0.75)).current;
+
+  // User search states
+  const [searchUsername, setSearchUsername] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  // Gift edit states
+  const [editingGift, setEditingGift] = useState<Gift | null>(null);
+  const [editGiftPrice, setEditGiftPrice] = useState('');
+  const [editGiftName, setEditGiftName] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Admin credit states
+  const [adminCreditUsername, setAdminCreditUsername] = useState('');
+  const [adminCreditAmount, setAdminCreditAmount] = useState('');
+  const [adminCreditReason, setAdminCreditReason] = useState('');
+  const [adminCreditLoading, setAdminCreditLoading] = useState(false);
+
+  // User status states
+  const [userStatusList, setUserStatusList] = useState<UserStatus[]>([]);
+  const [selectedUserForHistory, setSelectedUserForHistory] = useState<UserStatus | null>(null);
+  const [userCreditHistory, setUserCreditHistory] = useState<CreditHistory[]>([]);
+  const [statusLoading, setStatusLoading] = useState(false);
+
+  // Room management states
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
+  const [searchRoomText, setSearchRoomText] = useState('');
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [showEditRoomModal, setShowEditRoomModal] = useState(false);
+  const [editRoomName, setEditRoomName] = useState('');
+  const [editRoomDescription, setEditRoomDescription] = useState('');
+  const [editRoomMaxMembers, setEditRoomMaxMembers] = useState(25);
+  const [editRoomMaxMembersInput, setEditRoomMaxMembersInput] = useState('25');
+  const [editRoomOwner, setEditRoomOwner] = useState('');
+  const [editingRoom, setEditingRoom] = useState(false);
+
+  // Ban management states
+  const [bannedDevicesList, setBannedDevicesList] = useState<BannedDevice[]>([]);
+  const [banLoading, setBanLoading] = useState(false);
+  const [deviceInfo, setDeviceInfo] = useState({
+    brand: 'Unknown',
+    modelName: 'Unknown Device',
+    deviceType: 'Unknown'
+  });
+
+  // Form states for adding gift
+  const [itemName, setItemName] = useState('');
+  const [itemIcon, setItemIcon] = useState('');
+  const [itemCategory, setItemCategory] = useState('');
+  const [itemPrice, setItemPrice] = useState('');
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [uploadedGiftImage, setUploadedGiftImage] = useState<any>(null);
+
+  // Banner management states
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [bannersLoading, setBannersLoading] = useState(false);
+  const [bannerTitle, setBannerTitle] = useState('');
+  const [bannerDescription, setBannerDescription] = useState('');
+  const [bannerLinkUrl, setBannerLinkUrl] = useState('');
+  const [bannerDisplayOrder, setBannerDisplayOrder] = useState('0');
+  const [uploadedBannerImage, setUploadedBannerImage] = useState<any>(null);
+
+  // Support tickets states
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [ticketMessages, setTicketMessages] = useState<any[]>([]);
+  const [ticketReply, setTicketReply] = useState('');
+  const [showTicketDetailModal, setShowTicketDetailModal] = useState(false);
+  const [ticketStatusFilter, setTicketStatusFilter] = useState('all');
+  const [ticketStats, setTicketStats] = useState<any>(null);
+
+  // Frame management states
+  const [frames, setFrames] = useState<Frame[]>([]);
+  const [framesLoading, setFramesLoading] = useState(false);
+  const [editingFrame, setEditingFrame] = useState<Frame | null>(null);
+  const [uploadedFrameImage, setUploadedFrameImage] = useState<any>(null);
+  const [frameName, setFrameName] = useState('');
+  const [frameDescription, setFrameDescription] = useState('');
+  const [framePrice, setFramePrice] = useState('');
+  const [frameDurationDays, setFrameDurationDays] = useState('14');
+
+  // Create special account states
+  const [createAccountId, setCreateAccountId] = useState('');
+  const [createAccountUsername, setCreateAccountUsername] = useState('');
+  const [createAccountEmail, setCreateAccountEmail] = useState('');
+  const [createAccountPassword, setCreateAccountPassword] = useState('');
+  const [createAccountLoading, setCreateAccountLoading] = useState(false);
+
+  const menuItems: MenuItem[] = [
+    {
+      id: 'users',
+      title: 'User Online',
+      icon: 'people-outline',
+      color: colors.success,
+      description: 'Statistik pengguna dan user online'
+    },
+    {
+      id: 'gift',
+      title: 'Kelola Gift',
+      icon: 'gift-outline',
+      color: colors.warning,
+      description: 'Tambah dan kelola gift virtual'
+    },
+    {
+      id: 'frames',
+      title: 'Kelola Frame Avatar',
+      icon: 'aperture-outline',
+      color: colors.primary,
+      description: 'Tambah dan kelola frame avatar'
+    },
+    {
+      id: 'banners',
+      title: 'Kelola Banner',
+      icon: 'image-outline',
+      color: colors.error,
+      description: 'Tambah dan kelola banner iklan'
+    },
+    {
+      id: 'rooms',
+      title: 'Kelola Room',
+      icon: 'chatbubbles-outline',
+      color: colors.primary,
+      description: 'Kelola room chat dan pengaturan'
+    },
+    {
+      id: 'manage-users',
+      title: 'Kelola User',
+      icon: 'people-outline',
+      color: colors.success,
+      description: 'Cari dan promosikan user'
+    },
+    {
+      id: 'admin-credit',
+      title: 'Tambah Credit',
+      icon: 'add-circle-outline',
+      color: colors.warning,
+      description: 'Tambah credit tanpa batasan'
+    },
+    {
+      id: 'status',
+      title: 'Status User',
+      icon: 'analytics-outline',
+      color: colors.error,
+      description: 'Monitor status dan aktivitas user'
+    },
+    {
+      id: 'support-tickets',
+      title: 'Support Tickets',
+      icon: 'mail-outline',
+      color: colors.info,
+      description: 'Kelola support tickets dari user'
+    }
+  ];
+
+  const themedStyles = useMemo(() => createThemedStyles(colors), [colors]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      Alert.alert(
+        'Access Denied',
+        'You do not have admin privileges to access this screen.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack()
+          }
+        ],
+        { cancelable: false }
+      );
+      return;
+    }
+  }, [user, navigation]);
+
+  useEffect(() => {
+    if (token && user?.role === 'admin') {
+      loadGifts();
+      loadDeviceInfo();
+      if (activeTab === 'users') {
+        loadUserStats();
+      }
+      if (activeTab === 'status') {
+        loadUserStatus();
+      }
+      if (activeTab === 'ban-manage') {
+        loadUserStatus();
+        loadBannedDevices();
+      }
+      if (activeTab === 'rooms') {
+        loadRooms();
+      }
+      if (activeTab === 'banners') {
+        loadBanners();
+      }
+      if (activeTab === 'frames') {
+        loadFrames();
+      }
+      if (activeTab === 'support-tickets') {
+        loadSupportTickets();
+        loadTicketStats();
+      }
+    }
+  }, [token, activeTab, user]);
+
+  useEffect(() => {
+    if (activeTab === 'support-tickets' && token && user?.role === 'admin') {
+      loadSupportTickets();
+    }
+  }, [ticketStatusFilter]);
+
+  const loadDeviceInfo = async () => {
+    try {
+      const brand = Device.brand || 'Unknown';
+      const modelName = Device.modelName || 'Unknown Device';
+      const deviceType = await Device.getDeviceTypeAsync();
+
+      setDeviceInfo({
+        brand,
+        modelName,
+        deviceType: deviceType === Device.DeviceType.PHONE ? 'Phone' : 
+                   deviceType === Device.DeviceType.TABLET ? 'Tablet' : 
+                   deviceType === Device.DeviceType.DESKTOP ? 'Desktop' : 'Unknown'
+      });
+    } catch (error) {
+      console.error('Error loading device info:', error);
+    }
+  };
+
+  const toggleSideMenu = () => {
+    const toValue = showSideMenu ? -screenWidth * 0.75 : 0;
+    setShowSideMenu(!showSideMenu);
+
+    Animated.timing(slideAnim, {
+      toValue,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const selectMenuItem = (itemId: string) => {
+    setActiveTab(itemId);
+    toggleSideMenu();
+  };
+
+  const loadUserStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/user-stats`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserStats(data);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load user stats: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error loading user stats:', error);
+      Alert.alert('Error', 'Network error loading user stats');
+    }
+  };
+
+  const loadGifts = async () => {
+    try {
+      console.log('Loading gifts with token:', token ? 'Present' : 'Missing');
+      const response = await fetch(`${API_BASE_URL}/admin/gifts`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      console.log('Gifts response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Gifts loaded:', data.length);
+        setGifts(data);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load gifts:', response.status, errorData);
+        Alert.alert('Error', `Failed to load gifts: ${response.status} ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading gifts:', error);
+      Alert.alert('Error', 'Network error loading gifts');
+    }
+  };
+
+  const loadFrames = async () => {
+    try {
+      setFramesLoading(true);
+      const response = await fetch(`${API_BASE_URL}/admin/frames`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Frames loaded:', data.length);
+        setFrames(data);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load frames:', response.status, errorData);
+        Alert.alert('Error', `Failed to load frames: ${response.status} ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading frames:', error);
+      Alert.alert('Error', 'Network error loading frames');
+    } finally {
+      setFramesLoading(false);
+    }
+  };
+
+  const handleFrameImageUpload = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload frame image files.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1.0,
+        base64: true,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+        const allowedExtensions = ['png', 'gif'];
+
+        if (!allowedExtensions.includes(fileExtension || '')) {
+          Alert.alert('Invalid file type', 'Please select PNG or GIF files only for frames.');
+          return;
+        }
+
+        if (!asset.base64) {
+          Alert.alert('Error', 'Failed to process the image file. Please try again.');
+          return;
+        }
+
+        const fileSizeInBytes = (asset.base64.length * 3) / 4;
+        const maxSize = 5 * 1024 * 1024;
+
+        if (fileSizeInBytes > maxSize) {
+          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
+          return;
+        }
+
+        setUploadedFrameImage({
+          uri: asset.uri,
+          base64: asset.base64,
+          type: `image/${fileExtension}`,
+          name: `frame_${Date.now()}.${fileExtension}`,
+        });
+
+        Alert.alert('Success', 'Frame image selected successfully.');
+      }
+    } catch (error) {
+      console.error('Error picking frame image:', error);
+      Alert.alert('Error', 'Failed to pick frame image');
+    }
+  };
+
+  const handleAddFrame = async () => {
+    if (!frameName.trim()) {
+      Alert.alert('Error', 'Frame name is required');
+      return;
+    }
+    if (!framePrice.trim()) {
+      Alert.alert('Error', 'Frame price is required');
+      return;
+    }
+    if (!uploadedFrameImage || !uploadedFrameImage.base64) {
+      Alert.alert('Error', 'Frame image is required');
+      return;
+    }
+
+    setFramesLoading(true);
+    try {
+      const requestBody = {
+        name: frameName.trim(),
+        description: frameDescription.trim() || '',
+        price: parseInt(framePrice),
+        durationDays: parseInt(frameDurationDays) || 14,
+        frameImage: uploadedFrameImage.base64,
+        imageType: uploadedFrameImage.type,
+        imageName: uploadedFrameImage.name,
+      };
+
+      const response = await fetch(`${API_BASE_URL}/admin/frames`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Frame added successfully with Cloudinary upload');
+        setFrameName('');
+        setFrameDescription('');
+        setFramePrice('');
+        setFrameDurationDays('14');
+        setUploadedFrameImage(null);
+        loadFrames();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add frame');
+      }
+    } catch (error) {
+      console.error('Error adding frame:', error);
+      Alert.alert('Error', (error as Error).message || 'Failed to add frame');
+    } finally {
+      setFramesLoading(false);
+    }
+  };
+
+  const handleEditFrame = async (frame: any) => {
+    setEditingFrame(frame);
+    setFrameName(frame.name);
+    setFrameDescription(frame.description || '');
+    setFramePrice(frame.price.toString());
+    setFrameDurationDays(frame.duration_days?.toString() || '14');
+    Alert.alert('Edit Frame', 'Update frame details in the form above and submit');
+  };
+
+  const handleUpdateFrame = async () => {
+    if (!editingFrame) return;
+    
+    setFramesLoading(true);
+    try {
+      const requestBody: any = {
+        name: frameName.trim(),
+        description: frameDescription.trim() || '',
+        price: parseInt(framePrice),
+        durationDays: parseInt(frameDurationDays) || 14,
+      };
+
+      if (uploadedFrameImage && uploadedFrameImage.base64) {
+        requestBody.frameImage = uploadedFrameImage.base64;
+        requestBody.imageType = uploadedFrameImage.type;
+        requestBody.imageName = uploadedFrameImage.name;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/frames/${editingFrame.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Frame updated successfully');
+        setFrameName('');
+        setFrameDescription('');
+        setFramePrice('');
+        setFrameDurationDays('14');
+        setUploadedFrameImage(null);
+        setEditingFrame(null);
+        loadFrames();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update frame');
+      }
+    } catch (error) {
+      console.error('Error updating frame:', error);
+      Alert.alert('Error', (error as Error).message || 'Failed to update frame');
+    } finally {
+      setFramesLoading(false);
+    }
+  };
+
+  const handleDeleteFrame = async (frameId: number) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this frame?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setFramesLoading(true);
+            try {
+              const response = await fetch(`${API_BASE_URL}/admin/frames/${frameId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Frame deleted successfully');
+                loadFrames();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete frame');
+              }
+            } catch (error) {
+              console.error('Error deleting frame:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to delete frame');
+            } finally {
+              setFramesLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleFileUpload = async () => {
+    try {
+      // Use DocumentPicker to support JSON files for Lottie animations
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/gif', 'video/mp4', 'video/webm', 'video/quicktime', 'application/json'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      const fileExtension = asset.name.split('.').pop()?.toLowerCase();
+      const allowedExtensions = ['gif', 'mp4', 'webm', 'mov', 'json'];
+
+      if (!allowedExtensions.includes(fileExtension || '')) {
+        Alert.alert('Invalid file type', 'Please select GIF, video files (MP4, WebM, MOV), or JSON (Lottie) files only.');
+        return;
+      }
+
+      // Handle JSON Lottie files
+      if (fileExtension === 'json') {
+        try {
+          const FileSystem = require('expo-file-system');
+          
+          const fileContent = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+
+          // Validate JSON
+          const jsonData = JSON.parse(fileContent);
+          
+          // Check if it's a valid Lottie JSON (has required properties)
+          if (!jsonData.v || !jsonData.layers) {
+            Alert.alert('Invalid Lottie file', 'The JSON file does not appear to be a valid Lottie animation.');
+            return;
+          }
+
+          const base64Data = btoa(fileContent);
+          const fileSizeInBytes = asset.size || 0;
+          const maxLottieSize = 2 * 1024 * 1024; // 2MB for Lottie JSON
+
+          if (fileSizeInBytes > maxLottieSize) {
+            Alert.alert('File too large', 'Please select a Lottie JSON file smaller than 2MB.');
+            return;
+          }
+
+          setSelectedFile({
+            uri: asset.uri,
+            base64: base64Data,
+            type: 'application/json',
+            name: asset.name || `lottie_${Date.now()}.json`,
+            extension: 'json',
+            isAnimated: true,
+            duration: null,
+            width: jsonData.w || 0,
+            height: jsonData.h || 0
+          });
+
+          console.log('Lottie JSON file selected:', {
+            name: asset.name,
+            size: fileSizeInBytes,
+            type: 'application/json',
+            isAnimated: true,
+            lottieVersion: jsonData.v
+          });
+
+          Alert.alert('Success', 'Lottie animation file selected successfully.');
+          return;
+        } catch (error) {
+          console.error('Error reading Lottie JSON file:', error);
+          Alert.alert('Error', 'Failed to read Lottie JSON file. Make sure it\'s a valid Lottie animation.');
+          return;
+        }
+      }
+
+      // Handle video and GIF files
+      const isVideo = ['mp4', 'webm', 'mov'].includes(fileExtension || '');
+      const FileSystem = require('expo-file-system');
+      
+      const base64Data = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      const fileSizeInBytes = (base64Data.length * 3) / 4;
+      const maxSize = isVideo ? 15 * 1024 * 1024 : 5 * 1024 * 1024; // 15MB for video, 5MB for GIF
+
+      if (fileSizeInBytes > maxSize) {
+        Alert.alert('File too large', `Please select a ${isVideo ? 'video' : 'file'} smaller than ${isVideo ? '15MB' : '5MB'}.`);
+        return;
+      }
+
+      const contentType = isVideo ? `video/${fileExtension}` : `image/${fileExtension}`;
+
+      setSelectedFile({
+        uri: asset.uri,
+        base64: base64Data,
+        type: contentType,
+        name: asset.name || `gift_animated_${Date.now()}.${fileExtension}`,
+        extension: fileExtension || 'mp4',
+        isAnimated: true,
+        duration: null,
+        width: 0,
+        height: 0
+      });
+
+      console.log('Animated file selected:', {
+        name: asset.name,
+        type: contentType,
+        size: fileSizeInBytes,
+        isAnimated: true
+      });
+
+      Alert.alert('Success', `${isVideo ? 'Video' : 'GIF'} file selected successfully.`);
+
+    } catch (error) {
+      console.error('Error picking animated file:', error);
+      Alert.alert('Error', 'Failed to pick animated file: ' + (error as Error).message);
+    }
+  };
+
+  const loadBanners = async () => {
+    try {
+      setBannersLoading(true);
+      console.log('Loading banners with token:', token ? 'Present' : 'Missing');
+
+      const response = await fetch(`${API_BASE_URL}/admin/banners`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      console.log('Banners response status:', response.status);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Banners loaded:', data.length);
+        setBanners(data);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load banners:', response.status, errorData);
+        Alert.alert('Error', `Failed to load banners: ${response.status} ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading banners:', error);
+      Alert.alert('Error', 'Network error loading banners');
+    } finally {
+      setBannersLoading(false);
+    }
+  };
+
+  const handleBannerImageUpload = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload banner images.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9], // Banner aspect ratio
+        quality: 0.8,
+        base64: true,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+
+        if (!asset.base64) {
+          Alert.alert('Error', 'Failed to process the image. Please try again.');
+          return;
+        }
+
+        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+        if (!['png', 'jpg', 'jpeg'].includes(fileExtension || '')) {
+          Alert.alert('Invalid file type', 'Please select PNG, JPG, or JPEG files only.');
+          return;
+        }
+
+        const fileSizeInBytes = (asset.base64.length * 3) / 4;
+        if (fileSizeInBytes > 5 * 1024 * 1024) {
+          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
+          return;
+        }
+
+        setUploadedBannerImage({
+          uri: asset.uri,
+          base64: asset.base64,
+          type: `image/${fileExtension}`,
+          name: `banner_${Date.now()}.${fileExtension}`,
+          extension: fileExtension || 'jpg'
+        });
+
+        console.log('Banner image selected:', {
+          name: `banner_${Date.now()}.${fileExtension}`,
+          size: fileSizeInBytes,
+          type: `image/${fileExtension}`
+        });
+      }
+    } catch (error) {
+      console.error('Error picking banner image:', error);
+      Alert.alert('Error', 'Failed to pick banner image');
+    }
+  };
+
+  const handleAddBanner = async () => {
+    if (!bannerTitle.trim()) {
+      Alert.alert('Error', 'Banner title is required');
+      return;
+    }
+
+    if (!uploadedBannerImage) {
+      Alert.alert('Error', 'Banner image is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const requestBody = {
+        title: bannerTitle.trim(),
+        description: bannerDescription.trim(),
+        linkUrl: bannerLinkUrl.trim(),
+        displayOrder: parseInt(bannerDisplayOrder) || 0,
+        bannerImage: uploadedBannerImage.base64,
+        imageType: uploadedBannerImage.type
+      };
+
+      const response = await fetch(`${API_BASE_URL}/admin/banners`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Banner added successfully');
+        setBannerTitle('');
+        setBannerDescription('');
+        setBannerLinkUrl('');
+        setBannerDisplayOrder('0');
+        setUploadedBannerImage(null);
+        loadBanners();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add banner');
+      }
+    } catch (error) {
+      console.error('Error adding banner:', error);
+      Alert.alert('Error', (error as Error).message || 'Failed to add banner');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteBanner = async (bannerId: string) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this banner?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/admin/banners/${bannerId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Banner deleted successfully');
+                loadBanners();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete banner');
+              }
+            } catch (error) {
+              console.error('Error deleting banner:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to delete banner');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // ==================== SUPPORT TICKETS FUNCTIONS ====================
+
+  const loadSupportTickets = async () => {
+    try {
+      setTicketsLoading(true);
+      const statusParam = ticketStatusFilter === 'all' ? '' : `?status=${ticketStatusFilter}`;
+      
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets${statusParam}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTickets(data.tickets || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to load tickets:', errorData);
+      }
+    } catch (error) {
+      console.error('Error loading tickets:', error);
+      Alert.alert('Error', 'Gagal memuat support tickets');
+    } finally {
+      setTicketsLoading(false);
+    }
+  };
+
+  const loadTicketStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/stats`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const stats = await response.json();
+        setTicketStats(stats);
+      }
+    } catch (error) {
+      console.error('Error loading ticket stats:', error);
+    }
+  };
+
+  const loadTicketMessages = async (ticketId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/${ticketId}/messages`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const messages = await response.json();
+        setTicketMessages(messages);
+      } else {
+        Alert.alert('Error', 'Gagal memuat pesan tiket');
+      }
+    } catch (error) {
+      console.error('Error loading ticket messages:', error);
+      Alert.alert('Error', 'Gagal memuat pesan tiket');
+    }
+  };
+
+  const handleReplyToTicket = async () => {
+    if (!ticketReply.trim()) {
+      Alert.alert('Error', 'Pesan reply tidak boleh kosong');
+      return;
+    }
+
+    if (!selectedTicket) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/${selectedTicket.id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({ message: ticketReply.trim() }),
+      });
+
+      if (response.ok) {
+        setTicketReply('');
+        loadTicketMessages(selectedTicket.id);
+        loadSupportTickets();
+        Alert.alert('Berhasil', 'Balasan berhasil dikirim');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Gagal mengirim balasan');
+      }
+    } catch (error) {
+      console.error('Error replying to ticket:', error);
+      Alert.alert('Error', 'Gagal mengirim balasan');
+    }
+  };
+
+  const handleUpdateTicketStatus = async (ticketId: string, status: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/support/admin/tickets/${ticketId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Berhasil', 'Status tiket berhasil diperbarui');
+        loadSupportTickets();
+        loadTicketStats();
+        if (selectedTicket && selectedTicket.id === ticketId) {
+          setSelectedTicket({ ...selectedTicket, status });
+        }
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.error || 'Gagal memperbarui status');
+      }
+    } catch (error) {
+      console.error('Error updating ticket status:', error);
+      Alert.alert('Error', 'Gagal memperbarui status');
+    }
+  };
+
+  const openTicketDetail = async (ticket: any) => {
+    setSelectedTicket(ticket);
+    setShowTicketDetailModal(true);
+    await loadTicketMessages(ticket.id);
+  };
+
+  const handleGiftImageUpload = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'We need camera roll permissions to upload gift image files.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images, // Only images (PNG/JPG)
+        allowsEditing: false,
+        quality: 1.0, // Use max quality to preserve PNG transparency
+        base64: true,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+
+        const fileExtension = asset.uri.split('.').pop()?.toLowerCase();
+        const allowedExtensions = ['png', 'jpg', 'jpeg'];
+
+        if (!allowedExtensions.includes(fileExtension || '')) {
+          Alert.alert('Invalid file type', 'Please select PNG or JPG files only for static gift images. Use the animated upload button for GIF/MP4 files.');
+          return;
+        }
+
+        // For static images (PNG/JPG)
+        if (!asset.base64) {
+          Alert.alert('Error', 'Failed to process the image file. Please try again.');
+          return;
+        }
+
+        const fileSizeInBytes = (asset.base64.length * 3) / 4;
+        const maxSize = 5 * 1024 * 1024; // 5MB for images
+
+        if (fileSizeInBytes > maxSize) {
+          Alert.alert('File too large', 'Please select an image smaller than 5MB.');
+          return;
+        }
+
+        const contentType = `image/${fileExtension}`;
+
+        setUploadedGiftImage({
+          uri: asset.uri,
+          base64: asset.base64,
+          type: contentType,
+          name: `gift_${Date.now()}.${fileExtension}`,
+          extension: fileExtension || 'png',
+          isAnimated: false,
+          duration: null,
+          width: asset.width || 0,
+          height: asset.height || 0
+        });
+
+        console.log('Static gift image selected:', {
+          name: `gift_${Date.now()}.${fileExtension}`,
+          size: fileSizeInBytes,
+          type: contentType,
+          isAnimated: false
+        });
+
+        Alert.alert('Success', 'Static gift image selected successfully.');
+      }
+    } catch (error) {
+      console.error('Error picking gift file:', error);
+      Alert.alert('Error', 'Failed to pick gift file: ' + (error as Error).message);
+    }
+  };
+
+  const handleAddGift = async () => {
+    if (!itemPrice.trim()) {
+      Alert.alert('Error', 'Harga gift harus diisi');
+      return;
+    }
+
+    // Check if either static image or animated file is uploaded
+    const hasStaticImage = uploadedGiftImage && uploadedGiftImage.base64;
+    const hasAnimatedFile = selectedFile && selectedFile.base64;
+
+    if (!hasStaticImage && !hasAnimatedFile) {
+      Alert.alert('Error', 'File gift harus dipilih (gambar PNG/JPG atau file animasi GIF/MP4)');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Use animated file if uploaded, otherwise use static image
+      const fileToUpload = hasAnimatedFile ? selectedFile : uploadedGiftImage;
+      const isVideo = fileToUpload.type?.startsWith('video/') || ['mp4', 'webm', 'mov'].includes(fileToUpload.extension || '');
+      const isAnimated = hasAnimatedFile || fileToUpload.isAnimated;
+
+      const requestBody: any = {
+        name: itemName.trim() || 'Untitled Gift',
+        icon: '🎁',
+        price: parseInt(itemPrice),
+        type: isAnimated ? 'animated' : 'static',
+        category: 'popular'
+      };
+
+      if (!fileToUpload.base64) {
+        Alert.alert('Error', 'File belum siap. Silakan coba lagi.');
+        setLoading(false);
+        return;
+      }
+
+      requestBody.giftImage = fileToUpload.base64;
+      requestBody.imageType = fileToUpload.type;
+      requestBody.imageName = fileToUpload.name;
+
+      if (isAnimated) {
+        requestBody.hasAnimation = true;
+        requestBody.isAnimated = true;
+        if (fileToUpload.duration) {
+          requestBody.duration = fileToUpload.duration;
+        }
+      }
+
+      console.log('Sending gift data:', {
+        name: requestBody.name,
+        type: requestBody.type,
+        hasBase64: !!requestBody.giftImage,
+        fileType: requestBody.imageType,
+        isVideo: isVideo,
+        isAnimated: requestBody.isAnimated,
+        source: hasAnimatedFile ? 'animated-slot' : 'static-slot'
+      });
+
+      const response = await fetch(`${API_BASE_URL}/admin/gifts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) {
+        Alert.alert('Berhasil', 'Gift berhasil ditambahkan');
+        setItemName('');
+        setItemPrice('');
+        setSelectedFile(null);
+        setUploadedGiftImage(null);
+        loadGifts();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal menambahkan gift');
+      }
+    } catch (error) {
+      console.error('Error adding gift:', error);
+      Alert.alert('Error', (error as Error).message || 'Gagal menambahkan gift');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!itemName.trim()) {
+      Alert.alert('Error', 'Please enter a name');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      {
+        if (!itemIcon.trim()) {
+          Alert.alert('Error', 'Please enter gift icon');
+          return;
+        }
+        if (!itemPrice.trim()) {
+          Alert.alert('Error', 'Please enter price');
+          return;
+        }
+
+        const requestBody: any = {
+          name: itemName.trim(),
+          icon: itemIcon.trim(),
+          price: parseInt(itemPrice),
+          type: selectedFile ? 'animated' : 'static',
+          category: itemCategory?.trim() || 'popular'
+        };
+
+        if (uploadedGiftImage) {
+          requestBody.giftImage = uploadedGiftImage.base64;
+          requestBody.imageType = uploadedGiftImage.type;
+          requestBody.imageName = uploadedGiftImage.name;
+        }
+
+        if (selectedFile) {
+          requestBody.hasAnimation = true;
+        }
+
+        console.log('Sending gift request:', {
+          name: requestBody.name,
+          category: requestBody.category,
+          hasImage: !!requestBody.giftImage,
+          hasAnimation: requestBody.hasAnimation
+        });
+
+        const response = await fetch(`${API_BASE_URL}/admin/gifts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'User-Agent': 'ChatMe-Mobile-App',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (response.ok) {
+          Alert.alert('Success', 'Gift added successfully');
+          loadGifts();
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to add gift');
+        }
+      }
+
+      setItemName('');
+      setItemIcon('');
+      setItemCategory('');
+      setItemPrice('');
+      setSelectedFile(null);
+      setUploadedGiftImage(null);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error adding item:', error);
+      Alert.alert('Error', (error as Error).message || 'Failed to add item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchUsers = async () => {
+    if (!searchUsername.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/users/search?username=${encodeURIComponent(searchUsername.trim())}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data.users || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to search users: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
+      Alert.alert('Error', 'Network error searching users');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const promoteUser = async (userId: string, username: string, newRole: 'admin' | 'mentor') => {
+    Alert.alert(
+      'Confirm Promotion',
+      `Are you sure you want to make ${username} ${newRole === 'admin' ? 'an admin' : 'a mentor'}?${newRole === 'mentor' ? ' (Role will expire after 1 month)' : ''}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          style: 'default',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const response = await fetch(`${API_BASE_URL}/admin/users/promote`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+                body: JSON.stringify({
+                  userId,
+                  newRole
+                }),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                Alert.alert('Success', data.message);
+                searchUsers();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to promote user');
+              }
+            } catch (error) {
+              console.error('Error promoting user:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to promote user');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleCreateSpecialAccount = async () => {
+    if (!createAccountId.trim() || !createAccountUsername.trim() || !createAccountEmail.trim() || !createAccountPassword.trim()) {
+      Alert.alert('Error', 'All fields are required');
+      return;
+    }
+
+    const accountId = parseInt(createAccountId);
+    if (isNaN(accountId) || accountId < 1 || accountId > 999) {
+      Alert.alert('Error', 'ID must be a number between 1-999');
+      return;
+    }
+
+    const username = createAccountUsername.trim();
+    if (username.length < 3 || username.length > 20) {
+      Alert.alert('Error', 'Username must be 3-20 characters');
+      return;
+    }
+
+    const email = createAccountEmail.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Invalid email format');
+      return;
+    }
+
+    if (createAccountPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setCreateAccountLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/create-special-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({
+          id: accountId,
+          username: createAccountUsername.trim(),
+          email: createAccountEmail.trim(),
+          password: createAccountPassword
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', `Special account created successfully!\nID: ${accountId}\nUsername: ${createAccountUsername}`);
+        setCreateAccountId('');
+        setCreateAccountUsername('');
+        setCreateAccountEmail('');
+        setCreateAccountPassword('');
+        loadUserStats();
+      } else {
+        Alert.alert('Error', data.error || 'Failed to create special account');
+      }
+    } catch (error) {
+      console.error('Error creating special account:', error);
+      Alert.alert('Error', 'Network error creating special account');
+    } finally {
+      setCreateAccountLoading(false);
+    }
+  };
+
+  const handleAdminAddCredit = async () => {
+    if (!adminCreditUsername.trim()) {
+      Alert.alert('Error', 'Username harus diisi');
+      return;
+    }
+
+    if (!adminCreditAmount.trim() || isNaN(Number(adminCreditAmount)) || Number(adminCreditAmount) <= 0) {
+      Alert.alert('Error', 'Jumlah kredit harus berupa angka positif');
+      return;
+    }
+
+    setAdminCreditLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/credits/add`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: adminCreditUsername.trim(),
+          amount: Number(adminCreditAmount),
+          reason: adminCreditReason.trim() || 'Admin credit addition'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Send notification to recipient
+        try {
+          await fetch(`${API_BASE_URL}/notifications/send`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              recipientUsername: adminCreditUsername.trim(),
+              type: 'credit_received',
+              title: 'Credit Added by Admin',
+              message: `Administrator added ${Number(adminCreditAmount).toLocaleString()} credits to your account. Reason: ${adminCreditReason}`,
+              data: {
+                amount: Number(adminCreditAmount),
+                from: 'Administrator',
+                reason: adminCreditReason
+              }
+            }),
+          });
+        } catch (notifError) {
+          console.error('Failed to send notification:', notifError);
+        }
+
+        Alert.alert('Berhasil', `Credit berhasil ditambahkan ke ${adminCreditUsername}!`);
+        setAdminCreditUsername('');
+        setAdminCreditAmount('');
+        setAdminCreditReason('');
+      } else {
+        Alert.alert('Error', data.error || 'Gagal menambah credit');
+      }
+    } catch (error) {
+      console.error('Error adding admin credits:', error);
+      Alert.alert('Error', 'Gagal menambahkan kredit. Silakan coba lagi.');
+    } finally {
+      setAdminCreditLoading(false);
+    }
+  };
+
+  const loadUserStatus = async () => {
+    setStatusLoading(true);
+    try {
+      // Get device info
+      const deviceName = `${deviceInfo.brand} ${deviceInfo.modelName}`;
+
+      // Get location info (request permission first)
+      let locationString = 'Unknown';
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          const reverseGeocode = await Location.reverseGeocodeAsync({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+
+          if (reverseGeocode.length > 0) {
+            const address = reverseGeocode[0];
+            locationString = `${address.city || address.region || address.country || 'Unknown'}`;
+          }
+        }
+      } catch (locationError) {
+        console.log('Location permission denied or unavailable');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/admin/users/status`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const users = await response.json();
+        setUserStatusList(Array.isArray(users) ? users : []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load user status: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading user status:', error);
+      Alert.alert('Error', 'Network error loading user status');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const loadUserCreditHistory = async (userId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/credits/history/${userId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserCreditHistory(data.transactions || []);
+      } else {
+        Alert.alert('Error', 'Failed to load credit history');
+      }
+    } catch (error) {
+      console.error('Error loading credit history:', error);
+      Alert.alert('Error', 'Network error loading credit history');
+    }
+  };
+
+  const loadBannedDevices = async () => {
+    setBanLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/banned-devices`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBannedDevicesList(data.bannedList || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load banned devices: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading banned devices:', error);
+      Alert.alert('Error', 'Network error loading banned devices');
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  // Room management functions
+  const loadRooms = async () => {
+    setRoomsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/rooms`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRooms(data.rooms || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load rooms: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+      Alert.alert('Error', 'Network error loading rooms');
+    } finally {
+      setRoomsLoading(false);
+    }
+  };
+
+  const deleteRoom = async (roomId: string, roomName: string) => {
+    Alert.alert(
+      'Confirm Delete',
+      `Are you sure you want to delete room "${roomName}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setRoomsLoading(true);
+              const response = await fetch(`${API_BASE_URL}/admin/rooms/${roomId}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', `Room "${roomName}" deleted successfully`);
+                loadRooms(); // Refresh room list
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete room');
+              }
+            } catch (error) {
+              console.error('Error deleting room:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to delete room');
+            } finally {
+              setRoomsLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const openEditRoomModal = (room: Room) => {
+    setSelectedRoom(room);
+    setEditRoomName(room.name);
+    setEditRoomDescription(room.description || '');
+    const capacity = room.maxMembers || 25;
+    setEditRoomMaxMembers(capacity);
+    setEditRoomMaxMembersInput(capacity.toString());
+    setEditRoomOwner(room.managedBy || room.createdBy || '');
+    setShowEditRoomModal(true);
+  };
+
+  const saveRoomChanges = async () => {
+    if (!selectedRoom) return;
+
+    if (!editRoomName.trim()) {
+      Alert.alert('Error', 'Room name is required');
+      return;
+    }
+
+    if (!editRoomDescription.trim()) {
+      Alert.alert('Error', 'Room description is required');
+      return;
+    }
+
+    if (!editRoomMaxMembers || editRoomMaxMembers <= 0) {
+      Alert.alert('Error', 'Maximum capacity must be greater than 0');
+      return;
+    }
+
+    setEditingRoom(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/rooms/${selectedRoom.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({
+          name: editRoomName.trim(),
+          description: editRoomDescription.trim(),
+          maxMembers: editRoomMaxMembers,
+          managedBy: editRoomOwner.trim()
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Room updated successfully');
+        setShowEditRoomModal(false);
+        loadRooms(); // Refresh room list
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update room');
+      }
+    } catch (error) {
+      console.error('Error updating room:', error);
+      Alert.alert('Error', (error as Error).message || 'Failed to update room');
+    } finally {
+      setEditingRoom(false);
+    }
+  };
+
+  const handleBanDevice = async (userId: string, username: string, deviceId: string, userIp: string) => {
+    Alert.alert(
+      'Ban Device',
+      `Are you sure you want to ban the device used by ${username}?\n\nDevice: ${deviceId || 'Unknown Device'}\nIP: ${userIp || 'Unknown IP'}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Ban Device',
+          style: 'destructive',
+          onPress: () => {
+            Alert.prompt(
+              'Ban Reason',
+              'Enter reason for banning this device:',
+              (reason) => {
+                if (reason && reason.trim()) {
+                  executeBan('device', userId, username, deviceId || `${username}_device`, reason.trim());
+                }
+              },
+              'plain-text',
+              'Suspicious activity'
+            );
+          }
+        }
+      ]
+    );
+  };
+
+  const handleBanIP = async (userId: string, username: string, userIp: string) => {
+    Alert.alert(
+      'Ban IP Address',
+      `Are you sure you want to ban the IP address used by ${username}?\n\nIP: ${userIp || 'Unknown IP'}\n\nThis will affect all users from this IP.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Ban IP',
+          style: 'destructive',
+          onPress: () => {
+            Alert.prompt(
+              'Ban Reason',
+              'Enter reason for banning this IP address:',
+              (reason) => {
+                if (reason && reason.trim()) {
+                  executeBan('ip', userId, username, userIp || 'unknown_ip', reason.trim());
+                }
+              },
+              'plain-text',
+              'Suspicious activity'
+            );
+          }
+        }
+      ]
+    );
+  };
+
+  const executeBan = async (banType: string, userId: string, username: string, target: string, reason: string) => {
+    setBanLoading(true);
+    try {
+      console.log('Executing ban:', { banType, userId, username, target, reason });
+
+      const response = await fetch(`${API_BASE_URL}/admin/ban-${banType}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({
+          userId: userId.toString(),
+          username: username,
+          target: target,
+          reason: reason,
+          banType: banType
+        }),
+      });
+
+      console.log('Ban response status:', response.status);
+
+      if (response.ok) {
+        const responseData = await response.json();
+        Alert.alert('Success', `${banType.toUpperCase()} banned successfully`);
+        loadBannedDevices();
+        loadUserStatus();
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error occurred' }));
+        console.error('Ban error response:', errorData);
+        throw new Error(errorData.error || `Failed to ban ${banType}`);
+      }
+    } catch (error) {
+      console.error(`Error banning ${banType}:`, error);
+      Alert.alert('Error', (error as Error).message || `Failed to ban ${banType}. Please check your connection.`);
+    } finally {
+      setBanLoading(false);
+    }
+  };
+
+  const handleUnban = async (banId: string, banType: string, target: string) => {
+    Alert.alert(
+      'Confirm Unban',
+      `Are you sure you want to unban this ${banType}?\n\nTarget: ${target}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unban',
+          onPress: async () => {
+            setBanLoading(true);
+            try {
+              const response = await fetch(`${API_BASE_URL}/admin/unban`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+                body: JSON.stringify({
+                  banId,
+                  banType
+                }),
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', `${banType.toUpperCase()} unbanned successfully`);
+                loadBannedDevices();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to unban');
+              }
+            } catch (error) {
+              console.error('Error unbanning:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to unban');
+            } finally {
+              setBanLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeleteItem = async (id: string, type: 'gift') => {
+    Alert.alert(
+      'Confirm Delete',
+      `Are you sure you want to delete this ${type}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await fetch(`${API_BASE_URL}/admin/gifts/${id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Gift deleted successfully');
+                loadGifts();
+              } else {
+                throw new Error('Failed to delete gift');
+              }
+            } catch (error) {
+              console.error('Error deleting gift:', error);
+              Alert.alert('Error', 'Failed to delete gift');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleEditGift = (gift: Gift) => {
+    setEditingGift(gift);
+    setEditGiftName(gift.name);
+    setEditGiftPrice(gift.price.toString());
+    setShowEditModal(true);
+  };
+
+  const handleUpdateGift = async () => {
+    if (!editingGift || !editGiftName.trim() || !editGiftPrice.trim()) {
+      Alert.alert('Error', 'Nama dan harga gift harus diisi');
+      return;
+    }
+
+    const price = parseInt(editGiftPrice);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Error', 'Harga harus berupa angka positif');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/gifts/${editingGift.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editGiftName.trim(),
+          icon: editingGift.icon,
+          price: price,
+          type: editingGift.type,
+          category: editingGift.category,
+          image: editingGift.image,
+          animation: editingGift.animation
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Berhasil', 'Gift berhasil diupdate!');
+        setShowEditModal(false);
+        setEditingGift(null);
+        setEditGiftName('');
+        setEditGiftPrice('');
+        loadGifts();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Gagal mengupdate gift');
+      }
+    } catch (error) {
+      console.error('Error updating gift:', error);
+      Alert.alert('Error', (error as Error).message || 'Gagal mengupdate gift');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderGiftItem = ({ item }: { item: Gift }) => (
+    <View style={themedStyles.itemCard}>
+      <View style={themedStyles.itemHeader}>
+        <View style={themedStyles.giftDisplayContainer}>
+          {item.image ? (
+            <Image source={{ uri: `${API_BASE_URL}${item.image}` }} style={themedStyles.giftItemImage} />
+          ) : (
+            <Text style={themedStyles.itemEmoji}>{item.icon}</Text>
+          )}
+        </View>
+        <TouchableOpacity
+          style={themedStyles.deleteButton}
+          onPress={() => handleDeleteItem(item.id, 'gift')}
+        >
+          <Ionicons name="trash-outline" size={16} color={colors.error} />
+        </TouchableOpacity>
+      </View>
+      <Text style={themedStyles.itemName}>{item.name}</Text>
+      <Text style={themedStyles.itemPrice}>{item.price} credits</Text>
+      <Text style={themedStyles.itemType}>{item.type}</Text>
+      {item.category && item.category !== 'lucky' && (
+        <Text style={themedStyles.itemCategory}>{item.category}</Text>
+      )}
+    </View>
+  );
+
+  const renderGiftGridItem = ({ item }: { item: Gift }) => (
+    <TouchableOpacity 
+      style={themedStyles.giftGridCard}
+      onLongPress={() => handleEditGift(item)}
+      activeOpacity={0.8}
+    >
+      <View style={themedStyles.giftGridImageContainer}>
+        {item.image ? (
+          <Image 
+            source={{ uri: `${API_BASE_URL}${item.image}` }} 
+            style={themedStyles.giftGridImage} 
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={themedStyles.giftGridEmojiContainer}>
+            <Text style={themedStyles.giftGridEmoji}>{item.icon}</Text>
+          </View>
+        )}
+        {/* Video indicator badge */}
+        {(item.mediaType === 'video' || (item.animation && (item.animation.toLowerCase().includes('.mp4') || item.animation.toLowerCase().includes('.webm') || item.animation.toLowerCase().includes('.mov')))) && (
+          <View style={themedStyles.videoIndicatorBadge}>
+            <Ionicons name="videocam" size={14} color={colors.badgeTextLight} />
+          </View>
+        )}
+        <View style={themedStyles.giftGridOverlay}>
+          <Text style={themedStyles.giftGridPrice}>{item.price}💎</Text>
+        </View>
+      </View>
+      <View style={themedStyles.giftGridInfo}>
+        <Text style={themedStyles.giftGridName} numberOfLines={1}>{item.name}</Text>
+        {item.category && item.category !== 'lucky' && (
+          <Text style={themedStyles.giftGridCategory} numberOfLines={1}>{item.category}</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderUserItem = ({ item }: { item: User }) => (
+    <View style={themedStyles.userCard}>
+      <View style={themedStyles.userInfo}>
+        <View style={themedStyles.userHeader}>
+          <Text style={themedStyles.userName}>{item.username}</Text>
+          <View style={[themedStyles.roleBadge, { backgroundColor: getRoleColor(item.role) }]}>
+            <Text style={themedStyles.roleText}>{item.role}</Text>
+          </View>
+        </View>
+        {item.email && <Text style={themedStyles.userEmail}>{item.email}</Text>}
+      </View>
+      <View style={themedStyles.userActions}>
+        {item.role !== 'admin' && (
+          <TouchableOpacity
+            style={[themedStyles.actionBtn, themedStyles.adminBtn]}
+            onPress={() => promoteUser(item.id, item.username, 'admin')}
+            disabled={loading}
+          >
+            <Text style={themedStyles.actionBtnText}>Make Admin</Text>
+          </TouchableOpacity>
+        )}
+        {item.role !== 'mentor' && item.role !== 'admin' && (
+          <TouchableOpacity
+            style={[themedStyles.actionBtn, themedStyles.mentorBtn]}
+            onPress={() => promoteUser(item.id, item.username, 'mentor')}
+            disabled={loading}
+          >
+            <Text style={themedStyles.actionBtnText}>Make Mentor</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin': return '#F44336';
+      case 'mentor': return '#FF9800';
+      case 'merchant': return '#9C27B0';
+      default: return '#4CAF50';
+    }
+  };
+
+  const getActiveMenuTitle = () => {
+    const activeMenuItem = menuItems.find(item => item.id === activeTab);
+    return activeMenuItem?.title || 'Admin Panel';
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'users':
+        return (
+          <ScrollView style={themedStyles.statsContainer} showsVerticalScrollIndicator={false}>
+            <View style={themedStyles.statsCards}>
+              <View style={[themedStyles.statCard, { backgroundColor: colors.success }]}>
+                <Ionicons name="people" size={40} color={colors.badgeTextLight} />
+                <Text style={themedStyles.statNumber}>{userStats?.totalUsers || 0}</Text>
+                <Text style={themedStyles.statLabel}>Total Users</Text>
+              </View>
+              
+              <View style={[themedStyles.statCard, { backgroundColor: colors.info }]}>
+                <Ionicons name="radio-button-on" size={40} color={colors.badgeTextLight} />
+                <Text style={themedStyles.statNumber}>{userStats?.onlineUsers || 0}</Text>
+                <Text style={themedStyles.statLabel}>Online Now</Text>
+              </View>
+            </View>
+
+            {userStats?.registrationStats && userStats.registrationStats.length > 0 && (
+              <View style={themedStyles.chartContainer}>
+                <Text style={themedStyles.chartTitle}>Registrations (Last 30 Days)</Text>
+                <View style={themedStyles.chartBars}>
+                  {userStats.registrationStats.slice(0, 10).reverse().map((stat: any, index: number) => {
+                    const maxCount = Math.max(...userStats.registrationStats.map((s: any) => parseInt(s.count)));
+                    const barHeight = (parseInt(stat.count) / maxCount) * 150;
+                    return (
+                      <View key={index} style={themedStyles.barContainer}>
+                        <View style={[themedStyles.bar, { height: barHeight, backgroundColor: colors.success }]} />
+                        <Text style={themedStyles.barLabel}>{stat.count}</Text>
+                        <Text style={themedStyles.dateLabel}>{stat.date ? new Date(stat.date).getDate() : ''}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            <View style={themedStyles.createAccountContainer}>
+              <Text style={themedStyles.sectionTitle}>Create Special Account</Text>
+              <Text style={themedStyles.sectionSubtitle}>Create verified accounts with custom 1-3 digit IDs</Text>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Account ID (1-3 digits)</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={createAccountId}
+                  onChangeText={setCreateAccountId}
+                  placeholder="Enter ID (1-999)"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Username</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={createAccountUsername}
+                  onChangeText={setCreateAccountUsername}
+                  placeholder="Enter username"
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Email</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={createAccountEmail}
+                  onChangeText={setCreateAccountEmail}
+                  placeholder="Enter email"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Password</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={createAccountPassword}
+                  onChangeText={setCreateAccountPassword}
+                  placeholder="Enter password"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[themedStyles.createAccountButton, createAccountLoading && themedStyles.createAccountButtonDisabled]}
+                onPress={handleCreateSpecialAccount}
+                disabled={createAccountLoading}
+              >
+                {createAccountLoading ? (
+                  <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                ) : (
+                  <>
+                    <Ionicons name="person-add" size={20} color={colors.badgeTextLight} />
+                    <Text style={themedStyles.createAccountButtonText}>Create Account</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        );
+
+      case 'gift':
+        return (
+          <ScrollView style={themedStyles.giftFormContainer} showsVerticalScrollIndicator={false}>
+            <View style={themedStyles.giftFormCard}>
+              <Text style={themedStyles.formTitle}>Add New Gift</Text>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Nama Gift</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={itemName}
+                  onChangeText={setItemName}
+                  placeholder="Masukkan nama gift..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Harga Gift</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={itemPrice}
+                  onChangeText={setItemPrice}
+                  placeholder="Masukkan harga dalam credits..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Upload Gambar Gift (PNG)</Text>
+                <TouchableOpacity
+                  style={themedStyles.uploadFormButton}
+                  onPress={handleGiftImageUpload}
+                >
+                  <Ionicons name="image-outline" size={24} color={colors.warning} />
+                  <Text style={themedStyles.uploadFormText}>
+                    {uploadedGiftImage ? uploadedGiftImage.name : 'Pilih Gambar PNG'}
+                  </Text>
+                </TouchableOpacity>
+                {uploadedGiftImage && (
+                  <View style={themedStyles.formPreviewContainer}>
+                    {uploadedGiftImage.type?.startsWith('video/') ? (
+                      <View style={themedStyles.videoPreviewContainer}>
+                        <Ionicons name="videocam" size={40} color={colors.warning} />
+                        <Text style={themedStyles.videoPreviewText}>
+                          Video: {uploadedGiftImage.name}
+                        </Text>
+                        {uploadedGiftImage.duration && (
+                          <Text style={themedStyles.videoDurationText}>
+                            Duration: {Math.round(uploadedGiftImage.duration / 1000)}s
+                          </Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Image source={{ uri: uploadedGiftImage.uri }} style={themedStyles.formPreviewImage} />
+                    )}
+                    <TouchableOpacity
+                      style={themedStyles.formRemoveButton}
+                      onPress={() => setUploadedGiftImage(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Upload Gift Animasi (MP4/GIF/Lottie JSON)</Text>
+                <TouchableOpacity
+                  style={themedStyles.uploadFormButton}
+                  onPress={handleFileUpload}
+                >
+                  <Ionicons name="play-circle-outline" size={24} color={colors.warning} />
+                  <Text style={themedStyles.uploadFormText}>
+                    {selectedFile ? selectedFile.name : 'Pilih File Animasi'}
+                  </Text>
+                </TouchableOpacity>
+                {selectedFile && (
+                  <View style={themedStyles.formFileInfo}>
+                    <Text style={themedStyles.formFileName}>{selectedFile.name}</Text>
+                    <TouchableOpacity
+                      style={themedStyles.formRemoveButton}
+                      onPress={() => setSelectedFile(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={themedStyles.submitButton}
+                onPress={handleAddGift}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                ) : (
+                  <Text style={themedStyles.submitButtonText}>Submit Gift</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={themedStyles.giftListContainer}>
+              <Text style={themedStyles.giftListTitle}>Gift yang Sudah Ditambahkan ({gifts.length})</Text>
+              <Text style={themedStyles.giftHelpText}>Tekan lama gift untuk mengedit</Text>
+              {gifts.length > 0 ? (
+                <View style={themedStyles.giftGridContainer}>
+                  {gifts.map((item) => (
+                    <View key={item.id}>
+                      {renderGiftGridItem({ item })}
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={themedStyles.emptyGiftList}>
+                  <Ionicons name="gift-outline" size={40} color={colors.textSecondary} />
+                  <Text style={themedStyles.emptyGiftText}>Belum ada gift yang ditambahkan</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        );
+
+      case 'frames':
+        return (
+          <ScrollView style={themedStyles.giftFormContainer} showsVerticalScrollIndicator={false}>
+            <View style={themedStyles.giftFormCard}>
+              <Text style={themedStyles.formTitle}>Add New Avatar Frame</Text>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Frame Name</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={frameName}
+                  onChangeText={setFrameName}
+                  placeholder="Enter frame name..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Description (Optional)</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={frameDescription}
+                  onChangeText={setFrameDescription}
+                  placeholder="Enter description..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Price (Credits)</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={framePrice}
+                  onChangeText={setFramePrice}
+                  placeholder="Enter price in credits..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Rental Duration (Days)</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={frameDurationDays}
+                  onChangeText={setFrameDurationDays}
+                  placeholder="Enter duration (e.g., 7, 14, 30)..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Upload Frame Image (PNG/GIF)</Text>
+                <TouchableOpacity
+                  style={themedStyles.uploadFormButton}
+                  onPress={handleFrameImageUpload}
+                >
+                  <Ionicons name="image-outline" size={24} color={colors.warning} />
+                  <Text style={themedStyles.uploadFormText}>
+                    {uploadedFrameImage ? uploadedFrameImage.name : 'Select PNG/GIF Image'}
+                  </Text>
+                </TouchableOpacity>
+                {uploadedFrameImage && (
+                  <View style={themedStyles.formPreviewContainer}>
+                    <Image source={{ uri: uploadedFrameImage.uri }} style={themedStyles.formPreviewImage} />
+                    <TouchableOpacity
+                      style={themedStyles.formRemoveButton}
+                      onPress={() => setUploadedFrameImage(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={themedStyles.submitButton}
+                onPress={editingFrame ? handleUpdateFrame : handleAddFrame}
+                disabled={framesLoading}
+              >
+                {framesLoading ? (
+                  <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                ) : (
+                  <Text style={themedStyles.submitButtonText}>
+                    {editingFrame ? 'Update Frame' : 'Add Frame'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              {editingFrame && (
+                <TouchableOpacity
+                  style={[themedStyles.submitButton, { backgroundColor: colors.textSecondary, marginTop: 10 }]}
+                  onPress={() => {
+                    setEditingFrame(null);
+                    setFrameName('');
+                    setFrameDescription('');
+                    setFramePrice('');
+                    setFrameDurationDays('14');
+                    setUploadedFrameImage(null);
+                  }}
+                >
+                  <Text style={themedStyles.submitButtonText}>Cancel Edit</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <View style={themedStyles.giftListContainer}>
+              <Text style={themedStyles.giftListTitle}>Avatar Frames ({frames.length})</Text>
+              <Text style={themedStyles.giftHelpText}>Long press frame to edit/delete</Text>
+              {framesLoading ? (
+                <View style={themedStyles.emptyGiftList}>
+                  <ActivityIndicator size="large" color={colors.warning} />
+                  <Text style={themedStyles.emptyGiftText}>Loading frames...</Text>
+                </View>
+              ) : frames.length > 0 ? (
+                <View style={themedStyles.giftGridContainer}>
+                  {frames.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={themedStyles.giftCard}
+                      onLongPress={() => {
+                        Alert.alert(
+                          'Frame Actions',
+                          `Manage: ${item.name}`,
+                          [
+                            { text: 'Edit', onPress: () => handleEditFrame(item) },
+                            { text: 'Delete', onPress: () => handleDeleteFrame(Number(item.id)), style: 'destructive' },
+                            { text: 'Cancel', style: 'cancel' }
+                          ]
+                        );
+                      }}
+                    >
+                      <Image
+                        source={{ uri: item.image }}
+                        style={{ width: 80, height: 80, borderRadius: 8 }}
+                        resizeMode="contain"
+                      />
+                      <Text style={themedStyles.giftName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={themedStyles.giftPrice}>{item.price} credits</Text>
+                      <Text style={themedStyles.giftPrice}>{item.durationDays} days</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <View style={themedStyles.emptyGiftList}>
+                  <Ionicons name="images-outline" size={40} color={colors.textSecondary} />
+                  <Text style={themedStyles.emptyGiftText}>No frames added yet</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        );
+
+      case 'manage-users':
+        return (
+          <View style={themedStyles.userSearchContainer}>
+            <View style={themedStyles.searchContainer}>
+              <TextInput
+                style={themedStyles.searchInput}
+                value={searchUsername}
+                onChangeText={setSearchUsername}
+                placeholder="Search username..."
+                placeholderTextColor="#999"
+                onSubmitEditing={searchUsers}
+              />
+              <TouchableOpacity
+                style={themedStyles.searchButton}
+                onPress={searchUsers}
+                disabled={searchLoading}
+              >
+                {searchLoading ? (
+                  <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                ) : (
+                  <Ionicons name="search" size={20} color={colors.badgeTextLight} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={searchResults}
+              renderItem={renderUserItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={themedStyles.listContainer}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                searchUsername.trim() ? (
+                  <View style={themedStyles.emptyContainer}>
+                    <Ionicons name="person-outline" size={60} color={colors.textSecondary} />
+                    <Text style={themedStyles.emptyTitle}>No Users Found</Text>
+                    <Text style={themedStyles.emptySubtitle}>Try searching with a different username</Text>
+                  </View>
+                ) : (
+                  <View style={themedStyles.emptyContainer}>
+                    <Ionicons name="search-outline" size={60} color={colors.textSecondary} />
+                    <Text style={themedStyles.emptyTitle}>Search Users</Text>
+                    <Text style={themedStyles.emptySubtitle}>Enter a username to search and manage user roles</Text>
+                  </View>
+                )
+              }
+            />
+          </View>
+        );
+
+      case 'admin-credit':
+        return (
+          <ScrollView style={themedStyles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+            <View style={themedStyles.creditTransferCard}>
+              <Text style={themedStyles.creditTransferTitle}>Add Credits (Admin)</Text>
+
+              <View style={themedStyles.creditInputGroup}>
+                <Text style={themedStyles.creditInputLabel}>Username Penerima</Text>
+                <TextInput
+                  style={themedStyles.creditInput}
+                  value={adminCreditUsername}
+                  onChangeText={setAdminCreditUsername}
+                  placeholder="Masukkan username penerima..."
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={themedStyles.creditInputGroup}>
+                <Text style={themedStyles.creditInputLabel}>Jumlah Credit</Text>
+                <TextInput
+                  style={themedStyles.creditInput}
+                  value={adminCreditAmount}
+                  onChangeText={setAdminCreditAmount}
+                  placeholder="Masukkan jumlah credit..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={themedStyles.creditInputGroup}>
+                <Text style={themedStyles.creditInputLabel}>Alasan (Opsional)</Text>
+                <TextInput
+                  style={themedStyles.creditInput}
+                  value={adminCreditReason}
+                  onChangeText={setAdminCreditReason}
+                  placeholder="Alasan penambahan credit..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={themedStyles.transferButtonContainer}>
+                <TouchableOpacity
+                  style={[themedStyles.transferButton, { backgroundColor: colors.success }]}
+                  onPress={handleAdminAddCredit}
+                  disabled={adminCreditLoading}
+                >
+                  {adminCreditLoading ? (
+                    <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                  ) : (
+                    <>
+                      <Ionicons name="add-circle" size={20} color={colors.badgeTextLight} />
+                      <Text style={themedStyles.transferButtonText}>Add Credit</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        );
+
+      case 'banners':
+        return (
+          <ScrollView style={themedStyles.bannerContainer} showsVerticalScrollIndicator={false}>
+            <View style={[themedStyles.bannerFormCard, { marginHorizontal: 16, marginTop: 16 }]}>
+              <Text style={themedStyles.formTitle}>Add New Banner</Text>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Banner Title *</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={bannerTitle}
+                  onChangeText={setBannerTitle}
+                  placeholder="Enter banner title..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Description</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={bannerDescription}
+                  onChangeText={setBannerDescription}
+                  placeholder="Enter description..."
+                  placeholderTextColor="#999"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Link URL (Optional)</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={bannerLinkUrl}
+                  onChangeText={setBannerLinkUrl}
+                  placeholder="https://example.com"
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Display Order</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={bannerDisplayOrder}
+                  onChangeText={setBannerDisplayOrder}
+                  placeholder="0"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Banner Image (16:9 aspect ratio) *</Text>
+                <TouchableOpacity
+                  style={themedStyles.uploadFormButton}
+                  onPress={handleBannerImageUpload}
+                >
+                  <Ionicons name="image-outline" size={24} color={colors.error} />
+                  <Text style={themedStyles.uploadFormText}>
+                    {uploadedBannerImage ? uploadedBannerImage.name : 'Select Banner Image'}
+                  </Text>
+                </TouchableOpacity>
+                {uploadedBannerImage && (
+                  <View style={themedStyles.formPreviewContainer}>
+                    <Image source={{ uri: uploadedBannerImage.uri }} style={themedStyles.bannerPreviewImage} />
+                    <TouchableOpacity
+                      style={themedStyles.formRemoveButton}
+                      onPress={() => setUploadedBannerImage(null)}
+                    >
+                      <Ionicons name="close-circle" size={20} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={themedStyles.submitButton}
+                onPress={handleAddBanner}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                ) : (
+                  <Text style={themedStyles.submitButtonText}>Add Banner</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={[themedStyles.bannerListContainer, { marginHorizontal: 16, marginBottom: 16 }]}>
+              <Text style={themedStyles.bannerListTitle}>Existing Banners</Text>
+              {bannersLoading ? (
+                <ActivityIndicator size="large" color={colors.error} />
+              ) : banners.length > 0 ? (
+                <FlatList
+                  data={banners}
+                  renderItem={({ item }) => (
+                    <View style={themedStyles.bannerCard}>
+                      <Image 
+                        source={{ uri: `${API_BASE_URL}${item.imageUrl}` }} 
+                        style={themedStyles.bannerCardImage}
+                        resizeMode="cover"
+                      />
+                      <View style={themedStyles.bannerCardContent}>
+                        <Text style={themedStyles.bannerCardTitle}>{item.title}</Text>
+                        <Text style={themedStyles.bannerCardDescription}>{item.description}</Text>
+                        <View style={themedStyles.bannerCardMeta}>
+                          <Text style={themedStyles.bannerCardOrder}>Order: {item.displayOrder}</Text>
+                          <Text style={themedStyles.bannerCardClicks}>Clicks: {item.clickCount}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={themedStyles.deleteBannerButton}
+                          onPress={() => deleteBanner(item.id)}
+                        >
+                          <Ionicons name="trash-outline" size={16} color={colors.error} />
+                          <Text style={themedStyles.deleteBannerText}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                  keyExtractor={(item) => item.id}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={themedStyles.emptyBannerList}>
+                  <Ionicons name="image-outline" size={40} color={colors.textSecondary} />
+                  <Text style={themedStyles.emptyBannerText}>No banners added yet</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        );
+
+      case 'rooms':
+        return (
+          <ScrollView style={themedStyles.roomManageContainer} showsVerticalScrollIndicator={false}>
+            <View style={themedStyles.roomManageHeader}>
+              <Text style={themedStyles.roomManageTitle}>Room Management</Text>
+              <TouchableOpacity
+                style={themedStyles.refreshButton}
+                onPress={loadRooms}
+                disabled={roomsLoading}
+              >
+                {roomsLoading ? (
+                  <ActivityIndicator size="small" color="#673AB7" />
+                ) : (
+                  <Ionicons name="refresh" size={20} color="#673AB7" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Search Room */}
+            <View style={themedStyles.searchRoomContainer}>
+              <View style={themedStyles.searchInput}>
+                <Ionicons name="search" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={themedStyles.searchTextInput}
+                  placeholder="Search room name..."
+                  value={searchRoomText}
+                  onChangeText={setSearchRoomText}
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+
+            {/* Rooms List */}
+            <View style={themedStyles.roomsList}>
+              {rooms
+                .filter(room => room.name.toLowerCase().includes(searchRoomText.toLowerCase()))
+                .map((room, index) => (
+                <View key={room.id} style={themedStyles.roomCard}>
+                  <View style={themedStyles.roomCardHeader}>
+                    <View style={themedStyles.roomBasicInfo}>
+                      <Text style={themedStyles.roomCardName}>{room.name}</Text>
+                      <Text style={themedStyles.roomCardDescription}>{room.description}</Text>
+                    </View>
+                    <Text style={themedStyles.roomId}>ID: {room.id}</Text>
+                  </View>
+
+                  <View style={themedStyles.roomCardDetails}>
+                    <Text style={themedStyles.roomDetailText}>
+                      <Text style={themedStyles.roomDetailLabel}>Owner:</Text> {room.managedBy || room.createdBy}
+                    </Text>
+                    <Text style={themedStyles.roomDetailText}>
+                      <Text style={themedStyles.roomDetailLabel}>Members:</Text> {room.members || 0}/{room.maxMembers || 25}
+                    </Text>
+                    <Text style={themedStyles.roomDetailText}>
+                      <Text style={themedStyles.roomDetailLabel}>Created:</Text> {room.createdAt ? new Date(room.createdAt).toLocaleDateString() : 'Unknown'}
+                    </Text>
+                  </View>
+
+                  <View style={themedStyles.roomCardActions}>
+                    <TouchableOpacity
+                      style={themedStyles.editRoomButton}
+                      onPress={() => openEditRoomModal(room)}
+                    >
+                      <Ionicons name="create-outline" size={16} color="#673AB7" />
+                      <Text style={themedStyles.editRoomButtonText}>Edit</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={themedStyles.deleteRoomButton}
+                      onPress={() => deleteRoom(room.id, room.name)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color={colors.error} />
+                      <Text style={themedStyles.deleteRoomButtonText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+
+              {rooms.filter(room => room.name.toLowerCase().includes(searchRoomText.toLowerCase())).length === 0 && !roomsLoading && (
+                <View style={themedStyles.emptyRoomsList}>
+                  <Ionicons name="chatbubbles-outline" size={40} color={colors.textSecondary} />
+                  <Text style={themedStyles.emptyRoomsText}>
+                    {searchRoomText ? 'No rooms found matching your search' : 'No rooms available'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Edit Room Modal */}
+            {showEditRoomModal && (
+              <Modal
+                visible={showEditRoomModal}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowEditRoomModal(false)}
+              >
+                <SafeAreaView style={themedStyles.editRoomModal}>
+                  <View style={themedStyles.editRoomHeader}>
+                    <TouchableOpacity
+                      onPress={() => setShowEditRoomModal(false)}
+                      style={themedStyles.editRoomCloseButton}
+                    >
+                      <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    <Text style={themedStyles.editRoomTitle}>Edit Room</Text>
+                    <TouchableOpacity
+                      onPress={saveRoomChanges}
+                      disabled={editingRoom}
+                      style={[themedStyles.editRoomSaveButton, editingRoom && themedStyles.editRoomSaveButtonDisabled]}
+                    >
+                      {editingRoom ? (
+                        <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                      ) : (
+                        <Text style={themedStyles.editRoomSaveButtonText}>Save</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView style={themedStyles.editRoomContent} showsVerticalScrollIndicator={false}>
+                    <View style={themedStyles.editFormSection}>
+                      <Text style={themedStyles.editFormLabel}>Room Name *</Text>
+                      <TextInput
+                        style={themedStyles.editFormInput}
+                        placeholder="Enter room name"
+                        value={editRoomName}
+                        onChangeText={setEditRoomName}
+                        maxLength={50}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+
+                    <View style={themedStyles.editFormSection}>
+                      <Text style={themedStyles.editFormLabel}>Description *</Text>
+                      <TextInput
+                        style={[themedStyles.editFormInput, themedStyles.editFormInputMultiline]}
+                        placeholder="Enter room description"
+                        value={editRoomDescription}
+                        onChangeText={setEditRoomDescription}
+                        maxLength={200}
+                        multiline
+                        numberOfLines={3}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+
+                    <View style={themedStyles.editFormSection}>
+                      <Text style={themedStyles.editFormLabel}>Owner/Manager</Text>
+                      <TextInput
+                        style={themedStyles.editFormInput}
+                        placeholder="Enter owner username"
+                        value={editRoomOwner}
+                        onChangeText={setEditRoomOwner}
+                        maxLength={50}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+
+                    <View style={themedStyles.editFormSection}>
+                      <Text style={themedStyles.editFormLabel}>Maximum Capacity</Text>
+                      <TextInput
+                        style={themedStyles.editFormInput}
+                        placeholder="Enter maximum capacity (e.g., 50)"
+                        value={editRoomMaxMembersInput}
+                        onChangeText={(text) => {
+                          const filtered = text.replace(/[^0-9]/g, '').slice(0, 4);
+                          setEditRoomMaxMembersInput(filtered);
+                          
+                          if (filtered === '') {
+                            setEditRoomMaxMembers(0);
+                          } else {
+                            const num = parseInt(filtered, 10);
+                            if (!isNaN(num)) {
+                              setEditRoomMaxMembers(num);
+                            }
+                          }
+                        }}
+                        onBlur={() => {
+                          if (editRoomMaxMembersInput === '' || editRoomMaxMembers === 0) {
+                            setEditRoomMaxMembersInput(editRoomMaxMembers > 0 ? editRoomMaxMembers.toString() : '25');
+                            setEditRoomMaxMembers(editRoomMaxMembers > 0 ? editRoomMaxMembers : 25);
+                          }
+                        }}
+                        keyboardType="numeric"
+                        maxLength={4}
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </ScrollView>
+                </SafeAreaView>
+              </Modal>
+            )}
+          </ScrollView>
+        );
+
+      case 'status':
+        return (
+          <ScrollView style={themedStyles.statusContainer} showsVerticalScrollIndicator={false}>
+            <View style={themedStyles.statusHeader}>
+              <Text style={themedStyles.statusTitle}>User Status & Information</Text>
+              <TouchableOpacity
+                style={themedStyles.refreshButton}
+                onPress={loadUserStatus}
+                disabled={statusLoading}
+              >
+                {statusLoading ? (
+                  <ActivityIndicator size="small" color={colors.warning} />
+                ) : (
+                  <Ionicons name="refresh" size={20} color={colors.warning} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {userStatusList.map((user, index) => (
+              <View key={`user-status-${user.id}-${index}`} style={themedStyles.userStatusCard}>
+                <View style={themedStyles.userStatusHeader}>
+                  <View style={themedStyles.userBasicInfo}>
+                    <Text style={themedStyles.userStatusName}>{user.username}</Text>
+                    <View style={[themedStyles.statusBadge, { backgroundColor: user.status === 'online' ? colors.success : colors.textSecondary }]}>
+                      <Text style={themedStyles.statusBadgeText}>{user.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={themedStyles.userRole}>{user.role}</Text>
+                </View>
+
+                <View style={themedStyles.userDetailInfo}>
+                  <Text style={themedStyles.infoLabel}>Email: <Text style={themedStyles.infoValue}>{user.email}</Text></Text>
+                  <Text style={themedStyles.infoLabel}>Phone: <Text style={themedStyles.infoValue}>{user.phone || 'N/A'}</Text></Text>
+                  <Text style={themedStyles.infoLabel}>Credits: <Text style={themedStyles.infoValue}>{user.credits}</Text></Text>
+                  <Text style={themedStyles.infoLabel}>Device: <Text style={themedStyles.infoValue}>{user.device}</Text></Text>
+                  <Text style={themedStyles.infoLabel}>IP: <Text style={themedStyles.infoValue}>{user.ip}</Text></Text>
+                  <Text style={themedStyles.infoLabel}>Location: <Text style={themedStyles.infoValue}>{user.location}</Text></Text>
+                  <Text style={themedStyles.infoLabel}>Last Login: <Text style={themedStyles.infoValue}>
+                    {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}
+                  </Text></Text>
+                </View>
+
+                <View style={themedStyles.userActions}>
+                  <TouchableOpacity
+                    style={themedStyles.historyButton}
+                    onPress={() => {
+                      setSelectedUserForHistory(user);
+                      loadUserCreditHistory(user.id);
+                    }}
+                  >
+                    <Ionicons name="time-outline" size={16} color={colors.warning} />
+                    <Text style={themedStyles.historyButtonText}>Credit History</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={themedStyles.banButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Ban Options',
+                        `Choose ban action for ${user.username}:`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Ban Device',
+                            onPress: () => handleBanDevice(user.id, user.username, user.device || 'unknown', user.ip || 'unknown')
+                          },
+                          {
+                            text: 'Ban IP',
+                            onPress: () => handleBanIP(user.id, user.username, user.ip || 'unknown')
+                          }
+                        ]
+                      );
+                    }}
+                  >
+                    <Ionicons name="ban-outline" size={16} color={colors.error} />
+                    <Text style={themedStyles.banButtonText}>Ban User</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+
+            {selectedUserForHistory && (
+              <View style={themedStyles.historyModal}>
+                <View style={themedStyles.historyHeader}>
+                  <Text style={themedStyles.historyTitle}>Credit History - {selectedUserForHistory.username}</Text>
+                  <TouchableOpacity onPress={() => setSelectedUserForHistory(null)}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView style={themedStyles.historyList} contentContainerStyle={themedStyles.historyList}>
+                  {userCreditHistory.map((transaction, index) => (
+                    <View key={index} style={themedStyles.historyItem}>
+                      <Text style={themedStyles.historyAmount}>
+                        {transaction.type === 'receive' ? '+' : '-'}{transaction.amount}
+                      </Text>
+                      <Text style={themedStyles.historyType}>{transaction.type}</Text>
+                      <Text style={themedStyles.historyOther}>{transaction.otherParty}</Text>
+                      <Text style={themedStyles.historyDate}>
+                        {transaction.createdAt ? new Date(transaction.createdAt).toLocaleString() : 'Unknown'}
+                      </Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </ScrollView>
+        );
+
+      case 'ban-manage':
+        return (
+          <ScrollView style={themedStyles.banManageContainer} showsVerticalScrollIndicator={false}>
+            <View style={themedStyles.banManageHeader}>
+              <Text style={themedStyles.banManageTitle}>Ban Management System</Text>
+              <TouchableOpacity
+                style={themedStyles.refreshButton}
+                onPress={() => {
+                  loadBannedDevices();
+                  loadUserStatus();
+                }}
+                disabled={banLoading}
+              >
+                {banLoading ? (
+                  <ActivityIndicator size="small" color={colors.error} />
+                ) : (
+                  <Ionicons name="refresh" size={20} color={colors.error} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Current Device Info */}
+            <View style={themedStyles.currentDeviceSection}>
+              <Text style={themedStyles.sectionTitle}>Current Device Information</Text>
+              <View style={themedStyles.deviceInfoCard}>
+                <View style={themedStyles.deviceInfoRow}>
+                  <Ionicons name="phone-portrait-outline" size={16} color={colors.textSecondary} />
+                  <Text style={themedStyles.deviceInfoLabel}>Device:</Text>
+                  <Text style={themedStyles.deviceInfoValue}>{deviceInfo.brand} {deviceInfo.modelName}</Text>
+                </View>
+                <View style={themedStyles.deviceInfoRow}>
+                  <Ionicons name="hardware-chip-outline" size={16} color={colors.textSecondary} />
+                  <Text style={themedStyles.deviceInfoLabel}>Type:</Text>
+                  <Text style={themedStyles.deviceInfoValue}>{deviceInfo.deviceType}</Text>
+                </View>
+                <View style={themedStyles.deviceInfoRow}>
+                  <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
+                  <Text style={themedStyles.deviceInfoLabel}>User:</Text>
+                  <Text style={themedStyles.deviceInfoValue}>{user?.username}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Active Users with Device Info */}
+            <View style={themedStyles.activeUsersSection}>
+              <Text style={themedStyles.sectionTitle}>Active Users</Text>
+              {userStatusList.map((userItem, index) => (
+                <View key={`active-user-${userItem.id}-${index}`} style={themedStyles.deviceInfoCard}>
+                  <View style={themedStyles.userDeviceHeader}>
+                    <View style={themedStyles.userBasicInfo}>
+                      <Text style={themedStyles.userDeviceName}>{userItem.username}</Text>
+                      <View style={[themedStyles.statusBadge, { backgroundColor: userItem.status === 'online' ? colors.success : colors.textSecondary }]}>
+                        <Text style={themedStyles.statusBadgeText}>{userItem.status}</Text>
+                      </View>
+                    </View>
+                    <Text style={themedStyles.userRole}>{userItem.role}</Text>
+                  </View>
+
+                  <View style={themedStyles.deviceDetailInfo}>
+                    <View style={themedStyles.deviceInfoRow}>
+                      <Ionicons name="phone-portrait-outline" size={16} color={colors.textSecondary} />
+                      <Text style={themedStyles.deviceInfoLabel}>Device:</Text>
+                      <Text style={themedStyles.deviceInfoValue}>{userItem.device || 'Unknown'}</Text>
+                    </View>
+
+                    <View style={themedStyles.deviceInfoRow}>
+                      <Ionicons name="globe-outline" size={16} color={colors.textSecondary} />
+                      <Text style={themedStyles.deviceInfoLabel}>IP Address:</Text>
+                      <Text style={themedStyles.deviceInfoValue}>{userItem.ip || 'Unknown'}</Text>
+                    </View>
+
+                    <View style={themedStyles.deviceInfoRow}>
+                      <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
+                      <Text style={themedStyles.deviceInfoLabel}>Location:</Text>
+                      <Text style={themedStyles.deviceInfoValue}>{userItem.location || 'Unknown'}</Text>
+                    </View>
+
+                    <View style={themedStyles.deviceInfoRow}>
+                      <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                      <Text style={themedStyles.deviceInfoLabel}>Last Login:</Text>
+                      <Text style={themedStyles.deviceInfoValue}>
+                        {userItem.lastLogin ? new Date(userItem.lastLogin).toLocaleString() : 'Never'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={themedStyles.banActions}>
+                    <TouchableOpacity
+                      style={[themedStyles.banActionButton, themedStyles.banDeviceButton]}
+                      onPress={() => handleBanDevice(userItem.id, userItem.username, userItem.device || `${userItem.username}_device`, userItem.ip || 'unknown')}
+                      disabled={banLoading}
+                    >
+                      <Ionicons name="phone-portrait" size={16} color={colors.badgeTextLight} />
+                      <Text style={themedStyles.banActionText}>Ban Device</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[themedStyles.banActionButton, themedStyles.banIpButton]}
+                      onPress={() => handleBanIP(userItem.id, userItem.username, userItem.ip || 'unknown')}
+                      disabled={banLoading}
+                    >
+                      <Ionicons name="shield-outline" size={16} color={colors.badgeTextLight} />
+                      <Text style={themedStyles.banActionText}>Ban IP</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Banned Devices and IPs List */}
+            <View style={themedStyles.bannedListSection}>
+              <Text style={themedStyles.sectionTitle}>Banned Devices & IPs</Text>
+
+              {bannedDevicesList.map((banned, index) => (
+                <View key={banned.id || index} style={themedStyles.bannedItemCard}>
+                  <View style={themedStyles.bannedItemHeader}>
+                    <View style={themedStyles.bannedItemInfo}>
+                      <Text style={themedStyles.bannedUsername}>User ID: {banned.userId}</Text>
+                      <Text style={themedStyles.bannedType}>{banned.type.toUpperCase()} Ban</Text>
+                    </View>
+                    <Text style={themedStyles.bannedDate}>
+                      {banned.bannedAt ? new Date(banned.bannedAt).toLocaleDateString() : 'Unknown'}
+                    </Text>
+                  </View>
+
+                  <View style={themedStyles.bannedDetails}>
+                    <Text style={themedStyles.bannedDetailText}>
+                      <Text style={themedStyles.bannedDetailLabel}>Target:</Text> {banned.target}
+                    </Text>
+                    <Text style={themedStyles.bannedDetailText}>
+                      <Text style={themedStyles.bannedDetailLabel}>Reason:</Text> {banned.reason || 'No reason provided'}
+                    </Text>
+                    <Text style={themedStyles.bannedDetailText}>
+                      <Text style={themedStyles.bannedDetailLabel}>Banned By:</Text> {banned.bannedBy}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={themedStyles.unbanButton}
+                    onPress={() => handleUnban(banned.id, banned.type, banned.target)}
+                    disabled={banLoading}
+                  >
+                    <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                    <Text style={themedStyles.unbanButtonText}>Unban</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              {bannedDevicesList.length === 0 && !banLoading && (
+                <View style={themedStyles.emptyBannedList}>
+                  <Ionicons name="shield-checkmark" size={40} color={colors.textSecondary} />
+                  <Text style={themedStyles.emptyBannedText}>No banned devices or IPs</Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        );
+
+      case 'support-tickets':
+        return (
+          <ScrollView style={themedStyles.ticketsContainer} showsVerticalScrollIndicator={false}>
+            {/* Stats Cards */}
+            {ticketStats && (
+              <View style={themedStyles.ticketStatsRow}>
+                <View style={[themedStyles.statCard, { borderLeftColor: colors.success }]}>
+                  <Text style={themedStyles.statNumber}>{ticketStats.open_count || 0}</Text>
+                  <Text style={themedStyles.statLabel}>Open</Text>
+                </View>
+                <View style={[themedStyles.statCard, { borderLeftColor: colors.warning }]}>
+                  <Text style={themedStyles.statNumber}>{ticketStats.in_progress_count || 0}</Text>
+                  <Text style={themedStyles.statLabel}>In Progress</Text>
+                </View>
+                <View style={[themedStyles.statCard, { borderLeftColor: colors.info }]}>
+                  <Text style={themedStyles.statNumber}>{ticketStats.resolved_count || 0}</Text>
+                  <Text style={themedStyles.statLabel}>Resolved</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Filter Buttons */}
+            <View style={themedStyles.filterButtonsRow}>
+              <TouchableOpacity
+                style={[themedStyles.filterButton, ticketStatusFilter === 'all' && themedStyles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('all')}
+              >
+                <Text style={[themedStyles.filterButtonText, ticketStatusFilter === 'all' && themedStyles.filterButtonTextActive]}>
+                  Semua
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[themedStyles.filterButton, ticketStatusFilter === 'open' && themedStyles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('open')}
+              >
+                <Text style={[themedStyles.filterButtonText, ticketStatusFilter === 'open' && themedStyles.filterButtonTextActive]}>
+                  Open
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[themedStyles.filterButton, ticketStatusFilter === 'in_progress' && themedStyles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('in_progress')}
+              >
+                <Text style={[themedStyles.filterButtonText, ticketStatusFilter === 'in_progress' && themedStyles.filterButtonTextActive]}>
+                  In Progress
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[themedStyles.filterButton, ticketStatusFilter === 'resolved' && themedStyles.filterButtonActive]}
+                onPress={() => setTicketStatusFilter('resolved')}
+              >
+                <Text style={[themedStyles.filterButtonText, ticketStatusFilter === 'resolved' && themedStyles.filterButtonTextActive]}>
+                  Resolved
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Tickets List */}
+            {ticketsLoading ? (
+              <ActivityIndicator size="large" color={colors.info} style={{ marginTop: 20 }} />
+            ) : tickets.length === 0 ? (
+              <View style={themedStyles.emptyContainer}>
+                <Ionicons name="mail-outline" size={60} color={colors.textSecondary} />
+                <Text style={themedStyles.emptyTitle}>No Tickets</Text>
+                <Text style={themedStyles.emptySubtitle}>Tidak ada tiket support untuk filter ini</Text>
+              </View>
+            ) : (
+              tickets.map((ticket: any) => (
+                <TouchableOpacity
+                  key={ticket.id}
+                  style={themedStyles.ticketCard}
+                  onPress={() => openTicketDetail(ticket)}
+                >
+                  <View style={themedStyles.ticketHeader}>
+                    <View style={themedStyles.ticketTitleRow}>
+                      <Ionicons name="ticket-outline" size={18} color={colors.info} />
+                      <Text style={themedStyles.ticketSubject} numberOfLines={1}>{ticket.subject}</Text>
+                    </View>
+                    <View style={[themedStyles.ticketStatusBadge, { backgroundColor: getTicketStatusColor(ticket.status) }]}>
+                      <Text style={themedStyles.ticketStatusText}>{ticket.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={themedStyles.ticketDescription} numberOfLines={2}>{ticket.description}</Text>
+                  <View style={themedStyles.ticketFooter}>
+                    <Text style={themedStyles.ticketUsername}>
+                      <Ionicons name="person-outline" size={12} /> {ticket.username}
+                    </Text>
+                    <Text style={themedStyles.ticketDate}>
+                      {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString() : 'Unknown'}
+                    </Text>
+                  </View>
+                  {ticket.messageCount > 0 && (
+                    <View style={themedStyles.ticketMessageCount}>
+                      <Ionicons name="chatbubble-outline" size={12} color={colors.textSecondary} />
+                      <Text style={themedStyles.ticketMessageCountText}>{ticket.messageCount} pesan</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+
+            {/* Ticket Detail Modal */}
+            <Modal
+              visible={showTicketDetailModal}
+              animationType="slide"
+              transparent={false}
+              onRequestClose={() => {
+                setShowTicketDetailModal(false);
+                setSelectedTicket(null);
+                setTicketMessages([]);
+                setTicketReply('');
+              }}
+            >
+              <SafeAreaView style={themedStyles.modalContainer}>
+                <View style={themedStyles.modalHeader}>
+                  <TouchableOpacity onPress={() => {
+                    setShowTicketDetailModal(false);
+                    setSelectedTicket(null);
+                    setTicketMessages([]);
+                    setTicketReply('');
+                  }}>
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                  <Text style={themedStyles.modalTitle}>Detail Tiket</Text>
+                  <View style={{ width: 24 }} />
+                </View>
+
+                {selectedTicket && (
+                  <ScrollView style={themedStyles.ticketDetailContainer}>
+                    {/* Ticket Info */}
+                    <View style={themedStyles.ticketDetailCard}>
+                      <Text style={themedStyles.ticketDetailSubject}>{selectedTicket.subject}</Text>
+                      <Text style={themedStyles.ticketDetailDescription}>{selectedTicket.description}</Text>
+                      <View style={themedStyles.ticketDetailMeta}>
+                        <Text style={themedStyles.ticketDetailMetaText}>
+                          User: <Text style={{ fontWeight: '600' }}>{selectedTicket.username}</Text>
+                        </Text>
+                        <Text style={themedStyles.ticketDetailMetaText}>
+                          Category: <Text style={{ fontWeight: '600' }}>{selectedTicket.category}</Text>
+                        </Text>
+                        <Text style={themedStyles.ticketDetailMetaText}>
+                          Priority: <Text style={{ fontWeight: '600' }}>{selectedTicket.priority}</Text>
+                        </Text>
+                        <Text style={themedStyles.ticketDetailMetaText}>
+                          Created: <Text style={{ fontWeight: '600' }}>
+                            {selectedTicket.createdAt ? new Date(selectedTicket.createdAt).toLocaleString() : 'Unknown'}
+                          </Text>
+                        </Text>
+                      </View>
+
+                      {/* Status Actions */}
+                      <View style={themedStyles.statusActionsRow}>
+                        <TouchableOpacity
+                          style={[themedStyles.statusActionButton, selectedTicket.status === 'in_progress' && themedStyles.statusActionButtonActive]}
+                          onPress={() => handleUpdateTicketStatus(selectedTicket.id, 'in_progress')}
+                          disabled={selectedTicket.status === 'in_progress'}
+                        >
+                          <Text style={themedStyles.statusActionButtonText}>In Progress</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[themedStyles.statusActionButton, selectedTicket.status === 'resolved' && themedStyles.statusActionButtonActive]}
+                          onPress={() => handleUpdateTicketStatus(selectedTicket.id, 'resolved')}
+                          disabled={selectedTicket.status === 'resolved'}
+                        >
+                          <Text style={themedStyles.statusActionButtonText}>Resolved</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[themedStyles.statusActionButton, selectedTicket.status === 'closed' && themedStyles.statusActionButtonActive]}
+                          onPress={() => handleUpdateTicketStatus(selectedTicket.id, 'closed')}
+                          disabled={selectedTicket.status === 'closed'}
+                        >
+                          <Text style={themedStyles.statusActionButtonText}>Close</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    {/* Messages */}
+                    <Text style={themedStyles.messagesTitle}>Percakapan</Text>
+                    {ticketMessages.map((msg: any) => (
+                      <View
+                        key={msg.id}
+                        style={[
+                          themedStyles.messageCard,
+                          msg.isAdmin && themedStyles.adminMessageCard
+                        ]}
+                      >
+                        <View style={themedStyles.messageHeader}>
+                          <Text style={[themedStyles.messageSender, msg.isAdmin && themedStyles.adminMessageSender]}>
+                            {msg.username} {msg.isAdmin && '(Admin)'}
+                          </Text>
+                          <Text style={themedStyles.messageTime}>
+                            {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : 'Unknown'}
+                          </Text>
+                        </View>
+                        <Text style={themedStyles.messageText}>{msg.message}</Text>
+                      </View>
+                    ))}
+
+                    {/* Reply Input */}
+                    <View style={themedStyles.replySection}>
+                      <Text style={themedStyles.replyTitle}>Balas Tiket</Text>
+                      <TextInput
+                        style={themedStyles.replyInput}
+                        value={ticketReply}
+                        onChangeText={setTicketReply}
+                        placeholder="Tulis balasan Anda..."
+                        placeholderTextColor="#999"
+                        multiline
+                        numberOfLines={4}
+                      />
+                      <TouchableOpacity
+                        style={themedStyles.replyButton}
+                        onPress={handleReplyToTicket}
+                        disabled={!ticketReply.trim()}
+                      >
+                        <Ionicons name="send" size={20} color={colors.badgeTextLight} />
+                        <Text style={themedStyles.replyButtonText}>Kirim Balasan</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </ScrollView>
+                )}
+              </SafeAreaView>
+            </Modal>
+          </ScrollView>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  const getTicketStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return colors.success;
+      case 'in_progress': return colors.warning;
+      case 'resolved': return colors.info;
+      case 'closed': return colors.textSecondary;
+      default: return colors.textSecondary;
+    }
+  };
+
+  if (user?.role !== 'admin') {
+    return (
+      <SafeAreaView style={themedStyles.container}>
+        <View style={themedStyles.unauthorizedContainer}>
+          <Ionicons name="shield-outline" size={80} color={colors.textSecondary} />
+          <Text style={themedStyles.unauthorizedTitle}>Access Denied</Text>
+          <Text style={themedStyles.unauthorizedSubtitle}>You need admin privileges to access this page</Text>
+          <TouchableOpacity
+            style={themedStyles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={themedStyles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={themedStyles.container}>
+      {/* Header */}
+      <LinearGradient
+        colors={['#FF6B35', '#F7931E']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={themedStyles.header}
+      >
+        <View style={themedStyles.headerContent}>
+          <TouchableOpacity onPress={toggleSideMenu} style={themedStyles.menuButton}>
+            <Ionicons name="menu" size={24} color={colors.badgeTextLight} />
+          </TouchableOpacity>
+          <Text style={themedStyles.headerTitle}>{getActiveMenuTitle()}</Text>
+          <TouchableOpacity
+            style={themedStyles.addButton}
+            onPress={() => setShowAddModal(true)}
+          >
+            <Ionicons name="add" size={24} color={colors.badgeTextLight} />
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+
+      {/* Main Content */}
+      <View style={themedStyles.content}>
+        {renderContent()}
+      </View>
+
+      {/* Side Menu */}
+      <Animated.View
+        style={[
+          themedStyles.sideMenu,
+          {
+            transform: [{ translateX: slideAnim }]
+          }
+        ]}
+      >
+        <LinearGradient
+          colors={['#667eea', '#764ba2']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={themedStyles.sideMenuHeader}
+        >
+          <View style={themedStyles.sideMenuProfile}>
+            <View style={themedStyles.adminAvatar}>
+              <Ionicons name="shield-checkmark" size={30} color={colors.badgeTextLight} />
+            </View>
+            <Text style={themedStyles.adminName}>{user?.username}</Text>
+            <Text style={themedStyles.adminRole}>Administrator</Text>
+          </View>
+          <TouchableOpacity
+            style={themedStyles.closeMenuButton}
+            onPress={toggleSideMenu}
+          >
+            <Ionicons name="close" size={24} color={colors.badgeTextLight} />
+          </TouchableOpacity>
+        </LinearGradient>
+
+        <ScrollView style={themedStyles.sideMenuContent} contentContainerStyle={themedStyles.sideMenuScrollContent} showsVerticalScrollIndicator={false}>
+          {menuItems.map((item) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[
+                themedStyles.menuItem,
+                activeTab === item.id && themedStyles.activeMenuItem
+              ]}
+              onPress={() => selectMenuItem(item.id)}
+            >
+              <View style={[themedStyles.menuItemIcon, { backgroundColor: item.color }]}>
+                <Ionicons name={item.icon as any} size={20} color={colors.badgeTextLight} />
+              </View>
+              <View style={themedStyles.menuItemText}>
+                <Text style={[
+                  themedStyles.menuItemTitle,
+                  activeTab === item.id && themedStyles.activeMenuItemTitle
+                ]}>
+                  {item.title}
+                </Text>
+                <Text style={themedStyles.menuItemDescription}>{item.description}</Text>
+              </View>
+              {activeTab === item.id && (
+                <View style={themedStyles.activeMenuIndicator} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <View style={themedStyles.sideMenuFooter}>
+          <TouchableOpacity
+            style={themedStyles.logoutButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={20} color={colors.textSecondary} />
+            <Text style={themedStyles.logoutButtonText}>Kembali</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* Overlay */}
+      {showSideMenu && (
+        <TouchableOpacity
+          style={themedStyles.overlay}
+          onPress={toggleSideMenu}
+          activeOpacity={1}
+        />
+      )}
+
+      {/* Add Item Modal */}
+      <Modal
+        visible={showAddModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <View style={themedStyles.modalOverlay}>
+          <View style={themedStyles.modalContainer}>
+            <View style={themedStyles.modalHeader}>
+              <Text style={themedStyles.modalTitle}>
+                Add Gift
+              </Text>
+              <TouchableOpacity onPress={() => setShowAddModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={themedStyles.modalContent} contentContainerStyle={themedStyles.modalContent}>
+              <View style={themedStyles.inputGroup}>
+                <Text style={themedStyles.inputLabel}>Name</Text>
+                <TextInput
+                  style={themedStyles.textInput}
+                  value={itemName}
+                  onChangeText={setItemName}
+                  placeholder={`Enter ${activeTab} name`}
+                />
+              </View>
+
+              <View style={themedStyles.inputGroup}>
+                    <Text style={themedStyles.inputLabel}>Upload Gift Image/Video</Text>
+                    <Text style={themedStyles.inputSubLabel}>Supports PNG, GIF, JPG, WebM files</Text>
+                    <TouchableOpacity
+                      style={themedStyles.uploadButton}
+                      onPress={handleGiftImageUpload}
+                    >
+                      <Ionicons name="image" size={24} color={colors.warning} />
+                      <Text style={themedStyles.uploadButtonText}>
+                        {uploadedGiftImage ? uploadedGiftImage.name : 'UPLOAD GIFT MEDIA'}
+                      </Text>
+                    </TouchableOpacity>
+                    {uploadedGiftImage && (
+                      <View style={themedStyles.previewContainer}>
+                        <Image source={{ uri: uploadedGiftImage.uri }} style={themedStyles.giftImagePreview} />
+                        <TouchableOpacity
+                          style={themedStyles.removeFileButton}
+                          onPress={() => setUploadedGiftImage(null)}
+                        >
+                          <Ionicons name="close-circle" size={20} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={themedStyles.inputGroup}>
+                    <Text style={themedStyles.inputLabel}>Icon (Fallback)</Text>
+                    <TextInput
+                      style={themedStyles.textInput}
+                      value={itemIcon}
+                      onChangeText={setItemIcon}
+                      placeholder="🎁"
+                    />
+                  </View>
+
+                  <View style={themedStyles.inputGroup}>
+                    <Text style={themedStyles.inputLabel}>Category</Text>
+                    <Text style={themedStyles.inputSubLabel}>Categories except "lucky" will be shown</Text>
+                    <TextInput
+                      style={themedStyles.textInput}
+                      value={itemCategory}
+                      onChangeText={setItemCategory}
+                      placeholder="popular, bangsa, set kostum, tas saya"
+                    />
+                  </View>
+
+                  <View style={themedStyles.inputGroup}>
+                    <Text style={themedStyles.inputLabel}>Price (Credits)</Text>
+                    <TextInput
+                      style={themedStyles.textInput}
+                      value={itemPrice}
+                      onChangeText={setItemPrice}
+                      placeholder="100"
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  <View style={themedStyles.inputGroup}>
+                    <Text style={themedStyles.inputLabel}>Animation File (Optional)</Text>
+                    <TouchableOpacity
+                      style={themedStyles.fileUploadButton}
+                      onPress={handleFileUpload}
+                    >
+                      <Ionicons name="cloud-upload-outline" size={20} color={colors.textSecondary} />
+                      <Text style={themedStyles.fileUploadText}>
+                        {selectedFile ? selectedFile.name : 'Upload GIF/JSON/Lottie'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+            </ScrollView>
+
+            <View style={themedStyles.modalActions}>
+              <TouchableOpacity
+                style={[themedStyles.actionButton, themedStyles.cancelButton]}
+                onPress={() => setShowAddModal(false)}
+              >
+                <Text style={themedStyles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[themedStyles.actionButton, themedStyles.saveButton]}
+                onPress={handleAddItem}
+                disabled={loading}
+              >
+                <Text style={themedStyles.saveButtonText}>
+                  {loading ? 'Adding...' : 'Add'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Gift Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={themedStyles.modalOverlay}>
+          <View style={themedStyles.editModal}>
+            <View style={themedStyles.editModalHeader}>
+              <Text style={themedStyles.editModalTitle}>Edit Gift</Text>
+              <TouchableOpacity
+                style={themedStyles.editModalCloseButton}
+                onPress={() => setShowEditModal(false)}
+              >
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={themedStyles.editModalContent}>
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Nama Gift</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={editGiftName}
+                  onChangeText={setEditGiftName}
+                  placeholder="Masukkan nama gift..."
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={themedStyles.formGroup}>
+                <Text style={themedStyles.formLabel}>Harga Gift (Credits)</Text>
+                <TextInput
+                  style={themedStyles.formInput}
+                  value={editGiftPrice}
+                  onChangeText={setEditGiftPrice}
+                  placeholder="Masukkan harga..."
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={themedStyles.editModalActions}>
+                <TouchableOpacity
+                  style={themedStyles.editModalCancelButton}
+                  onPress={() => setShowEditModal(false)}
+                >
+                  <Text style={themedStyles.editModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={themedStyles.editModalDeleteButton}
+                  onPress={() => {
+                    setShowEditModal(false);
+                    if (editingGift) {
+                      handleDeleteItem(editingGift.id, 'gift');
+                    }
+                  }}
+                >
+                  <Text style={themedStyles.editModalDeleteText}>Delete</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={themedStyles.editModalSaveButton}
+                  onPress={handleUpdateGift}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color={colors.badgeTextLight} />
+                  ) : (
+                    <Text style={themedStyles.editModalSaveText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}

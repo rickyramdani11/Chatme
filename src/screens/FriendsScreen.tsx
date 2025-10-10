@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
+import { useTheme } from '../contexts/ThemeContext';
 
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
@@ -36,6 +37,7 @@ interface Friend {
 export default function FriendsScreen() {
   const { user, token: authToken } = useAuth();
   const navigation = useNavigation();
+  const { colors, isDarkMode } = useTheme();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -44,18 +46,20 @@ export default function FriendsScreen() {
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilterType>('all');
 
+  const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
+
   const getStatusColor = (status: StatusType): string => {
     switch (status) {
-      case 'online': return '#4CAF50';
-      case 'away': return '#FF9800';
-      case 'busy': return '#F44336';
-      case 'offline': return '#9E9E9E';
-      default: return '#9E9E9E';
+      case 'online': return colors.success;
+      case 'away': return colors.warning;
+      case 'busy': return colors.error;
+      case 'offline': return colors.textSecondary;
+      default: return colors.textSecondary;
     }
   };
 
   const getRandomAvatarColor = (name: string) => {
-    const colors = [
+    const avatarColors = [
       '#FF6B6B', // Red
       '#4ECDC4', // Teal
       '#45B7D1', // Blue
@@ -70,19 +74,18 @@ export default function FriendsScreen() {
       '#F8C471'  // Orange
     ];
     
-    // Use first character to determine color consistently
     const firstChar = name?.charAt(0).toUpperCase() || 'A';
-    const index = firstChar.charCodeAt(0) % colors.length;
-    return colors[index];
+    const index = firstChar.charCodeAt(0) % avatarColors.length;
+    return avatarColors[index];
   };
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'admin': return '#FF6B35'; // Orange untuk admin
-      case 'mentor': return '#9C27B0'; // Purple untuk mentor  
-      case 'merchant': return '#FF9800'; // Amber untuk merchant
+      case 'admin': return colors.error;
+      case 'mentor': return colors.primary;
+      case 'merchant': return colors.warning;
       case 'user':
-      default: return '#333'; // Dark untuk user biasa
+      default: return colors.text;
     }
   };
 
@@ -427,56 +430,56 @@ export default function FriendsScreen() {
   });
 
   const renderFriend = (friend: Friend) => (
-    <View key={friend.id} style={styles.friendCard}>
+    <View key={friend.id} style={themedStyles.friendCard}>
       <TouchableOpacity 
-        style={styles.friendInfo}
+        style={themedStyles.friendInfo}
         onPress={() => handleFriendPress(friend)}
         activeOpacity={0.7}
       >
-        <View style={styles.friendAvatarContainer}>
+        <View style={themedStyles.friendAvatarContainer}>
           {friend.avatar ? (
             <Image 
               source={{ uri: friend.avatar }} 
-              style={styles.friendAvatar}
+              style={themedStyles.friendAvatar}
               onError={() => console.log('Failed to load avatar:', friend.avatar)}
             />
           ) : (
-            <View style={[styles.friendAvatar, { backgroundColor: getRandomAvatarColor(friend.name || friend.username) }]}>
-              <Text style={styles.friendAvatarText}>
+            <View style={[themedStyles.friendAvatar, { backgroundColor: getRandomAvatarColor(friend.name || friend.username) }]}>
+              <Text style={themedStyles.friendAvatarText}>
                 {friend.name?.charAt(0).toUpperCase() || friend.username?.charAt(0).toUpperCase() || 'U'}
               </Text>
             </View>
           )}
-          <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(friend.status) }]} />
+          <View style={[themedStyles.statusIndicator, { backgroundColor: getStatusColor(friend.status) }]} />
         </View>
-        <View style={styles.friendDetails}>
-          <Text style={[styles.friendName, { color: getRoleColor(friend.role || 'user') }]}>{friend.name}</Text>
-          <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
+        <View style={themedStyles.friendDetails}>
+          <Text style={[themedStyles.friendName, { color: getRoleColor(friend.role || 'user') }]}>{friend.name}</Text>
+          <Text style={themedStyles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
         </View>
       </TouchableOpacity>
       
-      <View style={styles.actionButtons}>
+      <View style={themedStyles.actionButtons}>
         {searchText.length >= 2 ? (
           <>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={themedStyles.actionButton}
               onPress={() => addFriend(friend.id, friend.name)}
             >
-              <Ionicons name="person-add" size={20} color="#4CAF50" />
+              <Ionicons name="person-add" size={20} color={colors.success} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionButton}
+              style={themedStyles.actionButton}
               onPress={() => startChat(friend.id, friend.name)}
             >
-              <Ionicons name="chatbubble" size={20} color="#2196F3" />
+              <Ionicons name="chatbubble" size={20} color={colors.info} />
             </TouchableOpacity>
           </>
         ) : (
           <TouchableOpacity
-            style={styles.actionButton}
+            style={themedStyles.actionButton}
             onPress={() => startChat(friend.id, friend.name)}
           >
-            <Ionicons name="chatbubble" size={20} color="#2196F3" />
+            <Ionicons name="chatbubble" size={20} color={colors.info} />
           </TouchableOpacity>
         )}
       </View>
@@ -484,69 +487,69 @@ export default function FriendsScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={themedStyles.container}>
       {/* Header */}
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
+        colors={isDarkMode ? [colors.primary, colors.primary] : ['#667eea', '#764ba2']}
+        style={themedStyles.header}
       >
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Friends</Text>
-          <Text style={styles.headerSubtitle}>Connect with your friends</Text>
+        <View style={themedStyles.headerContent}>
+          <Text style={themedStyles.headerTitle}>Friends</Text>
+          <Text style={themedStyles.headerSubtitle}>Connect with your friends</Text>
         </View>
         
         {/* Status Filter Tabs */}
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
-          style={styles.statusFilterContainer}
-          contentContainerStyle={styles.statusFilterContent}
+          style={themedStyles.statusFilterContainer}
+          contentContainerStyle={themedStyles.statusFilterContent}
         >
           <TouchableOpacity
-            style={[styles.statusFilterTab, statusFilter === 'all' && styles.statusFilterTabActive]}
+            style={[themedStyles.statusFilterTab, statusFilter === 'all' && themedStyles.statusFilterTabActive]}
             onPress={() => setStatusFilter('all')}
           >
-            <Text style={[styles.statusFilterText, statusFilter === 'all' && styles.statusFilterTextActive]}>
+            <Text style={[themedStyles.statusFilterText, statusFilter === 'all' && themedStyles.statusFilterTextActive]}>
               All
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[styles.statusFilterTab, statusFilter === 'online' && styles.statusFilterTabActive]}
+            style={[themedStyles.statusFilterTab, statusFilter === 'online' && themedStyles.statusFilterTabActive]}
             onPress={() => setStatusFilter('online')}
           >
-            <View style={[styles.statusFilterDot, { backgroundColor: '#4CAF50' }]} />
-            <Text style={[styles.statusFilterText, statusFilter === 'online' && styles.statusFilterTextActive]}>
+            <View style={[themedStyles.statusFilterDot, { backgroundColor: colors.success }]} />
+            <Text style={[themedStyles.statusFilterText, statusFilter === 'online' && themedStyles.statusFilterTextActive]}>
               Online
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[styles.statusFilterTab, statusFilter === 'offline' && styles.statusFilterTabActive]}
+            style={[themedStyles.statusFilterTab, statusFilter === 'offline' && themedStyles.statusFilterTabActive]}
             onPress={() => setStatusFilter('offline')}
           >
-            <View style={[styles.statusFilterDot, { backgroundColor: '#9E9E9E' }]} />
-            <Text style={[styles.statusFilterText, statusFilter === 'offline' && styles.statusFilterTextActive]}>
+            <View style={[themedStyles.statusFilterDot, { backgroundColor: colors.textSecondary }]} />
+            <Text style={[themedStyles.statusFilterText, statusFilter === 'offline' && themedStyles.statusFilterTextActive]}>
               Offline
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[styles.statusFilterTab, statusFilter === 'away' && styles.statusFilterTabActive]}
+            style={[themedStyles.statusFilterTab, statusFilter === 'away' && themedStyles.statusFilterTabActive]}
             onPress={() => setStatusFilter('away')}
           >
-            <View style={[styles.statusFilterDot, { backgroundColor: '#FF9800' }]} />
-            <Text style={[styles.statusFilterText, statusFilter === 'away' && styles.statusFilterTextActive]}>
+            <View style={[themedStyles.statusFilterDot, { backgroundColor: colors.warning }]} />
+            <Text style={[themedStyles.statusFilterText, statusFilter === 'away' && themedStyles.statusFilterTextActive]}>
               Away
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[styles.statusFilterTab, statusFilter === 'busy' && styles.statusFilterTabActive]}
+            style={[themedStyles.statusFilterTab, statusFilter === 'busy' && themedStyles.statusFilterTabActive]}
             onPress={() => setStatusFilter('busy')}
           >
-            <View style={[styles.statusFilterDot, { backgroundColor: '#F44336' }]} />
-            <Text style={[styles.statusFilterText, statusFilter === 'busy' && styles.statusFilterTextActive]}>
+            <View style={[themedStyles.statusFilterDot, { backgroundColor: colors.error }]} />
+            <Text style={[themedStyles.statusFilterText, statusFilter === 'busy' && themedStyles.statusFilterTextActive]}>
               Busy
             </Text>
           </TouchableOpacity>
@@ -554,41 +557,41 @@ export default function FriendsScreen() {
       </LinearGradient>
 
       {/* Search */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+      <View style={themedStyles.searchContainer}>
+        <Ionicons name="search" size={20} color={colors.iconDefault} style={themedStyles.searchIcon} />
         <TextInput
-          style={styles.searchInput}
+          style={themedStyles.searchInput}
           placeholder="Search friends or users..."
           value={searchText}
           onChangeText={setSearchText}
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.textSecondary}
         />
         {searchText.length >= 2 && (
-          <View style={styles.searchTypeIndicator}>
-            <Text style={styles.searchTypeText}>USERS</Text>
+          <View style={themedStyles.searchTypeIndicator}>
+            <Text style={themedStyles.searchTypeText}>USERS</Text>
           </View>
         )}
       </View>
 
       {/* Friends List */}
       <ScrollView
-        style={styles.friendsList}
+        style={themedStyles.friendsList}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
         {loading && friends.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#667eea" />
-            <Text style={styles.loadingText}>Loading friends...</Text>
+          <View style={themedStyles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={themedStyles.loadingText}>Loading friends...</Text>
           </View>
         ) : filteredFriends.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={60} color="#ccc" />
-            <Text style={styles.emptyTitle}>
+          <View style={themedStyles.emptyContainer}>
+            <Ionicons name="people-outline" size={60} color={colors.textSecondary} />
+            <Text style={themedStyles.emptyTitle}>
               {searchText.length >= 2 ? 'No Users Found' : statusFilter !== 'all' ? `No ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Friends` : 'No Friends Found'}
             </Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={themedStyles.emptySubtitle}>
               {searchText.length >= 2
                 ? 'No users match your search term'
                 : searchText.length === 1
@@ -611,62 +614,62 @@ export default function FriendsScreen() {
         onRequestClose={() => setShowFriendMenu(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={themedStyles.modalOverlay}
           activeOpacity={1}
           onPress={() => setShowFriendMenu(false)}
         >
-          <View style={styles.friendContextMenu}>
-            <View style={styles.friendMenuHeader}>
-              <View style={[styles.friendMenuAvatar, { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username) : '#9E9E9E' }]}>
+          <View style={themedStyles.friendContextMenu}>
+            <View style={themedStyles.friendMenuHeader}>
+              <View style={[themedStyles.friendMenuAvatar, { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username) : colors.textSecondary }]}>
                 {selectedFriend?.avatar ? (
-                  <Image source={{ uri: selectedFriend.avatar }} style={styles.friendMenuAvatarImage} />
+                  <Image source={{ uri: selectedFriend.avatar }} style={themedStyles.friendMenuAvatarImage} />
                 ) : (
-                  <Text style={styles.friendMenuAvatarText}>
+                  <Text style={themedStyles.friendMenuAvatarText}>
                     {selectedFriend?.name?.charAt(0).toUpperCase() || selectedFriend?.username?.charAt(0).toUpperCase() || 'U'}
                   </Text>
                 )}
               </View>
-              <Text style={styles.friendMenuName}>{selectedFriend?.name}</Text>
+              <Text style={themedStyles.friendMenuName}>{selectedFriend?.name}</Text>
             </View>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={themedStyles.friendMenuItem}
               onPress={handleStartChat}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#2196F3" />
-              <Text style={styles.friendMenuText}>Chat</Text>
+              <Ionicons name="chatbubble-outline" size={20} color={colors.info} />
+              <Text style={themedStyles.friendMenuText}>Chat</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={themedStyles.friendMenuItem}
               onPress={handleViewProfile}
             >
-              <Ionicons name="person-outline" size={20} color="#333" />
-              <Text style={styles.friendMenuText}>Profile</Text>
+              <Ionicons name="person-outline" size={20} color={colors.text} />
+              <Text style={themedStyles.friendMenuText}>Profile</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={themedStyles.friendMenuItem}
               onPress={handleBlockUser}
             >
-              <Ionicons name="ban-outline" size={20} color="#FF9800" />
-              <Text style={[styles.friendMenuText, { color: '#FF9800' }]}>Block</Text>
+              <Ionicons name="ban-outline" size={20} color={colors.warning} />
+              <Text style={[themedStyles.friendMenuText, { color: colors.warning }]}>Block</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={themedStyles.friendMenuItem}
               onPress={handleReportUser}
             >
-              <Ionicons name="flag-outline" size={20} color="#F44336" />
-              <Text style={[styles.friendMenuText, { color: '#F44336' }]}>Report</Text>
+              <Ionicons name="flag-outline" size={20} color={colors.error} />
+              <Text style={[themedStyles.friendMenuText, { color: colors.error }]}>Report</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.friendMenuItem, styles.lastFriendMenuItem]}
+              style={[themedStyles.friendMenuItem, themedStyles.lastFriendMenuItem]}
               onPress={handleSendCredit}
             >
-              <Ionicons name="wallet-outline" size={20} color="#4CAF50" />
-              <Text style={[styles.friendMenuText, { color: '#4CAF50' }]}>Send Credit</Text>
+              <Ionicons name="wallet-outline" size={20} color={colors.success} />
+              <Text style={[themedStyles.friendMenuText, { color: colors.success }]}>Send Credit</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -675,10 +678,10 @@ export default function FriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   header: {
     paddingTop: 50,
@@ -686,11 +689,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   headerContent: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     color: '#fff',
     marginBottom: 5,
   },
@@ -707,16 +710,16 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   statusFilterTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.2)',
     marginRight: 10,
   },
   statusFilterTabActive: {
-    backgroundColor: '#fff',
+    backgroundColor: isDarkMode ? colors.card : '#fff',
   },
   statusFilterDot: {
     width: 8,
@@ -727,22 +730,22 @@ const styles = StyleSheet.create({
   statusFilterText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
   statusFilterTextActive: {
-    color: '#667eea',
-    fontWeight: '600',
+    color: isDarkMode ? colors.text : colors.primary,
+    fontWeight: '600' as const,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.card,
     borderRadius: 25,
     paddingHorizontal: 15,
     paddingVertical: 12,
     margin: 20,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: colors.border,
   },
   searchIcon: {
     marginRight: 10,
@@ -750,10 +753,10 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: colors.text,
   },
   searchTypeIndicator: {
-    backgroundColor: '#9C27B0',
+    backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -762,55 +765,55 @@ const styles = StyleSheet.create({
   searchTypeText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
   friendsList: {
     flex: 1,
     paddingHorizontal: 20,
   },
   friendCard: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
   friendInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     flex: 1,
   },
   friendAvatarContainer: {
-    position: 'relative',
+    position: 'relative' as const,
   },
   friendAvatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   friendAvatarText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
   statusIndicator: {
-    position: 'absolute',
+    position: 'absolute' as const,
     bottom: 2,
     right: 2,
     width: 14,
     height: 14,
     borderRadius: 7,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: colors.card,
   },
   friendDetails: {
     marginLeft: 12,
@@ -818,17 +821,17 @@ const styles = StyleSheet.create({
   },
   friendName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
     marginBottom: 2,
   },
   friendStatus: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textSecondary,
   },
   actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   actionButton: {
     padding: 8,
@@ -836,66 +839,66 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     paddingVertical: 50,
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    color: colors.textSecondary,
     marginTop: 10,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     paddingVertical: 50,
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
     marginTop: 20,
     marginBottom: 10,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    color: colors.textSecondary,
+    textAlign: 'center' as const,
     paddingHorizontal: 40,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
   },
   friendContextMenu: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     borderRadius: 16,
     paddingVertical: 20,
     paddingHorizontal: 20,
     minWidth: 250,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
   },
   friendMenuHeader: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
     marginBottom: 20,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.border,
   },
   friendMenuAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#667eea',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.primary,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
     marginBottom: 10,
   },
   friendMenuAvatarImage: {
@@ -906,16 +909,16 @@ const styles = StyleSheet.create({
   friendMenuAvatarText: {
     color: '#fff',
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
   },
   friendMenuName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: 'bold' as const,
+    color: colors.text,
   },
   friendMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 8,
@@ -923,14 +926,14 @@ const styles = StyleSheet.create({
   },
   lastFriendMenuItem: {
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: colors.border,
     marginTop: 8,
     paddingTop: 15,
   },
   friendMenuText: {
     fontSize: 16,
     marginLeft: 15,
-    color: '#333',
-    fontWeight: '500',
+    color: colors.text,
+    fontWeight: '500' as const,
   },
 });

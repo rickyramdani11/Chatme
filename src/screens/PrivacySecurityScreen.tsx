@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL } from '../utils/apiConfig';
 
 interface PrivacySettings {
@@ -25,6 +26,7 @@ interface PrivacySettings {
 
 export default function PrivacySecurityScreen({ navigation }: any) {
   const { user, token } = useAuth();
+  const { colors } = useTheme();
   const [settings, setSettings] = useState<PrivacySettings>({
     profile_visibility: 'public',
     privacy_notifications: true,
@@ -158,12 +160,49 @@ export default function PrivacySecurityScreen({ navigation }: any) {
     );
   };
 
+  const themedStyles = useMemo(() => ({
+    container: {
+      ...styles.container,
+      backgroundColor: colors.background,
+    },
+    header: {
+      ...styles.header,
+      backgroundColor: colors.surface,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      ...styles.headerTitle,
+      color: colors.text,
+    },
+    sectionTitle: {
+      ...styles.sectionTitle,
+      color: colors.text,
+    },
+    sectionContent: {
+      ...styles.sectionContent,
+      backgroundColor: colors.card,
+      shadowColor: colors.shadow,
+    },
+    securityItem: {
+      ...styles.securityItem,
+      borderBottomColor: colors.border,
+    },
+    securityItemTitle: {
+      ...styles.securityItemTitle,
+      color: colors.text,
+    },
+    securityItemDescription: {
+      ...styles.securityItemDescription,
+      color: colors.textSecondary,
+    },
+  }), [colors]);
+
   const SecurityItem = ({ 
     icon, 
     title, 
     description,
     onPress,
-    iconColor = '#9C27B0',
+    iconColor = colors.primary,
     hasSwitch = false,
     switchValue,
     onSwitchChange
@@ -178,7 +217,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
     onSwitchChange?: (value: boolean) => void;
   }) => (
     <TouchableOpacity 
-      style={styles.securityItem} 
+      style={themedStyles.securityItem} 
       onPress={onPress}
       disabled={hasSwitch}
     >
@@ -187,9 +226,9 @@ export default function PrivacySecurityScreen({ navigation }: any) {
           <Ionicons name={icon as any} size={24} color={iconColor} />
         </View>
         <View style={styles.textContainer}>
-          <Text style={styles.securityItemTitle}>{title}</Text>
+          <Text style={themedStyles.securityItemTitle}>{title}</Text>
           {description && (
-            <Text style={styles.securityItemDescription}>{description}</Text>
+            <Text style={themedStyles.securityItemDescription}>{description}</Text>
           )}
         </View>
       </View>
@@ -197,41 +236,41 @@ export default function PrivacySecurityScreen({ navigation }: any) {
         <Switch
           value={switchValue}
           onValueChange={onSwitchChange}
-          trackColor={{ false: '#E0E0E0', true: iconColor }}
-          thumbColor={switchValue ? '#fff' : '#fff'}
+          trackColor={{ false: colors.border, true: iconColor }}
+          thumbColor={colors.switchThumb}
           disabled={loading}
         />
       ) : (
-        <Ionicons name="chevron-forward" size={20} color="#999" />
+        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
       )}
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={themedStyles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={themedStyles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privasi & Keamanan</Text>
+        <Text style={themedStyles.headerTitle}>Privasi & Keamanan</Text>
         <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Account Security Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Keamanan Akun</Text>
-          <View style={styles.sectionContent}>
+          <Text style={themedStyles.sectionTitle}>Keamanan Akun</Text>
+          <View style={themedStyles.sectionContent}>
             <SecurityItem
               icon="key"
               title="Ubah Password"
               description="Perbarui password untuk keamanan akun"
               onPress={handleChangePassword}
-              iconColor="#FF6B35"
+              iconColor={colors.warning}
             />
             
             <SecurityItem
@@ -239,20 +278,20 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               title="Ubah PIN"
               description="Atur PIN untuk akses cepat"
               onPress={handleChangePin}
-              iconColor="#4CAF50"
+              iconColor={colors.success}
             />
           </View>
         </View>
 
         {/* Privacy Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pengaturan Privasi</Text>
-          <View style={styles.sectionContent}>
+          <Text style={themedStyles.sectionTitle}>Pengaturan Privasi</Text>
+          <View style={themedStyles.sectionContent}>
             <SecurityItem
               icon="eye"
               title="Visibilitas Profil"
               description={`Profil ${settings.profile_visibility === 'public' ? 'publik' : settings.profile_visibility === 'private' ? 'privat' : 'teman saja'}`}
-              iconColor="#2196F3"
+              iconColor={colors.info}
               hasSwitch={true}
               switchValue={settings.profile_visibility === 'public'}
               onSwitchChange={(value) => updatePrivacySetting('profile_visibility', value ? 'public' : 'private')}
@@ -262,7 +301,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               icon="notifications"
               title="Notifikasi Privasi"
               description="Kelola notifikasi terkait privasi"
-              iconColor="#9C27B0"
+              iconColor={colors.primary}
               hasSwitch={true}
               switchValue={settings.privacy_notifications}
               onSwitchChange={(value) => updatePrivacySetting('privacy_notifications', value)}
@@ -272,7 +311,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               icon="location"
               title="Berbagi Lokasi"
               description="Pengaturan berbagi lokasi"
-              iconColor="#FF9800"
+              iconColor={colors.warning}
               hasSwitch={true}
               switchValue={settings.location_sharing}
               onSwitchChange={(value) => updatePrivacySetting('location_sharing', value)}
@@ -282,13 +321,13 @@ export default function PrivacySecurityScreen({ navigation }: any) {
 
         {/* Security Features Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Fitur Keamanan</Text>
-          <View style={styles.sectionContent}>
+          <Text style={themedStyles.sectionTitle}>Fitur Keamanan</Text>
+          <View style={themedStyles.sectionContent}>
             <SecurityItem
               icon="shield-checkmark"
               title="Verifikasi Dua Langkah"
               description="Tingkatkan keamanan dengan 2FA"
-              iconColor="#00BCD4"
+              iconColor={colors.info}
               hasSwitch={true}
               switchValue={settings.two_factor_auth}
               onSwitchChange={(value) => updatePrivacySetting('two_factor_auth', value)}
@@ -298,7 +337,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               icon="time"
               title="Sesi Aktif"
               description="Lihat dan kelola sesi login aktif"
-              iconColor="#795548"
+              iconColor={colors.textSecondary}
               hasSwitch={true}
               switchValue={settings.active_sessions}
               onSwitchChange={(value) => updatePrivacySetting('active_sessions', value)}
@@ -308,13 +347,13 @@ export default function PrivacySecurityScreen({ navigation }: any) {
 
         {/* Data & Privacy Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data & Privasi</Text>
-          <View style={styles.sectionContent}>
+          <Text style={themedStyles.sectionTitle}>Data & Privasi</Text>
+          <View style={themedStyles.sectionContent}>
             <SecurityItem
               icon="download"
               title="Unduh Data Saya"
               description="Unduh salinan data pribadi Anda"
-              iconColor="#607D8B"
+              iconColor={colors.textSecondary}
               hasSwitch={true}
               switchValue={settings.data_download}
               onSwitchChange={(value) => {
@@ -329,7 +368,7 @@ export default function PrivacySecurityScreen({ navigation }: any) {
               icon="trash"
               title="Hapus Akun"
               description="Hapus akun dan semua data permanen"
-              iconColor="#F44336"
+              iconColor={colors.error}
             />
           </View>
         </View>
@@ -341,7 +380,6 @@ export default function PrivacySecurityScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   header: {
     flexDirection: 'row',
@@ -350,9 +388,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 20,
-    backgroundColor: '#fff',
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
   backButton: {
     padding: 8,
@@ -360,7 +396,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   placeholder: {
     width: 40,
@@ -374,15 +409,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
     marginLeft: 20,
     marginBottom: 10,
   },
   sectionContent: {
-    backgroundColor: '#fff',
     marginHorizontal: 20,
     borderRadius: 12,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -395,7 +427,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   securityItemLeft: {
     flexDirection: 'row',
@@ -416,11 +447,9 @@ const styles = StyleSheet.create({
   securityItemTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 4,
   },
   securityItemDescription: {
     fontSize: 14,
-    color: '#666',
   },
 });
