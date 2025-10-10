@@ -35,6 +35,10 @@ Preferred communication style: Simple, everyday language.
     - Single-line display: numberOfLines={1} to prevent text wrapping
     - Message type: 'gift' with recipient and giftName fields in Message interface
     - Duplicate prevention: Checks sender, recipient, giftName within 2-second window to prevent duplicate notifications
+  - **Command Message Color Fix**: Fixed command message text visibility issue (residual from dark mode removal):
+    - Changed color from `COLORS.roleAdminBg` (#FFEBEE - light pink background) to `COLORS.roleAdmin` (#FF6B35 - orange/brown text)
+    - Applied to all command message text styles (commandMessageText, commandContentText, inline styles)
+    - Command messages now properly visible with brown/orange color against white background
   - **Status**: Zero theme dependencies, functionality preserved
 - **Participant Auto-Removal on Leave**: Changed disconnect/leave behavior to completely remove participants from room instead of marking offline:
   - **Backend**: Modified socket disconnect handler to remove user from `roomParticipants` array entirely when they leave
