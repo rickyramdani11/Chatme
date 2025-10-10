@@ -6848,11 +6848,11 @@ const createThemedStyles = () => StyleSheet.create({
   // Gift Picker Styles
   giftModalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlayDark,
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
-    backgroundColor: COLORS.overlayDark,
+    backgroundColor: COLORS.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '50%',
@@ -6875,7 +6875,7 @@ const createThemedStyles = () => StyleSheet.create({
   giftPickerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.badgeTextLight,
+    color: COLORS.text,
   },
   giftCategoryTabs: {
     flexDirection: 'row',
@@ -6907,7 +6907,7 @@ const createThemedStyles = () => StyleSheet.create({
   },
   sendToAllText: {
     fontSize: 14,
-    color: COLORS.badgeTextLight,
+    color: COLORS.text,
     marginLeft: 8,
     fontWeight: '500',
   },
@@ -7067,7 +7067,7 @@ const createThemedStyles = () => StyleSheet.create({
   newGiftName: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.badgeTextLight,
+    color: COLORS.text,
     marginBottom: 6,
     textAlign: 'center',
   },
@@ -7164,7 +7164,7 @@ const createThemedStyles = () => StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: COLORS.error,
+    backgroundColor: COLORS.warning,
     borderRadius: 8,
     width: 16,
     height: 16,
@@ -7173,7 +7173,7 @@ const createThemedStyles = () => StyleSheet.create({
   },
   animatedBadgeText: {
     fontSize: 10,
-    color: COLORS.badgeTextLight,
+    color: COLORS.text,
   },
   giftName: {
     fontSize: 11,

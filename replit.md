@@ -13,13 +13,18 @@ Preferred communication style: Simple, everyday language.
   - **Pattern**: useTheme hook + useMemo + createThemedStyles function
   - **Dark Mode UI Control**: Menu "Mode Gelap" temporarily hidden in SettingsScreen (commented out) - ThemeContext functionality remains active for other screens
   - **Pending**: AdminScreen and secondary screens can be themed as follow-up
-- **Chatscreen1.tsx - LIGHT MODE ONLY (User Request)**: Dark mode implementation REMOVED from Chatscreen1.tsx (active 7669-line production chat screen) per user request. Screen now uses hardcoded light theme colors exclusively:
+- **Chatscreen1.tsx - LIGHT MODE ONLY (User Request)**: Dark mode implementation REMOVED from Chatscreen1.tsx (active 7726-line production chat screen) per user request. Screen now uses hardcoded light theme colors exclusively:
   - **Implementation**: Removed useTheme hook, useMemo, and ThemeContext dependency
   - **Color System**: Uses local COLORS constant (46 hardcoded light theme values from lightTheme palette) defined outside component function
   - **Styles**: createThemedStyles() function references COLORS constant directly
   - **Coverage**: All colors (background, text, LinearGradient, Ionicons) use hardcoded values - no theme tokens
   - **Helper Functions**: getRoleColor, getRoleBackgroundColor, getLevelBadgeColor use COLORS constant
-  - **Gift Picker Modal**: Gray transparent background (`rgba(128, 128, 128, 0.3)`) for ALL gift item cards (both `newGiftItem` and `giftItem` styles)
+  - **Gift Picker Modal Light Theme**: Fully converted to light theme with white background and dark text:
+    - Modal overlay: `COLORS.overlay` (light semi-transparent)
+    - Modal background: `COLORS.surface` (white)
+    - All text colors: `COLORS.text` (dark text for readability)
+    - Gift item cards: Gray transparent background (`rgba(128, 128, 128, 0.3)`)
+    - Tab titles, gift names, and UI labels: All use dark text on light background
   - **Keyboard Auto-Close**: Keyboard automatically closes after sending any message (text, commands, game commands) for better UX
   - **Status**: Zero theme dependencies, functionality preserved
 - **Participant Auto-Removal on Leave**: Changed disconnect/leave behavior to completely remove participants from room instead of marking offline:
