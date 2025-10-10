@@ -40,6 +40,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import Daily, { DailyMediaView } from '@daily-co/react-native-daily-js';
+import RoomManagement from '../components/RoomManagement';
 
 const { width } = Dimensions.get('window');
 
@@ -192,6 +193,7 @@ export default function ChatScreen() {
   const [chatTabs, setChatTabs] = useState<ChatTab[]>([]);
   const [showPopupMenu, setShowPopupMenu] = useState(false);
   const [showRoomInfo, setShowRoomInfo] = useState(false);
+  const [showRoomManagement, setShowRoomManagement] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -3221,6 +3223,11 @@ export default function ChatScreen() {
     setShowRoomInfo(true);
   };
 
+  const handleRoomManagement = () => {
+    setShowPopupMenu(false);
+    setShowRoomManagement(true);
+  };
+
   const loadParticipants = async () => {
     try {
       if (chatTabs[activeTab]) {
@@ -5000,11 +5007,19 @@ export default function ChatScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.menuItem, styles.lastMenuItem]}
+                  style={styles.menuItem}
                   onPress={handleRoomInfo}
                 >
                   <Ionicons name="information-circle-outline" size={20} color={COLORS.text} />
                   <Text style={styles.menuText}>Info Room</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.menuItem, styles.lastMenuItem]}
+                  onPress={handleRoomManagement}
+                >
+                  <Ionicons name="settings-outline" size={20} color={COLORS.text} />
+                  <Text style={styles.menuText}>Room Management</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -5064,6 +5079,16 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Room Management Component */}
+      <RoomManagement
+        visible={showRoomManagement}
+        onClose={() => setShowRoomManagement(false)}
+        roomId={chatTabs[activeTab]?.id || ''}
+        roomName={chatTabs[activeTab]?.title || ''}
+        currentUser={user}
+        socket={socket}
+      />
 
       {/* Participants List Modal */}
       <Modal
