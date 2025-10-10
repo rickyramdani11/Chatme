@@ -6982,7 +6982,7 @@ const createThemedStyles = () => StyleSheet.create({
     marginBottom: 12,
   },
   newGiftItem: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'rgba(128, 128, 128, 0.3)',
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
@@ -6993,7 +6993,7 @@ const createThemedStyles = () => StyleSheet.create({
   },
   selectedGiftItem: {
     borderColor: COLORS.warning,
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'rgba(128, 128, 128, 0.3)',
   },
   giftCoinIndicators: {
     position: 'absolute',
