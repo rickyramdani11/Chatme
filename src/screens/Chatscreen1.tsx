@@ -2366,85 +2366,6 @@ export default function ChatScreen() {
         break;
       }
 
-      case '/gift': {
-        if (args.length >= 4 && args[0] === 'send' && args[2] === 'to') {
-          // Handle: /gift send rose to username
-          const giftItem = args[1];
-          const targetUsername = args[3];
-
-          const targetUser = participants.find(p => p.username.toLowerCase() === targetUsername.toLowerCase());
-
-          if (targetUser) {
-            const giftMessage = {
-              id: `gift_cmd_${Date.now()}_${user?.username}`,
-              sender: 'System',
-              content: `🎁 ${user?.username} sent ${giftItem} to ${targetUsername}`,
-              timestamp: new Date(),
-              roomId: currentRoomId,
-              role: 'system',
-              level: 1,
-              type: 'gift'
-            };
-
-            // Add locally and emit to server
-            setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
-                tab.id === currentRoomId
-                  ? { ...tab, messages: [...tab.messages, giftMessage] }
-                  : tab
-              )
-            );
-
-            socket?.emit('sendMessage', {
-              roomId: currentRoomId,
-              sender: 'System',
-              content: `🎁 ${user?.username} sent ${giftItem} to ${targetUsername}`,
-              role: 'system',
-              level: 1,
-              type: 'gift'
-            });
-          } else {
-            const errorMessage = {
-              id: `error_${Date.now()}_${user?.username}`,
-              sender: 'System',
-              content: `❌ User '${targetUsername}' not found in this room.`,
-              timestamp: new Date(),
-              roomId: currentRoomId,
-              role: 'system',
-              level: 1,
-              type: 'error'
-            };
-
-            setChatTabs(prevTabs =>
-              prevTabs.map(tab => 
-                tab.id === currentRoomId
-                  ? { ...tab, messages: [...tab.messages, errorMessage] }
-                  : tab
-              )
-            );
-          }
-        } else {
-          const helpMessage = {
-            id: `help_${Date.now()}_${user?.username}`,
-            sender: 'System',
-            content: '❌ Usage: /gift send [item] to [username]',
-            timestamp: new Date(),
-            roomId: currentRoomId,
-            role: 'system',
-            level: 1,
-            type: 'error'
-          };
-
-          setChatTabs(prevTabs =>
-            prevTabs.map(tab => 
-              tab.id === currentRoomId
-                ? { ...tab, messages: [...tab.messages, helpMessage] }
-                : tab
-            )
-          );
-        }
-        break;
-      }
 
       case '/ban': {
         // Check if user has permission to ban user
@@ -2986,7 +2907,7 @@ export default function ChatScreen() {
         const unknownMessage = {
           id: `unknown_${Date.now()}_${user?.username}`,
           sender: 'System',
-          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/gift send [item] to [username] - Send gift\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot',
+          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot',
           timestamp: new Date(),
           roomId: currentRoomId,
           role: 'system',
