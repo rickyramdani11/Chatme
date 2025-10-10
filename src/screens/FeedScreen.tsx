@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Import Video with error handling
 let Video: any = null;
@@ -101,26 +102,27 @@ export default function FeedScreen() {
 
   const { user } = useAuth();
   const navigation = useNavigation();
+  const { colors, isDarkMode } = useTheme();
 
-  // Helper function to get role color
+  // Helper function to get role color (using theme tokens)
   const getRoleColor = (role?: string) => {
     switch (role) {
-      case 'admin': return '#FF6B35'; // Orange Red
-      case 'mentor': return '#FF5722'; // Deep Orange
-      case 'merchant': return '#9C27B0'; // Purple
+      case 'admin': return colors.roleAdmin;
+      case 'mentor': return colors.roleMentor;
+      case 'merchant': return colors.roleMerchant;
       case 'user': 
-      default: return '#2196F3'; // Blue
+      default: return colors.roleUser;
     }
   };
 
-  // Helper function to get role background color
+  // Helper function to get role background color (using theme tokens)
   const getRoleBackgroundColor = (role?: string) => {
     switch (role) {
-      case 'admin': return '#FFEBEE'; // Light red
-      case 'mentor': return '#FBE9E7'; // Light orange
-      case 'merchant': return '#F3E5F5'; // Light purple
+      case 'admin': return colors.roleAdminBg;
+      case 'mentor': return colors.roleMentorBg;
+      case 'merchant': return colors.roleMerchantBg;
       case 'user':
-      default: return '#E3F2FD'; // Light blue
+      default: return colors.roleUserBg;
     }
   };
 
@@ -135,18 +137,19 @@ export default function FeedScreen() {
     }
   };
 
-  // Helper function to get level badge color (gradient green to blue)
+  // Helper function to get level badge color (using theme tokens, gradient from success to info)
   const getLevelBadgeColor = (level: number) => {
     if (level >= 10) {
-      return { bg: '#E3F2FD', text: '#2196F3', icon: '#2196F3' }; // Full blue at level 10+
+      return { bg: colors.infoBadgeBg, text: colors.info, icon: colors.info };
     }
-    // Gradient from green to blue (levels 1-9)
+    // For levels 1-9, use success/info theme tokens with computed blend
     const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
-    const greenValue = Math.round(107 - ratio * 74); // 107 (green) to 33 (blue)
-    const blueValue = Math.round(142 + ratio * 101); // 142 (green) to 243 (blue)
     
-    const textColor = `rgb(${greenValue}, ${blueValue}, 107)`;
-    const bgColor = level <= 3 ? '#F0FFF4' : level <= 6 ? '#E8F5E9' : '#E1F5FE';
+    // Use theme colors as base: success (green) to info (blue)
+    const bgColor = level <= 3 ? colors.successBadgeBg : level <= 6 ? colors.successBadgeBg : colors.infoBadgeBg;
+    
+    // Blend between success and info colors
+    const textColor = ratio < 0.5 ? colors.success : colors.info;
     
     return { bg: bgColor, text: textColor, icon: textColor };
   };
@@ -168,6 +171,73 @@ export default function FeedScreen() {
   const getYouTubeThumbnail = (videoId: string) => {
     return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
   };
+
+  // Create themed styles function BEFORE useMemo
+  const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
+    container: { backgroundColor: colors.background },
+    postInput: { 
+      backgroundColor: colors.card, 
+      color: colors.text, 
+      borderColor: colors.border 
+    },
+    postButton: { backgroundColor: colors.primary },
+    postButtonDisabled: { backgroundColor: colors.surface },
+    postButtonText: { color: colors.badgeTextLight },
+    mediaPreview: { backgroundColor: colors.surface },
+    mediaItem: { borderColor: colors.border },
+    removeButton: { backgroundColor: colors.error },
+    postCard: { 
+      backgroundColor: colors.card, 
+      borderBottomColor: colors.border 
+    },
+    userInfo: {},
+    userName: { color: colors.text },
+    postTime: { color: colors.textSecondary },
+    postContent: { color: colors.text },
+    levelBadge: {},
+    levelBadgeText: {},
+    levelIcon: {},
+    verifiedBadge: { backgroundColor: colors.primary },
+    actionButtons: {},
+    actionButton: {},
+    actionText: { color: colors.textSecondary },
+    commentModal: { backgroundColor: colors.card },
+    modalHeader: { borderBottomColor: colors.border },
+    modalTitle: { color: colors.text },
+    commentInput: { 
+      backgroundColor: colors.surface, 
+      color: colors.text, 
+      borderColor: colors.border 
+    },
+    commentButton: { backgroundColor: colors.primary },
+    commentButtonText: { color: colors.badgeTextLight },
+    comment: { borderBottomColor: colors.border },
+    commentUser: { color: colors.text },
+    commentContent: { color: colors.textSecondary },
+    commentTime: { color: colors.textSecondary },
+    emptyText: { color: colors.textSecondary },
+    mediaGrid: {},
+    avatar: { backgroundColor: colors.avatarBg },
+    avatarText: { color: colors.badgeTextLight },
+    videoLinkContainer: { 
+      backgroundColor: colors.roleAdminBg, 
+      borderColor: colors.roleAdmin 
+    },
+    videoLinkText: { color: colors.roleAdmin },
+    postMenuButton: { backgroundColor: isDarkMode ? colors.surface : colors.border },
+    postMenuDropdown: { 
+      backgroundColor: colors.card, 
+      shadowColor: colors.shadow 
+    },
+    postMenuText: { color: colors.text },
+    shareMenuContainer: { backgroundColor: colors.card },
+    shareMenuHeader: { borderBottomColor: colors.border },
+    shareMenuTitle: { color: colors.text },
+    shareOptionText: { color: colors.text },
+  });
+
+  // Apply themed styles
+  const themedStyles = React.useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   // Fetch posts from server
   const fetchPosts = async () => {
@@ -746,13 +816,13 @@ export default function FeedScreen() {
     }
 
     return (
-      <View key={post.id} style={[styles.postCard, { backgroundColor: getRoleBackgroundColor(post.role) }]}>
+      <View key={post.id} style={[styles.postCard, themedStyles.postCard, { backgroundColor: getRoleBackgroundColor(post.role) }]}>
         <View style={styles.postHeader}>
           <TouchableOpacity 
             style={styles.avatarContainer}
             onPress={() => handleUserClick(post)}
           >
-            <View style={[styles.avatar, { borderColor: getRoleColor(post.role), borderWidth: 2 }]}>
+            <View style={[styles.avatar, themedStyles.avatar, { borderColor: getRoleColor(post.role), borderWidth: 2 }]}>
               {post.avatar && (post.avatar.startsWith('http') || post.avatar.startsWith('/api/')) ? (
                 <Image 
                   source={{ uri: post.avatar }} 
@@ -765,7 +835,7 @@ export default function FeedScreen() {
                   }}
                 />
               ) : (
-                <Text style={styles.avatarText}>
+                <Text style={[styles.avatarText, themedStyles.avatarText]}>
                   {(post.avatar && post.avatar.length <= 2) ? post.avatar : (post.username?.charAt(0)?.toUpperCase() || 'U')}
                 </Text>
               )}
@@ -775,8 +845,8 @@ export default function FeedScreen() {
         <View style={styles.postInfo}>
           <View style={styles.postInfoHeader}>
             <TouchableOpacity onPress={() => handleUserClick(post)} style={{ flex: 1 }}>
-              <View style={styles.userInfo}>
-                <Text style={[styles.username, { color: getRoleColor(post.role) }]}>
+              <View style={[styles.userInfo, themedStyles.userInfo]}>
+                <Text style={[styles.username, themedStyles.userName, { color: getRoleColor(post.role) }]}>
                   {post.username}
                 </Text>
                 {post.verified && (
@@ -795,27 +865,27 @@ export default function FeedScreen() {
             {/* Three-dot menu - show only for own posts or admin */}
             {(post.username === user?.username || user?.role === 'admin') && (
               <TouchableOpacity
-                style={styles.postMenuButton}
+                style={[styles.postMenuButton, themedStyles.postMenuButton]}
                 onPress={() => setShowPostMenu(showPostMenu === post.id ? null : post.id)}
               >
-                <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
+                <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
           </View>
           {/* Post Menu Dropdown */}
           {showPostMenu === post.id && (
-            <View style={styles.postMenuDropdown}>
+            <View style={[styles.postMenuDropdown, themedStyles.postMenuDropdown]}>
               <TouchableOpacity
                 style={styles.postMenuItem}
                 onPress={() => handleDeletePost(post.id, post.username)}
               >
                 <Ionicons name="trash-outline" size={16} color="#F44336" />
-                <Text style={[styles.postMenuText, { color: '#F44336' }]}>Delete Post</Text>
+                <Text style={[styles.postMenuText, themedStyles.postMenuText, { color: '#F44336' }]}>Delete Post</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          <Text style={styles.postContent}>{post.content}</Text>
+          <Text style={[styles.postContent, themedStyles.postContent]}>{post.content}</Text>
           
           {/* Video URL Display */}
           {post.streamingUrl && post.streamingUrl.trim() && (
@@ -986,18 +1056,19 @@ export default function FeedScreen() {
           </View>
         )}
 
-      <View style={styles.postActions}>
+      <View style={[styles.postActions, themedStyles.actionButtons]}>
         <TouchableOpacity 
-          style={styles.actionButton}
+          style={[styles.actionButton, themedStyles.actionButton]}
           onPress={() => handleLike(post.id)}
         >
           <Ionicons 
             name={likedPosts.has(post.id) ? "heart" : "heart-outline"} 
             size={20} 
-            color={likedPosts.has(post.id) ? "#FF6B6B" : "#666"} 
+            color={likedPosts.has(post.id) ? "#FF6B6B" : colors.textSecondary} 
           />
           <Text style={[
             styles.actionText,
+            themedStyles.actionText,
             likedPosts.has(post.id) && { color: "#FF6B6B" }
           ]}>
             {post.likes}
@@ -1005,19 +1076,19 @@ export default function FeedScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.actionButton}
+          style={[styles.actionButton, themedStyles.actionButton]}
           onPress={() => handleComment(post)}
         >
-          <Ionicons name="chatbubble-outline" size={20} color="#666" />
-          <Text style={styles.actionText}>{post.comments.length} Comments</Text>
+          <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
+          <Text style={[styles.actionText, themedStyles.actionText]}>{post.comments.length} Comments</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.actionButton}
+          style={[styles.actionButton, themedStyles.actionButton]}
           onPress={() => handleShare(post)}
         >
-          <Ionicons name="share-outline" size={20} color="#666" />
-          <Text style={styles.actionText}>{post.shares} Share</Text>
+          <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+          <Text style={[styles.actionText, themedStyles.actionText]}>{post.shares} Share</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -1025,8 +1096,8 @@ export default function FeedScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Moment</Text>
+    <View style={[styles.container, themedStyles.container]}>
+      <Text style={[styles.title, { color: colors.text }]}>Moment</Text>
 
       <ScrollView 
         style={styles.scrollView} 
@@ -1040,16 +1111,17 @@ export default function FeedScreen() {
         <View style={styles.createPostCard}>
           <View style={styles.createPostHeader}>
             <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
+              <View style={[styles.avatar, themedStyles.avatar]}>
+                <Text style={[styles.avatarText, themedStyles.avatarText]}>
                   {user?.username?.charAt(0).toUpperCase() || 'U'}
                 </Text>
               </View>
               <View style={styles.onlineIndicator} />
             </View>
             <TextInput
-              style={styles.postInput}
+              style={[styles.postInput, themedStyles.postInput]}
               placeholder="What's on your mind..."
+              placeholderTextColor={colors.textSecondary}
               value={postText}
               onChangeText={setPostText}
               multiline
@@ -1061,14 +1133,14 @@ export default function FeedScreen() {
               <LinearGradient
                 colors={
                   (!postText.trim() && selectedMedia.length === 0) || uploading 
-                    ? ['#ccc', '#ccc'] 
-                    : ['#FF6B6B', '#8B5CF6']
+                    ? [colors.surface, colors.surface] 
+                    : [colors.primary, colors.success]
                 }
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.sendButton}
               >
-                <Text style={styles.sendButtonText}>
+                <Text style={[styles.sendButtonText, themedStyles.postButtonText]}>
                   {uploading ? 'Uploading...' : 'Send'}
                 </Text>
               </LinearGradient>
@@ -1150,34 +1222,35 @@ export default function FeedScreen() {
         onRequestClose={() => setShowCommentModal(false)}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Comments</Text>
+          <View style={[styles.modalContent, themedStyles.commentModal]}>
+            <View style={[styles.modalHeader, themedStyles.modalHeader]}>
+              <Text style={[styles.modalTitle, themedStyles.modalTitle]}>Comments</Text>
               <TouchableOpacity onPress={() => setShowCommentModal(false)}>
-                <Ionicons name="close" size={24} color="#666" />
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.commentsContainer}>
               {selectedPost?.comments.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <Text style={styles.commentUser}>{comment.user}</Text>
-                  <Text style={styles.commentContent}>{comment.content}</Text>
-                  <Text style={styles.commentTime}>{formatTimestamp(comment.timestamp)}</Text>
+                <View key={comment.id} style={[styles.commentItem, themedStyles.comment]}>
+                  <Text style={[styles.commentUser, themedStyles.commentUser]}>{comment.user}</Text>
+                  <Text style={[styles.commentContent, themedStyles.commentContent]}>{comment.content}</Text>
+                  <Text style={[styles.commentTime, themedStyles.commentTime]}>{formatTimestamp(comment.timestamp)}</Text>
                 </View>
               ))}
             </ScrollView>
 
             <View style={styles.addCommentContainer}>
               <TextInput
-                style={styles.commentInput}
+                style={[styles.commentInput, themedStyles.commentInput]}
                 placeholder="Add a comment..."
+                placeholderTextColor={colors.textSecondary}
                 value={commentText}
                 onChangeText={setCommentText}
                 multiline
               />
               <TouchableOpacity 
-                style={[styles.commentSendButton, !commentText.trim() && styles.sendButtonDisabled]}
+                style={[styles.commentSendButton, !commentText.trim() && styles.sendButtonDisabled, themedStyles.commentButton]}
                 onPress={handleAddComment}
                 disabled={!commentText.trim()}
               >
@@ -1318,11 +1391,11 @@ export default function FeedScreen() {
           activeOpacity={1}
           onPress={() => setShowShareMenu(false)}
         >
-          <View style={styles.shareMenuContainer}>
-            <View style={styles.shareMenuHeader}>
-              <Text style={styles.shareMenuTitle}>Share to</Text>
+          <View style={[styles.shareMenuContainer, themedStyles.shareMenuContainer]}>
+            <View style={[styles.shareMenuHeader, themedStyles.shareMenuHeader]}>
+              <Text style={[styles.shareMenuTitle, themedStyles.shareMenuTitle]}>Share to</Text>
               <TouchableOpacity onPress={() => setShowShareMenu(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -1335,7 +1408,7 @@ export default function FeedScreen() {
                 <View style={[styles.shareIconContainer, { backgroundColor: '#25D366' }]}>
                   <Ionicons name="logo-whatsapp" size={32} color="#fff" />
                 </View>
-                <Text style={styles.shareOptionText}>WhatsApp</Text>
+                <Text style={[styles.shareOptionText, themedStyles.shareOptionText]}>WhatsApp</Text>
               </TouchableOpacity>
 
               {/* Facebook */}
@@ -1346,7 +1419,7 @@ export default function FeedScreen() {
                 <View style={[styles.shareIconContainer, { backgroundColor: '#1877F2' }]}>
                   <Ionicons name="logo-facebook" size={32} color="#fff" />
                 </View>
-                <Text style={styles.shareOptionText}>Facebook</Text>
+                <Text style={[styles.shareOptionText, themedStyles.shareOptionText]}>Facebook</Text>
               </TouchableOpacity>
 
               {/* Instagram */}
@@ -1357,7 +1430,7 @@ export default function FeedScreen() {
                 <View style={[styles.shareIconContainer, { backgroundColor: '#E4405F' }]}>
                   <Ionicons name="logo-instagram" size={32} color="#fff" />
                 </View>
-                <Text style={styles.shareOptionText}>Instagram</Text>
+                <Text style={[styles.shareOptionText, themedStyles.shareOptionText]}>Instagram</Text>
               </TouchableOpacity>
 
               {/* TikTok */}
@@ -1368,7 +1441,7 @@ export default function FeedScreen() {
                 <View style={[styles.shareIconContainer, { backgroundColor: '#000' }]}>
                   <Ionicons name="logo-tiktok" size={32} color="#fff" />
                 </View>
-                <Text style={styles.shareOptionText}>TikTok</Text>
+                <Text style={[styles.shareOptionText, themedStyles.shareOptionText]}>TikTok</Text>
               </TouchableOpacity>
 
               {/* More Options */}
@@ -1379,7 +1452,7 @@ export default function FeedScreen() {
                 <View style={[styles.shareIconContainer, { backgroundColor: '#666' }]}>
                   <Ionicons name="share-social" size={32} color="#fff" />
                 </View>
-                <Text style={styles.shareOptionText}>More</Text>
+                <Text style={[styles.shareOptionText, themedStyles.shareOptionText]}>More</Text>
               </TouchableOpacity>
             </View>
           </View>

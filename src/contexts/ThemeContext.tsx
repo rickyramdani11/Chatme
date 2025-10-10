@@ -28,6 +28,14 @@ interface ThemeContextType {
     avatarBg: string;
     switchThumb: string;
     shadow: string;
+    roleAdmin: string;
+    roleAdminBg: string;
+    roleMentor: string;
+    roleMentorBg: string;
+    roleMerchant: string;
+    roleMerchantBg: string;
+    roleUser: string;
+    roleUserBg: string;
   };
 }
 
@@ -57,6 +65,14 @@ const lightTheme = {
   avatarBg: '#333333',
   switchThumb: '#ffffff',
   shadow: '#000000',
+  roleAdmin: '#FF6B35',
+  roleAdminBg: '#FFEBEE',
+  roleMentor: '#FF5722',
+  roleMentorBg: '#FBE9E7',
+  roleMerchant: '#9C27B0',
+  roleMerchantBg: '#F3E5F5',
+  roleUser: '#2196F3',
+  roleUserBg: '#E3F2FD',
 };
 
 const darkTheme = {
@@ -83,6 +99,14 @@ const darkTheme = {
   avatarBg: '#424242',
   switchThumb: '#ffffff',
   shadow: '#000000',
+  roleAdmin: '#FF8A65',
+  roleAdminBg: 'rgba(255, 138, 101, 0.2)',
+  roleMentor: '#FF7043',
+  roleMentorBg: 'rgba(255, 112, 67, 0.2)',
+  roleMerchant: '#BA68C8',
+  roleMerchantBg: 'rgba(186, 104, 200, 0.2)',
+  roleUser: '#64B5F6',
+  roleUserBg: 'rgba(100, 181, 246, 0.2)',
 };
 
 const THEME_STORAGE_KEY = '@theme_mode';
