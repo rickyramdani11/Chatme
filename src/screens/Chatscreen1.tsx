@@ -1263,48 +1263,7 @@ export default function ChatScreen() {
           }
         });
 
-        // Add gift notification message to chat
-        const giftNotificationMessage: Message = {
-          id: `gift_${Date.now()}_${Math.random()}`,
-          sender: data.sender,
-          recipient: data.recipient,
-          giftName: data.gift?.name || 'Gift',
-          content: `${data.sender} send ${data.gift?.name || 'Gift'} to ${data.recipient}`,
-          timestamp: new Date(data.timestamp || Date.now()),
-          roomId: data.roomId,
-          role: data.role || 'user',
-          level: data.level || 1,
-          type: 'gift'
-        };
-
-        // Add message to appropriate room tab
-        setChatTabs(prevTabs => {
-          return prevTabs.map(tab => {
-            if (tab.id === data.roomId) {
-              return {
-                ...tab,
-                messages: [...tab.messages, giftNotificationMessage]
-              };
-            }
-            return tab;
-          });
-        });
-
-        // Auto-remove gift notification message after 5 seconds
-        setTimeout(() => {
-          setChatTabs(prevTabs => {
-            return prevTabs.map(tab => {
-              if (tab.id === data.roomId) {
-                return {
-                  ...tab,
-                  messages: tab.messages.filter(msg => msg.id !== giftNotificationMessage.id)
-                };
-              }
-              return tab;
-            });
-          });
-          console.log('Gift notification message auto-removed after 5 seconds');
-        }, 5000);
+        // ✅ REMOVED duplicate gift notification message - only use single gift message below (line ~1369)
 
         // Show animation for all users (including sender for consistency)
         setActiveGiftAnimation({
