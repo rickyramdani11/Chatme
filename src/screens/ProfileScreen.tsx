@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
@@ -85,29 +86,322 @@ interface FamilyBadge {
 }
 
 // Helper function to get family level color
-const getFamilyLevelColor = (level: number): string => {
-  switch (level) {
-    case 1: return '#4CAF50'; // Green
-    case 2: return '#2196F3'; // Blue
-    case 3: return '#9C27B0'; // Purple
-    case 4: return '#F44336'; // Red
-    case 5: return '#212121'; // Black (Extreme)
-    default: return '#4CAF50'; // Default to green
+const getFamilyLevelColor = (level: number, isDarkMode: boolean): string => {
+  if (isDarkMode) {
+    switch (level) {
+      case 1: return '#03DAC6'; // Teal (success)
+      case 2: return '#64B5F6'; // Light Blue (info)
+      case 3: return '#BB86FC'; // Purple (primary)
+      case 4: return '#CF6679'; // Pink Red (error)
+      case 5: return '#E0E0E0'; // Light Gray (Extreme)
+      default: return '#03DAC6'; // Default to teal
+    }
+  } else {
+    switch (level) {
+      case 1: return '#4CAF50'; // Green
+      case 2: return '#2196F3'; // Blue
+      case 3: return '#9C27B0'; // Purple
+      case 4: return '#F44336'; // Red
+      case 5: return '#212121'; // Black (Extreme)
+      default: return '#4CAF50'; // Default to green
+    }
   }
 };
 
 // Helper function to get user level badge color
-const getUserLevelBadgeColor = (level: number): string => {
-  if (level >= 1 && level <= 10) return '#4CAF50'; // Green
-  if (level >= 10 && level <= 25) return '#2196F3'; // Blue
-  if (level >= 25 && level <= 50) return '#FF6F00'; // Dark Orange
-  if (level >= 50 && level <= 75) return '#F57F17'; // Dark Yellow
-  if (level >= 75 && level <= 100) return '#C62828'; // Dark Red
-  return '#4CAF50'; // Default green
+const getUserLevelBadgeColor = (level: number, isDarkMode: boolean): string => {
+  if (isDarkMode) {
+    if (level >= 1 && level <= 10) return '#03DAC6'; // Teal
+    if (level >= 10 && level <= 25) return '#64B5F6'; // Light Blue
+    if (level >= 25 && level <= 50) return '#FFB74D'; // Orange
+    if (level >= 50 && level <= 75) return '#FDD835'; // Yellow
+    if (level >= 75 && level <= 100) return '#CF6679'; // Pink Red
+    return '#03DAC6'; // Default teal
+  } else {
+    if (level >= 1 && level <= 10) return '#4CAF50'; // Green
+    if (level >= 10 && level <= 25) return '#2196F3'; // Blue
+    if (level >= 25 && level <= 50) return '#FF6F00'; // Dark Orange
+    if (level >= 50 && level <= 75) return '#F57F17'; // Dark Yellow
+    if (level >= 75 && level <= 100) return '#C62828'; // Dark Red
+    return '#4CAF50'; // Default green
+  }
 };
+
+const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
+  container: {
+    ...styles.container,
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    ...styles.loadingText,
+    color: colors.badgeTextLight,
+  },
+  errorText: {
+    ...styles.errorText,
+    color: colors.text,
+  },
+  backgroundImageContainer: {
+    ...styles.backgroundImageContainer,
+    backgroundColor: colors.card,
+  },
+  headerButtonGradient: {
+    ...styles.headerButtonGradient,
+    shadowColor: colors.shadow,
+  },
+  profileContent: {
+    ...styles.profileContent,
+    backgroundColor: colors.card,
+    shadowColor: colors.shadow,
+  },
+  simpleAvatarContainer: {
+    ...styles.simpleAvatarContainer,
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+    shadowColor: colors.shadow,
+  },
+  livingStatus: {
+    ...styles.livingStatus,
+    shadowColor: colors.shadow,
+  },
+  livingText: {
+    ...styles.livingText,
+    color: colors.badgeTextLight,
+  },
+  livingDot: {
+    ...styles.livingDot,
+    backgroundColor: colors.badgeTextLight,
+  },
+  simpleDefaultAvatar: {
+    ...styles.simpleDefaultAvatar,
+    backgroundColor: colors.avatarBg,
+  },
+  defaultAvatar: {
+    ...styles.defaultAvatar,
+    backgroundColor: colors.avatarBg,
+  },
+  avatarText: {
+    ...styles.avatarText,
+    color: colors.badgeTextLight,
+  },
+  username: {
+    ...styles.username,
+    color: colors.text,
+  },
+  levelBadgeText: {
+    ...styles.levelBadgeText,
+    color: colors.badgeTextLight,
+  },
+  userRole: {
+    ...styles.userRole,
+    color: colors.error,
+  },
+  followStatText: {
+    ...styles.followStatText,
+    color: colors.text,
+  },
+  followStatNumber: {
+    ...styles.followStatNumber,
+    color: colors.primary,
+  },
+  bio: {
+    ...styles.bio,
+    color: colors.textSecondary,
+  },
+  familyBadgeContainer: {
+    ...styles.familyBadgeContainer,
+    shadowColor: colors.shadow,
+  },
+  familyIconCircle: {
+    ...styles.familyIconCircle,
+    backgroundColor: colors.badgeTextLight,
+    shadowColor: colors.shadow,
+  },
+  familyBadgeName: {
+    ...styles.familyBadgeName,
+    color: colors.badgeTextLight,
+  },
+  merchantBadgeContainer: {
+    ...styles.merchantBadgeContainer,
+    shadowColor: colors.shadow,
+  },
+  merchantBadgeAtRisk: {
+    ...styles.merchantBadgeAtRisk,
+    shadowColor: colors.textSecondary,
+  },
+  merchantBadgeText: {
+    ...styles.merchantBadgeText,
+    color: colors.badgeTextLight,
+  },
+  merchantRevenueText: {
+    ...styles.merchantRevenueText,
+    color: colors.badgeTextLight,
+  },
+  merchantWarningText: {
+    ...styles.merchantWarningText,
+    color: colors.error,
+  },
+  followButtonContainer: {
+    ...styles.followButtonContainer,
+    shadowColor: colors.primary,
+  },
+  followButtonText: {
+    ...styles.followButtonText,
+    color: colors.badgeTextLight,
+  },
+  messageButton: {
+    ...styles.messageButton,
+    shadowColor: colors.error,
+  },
+  messageButtonText: {
+    ...styles.messageButtonText,
+    color: colors.badgeTextLight,
+  },
+  sectionTitle: {
+    ...styles.sectionTitle,
+    color: colors.text,
+  },
+  albumPhotoItem: {
+    ...styles.albumPhotoItem,
+    shadowColor: colors.shadow,
+  },
+  giftItem: {
+    ...styles.giftItem,
+    backgroundColor: colors.card,
+    shadowColor: colors.shadow,
+  },
+  giftCount: {
+    ...styles.giftCount,
+    color: colors.text,
+  },
+  achievementItem: {
+    ...styles.achievementItem,
+    backgroundColor: colors.card,
+    shadowColor: colors.shadow,
+  },
+  achievementName: {
+    ...styles.achievementName,
+    color: colors.text,
+  },
+  achievementCount: {
+    ...styles.achievementCount,
+    color: colors.error,
+  },
+  saveButtonContainer: {
+    ...styles.saveButtonContainer,
+    shadowColor: colors.primary,
+  },
+  saveButtonText: {
+    ...styles.saveButtonText,
+    color: colors.badgeTextLight,
+  },
+  cancelButton: {
+    ...styles.cancelButton,
+    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+  },
+  cancelButtonText: {
+    ...styles.cancelButtonText,
+    color: colors.textSecondary,
+  },
+  busyStatusSection: {
+    ...styles.busyStatusSection,
+    shadowColor: colors.shadow,
+  },
+  busyStatusTitle: {
+    ...styles.busyStatusTitle,
+    color: colors.text,
+  },
+  toggleSwitch: {
+    ...styles.toggleSwitch,
+    backgroundColor: isDarkMode ? '#424242' : '#E0E0E0',
+  },
+  toggleSwitchActive: {
+    ...styles.toggleSwitchActive,
+    backgroundColor: colors.success,
+  },
+  toggleThumb: {
+    ...styles.toggleThumb,
+    backgroundColor: colors.switchThumb,
+    shadowColor: colors.shadow,
+  },
+  busyToggleText: {
+    ...styles.busyToggleText,
+    color: colors.text,
+  },
+  busyMessageButton: {
+    ...styles.busyMessageButton,
+    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+  },
+  busyMessageText: {
+    ...styles.busyMessageText,
+    color: colors.textSecondary,
+  },
+  modalOverlay: {
+    ...styles.modalOverlay,
+    backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+  },
+  busyModalContainer: {
+    ...styles.busyModalContainer,
+    shadowColor: colors.shadow,
+  },
+  busyModalHeader: {
+    ...styles.busyModalHeader,
+    borderBottomColor: colors.border,
+  },
+  busyModalTitle: {
+    ...styles.busyModalTitle,
+    color: colors.text,
+  },
+  busyModalLabel: {
+    ...styles.busyModalLabel,
+    color: colors.textSecondary,
+  },
+  busyMessageInput: {
+    ...styles.busyMessageInput,
+    borderColor: colors.border,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
+  busyModalCancelButton: {
+    ...styles.busyModalCancelButton,
+    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+  },
+  busyModalCancelText: {
+    ...styles.busyModalCancelText,
+    color: colors.textSecondary,
+  },
+  busyModalSaveText: {
+    ...styles.busyModalSaveText,
+    color: colors.badgeTextLight,
+  },
+  backgroundMenuContainer: {
+    ...styles.backgroundMenuContainer,
+    shadowColor: colors.shadow,
+  },
+  backgroundMenuTitle: {
+    ...styles.backgroundMenuTitle,
+    color: colors.text,
+  },
+  backgroundMenuButtonText: {
+    ...styles.backgroundMenuButtonText,
+    color: colors.badgeTextLight,
+  },
+  backgroundMenuCancel: {
+    ...styles.backgroundMenuCancel,
+    backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+  },
+  backgroundMenuCancelText: {
+    ...styles.backgroundMenuCancelText,
+    color: colors.textSecondary,
+  },
+  editBackgroundButton: {
+    ...styles.editBackgroundButton,
+    shadowColor: colors.shadow,
+  },
+});
 
 export default function ProfileScreen({ navigation, route }: any) {
   const { user, token } = useAuth();
+  const { colors, isDarkMode } = useTheme();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -149,6 +443,9 @@ export default function ProfileScreen({ navigation, route }: any) {
   // Get user ID from route params or use current user
   const userId = route?.params?.userId || user?.id;
   const isOwnProfile = userId === user?.id;
+
+  // Themed styles
+  const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   useEffect(() => {
     fetchUserProfile();
@@ -581,7 +878,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   };
 
   const renderAlbumPhoto = ({ item }: { item: AlbumPhoto }) => (
-    <View style={styles.albumPhotoItem}>
+    <View style={themedStyles.albumPhotoItem}>
       <TouchableOpacity
         onPress={() => {
           if (isOwnProfile) {
@@ -603,29 +900,29 @@ export default function ProfileScreen({ navigation, route }: any) {
   );
 
   const renderGift = ({ item }: { item: Gift }) => (
-    <Animated.View style={[styles.giftItem, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[themedStyles.giftItem, { transform: [{ scale: scaleAnim }] }]}>
       <Text style={styles.giftIcon}>{item.icon}</Text>
-      <Text style={styles.giftCount}>{item.count}</Text>
+      <Text style={themedStyles.giftCount}>{item.count}</Text>
     </Animated.View>
   );
 
   const renderAchievement = ({ item }: { item: Achievement }) => (
-    <Animated.View style={[styles.achievementItem, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[themedStyles.achievementItem, { transform: [{ scale: scaleAnim }] }]}>
       <Text style={styles.achievementIcon}>{item.icon}</Text>
-      <Text style={styles.achievementName}>{item.name}</Text>
-      {item.count && <Text style={styles.achievementCount}>{item.count}</Text>}
+      <Text style={themedStyles.achievementName}>{item.name}</Text>
+      {item.count && <Text style={themedStyles.achievementCount}>{item.count}</Text>}
     </Animated.View>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={themedStyles.container}>
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
+          colors={isDarkMode ? [colors.primary, colors.info] : ['#667eea', '#764ba2']}
           style={styles.loadingContainer}
         >
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <Text style={styles.loadingText}>Loading...</Text>
+            <Text style={themedStyles.loadingText}>Loading...</Text>
           </Animated.View>
         </LinearGradient>
       </SafeAreaView>
@@ -634,24 +931,24 @@ export default function ProfileScreen({ navigation, route }: any) {
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={themedStyles.container}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Profile not found</Text>
+          <Text style={themedStyles.errorText}>Profile not found</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={themedStyles.container}>
       {/* Animated Header */}
       <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <LinearGradient
-            colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
-            style={styles.headerButtonGradient}
+            colors={isDarkMode ? ['rgba(66,66,66,0.8)', 'rgba(66,66,66,0.6)'] : ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)']}
+            style={themedStyles.headerButtonGradient}
           >
-            <Ionicons name="arrow-back" size={24} color="#333" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
@@ -664,7 +961,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* Background Image Area with Gradient Overlay */}
-        <View style={styles.backgroundImageContainer}>
+        <View style={themedStyles.backgroundImageContainer}>
           <Image 
             source={
               profile.profileBackground
@@ -683,21 +980,21 @@ export default function ProfileScreen({ navigation, route }: any) {
             }}
           />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
+            colors={isDarkMode ? ['transparent', 'rgba(18,18,18,0.4)', 'rgba(18,18,18,0.7)'] : ['transparent', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
             style={styles.backgroundOverlay}
           />
 
           {/* Edit Background Icon - Only show for own profile */}
           {isOwnProfile && (
             <TouchableOpacity 
-              style={styles.editBackgroundButton}
+              style={themedStyles.editBackgroundButton}
               onPress={() => navigation.navigate('EditProfile')}
             >
               <LinearGradient
-                colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                colors={isDarkMode ? ['rgba(66,66,66,0.9)', 'rgba(66,66,66,0.7)'] : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
                 style={styles.editBackgroundGradient}
               >
-                <Ionicons name="pencil" size={20} color="#333" />
+                <Ionicons name="pencil" size={20} color={colors.text} />
               </LinearGradient>
             </TouchableOpacity>
           )}
@@ -706,7 +1003,7 @@ export default function ProfileScreen({ navigation, route }: any) {
         {/* Profile Content with slide animation */}
         <Animated.View 
           style={[
-            styles.profileContent,
+            themedStyles.profileContent,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }]
@@ -720,7 +1017,7 @@ export default function ProfileScreen({ navigation, route }: any) {
               { transform: [{ scale: scaleAnim }] }
             ]}
           >
-            <View style={styles.simpleAvatarContainer}>
+            <View style={themedStyles.simpleAvatarContainer}>
               {/* Avatar Frame (if exists) */}
               {profile.avatarFrame && (
                 <Image
@@ -742,10 +1039,10 @@ export default function ProfileScreen({ navigation, route }: any) {
                 />
               ) : (
                 <LinearGradient
-                  colors={['#667eea', '#764ba2']}
-                  style={styles.simpleDefaultAvatar}
+                  colors={isDarkMode ? [colors.primary, colors.info] : ['#667eea', '#764ba2']}
+                  style={themedStyles.simpleDefaultAvatar}
                 >
-                  <Text style={styles.avatarText}>
+                  <Text style={themedStyles.avatarText}>
                     {profile.username.charAt(0).toUpperCase()}
                   </Text>
                 </LinearGradient>
@@ -757,12 +1054,12 @@ export default function ProfileScreen({ navigation, route }: any) {
           <View style={styles.userInfo}>
             <View style={styles.nameContainer}>
               <View style={styles.usernameRow}>
-                <Text style={styles.username}>{profile.username}</Text>
+                <Text style={themedStyles.username}>{profile.username}</Text>
                 <LinearGradient
-                  colors={['#9333ea', '#dc2626']}
-                  style={styles.levelBadgeCapsule}
+                  colors={isDarkMode ? [colors.primary, colors.error] : ['#9333ea', '#dc2626']}
+                  style={[styles.levelBadgeCapsule, { backgroundColor: getUserLevelBadgeColor(profile.level || 1, isDarkMode) }]}
                 >
-                  <Text style={styles.levelBadgeText}>Lv {profile.level || 1}</Text>
+                  <Text style={themedStyles.levelBadgeText}>Lv {profile.level || 1}</Text>
                 </LinearGradient>
                 
                 {/* Role Badge - Merchant, Admin, Mentor */}
@@ -805,44 +1102,44 @@ export default function ProfileScreen({ navigation, route }: any) {
                   return null;
                 })()}
               </View>
-              <Text style={styles.userRole}></Text>
+              <Text style={themedStyles.userRole}></Text>
             </View>
 
             {/* Follow Stats */}
             <View style={styles.followStatsContainer}>
               <TouchableOpacity style={styles.followStatItem}>
-                <Text style={styles.followStatText}>
-                  Ikuti <Text style={styles.followStatNumber}>[{profile.followers || followersCount || 0}]</Text>
+                <Text style={themedStyles.followStatText}>
+                  Ikuti <Text style={themedStyles.followStatNumber}>[{profile.followers || followersCount || 0}]</Text>
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.followStatItem}>
-                <Text style={styles.followStatText}>
-                  Mengikuti <Text style={styles.followStatNumber}>[{profile.following || followingCount || 0}]</Text>
+                <Text style={themedStyles.followStatText}>
+                  Mengikuti <Text style={themedStyles.followStatNumber}>[{profile.following || followingCount || 0}]</Text>
                 </Text>
               </TouchableOpacity>
             </View>
 
             {/* Bio */}
             {profile.bio && (
-              <Text style={styles.bio}>{profile.bio}</Text>
+              <Text style={themedStyles.bio}>{profile.bio}</Text>
             )}
 
             {/* Family Badge with enhanced gradient */}
             {familyBadge && (
               <TouchableOpacity 
-                style={styles.familyBadgeContainer}
+                style={themedStyles.familyBadgeContainer}
                 onPress={() => navigation.navigate('FamilyDetailScreen', { familyId: familyBadge.familyId })}
               >
                 <LinearGradient
-                  colors={['#9333ea', '#dc2626']}
+                  colors={[getFamilyLevelColor(familyBadge.familyLevel, isDarkMode), isDarkMode ? colors.card : '#2c3e50']}
                   style={styles.familyBadge}
                 >
                   <View style={styles.familyBadgeIcon}>
-                    <View style={styles.familyIconCircle}>
-                      <Ionicons name="diamond" size={14} color="#9333ea" />
+                    <View style={themedStyles.familyIconCircle}>
+                      <Ionicons name="diamond" size={14} color={colors.primary} />
                     </View>
                   </View>
-                  <Text style={styles.familyBadgeName} numberOfLines={1}>
+                  <Text style={themedStyles.familyBadgeName} numberOfLines={1}>
                     {familyBadge.familyName}
                   </Text>
                 </LinearGradient>
@@ -853,12 +1150,12 @@ export default function ProfileScreen({ navigation, route }: any) {
             {profile.role === 'merchant' && profile.merchantStatus && (
               <View 
                 style={[
-                  styles.merchantBadgeContainer,
-                  profile.merchantStatus.atRisk && styles.merchantBadgeAtRisk
+                  themedStyles.merchantBadgeContainer,
+                  profile.merchantStatus.atRisk && themedStyles.merchantBadgeAtRisk
                 ]}
               >
                 <LinearGradient
-                  colors={profile.merchantStatus.atRisk ? ['#888888', '#666666'] : ['#FFD700', '#FFA500']}
+                  colors={profile.merchantStatus.atRisk ? [colors.textSecondary, colors.border] : [colors.warning, colors.error]}
                   style={[
                     styles.merchantBadge,
                     { opacity: profile.merchantStatus.atRisk ? 0.4 : 1.0 }
@@ -868,13 +1165,13 @@ export default function ProfileScreen({ navigation, route }: any) {
                     <Ionicons 
                       name="storefront" 
                       size={16} 
-                      color={profile.merchantStatus.atRisk ? '#aaa' : '#FFD700'} 
+                      color={profile.merchantStatus.atRisk ? colors.textSecondary : colors.warning} 
                     />
                   </View>
                   <View style={styles.merchantBadgeContent}>
                     <Text style={[
-                      styles.merchantBadgeText,
-                      { color: profile.merchantStatus.atRisk ? '#999' : '#fff' }
+                      themedStyles.merchantBadgeText,
+                      { color: profile.merchantStatus.atRisk ? colors.textSecondary : colors.badgeTextLight }
                     ]}>
                       Merchant
                     </Text>
@@ -884,19 +1181,19 @@ export default function ProfileScreen({ navigation, route }: any) {
                           styles.merchantProgress, 
                           { 
                             width: `${Math.min(profile.merchantStatus.percentage, 100)}%`,
-                            backgroundColor: profile.merchantStatus.atRisk ? '#666' : '#FFD700'
+                            backgroundColor: profile.merchantStatus.atRisk ? colors.border : colors.warning
                           }
                         ]} 
                       />
                     </View>
                     <Text style={[
-                      styles.merchantRevenueText,
-                      { color: profile.merchantStatus.atRisk ? '#888' : '#fff' }
+                      themedStyles.merchantRevenueText,
+                      { color: profile.merchantStatus.atRisk ? colors.textSecondary : colors.badgeTextLight }
                     ]}>
                       {profile.merchantStatus.revenue.toLocaleString()} / {profile.merchantStatus.requirement.toLocaleString()} coins ({profile.merchantStatus.percentage}%)
                     </Text>
                     {profile.merchantStatus.atRisk && (
-                      <Text style={styles.merchantWarningText}>⚠️ At Risk - Low Revenue</Text>
+                      <Text style={themedStyles.merchantWarningText}>⚠️ At Risk - Low Revenue</Text>
                     )}
                   </View>
                 </LinearGradient>
@@ -907,7 +1204,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           {/* Achievements */}
           {profile.achievements && profile.achievements.length > 0 && (
             <View style={styles.achievementsSection}>
-              <Text style={styles.sectionTitle}>Pencapaian</Text>
+              <Text style={themedStyles.sectionTitle}>Pencapaian</Text>
               <FlatList
                 data={profile.achievements}
                 renderItem={renderAchievement}
@@ -921,30 +1218,30 @@ export default function ProfileScreen({ navigation, route }: any) {
           {/* Enhanced Action Buttons */}
           {!isOwnProfile && (
             <View style={styles.actionButtons}>
-              <TouchableOpacity onPress={handleFollow} style={styles.followButtonContainer}>
+              <TouchableOpacity onPress={handleFollow} style={themedStyles.followButtonContainer}>
                 <LinearGradient
-                  colors={isFollowing ? ['#9333ea', '#dc2626'] : ['#9333ea', '#dc2626']}
+                  colors={isFollowing ? [colors.textSecondary, colors.border] : [colors.primary, colors.error]}
                   style={styles.followButton}
                 >
                   <Ionicons 
                     name={isFollowing ? "checkmark-circle" : "person-add"} 
                     size={16} 
-                    color="#fff" 
+                    color={colors.badgeTextLight} 
                     style={{ marginRight: 6 }}
                   />
-                  <Text style={styles.followButtonText}>
+                  <Text style={themedStyles.followButtonText}>
                     {isFollowing ? 'Mengikuti' : 'Ikuti'}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.messageButton} onPress={handleMessage}>
+              <TouchableOpacity style={themedStyles.messageButton} onPress={handleMessage}>
                 <LinearGradient
-                  colors={['#9333ea', '#dc2626']}
+                  colors={[colors.primary, colors.error]}
                   style={styles.messageButtonGradient}
                 >
-                  <Ionicons name="chatbubble" size={16} color="#fff" />
-                  <Text style={styles.messageButtonText}>Pesan</Text>
+                  <Ionicons name="chatbubble" size={16} color={colors.badgeTextLight} />
+                  <Text style={themedStyles.messageButtonText}>Pesan</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -953,7 +1250,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           {/* Album Photos */}
           {albumPhotos.length > 0 && (
             <View style={styles.albumSection}>
-              <Text style={styles.sectionTitle}>Album</Text>
+              <Text style={themedStyles.sectionTitle}>Album</Text>
               <FlatList
                 data={albumPhotos.slice(0, 6)}
                 renderItem={renderAlbumPhoto}
@@ -967,7 +1264,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           {/* Gifts Received */}
           {profile.gifts && profile.gifts.length > 0 && (
             <View style={styles.giftsSection}>
-              <Text style={styles.sectionTitle}>Hadiah yang Diterima</Text>
+              <Text style={themedStyles.sectionTitle}>Hadiah yang Diterima</Text>
               <FlatList
                 data={profile.gifts}
                 renderItem={renderGift}
@@ -982,21 +1279,21 @@ export default function ProfileScreen({ navigation, route }: any) {
           {isOwnProfile && (
             <>
               {/* Busy Status Control */}
-              <View style={styles.busyStatusSection}>
+              <View style={themedStyles.busyStatusSection}>
                 <LinearGradient
-                  colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
+                  colors={isDarkMode ? ['rgba(66,66,66,0.9)', 'rgba(66,66,66,0.7)'] : ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)']}
                   style={styles.busyStatusGradient}
                 >
                   <View style={styles.busyStatusHeader}>
-                    <Text style={styles.busyStatusTitle}>Busy Status</Text>
+                    <Text style={themedStyles.busyStatusTitle}>Busy Status</Text>
                     <TouchableOpacity
-                      style={styles.busyToggle}
+                      style={themedStyles.busyToggle}
                       onPress={handleBusyToggle}
                     >
-                      <View style={[styles.toggleSwitch, isBusy && styles.toggleSwitchActive]}>
-                        <View style={[styles.toggleThumb, isBusy && styles.toggleThumbActive]} />
+                      <View style={[themedStyles.toggleSwitch, isBusy && themedStyles.toggleSwitchActive]}>
+                        <View style={[themedStyles.toggleThumb, isBusy && styles.toggleThumbActive]} />
                       </View>
-                      <Text style={styles.busyToggleText}>
+                      <Text style={themedStyles.busyToggleText}>
                         {isBusy ? 'Busy' : 'Available'}
                       </Text>
                     </TouchableOpacity>
@@ -1004,11 +1301,11 @@ export default function ProfileScreen({ navigation, route }: any) {
 
                   {isBusy && (
                     <TouchableOpacity
-                      style={styles.busyMessageButton}
+                      style={themedStyles.busyMessageButton}
                       onPress={() => setShowBusyModal(true)}
                     >
-                      <Ionicons name="create-outline" size={16} color="#666" />
-                      <Text style={styles.busyMessageText}>{busyMessage}</Text>
+                      <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
+                      <Text style={themedStyles.busyMessageText}>{busyMessage}</Text>
                     </TouchableOpacity>
                   )}
                 </LinearGradient>
@@ -1016,25 +1313,25 @@ export default function ProfileScreen({ navigation, route }: any) {
 
               <View style={styles.editActions}>
                 <TouchableOpacity
-                  style={styles.saveButtonContainer}
+                  style={themedStyles.saveButtonContainer}
                   onPress={() => navigation.navigate('EditProfile')} 
                   disabled={loading}
                 >
                   <LinearGradient
-                    colors={['#667eea', '#764ba2']}
+                    colors={isDarkMode ? [colors.primary, colors.info] : ['#667eea', '#764ba2']}
                     style={styles.saveButton}
                   >
-                    <Text style={styles.saveButtonText}>
+                    <Text style={themedStyles.saveButtonText}>
                       {loading ? 'Saving...' : 'Edit Profile'}
                     </Text>
                   </LinearGradient>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.cancelButton}
+                  style={themedStyles.cancelButton}
                   onPress={() => navigation.goBack()} 
                 >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={themedStyles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -1049,22 +1346,22 @@ export default function ProfileScreen({ navigation, route }: any) {
         animationType="fade"
         onRequestClose={() => setShowBusyModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={themedStyles.modalOverlay}>
           <LinearGradient
-            colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.9)']}
-            style={styles.busyModalContainer}
+            colors={isDarkMode ? ['rgba(42,42,42,0.95)', 'rgba(42,42,42,0.9)'] : ['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.9)']}
+            style={themedStyles.busyModalContainer}
           >
-            <View style={styles.busyModalHeader}>
-              <Text style={styles.busyModalTitle}>Edit Busy Message</Text>
+            <View style={themedStyles.busyModalHeader}>
+              <Text style={themedStyles.busyModalTitle}>Edit Busy Message</Text>
               <TouchableOpacity onPress={() => setShowBusyModal(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.busyModalContent}>
-              <Text style={styles.busyModalLabel}>Message to show when others try to chat:</Text>
+              <Text style={themedStyles.busyModalLabel}>Message to show when others try to chat:</Text>
               <TextInput
-                style={styles.busyMessageInput}
+                style={themedStyles.busyMessageInput}
                 value={busyMessage}
                 onChangeText={setBusyMessage}
                 placeholder="Enter busy message"
@@ -1074,20 +1371,20 @@ export default function ProfileScreen({ navigation, route }: any) {
 
               <View style={styles.busyModalActions}>
                 <TouchableOpacity
-                  style={styles.busyModalCancelButton}
+                  style={themedStyles.busyModalCancelButton}
                   onPress={() => setShowBusyModal(false)}
                 >
-                  <Text style={styles.busyModalCancelText}>Cancel</Text>
+                  <Text style={themedStyles.busyModalCancelText}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   onPress={handleBusyMessageUpdate}
                 >
                   <LinearGradient
-                    colors={['#007AFF', '#0051D0']}
+                    colors={isDarkMode ? [colors.info, colors.primary] : ['#007AFF', '#0051D0']}
                     style={styles.busyModalSaveButton}
                   >
-                    <Text style={styles.busyModalSaveText}>Save</Text>
+                    <Text style={themedStyles.busyModalSaveText}>Save</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1106,13 +1403,13 @@ export default function ProfileScreen({ navigation, route }: any) {
           setSelectedPhotoForBackground(null);
         }}
       >
-        <View style={styles.modalOverlay}>
+        <View style={themedStyles.modalOverlay}>
           <LinearGradient
-            colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.9)']}
-            style={styles.backgroundMenuContainer}
+            colors={isDarkMode ? ['rgba(42,42,42,0.95)', 'rgba(42,42,42,0.9)'] : ['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.9)']}
+            style={themedStyles.backgroundMenuContainer}
           >
             <View style={styles.backgroundMenuContent}>
-              <Text style={styles.backgroundMenuTitle}>Set as Background</Text>
+              <Text style={themedStyles.backgroundMenuTitle}>Set as Background</Text>
               
               {selectedPhotoForBackground && (
                 <>
@@ -1121,21 +1418,21 @@ export default function ProfileScreen({ navigation, route }: any) {
                     onPress={() => handleSaveAsBackground(selectedPhotoForBackground)}
                   >
                     <LinearGradient
-                      colors={['#667eea', '#764ba2']}
+                      colors={isDarkMode ? [colors.primary, colors.info] : ['#667eea', '#764ba2']}
                       style={styles.backgroundMenuButtonGradient}
                     >
-                      <Text style={styles.backgroundMenuButtonText}>Save to Background</Text>
+                      <Text style={themedStyles.backgroundMenuButtonText}>Save to Background</Text>
                     </LinearGradient>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.backgroundMenuCancel}
+                    style={themedStyles.backgroundMenuCancel}
                     onPress={() => {
                       setShowBackgroundMenu(false);
                       setSelectedPhotoForBackground(null);
                     }}
                   >
-                    <Text style={styles.backgroundMenuCancelText}>Cancel</Text>
+                    <Text style={themedStyles.backgroundMenuCancelText}>Cancel</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -1150,7 +1447,6 @@ export default function ProfileScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     position: 'absolute',
@@ -1174,7 +1470,6 @@ const styles = StyleSheet.create({
   headerButtonGradient: {
     padding: 12,
     borderRadius: 25,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1189,7 +1484,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -1199,13 +1493,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#333',
     fontSize: 16,
   },
   backgroundImageContainer: {
     height: 300,
     position: 'relative',
-    backgroundColor: '#fff',
     overflow: 'hidden',
   },
   backgroundImage: {
@@ -1226,7 +1518,6 @@ const styles = StyleSheet.create({
     right: 20,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1242,22 +1533,18 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#fff',
     marginRight: 8,
   },
   livingText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
   profileContent: {
-    backgroundColor: '#fff',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     marginTop: -30,
     paddingTop: 25,
     paddingHorizontal: 20,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.1,
     shadowRadius: 15,
@@ -1274,10 +1561,7 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: 44,
     overflow: 'visible',
-    backgroundColor: '#fff',
     borderWidth: 3,
-    borderColor: '#667eea',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1318,7 +1602,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: {
-    color: '#fff',
     fontSize: 32,
     fontWeight: 'bold',
   },
@@ -1337,7 +1620,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   username: {
-    color: '#2c3e50',
     fontSize: 20,
     fontWeight: 'normal',
   },
@@ -1350,7 +1632,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   levelBadgeText: {
-    color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -1363,7 +1644,6 @@ const styles = StyleSheet.create({
     height: 32,
   },
   userRole: {
-    color: '#FF6B35',
     fontSize: 18,
     fontWeight: '600',
   },
@@ -1378,18 +1658,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   followStatText: {
-    color: '#2c3e50',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
   },
   followStatNumber: {
-    color: '#667eea',
     fontSize: 16,
     fontWeight: 'bold',
   },
   bio: {
-    color: '#7f8c8d',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
@@ -1400,7 +1677,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1421,20 +1697,16 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
   familyBadgeName: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
-    textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
     flex: 1,
@@ -1444,7 +1716,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1453,7 +1724,6 @@ const styles = StyleSheet.create({
     maxWidth: 320,
   },
   merchantBadgeAtRisk: {
-    shadowColor: '#666',
     shadowOpacity: 0.15,
   },
   merchantBadge: {
@@ -1467,7 +1737,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1482,7 +1751,6 @@ const styles = StyleSheet.create({
   merchantProgressBar: {
     width: '100%',
     height: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 6,
@@ -1498,7 +1766,6 @@ const styles = StyleSheet.create({
   merchantWarningText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#ff6b6b',
     marginTop: 4,
   },
   actionButtons: {
@@ -1513,7 +1780,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#9333ea',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1527,7 +1793,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   followButtonText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -1535,7 +1800,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#dc2626',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1550,7 +1814,6 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   messageButtonText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -1560,7 +1823,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
     marginBottom: 20,
   },
   albumGrid: {
@@ -1571,7 +1833,6 @@ const styles = StyleSheet.create({
     margin: 6,
     borderRadius: 12,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -1589,13 +1850,11 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   giftItem: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginRight: 15,
     alignItems: 'center',
     minWidth: 70,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1608,7 +1867,6 @@ const styles = StyleSheet.create({
   giftCount: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2c3e50',
   },
   achievementsSection: {
     marginBottom: 30,
@@ -1617,13 +1875,11 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   achievementItem: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
     marginRight: 15,
     alignItems: 'center',
     minWidth: 90,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1636,13 +1892,11 @@ const styles = StyleSheet.create({
   achievementName: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#2c3e50',
     textAlign: 'center',
   },
   achievementCount: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#FF6B35',
     marginTop: 4,
   },
   editActions: {
@@ -1654,7 +1908,6 @@ const styles = StyleSheet.create({
   saveButtonContainer: {
     borderRadius: 15,
     overflow: 'hidden',
-    shadowColor: '#667eea',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -1665,7 +1918,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 35,
   },
   saveButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -1673,10 +1925,8 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 35,
     borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   cancelButtonText: {
-    color: '#7f8c8d',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -1685,7 +1935,6 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -1703,7 +1952,6 @@ const styles = StyleSheet.create({
   busyStatusTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#2c3e50',
   },
   busyToggle: {
     flexDirection: 'row',
@@ -1714,20 +1962,16 @@ const styles = StyleSheet.create({
     width: 60,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#E0E0E0',
     justifyContent: 'center',
     padding: 3,
   },
   toggleSwitchActive: {
-    backgroundColor: '#4CAF50',
   },
   toggleThumb: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#fff',
     alignSelf: 'flex-start',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -1739,34 +1983,29 @@ const styles = StyleSheet.create({
   busyToggleText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#2c3e50',
   },
   busyMessageButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    backgroundColor: 'rgba(255,255,255,0.8)',
     borderRadius: 12,
     gap: 10,
   },
   busyMessageText: {
     flex: 1,
     fontSize: 14,
-    color: '#7f8c8d',
   },
   // Modal styles
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   busyModalContainer: {
     borderRadius: 20,
     marginHorizontal: 20,
     maxWidth: 400,
     width: '90%',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -1778,31 +2017,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 25,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
   },
   busyModalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
   },
   busyModalContent: {
     padding: 25,
   },
   busyModalLabel: {
     fontSize: 16,
-    color: '#7f8c8d',
     marginBottom: 15,
   },
   busyMessageInput: {
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
     borderRadius: 12,
     padding: 15,
     fontSize: 16,
-    color: '#2c3e50',
     minHeight: 90,
     textAlignVertical: 'top',
-    backgroundColor: 'rgba(255,255,255,0.9)',
   },
   busyModalActions: {
     flexDirection: 'row',
@@ -1814,11 +2047,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   busyModalCancelText: {
     fontSize: 16,
-    color: '#7f8c8d',
     fontWeight: '500',
   },
   busyModalSaveButton: {
@@ -1828,7 +2059,6 @@ const styles = StyleSheet.create({
   },
   busyModalSaveText: {
     fontSize: 16,
-    color: '#fff',
     fontWeight: '500',
   },
   // Background editing styles
@@ -1838,7 +2068,6 @@ const styles = StyleSheet.create({
     right: 20,
     borderRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
@@ -1853,7 +2082,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     maxWidth: 400,
     width: '90%',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -1865,7 +2093,6 @@ const styles = StyleSheet.create({
   backgroundMenuTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#2c3e50',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -1879,18 +2106,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   backgroundMenuButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
   backgroundMenuCancel: {
     padding: 18,
     borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.05)',
     alignItems: 'center',
   },
   backgroundMenuCancelText: {
-    color: '#7f8c8d',
     fontSize: 16,
     fontWeight: '600',
   },
