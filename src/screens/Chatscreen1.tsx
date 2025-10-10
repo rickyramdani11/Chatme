@@ -4048,7 +4048,7 @@ export default function ChatScreen() {
                 ]}>
                   {item.sender} 
                 </Text>
-                <Text>{renderMessageContent(item.content)}</Text>
+                <Text style={{ color: COLORS.text }}>{renderMessageContent(item.content)}</Text>
               </Text>
             </View>
           ) : (
