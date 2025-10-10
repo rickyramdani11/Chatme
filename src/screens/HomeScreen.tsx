@@ -481,6 +481,12 @@ const HomeScreen = ({ navigation }: any) => {
     setRefreshing(false);
   };
 
+  const handleRefreshButton = async () => {
+    setRefreshing(true);
+    await fetchFriends();
+    setRefreshing(false);
+  };
+
   const handleBannerClick = async (banner: any) => {
     try {
       // Track banner click
@@ -1100,9 +1106,19 @@ const HomeScreen = ({ navigation }: any) => {
             >
               <Ionicons name="trophy" size={16} color="#FF9800" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.refreshButton} onPress={fetchFriends}>
-              <Ionicons name="refresh" size={16} color="#9C27B0" />
-              <Text style={styles.refreshText}>Refresh</Text>
+            <TouchableOpacity 
+              style={styles.refreshButton} 
+              onPress={handleRefreshButton}
+              disabled={refreshing}
+            >
+              <Ionicons 
+                name="refresh" 
+                size={16} 
+                color={refreshing ? "#ccc" : "#9C27B0"} 
+              />
+              <Text style={[styles.refreshText, refreshing && { color: '#ccc' }]}>
+                {refreshing ? 'Loading...' : 'Refresh'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

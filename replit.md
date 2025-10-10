@@ -67,6 +67,8 @@ Preferred communication style: Simple, everyday language.
 - **Gender Icons**: Visual gender indicators in user profiles.
 - **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
 - **Album Photo Visibility**: Removed opacity animation to ensure immediate visibility of loaded photos.
+- **Profile Background Auto-Refresh**: useFocusEffect with memoized fetch functions ensures profile background updates when returning from EditProfileScreen.
+- **Friends Refresh Visual Feedback**: Refresh button shows loading state, disables during fetch, and displays "Loading..." text for clear user feedback.
 
 # External Dependencies
 
