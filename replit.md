@@ -27,7 +27,8 @@ Preferred communication style: Simple, everyday language.
   - **Database Sync**: Participant count automatically synced to database on removal
   - **Frontend**: Participant list and "Currently in room" info automatically updated via `participants-updated` event
   - **UI Cleanup**: Removed online/offline status badges from participant modal (no longer needed since offline users are auto-removed)
-  - **Result**: Clean participant list showing only active users, offline users no longer displayed
+  - **Duplicate Join Fix**: Fixed race condition in join broadcast by setting `announcedJoins` flag BEFORE scheduling broadcast (prevents duplicate "has entered" messages)
+  - **Result**: Clean participant list showing only active users, no duplicate join messages, offline users no longer displayed
 - **Anti-Flood Rate Limiting System**: Comprehensive protection against message spam from third-party auto-send tools:
   - **Rate Limit**: Maximum 5 messages per 5 seconds per user
   - **Auto-Cooldown**: 30-second mute when limit exceeded

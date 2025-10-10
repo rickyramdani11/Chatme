@@ -1013,12 +1013,12 @@ io.on('connection', (socket) => {
       const shouldBroadcastJoin = !silent && !wasAlreadyOnline && !hasAnnouncedJoinGlobally && !isPrivateChat;
 
       if (shouldBroadcastJoin) {
-        // Use debounced broadcast to prevent spam from rapid reconnects
-        scheduleBroadcast(io, 'join', socket.userId, roomId, socket.username, socket.userRole, socket);
-        
-        // Mark as announced GLOBALLY for this user+room (prevents duplicate across all connections)
+        // Mark as announced GLOBALLY FIRST to prevent race condition duplicates
         announcedJoins.set(joinKey, Date.now());
         userInfo.announcedRooms.add(roomId);
+        
+        // Use debounced broadcast to prevent spam from rapid reconnects
+        scheduleBroadcast(io, 'join', socket.userId, roomId, socket.username, socket.userRole, socket);
       } else {
         if (silent) {
           console.log(`🔇 Silent join - no broadcast for ${socket.username} in room ${roomId}`);
