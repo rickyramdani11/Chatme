@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL, BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import { io } from 'socket.io-client';
 
@@ -44,6 +45,7 @@ interface Room {
 
 const HomeScreen = ({ navigation }: any) => {
   const { user } = useAuth();
+  const { colors, isDarkMode } = useTheme();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -510,11 +512,11 @@ const HomeScreen = ({ navigation }: any) => {
 
   const getStatusColor = (status: StatusType): string => {
     switch (status) {
-      case 'online': return '#4CAF50';
-      case 'away': return '#FF9800';
-      case 'busy': return '#F44336';
-      case 'offline': return '#9E9E9E';
-      default: return '#9E9E9E';
+      case 'online': return colors.success;
+      case 'away': return colors.warning;
+      case 'busy': return colors.error;
+      case 'offline': return colors.textSecondary;
+      default: return colors.textSecondary;
     }
   };
 
@@ -529,26 +531,32 @@ const HomeScreen = ({ navigation }: any) => {
   };
 
   const getRandomAvatarColor = (name: string) => {
-    const colors = [
-      '#FF6B6B', // Red
-      '#4ECDC4', // Teal
-      '#45B7D1', // Blue
-      '#96CEB4', // Green
-      '#FFEAA7', // Yellow
-      '#DDA0DD', // Plum
-      '#98D8C8', // Mint
-      '#F7DC6F', // Gold
-      '#BB8FCE', // Purple
-      '#85C1E9', // Light Blue
-      '#82E0AA', // Light Green
-      '#F8C471'  // Orange
+    const lightColors = [
+      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+      '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', 
+      '#BB8FCE', '#85C1E9', '#82E0AA', '#F8C471'
+    ];
+    
+    const darkColors = [
+      '#D32F2F', '#00796B', '#1976D2', '#388E3C',
+      '#F57C00', '#7B1FA2', '#0097A7', '#FBC02D',
+      '#512DA8', '#0288D1', '#388E3C', '#E64A19'
     ];
 
-    // Use first character to determine color consistently
+    const colorPalette = isDarkMode ? darkColors : lightColors;
     const firstChar = name?.charAt(0).toUpperCase() || 'A';
-    const index = firstChar.charCodeAt(0) % colors.length;
-    return colors[index];
+    const index = firstChar.charCodeAt(0) % colorPalette.length;
+    return colorPalette[index];
   };
+
+  const getLevelBadgeColor = (level: number) => {
+    if (isDarkMode) {
+      return { bg: colors.infoBadgeBg, text: colors.infoBadgeText };
+    }
+    return { bg: colors.info, text: colors.badgeTextLight };
+  };
+
+  const themedStyles = useMemo(() => createThemedStyles(colors, isDarkMode), [colors, isDarkMode]);
 
   const formatLastSeen = (lastSeen?: string) => {
     if (!lastSeen) return 'Active now';
@@ -860,32 +868,15 @@ const HomeScreen = ({ navigation }: any) => {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin':
-        return '#FF6B35'; // Orange for admin
+        return colors.error;
       case 'mentor':
-        return '#9C27B0'; // Purple for mentor
+        return colors.primary;
       case 'merchant':
-        return '#FF9800'; // Amber for merchant
+        return colors.warning;
       case 'user':
       default:
-        return '#333'; // Default dark color for regular users
+        return colors.text;
     }
-  };
-
-  // Helper function to get level badge color (gradient green to blue)
-  const getLevelBadgeColor = (level: number) => {
-    if (level >= 10) {
-      return { bg: 'rgba(33, 150, 243, 0.25)', text: '#2196F3' }; // Full blue at level 10+
-    }
-    // Gradient from green to blue (levels 1-9)
-    const ratio = (level - 1) / 9; // 0 at level 1, 1 at level 9
-    const greenValue = Math.round(76 + ratio * (-43)); // 76 to 33
-    const blueValue = Math.round(175 + ratio * 68); // 175 to 243
-    const greenComp = Math.round(107 + ratio * (-107)); // 107 to 0
-    
-    const textColor = `rgb(${greenValue}, ${blueValue}, ${greenComp})`;
-    const bgOpacity = 0.2 + ratio * 0.05; // Slight opacity change
-    
-    return { bg: `rgba(${greenValue}, ${blueValue}, ${greenComp}, ${bgOpacity})`, text: textColor };
   };
 
 
@@ -921,8 +912,8 @@ const HomeScreen = ({ navigation }: any) => {
     } else {
       // Show default avatar with first letter
       avatarDisplay = (
-        <View style={[styles.friendAvatar, { backgroundColor: getRandomAvatarColor(friend.name) }]}>
-          <Text style={styles.friendAvatarText}>
+        <View style={[styles.friendAvatar, themedStyles.friendAvatarBorder, { backgroundColor: getRandomAvatarColor(friend.name) }]}>
+          <Text style={[styles.friendAvatarText, { color: colors.badgeTextLight }]}>
             {friend.name?.charAt(0).toUpperCase() || 'U'}
           </Text>
         </View>
@@ -930,7 +921,7 @@ const HomeScreen = ({ navigation }: any) => {
     }
 
     return (
-      <View key={friend.id} style={styles.friendCard}>
+      <View key={friend.id} style={[styles.friendCard, themedStyles.friendCard]}>
         <TouchableOpacity
           style={styles.friendInfo}
           onPress={() => handleFriendPress(friend)}
@@ -938,13 +929,13 @@ const HomeScreen = ({ navigation }: any) => {
         >
           <View style={styles.friendAvatarContainer}>
             {avatarDisplay}
-            <View style={[styles.statusIndicator, { backgroundColor: getStatusColor(friend.status) }]} />
+            <View style={[styles.statusIndicator, themedStyles.statusIndicatorBorder, { backgroundColor: getStatusColor(friend.status) }]} />
           </View>
           <View style={styles.friendDetails}>
-            <Text style={[styles.friendName, { color: getRoleColor(friend.role || 'user') }]}>
+            <Text style={[styles.friendName, themedStyles.friendName, { color: getRoleColor(friend.role || 'user') }]}>
               {friend.name}
             </Text>
-            <Text style={styles.friendStatus}>{formatLastSeen(friend.lastSeen)}</Text>
+            <Text style={[styles.friendStatus, themedStyles.friendStatus]}>{formatLastSeen(friend.lastSeen)}</Text>
           </View>
         </TouchableOpacity>
 
@@ -953,24 +944,24 @@ const HomeScreen = ({ navigation }: any) => {
           {searchText.length >= 2 ? (
             <>
               <TouchableOpacity
-                style={styles.actionButton}
+                style={[styles.actionButton, themedStyles.actionButton]}
                 onPress={() => addFriend(friend.id, friend.name)}
               >
-                <Ionicons name="person-add" size={20} color="#4CAF50" />
+                <Ionicons name="person-add" size={20} color={colors.success} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.actionButton}
+                style={[styles.actionButton, themedStyles.actionButton]}
                 onPress={() => startChat(friend.id, friend.name)}
               >
-                <Ionicons name="chatbubble" size={20} color="#2196F3" />
+                <Ionicons name="chatbubble" size={20} color={colors.info} />
               </TouchableOpacity>
             </>
           ) : (
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionButton, themedStyles.actionButton]}
               onPress={() => startChat(friend.id, friend.name)}
             >
-              <Ionicons name="chatbubble" size={20} color="#2196F3" />
+              <Ionicons name="chatbubble" size={20} color={colors.info} />
             </TouchableOpacity>
           )}
         </View>
@@ -978,28 +969,104 @@ const HomeScreen = ({ navigation }: any) => {
     );
   };
 
+  const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
+    container: { backgroundColor: colors.background },
+    header: { borderBottomColor: colors.border },
+    userAvatar: { backgroundColor: colors.avatarBg },
+    userAvatarText: { color: colors.badgeTextLight },
+    userStatusIndicator: { borderColor: colors.surface },
+    username: { color: colors.badgeTextLight },
+    statusTextSmall: { color: colors.badgeTextLight },
+    coinTextSmall: { color: colors.warning },
+    friendsTitle: { color: colors.text },
+    trophyButton: { 
+      backgroundColor: colors.card, 
+      borderColor: colors.warning 
+    },
+    refreshButton: { 
+      backgroundColor: colors.card, 
+      borderColor: colors.primary 
+    },
+    refreshText: { color: colors.primary },
+    searchContainer: { 
+      backgroundColor: colors.card, 
+      borderColor: colors.border 
+    },
+    searchInput: { color: colors.text },
+    searchTypeIndicator: { backgroundColor: colors.primary },
+    searchTypeText: { color: colors.badgeTextLight },
+    friendCard: { 
+      backgroundColor: colors.card, 
+      shadowColor: colors.shadow 
+    },
+    friendAvatarBorder: { borderColor: colors.surface },
+    friendName: { color: colors.text },
+    friendStatus: { color: colors.textSecondary },
+    statusIndicatorBorder: { borderColor: colors.card },
+    actionButton: { backgroundColor: colors.surface },
+    loadingText: { color: colors.textSecondary },
+    emptyTitle: { color: colors.textSecondary },
+    emptySubtitle: { color: colors.textSecondary },
+    activeUsersContainer: { 
+      backgroundColor: isDarkMode ? 'rgba(3, 218, 198, 0.2)' : 'rgba(76, 175, 80, 0.2)', 
+      borderColor: isDarkMode ? 'rgba(3, 218, 198, 0.3)' : 'rgba(76, 175, 80, 0.3)' 
+    },
+    activeUsersText: { color: colors.success },
+    notificationBadge: { backgroundColor: colors.error },
+    notificationText: { color: colors.badgeTextLight },
+    modalOverlay: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
+    friendContextMenu: { 
+      backgroundColor: colors.card, 
+      shadowColor: colors.shadow 
+    },
+    friendMenuName: { color: colors.text },
+    friendMenuText: { color: colors.text },
+    friendMenuAvatarText: { color: colors.badgeTextLight },
+    friendMenuItem: { borderTopColor: colors.border },
+    messageHistoryModal: { 
+      backgroundColor: colors.card, 
+      shadowColor: colors.shadow 
+    },
+    messageHistoryHeader: { borderBottomColor: colors.border },
+    messageHistoryTitle: { color: colors.text },
+    emptyChatText: { color: colors.textSecondary },
+    emptyChatSubtext: { color: colors.textSecondary },
+    chatHistoryItemBorder: { borderBottomColor: colors.border },
+    chatName: { color: colors.text },
+    chatLastMessage: { color: colors.textSecondary },
+    chatTime: { color: colors.textSecondary },
+    chatAvatarText: { color: colors.badgeTextLight },
+    onlineIndicatorBorder: { borderColor: colors.card },
+    unreadBadge: { backgroundColor: colors.error },
+    unreadText: { color: colors.badgeTextLight },
+    bannerContainer: { shadowColor: colors.shadow },
+    bannerTitle: { color: colors.badgeTextLight },
+    bannerIndicatorActive: { backgroundColor: colors.primary },
+    bannerIndicatorInactive: { backgroundColor: 'rgba(255,255,255,0.5)' },
+  });
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, themedStyles.container]}>
       {/* Header with Avatar and Controls */}
       <LinearGradient
-        colors={['#FF6B35', '#FF4500']}
+        colors={isDarkMode ? [colors.card, colors.surface] : [colors.primary, colors.error]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={styles.header}
+        style={[styles.header, themedStyles.header]}
       >
         <View style={styles.userInfo}>
           <View style={styles.userAvatarContainer}>
             <TouchableOpacity onPress={toggleStatus}>
-              <View style={styles.userAvatar}>
+              <View style={[styles.userAvatar, themedStyles.userAvatar]}>
                 {user?.avatar ? (
                   <Image source={{ uri: `${BASE_URL}${user.avatar}` }} style={styles.userAvatarImage} />
                 ) : (
-                  <Text style={styles.userAvatarText}>
+                  <Text style={[styles.userAvatarText, themedStyles.userAvatarText]}>
                     {user?.username?.charAt(0).toUpperCase() || 'U'}
                   </Text>
                 )}
               </View>
-              <View style={[styles.userStatusIndicator, { backgroundColor: getStatusColor(userStatus) }]} />
+              <View style={[styles.userStatusIndicator, themedStyles.userStatusIndicator, { backgroundColor: getStatusColor(userStatus) }]} />
             </TouchableOpacity>
           </View>
           <View style={styles.userDetails}>
@@ -1008,16 +1075,16 @@ const HomeScreen = ({ navigation }: any) => {
                 style={styles.notificationButton}
                 onPress={() => navigation.navigate('Notifications')}
               >
-                <Ionicons name="notifications" size={18} color="#fff" />
+                <Ionicons name="notifications" size={18} color={colors.badgeTextLight} />
                 {unreadNotifications > 0 && (
-                  <View style={styles.notificationBadge}>
-                    <Text style={styles.notificationText}>
+                  <View style={[styles.notificationBadge, themedStyles.notificationBadge]}>
+                    <Text style={[styles.notificationText, themedStyles.notificationText]}>
                       {unreadNotifications > 99 ? '99+' : unreadNotifications}
                     </Text>
                   </View>
                 )}
               </TouchableOpacity>
-              <Text style={styles.username}>{user?.username || 'developer'}</Text>
+              <Text style={[styles.username, themedStyles.username]}>{user?.username || 'developer'}</Text>
             </View>
             <TouchableOpacity
               style={styles.bottomRow}
@@ -1029,15 +1096,15 @@ const HomeScreen = ({ navigation }: any) => {
               </View>
               <View style={styles.statusContainer}>
                 <View style={[styles.statusDotSmall, { backgroundColor: getStatusColor(userStatus) }]} />
-                <Text style={styles.statusTextSmall}>{getStatusText(userStatus)}</Text>
+                <Text style={[styles.statusTextSmall, themedStyles.statusTextSmall]}>{getStatusText(userStatus)}</Text>
               </View>
               <View style={styles.coinBalanceSmall}>
-                <Ionicons name="diamond" size={14} color="#FFD700" />
-                <Text style={styles.coinTextSmall}>{userBalance.toLocaleString()}</Text>
+                <Ionicons name="diamond" size={14} color={colors.warning} />
+                <Text style={[styles.coinTextSmall, themedStyles.coinTextSmall]}>{userBalance.toLocaleString()}</Text>
               </View>
-              <View style={styles.activeUsersContainer}>
-                <Ionicons name="people" size={14} color="#4CAF50" />
-                <Text style={styles.activeUsersText}>{activeUsers}</Text>
+              <View style={[styles.activeUsersContainer, themedStyles.activeUsersContainer]}>
+                <Ionicons name="people" size={14} color={colors.success} />
+                <Text style={[styles.activeUsersText, themedStyles.activeUsersText]}>{activeUsers}</Text>
               </View>
               <TouchableOpacity
                 style={styles.messageHistoryButtonSmall}
@@ -1046,7 +1113,7 @@ const HomeScreen = ({ navigation }: any) => {
                   navigation.navigate('ChatHistory');
                 }}
               >
-                <Ionicons name="chatbubbles" size={14} color="#fff" />
+                <Ionicons name="chatbubbles" size={14} color={colors.badgeTextLight} />
               </TouchableOpacity>
             </TouchableOpacity>
           </View>
@@ -1060,7 +1127,7 @@ const HomeScreen = ({ navigation }: any) => {
       {banners.length > 0 && banners[currentBannerIndex] && (
         <View style={styles.bannerSection}>
           <TouchableOpacity
-            style={styles.bannerContainer}
+            style={[styles.bannerContainer, themedStyles.bannerContainer]}
             onPress={() => handleBannerClick(banners[currentBannerIndex])}
             activeOpacity={0.8}
           >
@@ -1073,7 +1140,7 @@ const HomeScreen = ({ navigation }: any) => {
               colors={['transparent', 'rgba(0,0,0,0.3)']}
               style={styles.bannerOverlay}
             >
-              <Text style={styles.bannerTitle} numberOfLines={1}>
+              <Text style={[styles.bannerTitle, themedStyles.bannerTitle]} numberOfLines={1}>
                 {banners[currentBannerIndex].title}
               </Text>
             </LinearGradient>
@@ -1086,7 +1153,7 @@ const HomeScreen = ({ navigation }: any) => {
                   key={index}
                   style={[
                     styles.bannerIndicator,
-                    { backgroundColor: index === currentBannerIndex ? '#8B5CF6' : 'rgba(255,255,255,0.5)' }
+                    index === currentBannerIndex ? themedStyles.bannerIndicatorActive : themedStyles.bannerIndicatorInactive
                   ]}
                 />
               ))}
@@ -1098,43 +1165,43 @@ const HomeScreen = ({ navigation }: any) => {
       {/* Friends Section */}
       <View style={styles.friendsSection}>
         <View style={styles.friendsHeader}>
-          <Text style={styles.friendsTitle}>Friends</Text>
+          <Text style={[styles.friendsTitle, themedStyles.friendsTitle]}>Friends</Text>
           <View style={styles.friendsControls}>
             <TouchableOpacity
-              style={styles.trophyButton}
+              style={[styles.trophyButton, themedStyles.trophyButton]}
               onPress={() => navigation.navigate('TopRank')}
             >
-              <Ionicons name="trophy" size={16} color="#FF9800" />
+              <Ionicons name="trophy" size={16} color={colors.warning} />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.refreshButton} 
+              style={[styles.refreshButton, themedStyles.refreshButton]} 
               onPress={handleRefreshButton}
               disabled={refreshing}
             >
               <Ionicons 
                 name="refresh" 
                 size={16} 
-                color={refreshing ? "#ccc" : "#9C27B0"} 
+                color={refreshing ? colors.textSecondary : colors.primary} 
               />
-              <Text style={[styles.refreshText, refreshing && { color: '#ccc' }]}>
+              <Text style={[styles.refreshText, themedStyles.refreshText, refreshing && { color: colors.textSecondary }]}>
                 {refreshing ? 'Loading...' : 'Refresh'}
               </Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+        <View style={[styles.searchContainer, themedStyles.searchContainer]}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, themedStyles.searchInput]}
             placeholder="Search users... (min 2 characters)"
             value={searchText}
             onChangeText={setSearchText}
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
           />
           {searchText.length >= 2 && (
-            <View style={styles.searchTypeIndicator}>
-              <Text style={styles.searchTypeText}>Users</Text>
+            <View style={[styles.searchTypeIndicator, themedStyles.searchTypeIndicator]}>
+              <Text style={[styles.searchTypeText, themedStyles.searchTypeText]}>Users</Text>
             </View>
           )}
         </View>
@@ -1147,15 +1214,15 @@ const HomeScreen = ({ navigation }: any) => {
         >
           {loading && friends.length === 0 ? (
             <View style={styles.loadingContainer}>
-              <Text style={styles.loadingText}>Loading friends...</Text>
+              <Text style={[styles.loadingText, themedStyles.loadingText]}>Loading friends...</Text>
             </View>
           ) : friends.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={60} color="#ccc" />
-              <Text style={styles.emptyTitle}>
+              <Ionicons name="people-outline" size={60} color={colors.textSecondary} />
+              <Text style={[styles.emptyTitle, themedStyles.emptyTitle]}>
                 {searchText.length >= 2 ? 'No Users Found' : 'No Friends Found'}
               </Text>
-              <Text style={styles.emptySubtitle}>
+              <Text style={[styles.emptySubtitle, themedStyles.emptySubtitle]}>
                 {searchText.length >= 2
                   ? 'No users match your search term'
                   : searchText.length === 1
@@ -1177,27 +1244,28 @@ const HomeScreen = ({ navigation }: any) => {
         onRequestClose={() => setShowFriendMenu(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, themedStyles.modalOverlay]}
           activeOpacity={1}
           onPress={() => setShowFriendMenu(false)}
         >
           <Animated.View style={[
             styles.friendContextMenu,
+            themedStyles.friendContextMenu,
             {
               borderColor: borderBlinkAnim.interpolate({
                 inputRange: [0.3, 1],
-                outputRange: ['#667eea', '#E8F4FD'],
+                outputRange: [colors.primary, colors.border],
               }),
               shadowColor: borderBlinkAnim.interpolate({
                 inputRange: [0.3, 1],
-                outputRange: ['#667eea', '#000'],
+                outputRange: [colors.primary, colors.shadow],
               }),
             }
           ]}>
             <View style={styles.friendMenuHeader}>
               <View style={[
                 styles.friendMenuAvatar,
-                { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username) : '#9E9E9E' }
+                { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username) : colors.textSecondary }
               ]}>
                 {selectedFriend?.avatar ? (
                   <Image
@@ -1206,44 +1274,44 @@ const HomeScreen = ({ navigation }: any) => {
                     onError={() => console.log('Failed to load friend menu avatar')}
                   />
                 ) : (
-                  <Text style={styles.friendMenuAvatarText}>
+                  <Text style={[styles.friendMenuAvatarText, themedStyles.friendMenuAvatarText]}>
                     {selectedFriend?.name?.charAt(0).toUpperCase() || selectedFriend?.username?.charAt(0).toUpperCase() || 'U'}
                   </Text>
                 )}
               </View>
-              <Text style={styles.friendMenuName}>{selectedFriend?.name || selectedFriend?.username}</Text>
+              <Text style={[styles.friendMenuName, themedStyles.friendMenuName]}>{selectedFriend?.name || selectedFriend?.username}</Text>
             </View>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={[styles.friendMenuItem, themedStyles.friendMenuItem]}
               onPress={handleStartChat}
             >
-              <Ionicons name="chatbubble-outline" size={20} color="#2196F3" />
-              <Text style={styles.friendMenuText}>Chat</Text>
+              <Ionicons name="chatbubble-outline" size={20} color={colors.info} />
+              <Text style={[styles.friendMenuText, themedStyles.friendMenuText]}>Chat</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={[styles.friendMenuItem, themedStyles.friendMenuItem]}
               onPress={handleViewProfile}
             >
-              <Ionicons name="person-outline" size={20} color="#333" />
-              <Text style={styles.friendMenuText}>Profile</Text>
+              <Ionicons name="person-outline" size={20} color={colors.text} />
+              <Text style={[styles.friendMenuText, themedStyles.friendMenuText]}>Profile</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={[styles.friendMenuItem, themedStyles.friendMenuItem]}
               onPress={handleBlockUser}
             >
-              <Ionicons name="ban-outline" size={20} color="#FF9800" />
-              <Text style={[styles.friendMenuText, { color: '#FF9800' }]}>Block</Text>
+              <Ionicons name="ban-outline" size={20} color={colors.warning} />
+              <Text style={[styles.friendMenuText, themedStyles.friendMenuText, { color: colors.warning }]}>Block</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.friendMenuItem}
+              style={[styles.friendMenuItem, themedStyles.friendMenuItem]}
               onPress={handleReportUser}
             >
-              <Ionicons name="flag-outline" size={20} color="#F44336" />
-              <Text style={[styles.friendMenuText, { color: '#F44336' }]}>Report</Text>
+              <Ionicons name="flag-outline" size={20} color={colors.error} />
+              <Text style={[styles.friendMenuText, themedStyles.friendMenuText, { color: colors.error }]}>Report</Text>
             </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>
@@ -1256,30 +1324,30 @@ const HomeScreen = ({ navigation }: any) => {
         animationType="slide"
         onRequestClose={() => setShowMessageHistory(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.messageHistoryModal}>
-            <View style={styles.messageHistoryHeader}>
-              <Text style={styles.messageHistoryTitle}>Chat History</Text>
+        <View style={[styles.modalOverlay, themedStyles.modalOverlay]}>
+          <View style={[styles.messageHistoryModal, themedStyles.messageHistoryModal]}>
+            <View style={[styles.messageHistoryHeader, themedStyles.messageHistoryHeader]}>
+              <Text style={[styles.messageHistoryTitle, themedStyles.messageHistoryTitle]}>Chat History</Text>
               <TouchableOpacity
                 onPress={() => setShowMessageHistory(false)}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={24} color="#333" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.chatHistoryList}>
               {chatHistory.length === 0 ? (
                 <View style={styles.emptyChatHistory}>
-                  <Ionicons name="chatbubbles-outline" size={48} color="#ccc" />
-                  <Text style={styles.emptyChatText}>No chat history</Text>
-                  <Text style={styles.emptyChatSubtext}>Start a conversation to see it here</Text>
+                  <Ionicons name="chatbubbles-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyChatText, themedStyles.emptyChatText]}>No chat history</Text>
+                  <Text style={[styles.emptyChatSubtext, themedStyles.emptyChatSubtext]}>Start a conversation to see it here</Text>
                 </View>
               ) : (
                 chatHistory.map((chat: any) => (
                   <TouchableOpacity
                     key={chat.id}
-                    style={styles.chatHistoryItem}
+                    style={[styles.chatHistoryItem, themedStyles.chatHistoryItemBorder]}
                     onPress={() => {
                       setShowMessageHistory(false);
                       // Navigate to chat
@@ -1306,27 +1374,27 @@ const HomeScreen = ({ navigation }: any) => {
                   >
                     <View style={styles.chatAvatarContainer}>
                       <View style={[styles.chatAvatar, { backgroundColor: getRandomAvatarColor(chat.name) }]}>
-                        <Text style={styles.chatAvatarText}>
+                        <Text style={[styles.chatAvatarText, themedStyles.chatAvatarText]}>
                           {chat.name?.charAt(0).toUpperCase() || 'C'}
                         </Text>
                       </View>
                       {chat.isOnline && (
-                        <View style={styles.onlineIndicatorSmall} />
+                        <View style={[styles.onlineIndicatorSmall, themedStyles.onlineIndicatorBorder]} />
                       )}
                     </View>
                     <View style={styles.chatInfo}>
-                      <Text style={styles.chatName}>{chat.name}</Text>
-                      <Text style={styles.chatLastMessage}>
+                      <Text style={[styles.chatName, themedStyles.chatName]}>{chat.name}</Text>
+                      <Text style={[styles.chatLastMessage, themedStyles.chatLastMessage]}>
                         {chat.lastMessage || 'No messages yet'}
                       </Text>
                     </View>
                     <View style={styles.chatMeta}>
-                      <Text style={styles.chatTime}>
+                      <Text style={[styles.chatTime, themedStyles.chatTime]}>
                         {chat.lastMessageTime ? formatLastSeen(chat.lastMessageTime) : ''}
                       </Text>
                       {chat.unreadCount > 0 && (
-                        <View style={styles.unreadBadge}>
-                          <Text style={styles.unreadText}>
+                        <View style={[styles.unreadBadge, themedStyles.unreadBadge]}>
+                          <Text style={[styles.unreadText, themedStyles.unreadText]}>
                             {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
                           </Text>
                         </View>
@@ -1346,17 +1414,14 @@ const HomeScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#fff',
     padding: 20,
     paddingTop: 50,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   userInfo: {
     flexDirection: 'row',
@@ -1369,12 +1434,10 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
   },
   userAvatarText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -1391,7 +1454,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#fff',
   },
   userDetails: {
     marginLeft: 12,
@@ -1410,7 +1472,6 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
     marginLeft: 8,
   },
   levelBadge: {
@@ -1438,7 +1499,6 @@ const styles = StyleSheet.create({
     marginRight: 3,
   },
   statusTextSmall: {
-    color: '#fff',
     fontSize: 10,
     fontWeight: '500',
   },
@@ -1451,7 +1511,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   coinTextSmall: {
-    color: '#FFD700',
     fontSize: 10,
     fontWeight: 'bold',
     marginLeft: 3,
@@ -1474,32 +1533,26 @@ const styles = StyleSheet.create({
   friendsTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
   },
   friendsControls: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   trophyButton: {
-    backgroundColor: '#FFF3E0',
     padding: 8,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#FF9800',
     marginRight: 8,
   },
   refreshButton: {
-    backgroundColor: '#F3E5F5',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#9C27B0',
     flexDirection: 'row',
     alignItems: 'center',
   },
   refreshText: {
-    color: '#9C27B0',
     marginLeft: 4,
     fontSize: 12,
     fontWeight: '500',
@@ -1507,13 +1560,11 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#eee',
   },
   searchIcon: {
     marginRight: 10,
@@ -1521,17 +1572,14 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
   },
   searchTypeIndicator: {
-    backgroundColor: '#9C27B0',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     marginLeft: 8,
   },
   searchTypeText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -1539,14 +1587,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   friendCard: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
@@ -1568,10 +1614,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#ffffff',
   },
   friendAvatarText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -1583,7 +1627,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#fff',
   },
   friendDetails: {
     marginLeft: 10,
@@ -1592,12 +1635,10 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 1,
   },
   friendStatus: {
     fontSize: 12,
-    color: '#666',
   },
   statusDot: {
     width: 12,
@@ -1612,7 +1653,6 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
   },
   loadingContainer: {
     flex: 1,
@@ -1622,7 +1662,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
   },
   emptyContainer: {
     flex: 1,
@@ -1634,13 +1673,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#666',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#999',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -1658,16 +1695,13 @@ const styles = StyleSheet.create({
   activeUsersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(76, 175, 80, 0.3)',
   },
   activeUsersText: {
     fontSize: 10,
-    color: '#4CAF50',
     fontWeight: 'bold',
     marginLeft: 2,
   },
@@ -1679,7 +1713,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 4,
     right: 4,
-    backgroundColor: '#FF6B6B',
     borderRadius: 10,
     width: 18,
     height: 18,
@@ -1687,7 +1720,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   notificationText: {
-    color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -1695,21 +1727,18 @@ const styles = StyleSheet.create({
   // Friend Context Menu Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   friendContextMenu: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
     width: 280,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    borderWidth: 3, // Added border width for animated border
+    borderWidth: 3,
   },
   friendMenuHeader: {
     alignItems: 'center',
@@ -1729,14 +1758,12 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   friendMenuAvatarText: {
-    color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
   },
   friendMenuName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
   },
   friendMenuItem: {
     flexDirection: 'row',
@@ -1744,23 +1771,19 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
     backgroundColor: 'transparent',
   },
   friendMenuText: {
     fontSize: 16,
     marginLeft: 15,
-    color: '#333',
   },
 
   // Message History Modal Styles
   messageHistoryModal: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     margin: 20,
     marginTop: 100,
     flex: 1,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -1772,12 +1795,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   messageHistoryTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
   },
   closeButton: {
     padding: 4,
@@ -1795,13 +1816,11 @@ const styles = StyleSheet.create({
   emptyChatText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#666',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyChatSubtext: {
     fontSize: 14,
-    color: '#999',
     textAlign: 'center',
   },
   chatHistoryItem: {
@@ -1809,7 +1828,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
   },
   chatAvatarContainer: {
     position: 'relative',
@@ -1823,7 +1841,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chatAvatarText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -1834,9 +1851,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#4CAF50',
     borderWidth: 2,
-    borderColor: '#fff',
   },
   chatInfo: {
     flex: 1,
@@ -1844,23 +1859,19 @@ const styles = StyleSheet.create({
   chatName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
     marginBottom: 2,
   },
   chatLastMessage: {
     fontSize: 14,
-    color: '#666',
   },
   chatMeta: {
     alignItems: 'flex-end',
   },
   chatTime: {
     fontSize: 12,
-    color: '#999',
     marginBottom: 4,
   },
   unreadBadge: {
-    backgroundColor: '#FF6B6B',
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -1868,7 +1879,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   unreadText: {
-    color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -1891,7 +1901,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     elevation: 3,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1911,7 +1920,6 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   bannerTitle: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
     textShadowColor: 'rgba(0, 0, 0, 0.5)',
