@@ -27,11 +27,12 @@ Preferred communication style: Simple, everyday language.
     - Tab titles, gift names, and UI labels: All use dark text on light background
     - Animated gift badge: `COLORS.warning` background with `COLORS.text` for proper contrast
   - **Keyboard Auto-Close**: Keyboard automatically closes after sending any message (text, commands, game commands) for better UX
-  - **Gift Notification Display**: Gift notification messages displayed as purple semi-transparent bubbles in chat with format "sender send gift_name to recipient" (e.g., "chatme send Bunny to hana"):
+  - **Gift Notification Display**: Gift notification messages displayed as compact purple semi-transparent bubbles in chat with format "sender send gift_name to recipient" (e.g., "chatme send Bunny to hana"):
     - Background: rgba(139, 92, 246, 0.3) - purple semi-transparent
-    - Text: #8B5CF6 - purple, fontSize 14, fontWeight 600
-    - Centered display with rounded corners (borderRadius: 16)
-    - Bubble size: paddingHorizontal 16px, paddingVertical 8px, maxWidth 70%
+    - Text: #8B5CF6 - purple, fontSize 13, fontWeight 600, left-aligned
+    - Left-aligned display (alignItems: 'flex-start') matching room info message style
+    - Compact bubble size: paddingHorizontal 12px, paddingVertical 6px, borderRadius 12px
+    - Single-line display: numberOfLines={1} to prevent text wrapping
     - Message type: 'gift' with recipient and giftName fields in Message interface
     - Duplicate prevention: Checks sender, recipient, giftName within 2-second window to prevent duplicate notifications
   - **Status**: Zero theme dependencies, functionality preserved
