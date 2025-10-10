@@ -9,12 +9,13 @@ Preferred communication style: Simple, everyday language.
 # Recent Changes
 
 ## October 10, 2025
-- **Dark Mode System - COMPLETE**: Implemented comprehensive dark mode across 8 core screens with ThemeContext and AsyncStorage persistence. Uses memoized themedStyles pattern for optimal performance with zero hardcoded colors.
-  - **Themed Screens**: SettingsScreen, HomeScreen, ChatScreen, RoomScreen, ProfileScreen, EditProfileScreen, FriendsScreen, PrivacySecurityScreen
+- **Dark Mode System - COMPLETE**: Implemented comprehensive dark mode across 9 core screens with ThemeContext and AsyncStorage persistence. Uses memoized themedStyles pattern for optimal performance with zero hardcoded colors.
+  - **Themed Screens**: SettingsScreen, HomeScreen, ChatScreen, RoomScreen, ProfileScreen, EditProfileScreen, FriendsScreen, PrivacySecurityScreen, FeedScreen
   - **Pattern**: useTheme hook + useMemo + createThemedStyles function
-  - **Semantic Tokens**: background, surface, card, text, textSecondary, primary, success, error, warning, info, avatarBg, badgeTextLight, switchThumb, shadow, border, iconDefault
-  - **Helper Functions**: Adapted for dark mode (getStatusColor, getRoleColor, getLevelBadgeColor, getRandomAvatarColor)
-  - **Pending**: AdminScreen and secondary screens (27 screens remaining) - can be themed as follow-up
+  - **Semantic Tokens**: background, surface, card, text, textSecondary, primary, success, error, warning, info, avatarBg, badgeTextLight, switchThumb, shadow, border, iconDefault, roleAdmin, roleAdminBg, roleMentor, roleMentorBg, roleMerchant, roleMerchantBg, roleUser, roleUserBg
+  - **Helper Functions**: Adapted for dark mode (getStatusColor, getRoleColor, getLevelBadgeColor, getRandomAvatarColor) - all using theme tokens exclusively
+  - **ThemeContext Extensions**: Added role-specific color tokens for consistent role badge theming across all screens
+  - **Pending**: AdminScreen and secondary screens (26 screens remaining) - can be themed as follow-up
 - **Admin Special Accounts**: Added ability for admins to create special accounts with custom 1-3 digit IDs that bypass OTP verification. Includes comprehensive validation, audit logging, and auto-verification.
 
 # System Architecture
