@@ -123,6 +123,8 @@ interface Message {
   image?: string;
   isSupport?: boolean;
   giftData?: any;
+  recipient?: string;
+  giftName?: string;
 }
 
 interface ChatTab {
@@ -1282,6 +1284,33 @@ export default function ChatScreen() {
       // Listen for gift broadcasts from server
       socketInstance.on('receiveGift', (data: any) => {
         console.log('Received gift broadcast:', data);
+
+        // Add gift notification message to chat
+        const giftNotificationMessage: Message = {
+          id: `gift_${Date.now()}_${Math.random()}`,
+          sender: data.sender,
+          recipient: data.recipient,
+          giftName: data.gift?.name || 'Gift',
+          content: `${data.sender} send ${data.gift?.name || 'Gift'} to ${data.recipient}`,
+          timestamp: new Date(data.timestamp || Date.now()),
+          roomId: data.roomId,
+          role: data.role || 'user',
+          level: data.level || 1,
+          type: 'gift'
+        };
+
+        // Add message to appropriate room tab
+        setChatTabs(prevTabs => {
+          return prevTabs.map(tab => {
+            if (tab.id === data.roomId) {
+              return {
+                ...tab,
+                messages: [...tab.messages, giftNotificationMessage]
+              };
+            }
+            return tab;
+          });
+        });
 
         // Show animation for all users (including sender for consistency)
         setActiveGiftAnimation({
@@ -4058,9 +4087,17 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle gift messages - Hidden (no display)
+    // Handle gift messages - Purple semi-transparent bubble
     if (item.type === 'gift') {
-      return null;
+      return (
+        <View style={styles.giftNotificationContainer}>
+          <View style={styles.giftNotificationBubble}>
+            <Text style={styles.giftNotificationText}>
+              {item.content}
+            </Text>
+          </View>
+        </View>
+      );
     }
 
     // Render support messages differently
@@ -6778,6 +6815,25 @@ const createThemedStyles = () => StyleSheet.create({
     fontSize: 11,
     color: COLORS.textSecondary,
     fontWeight: '400',
+  },
+  // Gift notification styles
+  giftNotificationContainer: {
+    alignItems: 'center',
+    marginVertical: 8,
+    paddingHorizontal: 16,
+  },
+  giftNotificationBubble: {
+    backgroundColor: 'rgba(139, 92, 246, 0.3)', // Purple semi-transparent
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 20,
+    maxWidth: '80%',
+  },
+  giftNotificationText: {
+    fontSize: 16,
+    color: '#8B5CF6', // Purple text
+    fontWeight: '600',
+    textAlign: 'center',
   },
   commandMessageContainer: {
     marginBottom: 6,
