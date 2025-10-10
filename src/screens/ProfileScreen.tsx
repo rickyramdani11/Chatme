@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../hooks';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
@@ -203,7 +204,7 @@ export default function ProfileScreen({ navigation, route }: any) {
     ).start();
   };
 
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = React.useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/users/${userId}/profile`, {
@@ -319,9 +320,9 @@ export default function ProfileScreen({ navigation, route }: any) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, token, isOwnProfile, user]);
 
-  const fetchAlbumPhotos = async () => {
+  const fetchAlbumPhotos = React.useCallback(async () => {
     try {
       console.log('Fetching album photos for user:', userId);
       const response = await fetch(`${API_BASE_URL}/users/${userId}/album`, {
@@ -346,7 +347,15 @@ export default function ProfileScreen({ navigation, route }: any) {
       console.error('Error fetching album:', error);
       setAlbumPhotos([]);
     }
-  };
+  }, [userId, token]);
+
+  // Refresh profile when screen is focused (e.g., after returning from EditProfileScreen)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchUserProfile();
+      fetchAlbumPhotos();
+    }, [fetchUserProfile, fetchAlbumPhotos])
+  );
 
   const fetchFamilyBadge = async () => {
     try {
