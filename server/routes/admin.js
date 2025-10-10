@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
+const bcrypt = require('bcrypt');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -1303,6 +1304,100 @@ router.delete('/frames/:id', authenticateToken, adminOnly, rateLimit(10, 60000),
   } catch (error) {
     console.error('Error deleting frame:', error);
     res.status(500).json({ error: 'Failed to delete frame' });
+  }
+});
+
+// Create special account (admin only)
+router.post('/create-special-account', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { id, username, email, password } = req.body;
+
+    console.log('📝 Admin creating special account:', { id, username, email });
+
+    // Validate required fields
+    if (!id || !username || !email || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Validate ID is 1-3 digit number
+    const idNum = parseInt(id);
+    if (isNaN(idNum) || idNum < 1 || idNum > 999) {
+      return res.status(400).json({ error: 'ID must be a number between 1 and 999' });
+    }
+
+    // Validate username length
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({ error: 'Username must be 3-20 characters' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Check if ID already exists
+    const idCheck = await pool.query('SELECT id FROM users WHERE id = $1', [idNum]);
+    if (idCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'ID already exists' });
+    }
+
+    // Check if username already exists
+    const usernameCheck = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (usernameCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    // Check if email already exists
+    const emailCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user with specified ID and auto-verified
+    const result = await pool.query(
+      `INSERT INTO users (id, username, email, password, verified, role, level, status, created_at) 
+       VALUES ($1, $2, $3, $4, true, 'user', 1, 'online', NOW()) 
+       RETURNING id, username, email, verified, role`,
+      [idNum, username, email, hashedPassword]
+    );
+
+    const newUser = result.rows[0];
+    console.log('✅ Special account created:', newUser);
+
+    // Log admin action
+    await pool.query(
+      `INSERT INTO admin_audit_logs (admin_id, action, target_user_id, details, created_at) 
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [
+        req.user.id,
+        'create_special_account',
+        newUser.id,
+        JSON.stringify({ username, email, custom_id: idNum })
+      ]
+    );
+
+    res.json({
+      message: 'Account created successfully',
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        verified: newUser.verified,
+        role: newUser.role
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating special account:', error);
+    res.status(500).json({ error: 'Failed to create account' });
   }
 });
 

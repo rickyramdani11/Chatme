@@ -223,6 +223,13 @@ export default function AdminScreen({ navigation }: any) {
   const [framePrice, setFramePrice] = useState('');
   const [frameDurationDays, setFrameDurationDays] = useState('14');
 
+  // Create special account states
+  const [createAccountId, setCreateAccountId] = useState('');
+  const [createAccountUsername, setCreateAccountUsername] = useState('');
+  const [createAccountEmail, setCreateAccountEmail] = useState('');
+  const [createAccountPassword, setCreateAccountPassword] = useState('');
+  const [createAccountLoading, setCreateAccountLoading] = useState(false);
+
   const menuItems: MenuItem[] = [
     {
       id: 'users',
@@ -1414,6 +1421,73 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
+  const handleCreateSpecialAccount = async () => {
+    if (!createAccountId.trim() || !createAccountUsername.trim() || !createAccountEmail.trim() || !createAccountPassword.trim()) {
+      Alert.alert('Error', 'All fields are required');
+      return;
+    }
+
+    const accountId = parseInt(createAccountId);
+    if (isNaN(accountId) || accountId < 1 || accountId > 999) {
+      Alert.alert('Error', 'ID must be a number between 1-999');
+      return;
+    }
+
+    const username = createAccountUsername.trim();
+    if (username.length < 3 || username.length > 20) {
+      Alert.alert('Error', 'Username must be 3-20 characters');
+      return;
+    }
+
+    const email = createAccountEmail.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Invalid email format');
+      return;
+    }
+
+    if (createAccountPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setCreateAccountLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/create-special-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({
+          id: accountId,
+          username: createAccountUsername.trim(),
+          email: createAccountEmail.trim(),
+          password: createAccountPassword
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', `Special account created successfully!\nID: ${accountId}\nUsername: ${createAccountUsername}`);
+        setCreateAccountId('');
+        setCreateAccountUsername('');
+        setCreateAccountEmail('');
+        setCreateAccountPassword('');
+        fetchUserStats();
+      } else {
+        Alert.alert('Error', data.error || 'Failed to create special account');
+      }
+    } catch (error) {
+      console.error('Error creating special account:', error);
+      Alert.alert('Error', 'Network error creating special account');
+    } finally {
+      setCreateAccountLoading(false);
+    }
+  };
+
   const handleAdminAddCredit = async () => {
     if (!adminCreditUsername.trim()) {
       Alert.alert('Error', 'Username harus diisi');
@@ -2089,6 +2163,75 @@ export default function AdminScreen({ navigation }: any) {
                 </View>
               </View>
             )}
+
+            <View style={styles.createAccountContainer}>
+              <Text style={styles.sectionTitle}>Create Special Account</Text>
+              <Text style={styles.sectionSubtitle}>Create verified accounts with custom 1-3 digit IDs</Text>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Account ID (1-3 digits)</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={createAccountId}
+                  onChangeText={setCreateAccountId}
+                  placeholder="Enter ID (1-999)"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Username</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={createAccountUsername}
+                  onChangeText={setCreateAccountUsername}
+                  placeholder="Enter username"
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Email</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={createAccountEmail}
+                  onChangeText={setCreateAccountEmail}
+                  placeholder="Enter email"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.formLabel}>Password</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={createAccountPassword}
+                  onChangeText={setCreateAccountPassword}
+                  placeholder="Enter password"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.createAccountButton, createAccountLoading && styles.createAccountButtonDisabled]}
+                onPress={handleCreateSpecialAccount}
+                disabled={createAccountLoading}
+              >
+                {createAccountLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="person-add" size={20} color="#fff" />
+                    <Text style={styles.createAccountButtonText}>Create Account</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         );
 
@@ -5568,5 +5711,47 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
     marginTop: 2,
+  },
+  createAccountContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  createAccountButton: {
+    backgroundColor: '#4ECDC4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 10,
+    gap: 8,
+  },
+  createAccountButtonDisabled: {
+    opacity: 0.6,
+  },
+  createAccountButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
