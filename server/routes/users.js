@@ -461,6 +461,8 @@ router.put('/status', authenticateToken, async (req, res) => {
 // Get merchants and mentors list
 router.get('/merchants-mentors', authenticateToken, async (req, res) => {
   try {
+    console.log('📋 Fetching merchants and mentors...');
+    
     const merchantsResult = await pool.query(`
       SELECT id, username, role, level, avatar, status
       FROM users
@@ -474,6 +476,8 @@ router.get('/merchants-mentors', authenticateToken, async (req, res) => {
       WHERE role = 'mentor'
       ORDER BY username ASC
     `);
+
+    console.log(`✅ Found ${merchantsResult.rows.length} merchants and ${mentorsResult.rows.length} mentors`);
 
     res.json({
       merchants: merchantsResult.rows.map(user => ({
@@ -494,7 +498,7 @@ router.get('/merchants-mentors', authenticateToken, async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('Error fetching merchants and mentors:', error);
+    console.error('❌ Error fetching merchants and mentors:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

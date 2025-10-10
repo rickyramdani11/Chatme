@@ -76,9 +76,13 @@ export default function InfoScreen({ navigation }: any) {
   ];
 
   const fetchMerchantsAndMentors = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      console.log('❌ No token available for fetching merchants/mentors');
+      return;
+    }
 
     try {
+      console.log('📋 Fetching merchants and mentors from API...');
       setLoading(true);
       const response = await fetch(`${API_BASE_URL}/api/users/merchants-mentors`, {
         headers: {
@@ -86,13 +90,19 @@ export default function InfoScreen({ navigation }: any) {
         },
       });
 
+      console.log('📡 Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Data received:', data);
         setMerchants(data.merchants || []);
         setMentors(data.mentors || []);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ API error:', errorData);
       }
     } catch (error) {
-      console.error('Error fetching merchants and mentors:', error);
+      console.error('❌ Error fetching merchants and mentors:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
