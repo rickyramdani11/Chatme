@@ -1645,7 +1645,7 @@ export default function ChatScreen() {
         reconnectionDelayMax: 10000,
         reconnectionAttempts: Infinity, // ✅ Unlimited reconnection attempts for maximum stability
         timeout: 30000, // Increased timeout for better connection stability
-        forceNew: false,
+        forceNew: true, // ✅ CRITICAL: Force new connection and terminate old socket to prevent duplicates
         upgrade: true,
         rememberUpgrade: false, // Don't remember upgrade for better compatibility
         closeOnBeforeunload: false, // Keep connection alive during app state changes
@@ -1653,6 +1653,10 @@ export default function ChatScreen() {
           token: token
         }
       });
+
+      // ✅ CRITICAL: Assign socketRef IMMEDIATELY after creation to prevent race conditions
+      socketRef.current = newSocket;
+      console.log('✅ New socket assigned to ref immediately');
 
       // Connection events
       newSocket.on('connect', () => {
@@ -1781,7 +1785,7 @@ export default function ChatScreen() {
 
       // Reset listeners flag before setting new socket
       listenersSetupRef.current = false;
-      socketRef.current = newSocket; // Track socket in ref to prevent duplicates
+      // socketRef.current already assigned immediately after socket creation (line 1661)
       setSocket(newSocket);
     };
 
