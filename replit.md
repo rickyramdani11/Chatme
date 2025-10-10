@@ -60,7 +60,7 @@ Preferred communication style: Simple, everyday language.
 ## UI/UX Decisions
 - **Theming**: Dark Mode partially implemented for core screens with ThemeContext, Chatscreen1.tsx uses hardcoded light theme.
 - **Level Badges**: Dynamic gradient level badges.
-- **Chat Message Display**: Optimized spacing, consistent font sizes, and improved text wrapping. Gift notifications are compact, purple, and auto-disappear.
+- **Chat Message Display**: Optimized spacing, consistent font sizes, and improved text wrapping. Gift notifications are compact, purple, and auto-disappear. Command messages (/me, /roll, /whois) use dark text (COLORS.text) for visibility on light background, eliminating all dark mode color remnants.
 - **Android Back Button**: Hardware back button handling for proper navigation.
 - **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
 - **Room Management UX**: Increased modal height, participant picker for moderator selection, owner-only moderator adding, functional unban, and smart filtering.
