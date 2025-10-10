@@ -29,9 +29,11 @@ Preferred communication style: Simple, everyday language.
   - **Keyboard Auto-Close**: Keyboard automatically closes after sending any message (text, commands, game commands) for better UX
   - **Gift Notification Display**: Gift notification messages displayed as purple semi-transparent bubbles in chat with format "sender send gift_name to recipient" (e.g., "chatme send Bunny to hana"):
     - Background: rgba(139, 92, 246, 0.3) - purple semi-transparent
-    - Text: #8B5CF6 - purple, fontSize 16, fontWeight 600
-    - Centered display with rounded corners (borderRadius: 20)
+    - Text: #8B5CF6 - purple, fontSize 14, fontWeight 600
+    - Centered display with rounded corners (borderRadius: 16)
+    - Bubble size: paddingHorizontal 16px, paddingVertical 8px, maxWidth 70%
     - Message type: 'gift' with recipient and giftName fields in Message interface
+    - Duplicate prevention: Checks sender, recipient, giftName within 2-second window to prevent duplicate notifications
   - **Status**: Zero theme dependencies, functionality preserved
 - **Participant Auto-Removal on Leave**: Changed disconnect/leave behavior to completely remove participants from room instead of marking offline:
   - **Backend**: Modified socket disconnect handler to remove user from `roomParticipants` array entirely when they leave
