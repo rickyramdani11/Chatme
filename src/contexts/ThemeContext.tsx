@@ -16,6 +16,18 @@ interface ThemeContextType {
     error: string;
     warning: string;
     info: string;
+    successBadgeBg: string;
+    successBadgeText: string;
+    errorBadgeBg: string;
+    errorBadgeText: string;
+    infoBadgeBg: string;
+    infoBadgeText: string;
+    iconDefault: string;
+    statusOnline: string;
+    badgeTextLight: string;
+    avatarBg: string;
+    switchThumb: string;
+    shadow: string;
   };
 }
 
@@ -33,6 +45,18 @@ const lightTheme = {
   error: '#F44336',
   warning: '#FF9800',
   info: '#2196F3',
+  successBadgeBg: '#E8F5E8',
+  successBadgeText: '#4CAF50',
+  errorBadgeBg: '#FFEBEE',
+  errorBadgeText: '#F44336',
+  infoBadgeBg: '#E3F2FD',
+  infoBadgeText: '#2196F3',
+  iconDefault: '#666666',
+  statusOnline: '#4CAF50',
+  badgeTextLight: '#ffffff',
+  avatarBg: '#333333',
+  switchThumb: '#ffffff',
+  shadow: '#000000',
 };
 
 const darkTheme = {
@@ -47,6 +71,18 @@ const darkTheme = {
   error: '#CF6679',
   warning: '#FFB74D',
   info: '#64B5F6',
+  successBadgeBg: '#1B5E20',
+  successBadgeText: '#03DAC6',
+  errorBadgeBg: '#5D1F1F',
+  errorBadgeText: '#CF6679',
+  infoBadgeBg: '#1A237E',
+  infoBadgeText: '#64B5F6',
+  iconDefault: '#b0b0b0',
+  statusOnline: '#03DAC6',
+  badgeTextLight: '#ffffff',
+  avatarBg: '#424242',
+  switchThumb: '#ffffff',
+  shadow: '#000000',
 };
 
 const THEME_STORAGE_KEY = '@theme_mode';

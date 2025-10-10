@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,50 +20,6 @@ export default function SettingsScreen({ navigation }: any) {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleDarkMode, colors } = useTheme();
   const [notifications, setNotifications] = useState(true);
-
-  const ProfileSection = () => (
-    <View style={styles.profileSection}>
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            {user?.avatar ? (
-              <Image 
-                source={{ 
-                  uri: user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}` 
-                }} 
-                style={styles.avatarImage} 
-              />
-            ) : (
-              <Text style={styles.avatarText}>
-                {user?.username?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            )}
-          </View>
-          <View style={[styles.statusIndicator, { backgroundColor: '#4CAF50' }]} />
-          <View style={styles.notificationBadge}>
-            <Text style={styles.notificationText}>A</Text>
-          </View>
-        </View>
-        <View style={styles.profileInfo}>
-          <Text style={styles.username}>{user?.username || 'pengembang'}</Text>
-          <Text style={styles.email}>{user?.email || 'meongkwl@gmail.com'}</Text>
-          <View style={styles.badgeContainer}>
-            <View style={styles.levelBadge}>
-              <Ionicons name="trophy" size={12} color="#fff" />
-              <Text style={styles.levelText}>Tingkat 1</Text>
-            </View>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>Online</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <TouchableOpacity style={styles.editProfileButton} onPress={handleEditProfile}>
-        <Text style={styles.editProfileText}>Edit Profil</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   const handleEditProfile = () => {
     navigation.navigate('EditProfile');
@@ -97,6 +53,137 @@ export default function SettingsScreen({ navigation }: any) {
     );
   };
 
+  const themedStyles = useMemo(() => ({
+    container: {
+      ...styles.container,
+      backgroundColor: colors.background,
+    },
+    profileSection: {
+      ...styles.profileSection,
+      backgroundColor: colors.surface,
+      shadowColor: colors.shadow,
+    },
+    settingsSection: {
+      ...styles.settingsSection,
+      backgroundColor: colors.surface,
+      shadowColor: colors.shadow,
+    },
+    settingsItem: {
+      ...styles.settingsItem,
+      borderBottomColor: colors.border,
+    },
+    settingsItemText: {
+      ...styles.settingsItemText,
+      color: colors.text,
+    },
+    username: {
+      ...styles.username,
+      color: colors.text,
+    },
+    email: {
+      ...styles.email,
+      color: colors.textSecondary,
+    },
+    editProfileText: {
+      ...styles.editProfileText,
+      color: colors.text,
+    },
+    editProfileButton: {
+      ...styles.editProfileButton,
+      backgroundColor: colors.card,
+    },
+    statusBadge: {
+      ...styles.statusBadge,
+      backgroundColor: colors.successBadgeBg,
+    },
+    statusText: {
+      ...styles.statusText,
+      color: colors.successBadgeText,
+    },
+    notificationBadge: {
+      ...styles.notificationBadge,
+      backgroundColor: colors.error,
+    },
+    statusIndicator: {
+      backgroundColor: colors.statusOnline,
+    },
+    adminBadge: {
+      ...styles.adminBadge,
+      backgroundColor: colors.infoBadgeBg,
+    },
+    adminBadgeText: {
+      ...styles.adminBadgeText,
+      color: colors.infoBadgeText,
+    },
+    levelBadge: {
+      ...styles.levelBadge,
+      backgroundColor: colors.info,
+    },
+    statusIndicatorBorder: {
+      borderColor: colors.surface,
+    },
+    avatar: {
+      ...styles.avatar,
+      backgroundColor: colors.avatarBg,
+    },
+    levelText: {
+      ...styles.levelText,
+      color: colors.badgeTextLight,
+    },
+    notificationText: {
+      ...styles.notificationText,
+      color: colors.badgeTextLight,
+    },
+    avatarText: {
+      ...styles.avatarText,
+      color: colors.badgeTextLight,
+    },
+  }), [colors, isDarkMode]);
+
+  const ProfileSection = () => (
+    <View style={themedStyles.profileSection}>
+      <View style={styles.profileHeader}>
+        <View style={styles.avatarContainer}>
+          <View style={themedStyles.avatar}>
+            {user?.avatar ? (
+              <Image 
+                source={{ 
+                  uri: user.avatar.startsWith('http') ? user.avatar : `${BASE_URL}${user.avatar}` 
+                }} 
+                style={styles.avatarImage} 
+              />
+            ) : (
+              <Text style={themedStyles.avatarText}>
+                {user?.username?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            )}
+          </View>
+          <View style={[themedStyles.statusIndicator, styles.statusIndicator, themedStyles.statusIndicatorBorder]} />
+          <View style={themedStyles.notificationBadge}>
+            <Text style={themedStyles.notificationText}>A</Text>
+          </View>
+        </View>
+        <View style={styles.profileInfo}>
+          <Text style={themedStyles.username}>{user?.username || 'pengembang'}</Text>
+          <Text style={themedStyles.email}>{user?.email || 'meongkwl@gmail.com'}</Text>
+          <View style={styles.badgeContainer}>
+            <View style={themedStyles.levelBadge}>
+              <Ionicons name="trophy" size={12} color={colors.badgeTextLight} />
+              <Text style={themedStyles.levelText}>Tingkat 1</Text>
+            </View>
+            <View style={themedStyles.statusBadge}>
+              <Text style={themedStyles.statusText}>Online</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <TouchableOpacity style={themedStyles.editProfileButton} onPress={handleEditProfile}>
+        <Text style={themedStyles.editProfileText}>Edit Profil</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const SettingsItem = ({
     icon,
     title,
@@ -105,8 +192,8 @@ export default function SettingsScreen({ navigation }: any) {
     onSwitchChange,
     hasArrow = true,
     onPress,
-    iconColor = '#666',
-    titleColor = '#333',
+    iconColor,
+    titleColor,
     badgeText
   }: {
     icon: string;
@@ -121,47 +208,47 @@ export default function SettingsScreen({ navigation }: any) {
     badgeText?: string;
   }) => (
     <TouchableOpacity
-      style={styles.settingsItem}
+      style={themedStyles.settingsItem}
       onPress={onPress}
       disabled={hasSwitch}
     >
       <View style={styles.settingsItemLeft}>
-        <Ionicons name={icon as any} size={20} color={iconColor} />
-        <Text style={[styles.settingsItemText, { color: titleColor }]}>{title}</Text>
+        <Ionicons name={icon as any} size={20} color={iconColor || colors.iconDefault} />
+        <Text style={[themedStyles.settingsItemText, titleColor && { color: titleColor }]}>{title}</Text>
       </View>
       <View style={styles.settingsItemRight}>
         {badgeText && (
-          <View style={styles.adminBadge}>
-            <Text style={styles.adminBadgeText}>{badgeText}</Text>
+          <View style={themedStyles.adminBadge}>
+            <Text style={themedStyles.adminBadgeText}>{badgeText}</Text>
           </View>
         )}
         {hasSwitch ? (
           <Switch
             value={switchValue}
             onValueChange={onSwitchChange}
-            trackColor={{ false: '#E0E0E0', true: '#9C27B0' }}
-            thumbColor={switchValue ? '#fff' : '#fff'}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={colors.switchThumb}
           />
         ) : hasArrow ? (
-          <Ionicons name="chevron-forward" size={16} color="#999" />
+          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
         ) : null}
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={themedStyles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ProfileSection />
 
-        <View style={styles.settingsSection}>
+        <View style={themedStyles.settingsSection}>
           <SettingsItem
             icon="notifications"
             title="Pemberitahuan"
             hasSwitch
             switchValue={notifications}
             onSwitchChange={setNotifications}
-            iconColor="#9C27B0"
+            iconColor={colors.primary}
           />
 
           <SettingsItem
@@ -170,41 +257,41 @@ export default function SettingsScreen({ navigation }: any) {
             hasSwitch
             switchValue={isDarkMode}
             onSwitchChange={toggleDarkMode}
-            iconColor="#9C27B0"
+            iconColor={colors.primary}
           />
 
           <SettingsItem
             icon="shield-checkmark"
             title="Privasi & Keamanan"
-            iconColor="#9C27B0"
+            iconColor={colors.primary}
             onPress={() => navigation.navigate('PrivacySecurity')}
           />
 
           <SettingsItem
             icon="information-circle"
             title="Info"
-            iconColor="#2196F3"
+            iconColor={colors.info}
             onPress={() => navigation.navigate('InfoScreen')}
           />
 
           <SettingsItem
             icon="help-circle"
             title="Bantuan & Dukungan"
-            iconColor="#9C27B0"
+            iconColor={colors.primary}
             onPress={() => navigation.navigate('HelpSupport')}
           />
 
           <SettingsItem
             icon="card"
             title="Kredit"
-            iconColor="#9C27B0"
+            iconColor={colors.primary}
             onPress={() => navigation.navigate('Credit')}
           />
 
           <SettingsItem
             icon="wallet"
             title="Withdraw"
-            iconColor="#4CAF50"
+            iconColor={colors.success}
             onPress={() => navigation.navigate('Withdraw')}
           />
 
@@ -213,7 +300,7 @@ export default function SettingsScreen({ navigation }: any) {
             <SettingsItem
               icon="school"
               title="Mentor"
-              iconColor="#F44336"
+              iconColor={colors.error}
               onPress={() => navigation.navigate('Mentor')}
             />
           )}
@@ -222,7 +309,7 @@ export default function SettingsScreen({ navigation }: any) {
           <SettingsItem
             icon="storefront"
             title="Toko"
-            iconColor="#4CAF50"
+            iconColor={colors.success}
             onPress={() => navigation.navigate('StoreScreen')}
           />
 
@@ -230,7 +317,7 @@ export default function SettingsScreen({ navigation }: any) {
           <SettingsItem
             icon="people"
             title="Family"
-            iconColor="#2196F3"
+            iconColor={colors.info}
             onPress={() => navigation.navigate('FamilyScreen')}
           />
 
@@ -239,7 +326,7 @@ export default function SettingsScreen({ navigation }: any) {
             <SettingsItem
               icon="shield-checkmark"
               title="Admin Panel"
-              iconColor="#FF6B35"
+              iconColor={colors.warning}
               badgeText="ADMIN"
               onPress={() => navigation.navigate('AdminScreen')}
             />
@@ -248,8 +335,8 @@ export default function SettingsScreen({ navigation }: any) {
           <SettingsItem
             icon="log-out"
             title="Keluar"
-            iconColor="#F44336"
-            titleColor="#F44336"
+            iconColor={colors.error}
+            titleColor={colors.error}
             hasArrow={false}
             onPress={handleLogout}
           />
@@ -262,18 +349,15 @@ export default function SettingsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   scrollView: {
     flex: 1,
   },
   profileSection: {
-    backgroundColor: '#fff',
     padding: 20,
     marginTop: 20,
     marginHorizontal: 20,
     borderRadius: 12,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -292,7 +376,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -303,7 +386,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
   },
   avatarText: {
-    color: '#fff',
     fontWeight: 'bold',
     fontSize: 12,
   },
@@ -315,7 +397,6 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#fff',
   },
   notificationBadge: {
     position: 'absolute',
@@ -324,12 +405,10 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#F44336',
     justifyContent: 'center',
     alignItems: 'center',
   },
   notificationText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -339,12 +418,10 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
     marginBottom: 4,
   },
   email: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 8,
   },
   badgeContainer: {
@@ -354,44 +431,36 @@ const styles = StyleSheet.create({
   levelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2196F3',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     marginRight: 8,
   },
   levelText: {
-    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 4,
   },
   statusBadge: {
-    backgroundColor: '#E8F5E8',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   statusText: {
-    color: '#4CAF50',
     fontSize: 12,
   },
   editProfileButton: {
-    backgroundColor: '#F5F5F5',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   editProfileText: {
     fontSize: 16,
-    color: '#333',
     fontWeight: '500',
   },
   settingsSection: {
-    backgroundColor: '#fff',
     margin: 20,
     borderRadius: 12,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -404,34 +473,30 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   settingsItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 8, // Add spacing between text and right items
+    marginRight: 8,
   },
   settingsItemText: {
     fontSize: 16,
     marginLeft: 12,
-    color: '#333',
-    flex: 1, // Allow text to take available space and wrap if needed
-    flexShrink: 1, // Allow text to shrink to prevent overflow
+    flex: 1,
+    flexShrink: 1,
   },
   settingsItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   adminBadge: {
-    backgroundColor: '#E3F2FD',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
     marginRight: 8,
   },
   adminBadgeText: {
-    color: '#2196F3',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -443,7 +508,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   menuItemLeft: {
     flexDirection: 'row',
