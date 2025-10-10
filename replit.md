@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **Merchant Recas System**: Monthly revenue requirement system for merchant promotions with automatic downgrade logic and visual status indicators.
 - **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time chat status, operating independently from the main chat rooms.
 - **Privacy & Security System**: Privacy settings management with user-scoped access control, data download requests, password/PIN changes.
-- **Notification System**: Real-time notifications via Socket.IO.
+- **Notification System**: Real-time notifications via Socket.IO with system notifications for follow and friend add events (e.g., "Andromeda has followed you", "John has added you as a friend").
 - **User Presence System**: Friends list displays real-time status with smart sorting.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.

@@ -253,7 +253,7 @@ router.post('/:userId/follow', authenticateToken, async (req, res) => {
           userId,
           'follow',
           'New Follower',
-          `${followerUsername} started following you`,
+          `${followerUsername} has followed you`,
           { followerId: currentUserId, followerUsername }
         );
 
@@ -269,7 +269,7 @@ router.post('/:userId/follow', authenticateToken, async (req, res) => {
                   id: notification.id,
                   type: 'follow',
                   title: 'New Follower',
-                  message: `${followerUsername} started following you`,
+                  message: `${followerUsername} has followed you`,
                   data: { followerId: currentUserId, followerUsername },
                   isRead: false,
                   createdAt: notification.created_at

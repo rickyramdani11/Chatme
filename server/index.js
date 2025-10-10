@@ -4679,6 +4679,10 @@ app.post('/api/friends/add', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Get current user's username
+    const currentUser = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+    const currentUsername = currentUser.rows[0].username;
+
     // Create friendship (assuming auto-accept for now, you can modify for friend requests)
     await pool.query(
       'INSERT INTO friendships (user_id, friend_id, status, created_at) VALUES ($1, $2, $3, NOW())',
@@ -4692,6 +4696,51 @@ app.post('/api/friends/add', authenticateToken, async (req, res) => {
     );
 
     console.log(`Friendship created between user ${userId} and ${friendId}`);
+
+    // Create notification for the friend
+    try {
+      const notificationResult = await pool.query(`
+        INSERT INTO user_notifications (user_id, type, title, message, data)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+      `, [
+        friendId,
+        'friend_added',
+        'New Friend',
+        `${currentUsername} has added you as a friend`,
+        JSON.stringify({ friendId: userId, friendUsername: currentUsername })
+      ]);
+
+      const notification = notificationResult.rows[0];
+
+      // Emit real-time notification via gateway
+      if (notification) {
+        try {
+          await fetch(`${GATEWAY_URL}/emit-notification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: friendId,
+              notification: {
+                id: notification.id,
+                type: 'friend_added',
+                title: 'New Friend',
+                message: `${currentUsername} has added you as a friend`,
+                data: { friendId: userId, friendUsername: currentUsername },
+                isRead: false,
+                createdAt: notification.created_at
+              }
+            })
+          });
+          console.log(`📢 Friend added notification sent to user ${friendId}`);
+        } catch (error) {
+          console.error('Error emitting notification:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating friend notification:', error);
+    }
+
     res.json({ success: true, message: 'Friend added successfully' });
 
   } catch (error) {
