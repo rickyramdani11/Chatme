@@ -242,6 +242,8 @@ export default function ChatScreen() {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const socketRef = useRef<Socket | null>(null); // Track socket instance
+  const lastGiftEventRef = useRef<Record<string, number>>({}); // Track last gift event by unique key to prevent duplicates
   const [broadcastMessages, setBroadcastMessages] = useState<Record<string, string | null>>({});
   const listenersSetupRef = useRef<boolean>(false); // Track if listeners are already set up
   
@@ -272,66 +274,6 @@ export default function ChatScreen() {
   useEffect(() => {
     userRef.current = user;
   }, [user]);
-  
-  // Add AppState listener for proper background/foreground handling
-  useEffect(() => {
-    const handleAppStateChange = (nextAppState: string) => {
-      console.log('AppState changed to:', nextAppState);
-
-      if (nextAppState === 'active') {
-        console.log('App became active - ensuring socket connection and rejoining rooms');
-        
-        // Reset scroll state
-        setIsUserScrolling(false);
-        
-        if (socket) {
-          // Always rejoin rooms using latest state from refs
-          setTimeout(() => {
-            const currentTabs = chatTabsRef.current;
-            const currentUser = userRef.current;
-            if (currentTabs.length > 0 && currentUser?.username) {
-              console.log(`Rejoining ${currentTabs.length} rooms after app resume`);
-              currentTabs.forEach((tab, index) => {
-                setTimeout(() => {
-                  console.log('Rejoining room after app resume:', tab.id, currentUser.username);
-                  if (tab.isSupport) {
-                    socket.emit('join-support-room', {
-                      supportRoomId: tab.id,
-                      isAdmin: currentUser.role === 'admin'
-                    });
-                  } else {
-                    socket.emit('join-room', {
-                      roomId: tab.id,
-                      username: currentUser.username,
-                      role: currentUser.role || 'user'
-                    });
-                  }
-                }, index * 100); // Stagger rejoining
-              });
-            }
-          }, 500);
-        }
-        
-        // Force scroll to bottom for current tab
-        setTimeout(() => {
-          const currentTab = chatTabsRef.current[activeTabRef.current];
-          if (currentTab) {
-            scrollToBottom(currentTab.id, true);
-          }
-        }, 300);
-        
-      } else if (nextAppState === 'background') {
-        console.log('App moved to background - maintaining socket connection');
-        // Keep socket alive for better message delivery
-      }
-    };
-
-    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    return () => {
-      appStateSubscription?.remove();
-    };
-  }, [socket]); // Dependency on socket to re-setup when socket changes
   
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
@@ -1302,6 +1244,25 @@ export default function ChatScreen() {
       socketInstance.on('receiveGift', (data: any) => {
         console.log('Received gift broadcast:', data);
 
+        // ✅ CRITICAL: Check lastGiftEventRef to prevent duplicates from multiple socket instances
+        const giftKey = `${data.roomId}_${data.sender}_${data.recipient}_${data.gift?.name}_${data.timestamp}`;
+        const now = Date.now();
+        
+        if (lastGiftEventRef.current[giftKey] && (now - lastGiftEventRef.current[giftKey] < 3000)) {
+          console.log('🚫 Duplicate gift event blocked by lastGiftEventRef:', giftKey);
+          return; // Block duplicate within 3 seconds
+        }
+        
+        // Track this gift event
+        lastGiftEventRef.current[giftKey] = now;
+        
+        // Cleanup old entries from lastGiftEventRef (keep only last 10 seconds)
+        Object.keys(lastGiftEventRef.current).forEach(key => {
+          if (now - lastGiftEventRef.current[key] > 10000) {
+            delete lastGiftEventRef.current[key];
+          }
+        });
+
         // Add gift notification message to chat
         const giftNotificationMessage: Message = {
           id: `gift_${Date.now()}_${Math.random()}`,
@@ -1316,24 +1277,10 @@ export default function ChatScreen() {
           type: 'gift'
         };
 
-        // Add message to appropriate room tab with duplicate check
+        // Add message to appropriate room tab
         setChatTabs(prevTabs => {
           return prevTabs.map(tab => {
             if (tab.id === data.roomId) {
-              // Check for duplicate gift messages (same sender, recipient, gift within 2 seconds)
-              const isDuplicate = tab.messages.some(msg => 
-                msg.type === 'gift' &&
-                msg.sender === data.sender &&
-                msg.recipient === data.recipient &&
-                msg.giftName === (data.gift?.name || 'Gift') &&
-                Math.abs(new Date(msg.timestamp).getTime() - new Date(data.timestamp || Date.now()).getTime()) < 2000
-              );
-
-              if (isDuplicate) {
-                console.log('Duplicate gift message filtered out');
-                return tab; // Don't add duplicate
-              }
-
               return {
                 ...tab,
                 messages: [...tab.messages, giftNotificationMessage]
@@ -1679,6 +1626,16 @@ export default function ChatScreen() {
         return;
       }
 
+      // ✅ CRITICAL: Disconnect and cleanup old socket before creating new one to prevent duplicate listeners
+      if (socketRef.current) {
+        console.log('🧹 Cleaning up old socket connection...');
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+        listenersSetupRef.current = false;
+        console.log('✅ Old socket cleaned up');
+      }
+
       // Initialize socket connection to gateway with better stability options
       const newSocket = io(SOCKET_URL, { // Use SOCKET_URL
         transports: ['polling', 'websocket'], // Start with polling first for better Replit compatibility
@@ -1824,6 +1781,7 @@ export default function ChatScreen() {
 
       // Reset listeners flag before setting new socket
       listenersSetupRef.current = false;
+      socketRef.current = newSocket; // Track socket in ref to prevent duplicates
       setSocket(newSocket);
     };
 
@@ -1839,11 +1797,13 @@ export default function ChatScreen() {
             {
               text: 'OK',
               onPress: () => {
-                // Disconnect socket
-                if (socket) {
-                  socket.disconnect();
-                  setSocket(null);
+                // Disconnect socket using ref
+                if (socketRef.current) {
+                  socketRef.current.removeAllListeners();
+                  socketRef.current.disconnect();
+                  socketRef.current = null;
                 }
+                setSocket(null);
                 
                 // Clear all data and logout
                 setChatTabs([]);
@@ -1867,8 +1827,9 @@ export default function ChatScreen() {
       reconnectTimeoutRef.current = setTimeout(() => {
         setReconnectAttempts(prev => prev + 1);
 
-        if (socket) {
-          socket.disconnect();
+        // Use socketRef.current for disconnecting
+        if (socketRef.current) {
+          socketRef.current.disconnect();
         }
 
         initializeSocket();
@@ -1889,17 +1850,20 @@ export default function ChatScreen() {
         // Reset states that might affect message display
         setIsUserScrolling(false);
         
-        if (socket) {
+        // Use socketRef.current for all socket operations
+        if (socketRef.current) {
           // Always re-setup listeners and rejoin rooms for better reliability
           console.log('Re-setup listeners and rejoin rooms on app active');
-          setupSocketListeners(socket);
+          setupSocketListeners(socketRef.current);
 
           // Force reconnection if not connected
-          if (!socket.connected) {
+          if (!socketRef.current.connected) {
             console.log('Socket not connected, forcing reconnection');
-            socket.disconnect();
+            socketRef.current.disconnect();
             setTimeout(() => {
-              socket.connect();
+              if (socketRef.current) {
+                socketRef.current.connect();
+              }
             }, 100);
           }
 
@@ -1911,17 +1875,19 @@ export default function ChatScreen() {
               currentTabs.forEach((tab, index) => {
                 setTimeout(() => {
                   console.log('Rejoining room after app resume:', tab.id, currentUser.username);
-                  if (tab.isSupport) {
-                    socket.emit('join-support-room', {
-                      supportRoomId: tab.id,
-                      isAdmin: currentUser.role === 'admin'
-                    });
-                  } else {
-                    socket.emit('join-room', {
-                      roomId: tab.id,
-                      username: currentUser.username,
-                      role: currentUser.role || 'user'
-                    });
+                  if (socketRef.current) {
+                    if (tab.isSupport) {
+                      socketRef.current.emit('join-support-room', {
+                        supportRoomId: tab.id,
+                        isAdmin: currentUser.role === 'admin'
+                      });
+                    } else {
+                      socketRef.current.emit('join-room', {
+                        roomId: tab.id,
+                        username: currentUser.username,
+                        role: currentUser.role || 'user'
+                      });
+                    }
                   }
                 }, index * 50); // Stagger the rejoining
               });
@@ -1972,9 +1938,11 @@ export default function ChatScreen() {
 
       appStateSubscription?.remove();
 
-      if (socket) {
-        socket.removeAllListeners();
-        socket.disconnect();
+      // Use socketRef.current for cleanup
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, []);
