@@ -66,6 +66,12 @@ Preferred communication style: Simple, everyday language.
   - **Owner-Only Permissions**: Only room owner can add moderators (button hidden for non-owners)
   - **Unban Functionality**: Fully functional unban button with confirmation dialog
   - **Smart Filtering**: Participant picker excludes current user and existing moderators
+- **Socket Listener Stacking Fix**: Eliminated duplicate join/leave messages caused by listener stacking:
+  - **Root Cause**: Multiple socket connections (up to 19 simultaneous) causing duplicate event broadcasts
+  - **Solution**: Implemented `listenersSetupRef` boolean flag to prevent duplicate listener attachment
+  - **Mechanism**: Listeners set up only once per socket instance; flag reset on disconnect and new socket creation
+  - **AppState Handling**: Skip listener setup if already configured when app resumes from background
+  - **Result**: Clean single connection, no duplicate join/leave messages, proper socket lifecycle management
 
 # System Architecture
 
