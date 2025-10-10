@@ -1875,6 +1875,22 @@ export default function ChatScreen() {
     }
   }, [roomId, roomName, socket, type, isSupport]);
 
+  // Listen for navigation params changes (when screen is already mounted)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      const params = route.params as any;
+      if (params?.roomId && params?.roomName && params?.autoFocusTab && socket) {
+        console.log('🔄 Screen focused with new params:', params.roomId, params.roomName, params.type);
+        joinSpecificRoom(params.roomId, params.roomName);
+        
+        // Clear autoFocusTab param to prevent re-triggering
+        navigation.setParams({ autoFocusTab: undefined } as any);
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, socket]);
+
   // Effect untuk mempertahankan state pesan saat app kembali aktif
   useEffect(() => {
     const preserveMessageState = () => {
