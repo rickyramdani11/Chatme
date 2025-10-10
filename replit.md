@@ -25,6 +25,7 @@ Preferred communication style: Simple, everyday language.
     - All text colors: `COLORS.text` (dark text for readability)
     - Gift item cards: Gray transparent background (`rgba(128, 128, 128, 0.3)`)
     - Tab titles, gift names, and UI labels: All use dark text on light background
+    - Animated gift badge: `COLORS.warning` background with `COLORS.text` for proper contrast
   - **Keyboard Auto-Close**: Keyboard automatically closes after sending any message (text, commands, game commands) for better UX
   - **Status**: Zero theme dependencies, functionality preserved
 - **Participant Auto-Removal on Leave**: Changed disconnect/leave behavior to completely remove participants from room instead of marking offline:
