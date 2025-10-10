@@ -1058,6 +1058,7 @@ export default function ChatScreen() {
       socketInstance.removeAllListeners('admin-joined'); // Listener for admin joined support chat
       socketInstance.removeAllListeners('support-message'); // Listener for support messages
 
+      socketInstance.off('new-message');
       socketInstance.on('new-message', (newMessage: Message) => {
         console.log('Received new message:', {
           sender: newMessage.sender,
@@ -1139,6 +1140,7 @@ export default function ChatScreen() {
         }
       });
 
+      socketInstance.off('user-joined');
       socketInstance.on('user-joined', (joinMessage: Message) => {
         setChatTabs(prevTabs =>
           prevTabs.map(tab =>
@@ -1149,6 +1151,7 @@ export default function ChatScreen() {
         );
       });
 
+      socketInstance.off('user-left');
       socketInstance.on('user-left', (leaveMessage: Message) => {
         setChatTabs(prevTabs =>
           prevTabs.map(tab =>
@@ -1160,6 +1163,7 @@ export default function ChatScreen() {
       });
 
       // Listen for participant updates using refs to avoid stale closures
+      socketInstance.off('participants-updated');
       socketInstance.on('participants-updated', (updatedParticipants: any[]) => {
         console.log('Participants updated:', updatedParticipants.length);
         setParticipants(updatedParticipants);
@@ -1190,6 +1194,7 @@ export default function ChatScreen() {
       });
 
       // Listen for broadcast updates
+      socketInstance.off('broadcast-updated');
       socketInstance.on('broadcast-updated', (data: { roomId: string; broadcastMessage: string | null }) => {
         console.log('📢 Broadcast updated for room', data.roomId, ':', data.broadcastMessage);
         setBroadcastMessages(prev => ({
@@ -1234,6 +1239,7 @@ export default function ChatScreen() {
       });
 
       // Listen for user kicked events
+      socketInstance.off('user-kicked');
       socketInstance.on('user-kicked', (data: any) => {
         if (data.kickedUser === user?.username) {
           Alert.alert('You have been kicked', `You were kicked from ${data.roomName} by ${data.kickedBy}`);
@@ -1246,6 +1252,7 @@ export default function ChatScreen() {
       });
 
       // Listen for user muted events
+      socketInstance.off('user-muted');
       socketInstance.on('user-muted', (data: any) => {
         if (data.mutedUser === user?.username) {
           if (data.action === 'mute') {
@@ -1259,6 +1266,7 @@ export default function ChatScreen() {
       });
 
       // Listen for user banned events
+      socketInstance.off('user-banned');
       socketInstance.on('user-banned', (data: any) => {
         if (data.bannedUser === user?.username) {
           if (data.action === 'ban') {
@@ -1279,6 +1287,7 @@ export default function ChatScreen() {
       });
 
       // Listen for rate limit errors (anti-flood)
+      socketInstance.off('rate-limit-error');
       socketInstance.on('rate-limit-error', (data: any) => {
         console.log('⚠️ Rate limit error:', data);
         Alert.alert(
@@ -1447,6 +1456,7 @@ export default function ChatScreen() {
       });
 
       // Listen for private gift notifications
+      socketInstance.off('receive-private-gift');
       socketInstance.on('receive-private-gift', (data: any) => {
         console.log('Received private gift:', data);
 
@@ -1513,6 +1523,7 @@ export default function ChatScreen() {
       });
 
       // Listen for gift animations (legacy support)
+      socketInstance.off('gift-animation');
       socketInstance.on('gift-animation', (data: any) => {
         console.log('Received legacy gift animation:', data);
         // Redirect to receiveGift handler for consistency
@@ -1520,6 +1531,7 @@ export default function ChatScreen() {
       });
 
       // Listen for admin joined support chat
+      socketInstance.off('admin-joined');
       socketInstance.on('admin-joined', (data) => {
         console.log('Admin joined support chat:', data);
         const adminMessage: Message = {
@@ -1544,6 +1556,7 @@ export default function ChatScreen() {
       });
 
       // Listen for support messages
+      socketInstance.off('support-message');
       socketInstance.on('support-message', (supportMessage: Message) => {
         console.log('Received support message:', supportMessage);
 
@@ -1578,6 +1591,7 @@ export default function ChatScreen() {
       });
 
       // Listen for incoming calls
+      socketInstance.off('incoming-call');
       socketInstance.on('incoming-call', (callData) => {
         console.log('📞 Received incoming call:', callData);
         console.log('📞 Caller details - ID:', callData.callerId, 'Name:', callData.callerName, 'Type:', callData.callType);
@@ -1586,6 +1600,7 @@ export default function ChatScreen() {
       });
 
       // Listen for call responses
+      socketInstance.off('call-response-received');
       socketInstance.on('call-response-received', (responseData) => {
         console.log('Call response received:', responseData);
         setCallRinging(false);
@@ -1613,6 +1628,7 @@ export default function ChatScreen() {
       });
 
       // Listen for call initiated confirmation
+      socketInstance.off('call-initiated');
       socketInstance.on('call-initiated', (confirmData) => {
         console.log('Call initiated:', confirmData);
         Alert.alert(
@@ -1635,6 +1651,7 @@ export default function ChatScreen() {
       });
 
       // Listen for call errors
+      socketInstance.off('call-error');
       socketInstance.on('call-error', (errorData) => {
         console.log('Call error:', errorData);
         setCallRinging(false);
@@ -1642,6 +1659,7 @@ export default function ChatScreen() {
       });
 
       // Listen for call ended
+      socketInstance.off('call-ended');
       socketInstance.on('call-ended', (endData) => {
         console.log('Call ended:', endData);
         setCallRinging(false);
