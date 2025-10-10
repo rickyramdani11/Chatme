@@ -1329,8 +1329,8 @@ const styles = StyleSheet.create({
   },
   username: {
     color: '#2c3e50',
-    fontSize: 26,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: 'normal',
   },
   levelBadgeCapsule: {
     flexDirection: 'row',
