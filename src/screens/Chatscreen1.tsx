@@ -2904,24 +2904,7 @@ export default function ChatScreen() {
       }
 
       default: {
-        const unknownMessage = {
-          id: `unknown_${Date.now()}_${user?.username}`,
-          sender: 'System',
-          content: '❌ Unknown command: ${command}\n\nAvailable commands:\n/me [action] - Perform an action\n/whois [username] - Get user info\n/roll - Roll dice (1-100)\n/kick [username] - Kick user (admin/mentor)\n/ban [username] - Ban user (admin/moderator/owner)\n/unban [username] - Unban user (admin/moderator/owner)\n/lock [password] - Lock room (admin/moderator/owner)\n/bot lowcard add - Add LowCard bot',
-          timestamp: new Date(),
-          roomId: currentRoomId,
-          role: 'system',
-          level: 1,
-          type: 'error'
-        };
-
-        setChatTabs(prevTabs =>
-          prevTabs.map(tab => 
-            tab.id === currentRoomId
-              ? { ...tab, messages: [...tab.messages, unknownMessage] }
-              : tab
-          )
-        );
+        // Unknown command - do nothing, no error message shown
         break;
       }
     }
