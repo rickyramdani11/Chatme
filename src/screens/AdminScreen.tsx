@@ -132,7 +132,7 @@ interface CreditHistory {
 }
 
 // Super Admin IDs yang boleh akses fitur "Tambah Credit"
-const SUPER_ADMIN_IDS = [4]; // ID: 4 (chatme) - owner utama
+const SUPER_ADMIN_IDS = [1, 4]; // ID: 1 (asu), 4 (chatme)
 
 export default function AdminScreen({ navigation }: any) {
   const { user, token } = useAuth();

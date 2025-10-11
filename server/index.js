@@ -7983,7 +7983,7 @@ app.post('/auth/login', async (req, res) => {
 });
 
 // Super Admin IDs yang boleh menambah credit
-const SUPER_ADMIN_IDS = [4]; // ID: 4 (chatme) - owner utama
+const SUPER_ADMIN_IDS = [1, 4]; // ID: 1 (asu), 4 (chatme)
 
 // Admin credit management endpoints
 app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
