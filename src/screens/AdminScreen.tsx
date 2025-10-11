@@ -131,6 +131,9 @@ interface CreditHistory {
   createdAt?: string;
 }
 
+// Super Admin IDs yang boleh akses fitur "Tambah Credit"
+const SUPER_ADMIN_IDS = [4]; // ID: 4 (chatme) - owner utama
+
 export default function AdminScreen({ navigation }: any) {
   const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
@@ -230,7 +233,10 @@ export default function AdminScreen({ navigation }: any) {
   const [createAccountPassword, setCreateAccountPassword] = useState('');
   const [createAccountLoading, setCreateAccountLoading] = useState(false);
 
-  const menuItems: MenuItem[] = [
+  // Check if current user is super admin
+  const isSuperAdmin = user?.id && SUPER_ADMIN_IDS.includes(user.id);
+
+  const allMenuItems: MenuItem[] = [
     {
       id: 'users',
       title: 'User Online',
@@ -278,7 +284,7 @@ export default function AdminScreen({ navigation }: any) {
       title: 'Tambah Credit',
       icon: 'add-circle-outline',
       color: '#FF9800',
-      description: 'Tambah credit tanpa batasan'
+      description: 'Tambah credit tanpa batasan (Super Admin Only)'
     },
     {
       id: 'status',
@@ -302,6 +308,14 @@ export default function AdminScreen({ navigation }: any) {
       description: 'Kelola support tickets dari user'
     }
   ];
+
+  // Filter menu: hide "Tambah Credit" if not super admin
+  const menuItems = allMenuItems.filter(item => {
+    if (item.id === 'admin-credit') {
+      return isSuperAdmin;
+    }
+    return true;
+  });
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {

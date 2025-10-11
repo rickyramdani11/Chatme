@@ -7982,6 +7982,9 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
+// Super Admin IDs yang boleh menambah credit
+const SUPER_ADMIN_IDS = [4]; // ID: 4 (chatme) - owner utama
+
 // Admin credit management endpoints
 app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
   const client = await pool.connect();
@@ -7993,6 +7996,12 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
 
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Check if user is super admin (allowed to add credits)
+    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
+      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
+      return res.status(403).json({ error: 'Super admin access required to add credits' });
     }
 
     const { username, amount, reason } = req.body;

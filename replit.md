@@ -47,8 +47,9 @@ Preferred communication style: Simple, everyday language.
 - **Push Notifications**: Firebase Cloud Messaging integration for private message notifications when app is backgrounded. Automatic device token registration on login and removal on logout.
 
 ## Security & Admin Enhancements
-- **Admin Access Control**: Frontend and backend role-based access.
-- **Audit Logging**: Comprehensive logging of admin actions.
+- **Admin Access Control**: Frontend and backend role-based access with super admin whitelist for sensitive operations.
+- **Super Admin System**: Whitelist-based access control (SUPER_ADMIN_IDS) for "Tambah Credit" feature. Only whitelisted admin IDs (default: ID 4 - chatme owner) can add credits. Enforced on both frontend (menu filtering) and backend (API validation).
+- **Audit Logging**: Comprehensive logging of admin actions with proper schema mapping (resource_type, resource_id).
 - **File Upload Security**: Base64 validation, size limits, MIME type filtering, and path traversal protection.
 - **Rate Limiting**: Applied to sensitive operations.
 - **PIN Security**: Mandatory PIN for credit transfers.
