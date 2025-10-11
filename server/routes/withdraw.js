@@ -709,4 +709,68 @@ router.post('/user/verify-change-account-otp', authenticateToken, async (req, re
   }
 });
 
+// Get user withdrawal history
+router.get('/user/history', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Fetch withdrawal history with account details
+    const result = await pool.query(`
+      SELECT 
+        wr.id,
+        wr.amount_usd,
+        wr.amount_coins,
+        wr.amount_idr,
+        wr.net_amount_idr,
+        wr.status,
+        wr.created_at,
+        wr.account_type,
+        wr.account_details,
+        wr.payout_id,
+        wr.xendit_status,
+        wr.refunded
+      FROM withdrawal_requests wr
+      WHERE wr.user_id = $1
+      ORDER BY wr.created_at DESC
+      LIMIT 50
+    `, [userId]);
+
+    // Format the response - PostgreSQL DECIMAL fields return as strings, convert to numbers
+    const history = result.rows.map(row => {
+      const accountDetails = typeof row.account_details === 'string' 
+        ? JSON.parse(row.account_details) 
+        : row.account_details;
+
+      return {
+        id: row.id,
+        amountUSD: parseFloat(row.amount_usd) || 0,
+        amountCoins: parseInt(row.amount_coins) || 0,
+        amountIDR: parseFloat(row.amount_idr) || 0,
+        netAmountIDR: parseFloat(row.net_amount_idr) || 0,
+        status: row.status,
+        date: row.created_at,
+        accountType: row.account_type,
+        accountName: accountDetails?.accountName || 'N/A',
+        accountNumber: accountDetails?.accountNumber || 'N/A',
+        holderName: accountDetails?.holderName || 'N/A',
+        payoutId: row.payout_id,
+        xenditStatus: row.xendit_status,
+        refunded: row.refunded || false
+      };
+    });
+
+    res.json({
+      success: true,
+      history
+    });
+
+  } catch (error) {
+    console.error('Error fetching withdrawal history:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to fetch withdrawal history' 
+    });
+  }
+});
+
 module.exports = router;

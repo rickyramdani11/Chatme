@@ -46,6 +46,7 @@ Preferred communication style: Simple, everyday language.
 - **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 - **Info Center**: Displays game commands and merchant/mentor contacts.
 - **Push Notifications**: Firebase Cloud Messaging integration for private message notifications when app is backgrounded. Automatic device token registration on login and removal on logout.
+- **Withdrawal System**: Comprehensive withdrawal management with Xendit integration. Features include: (1) Real-time exchange rate display (15,500 IDR = 1 USD), (2) Minimum withdrawal threshold (155,000 coins = $10 USD), (3) Indonesian bank support (BCA, MANDIRI, BNI, BRI, CIMB, PERMATA, JAGO, BSI, DANAMON), (4) Environment-based API key switching (dev/prod), (5) Automatic refund on failed payouts, (6) Full withdrawal history with status tracking (completed/processing/pending/failed/refunded), (7) Pull-to-refresh history screen with formatted amounts (USD, coins, IDR), masked account numbers, color-coded status badges, and Indonesian date formatting.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access with super admin whitelist for sensitive operations.
