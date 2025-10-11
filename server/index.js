@@ -22,6 +22,9 @@ const fetch = require('node-fetch'); // Import node-fetch
 const { createProxyMiddleware } = require('http-proxy-middleware'); // For Socket.IO proxy
 const { maskEmail, maskPhone, maskToken, maskSensitiveData } = require('./utils/maskSensitiveData');
 
+// Import Firebase service for push notifications
+const { initializeFirebase } = require('./services/firebase');
+
 // Import LowCard bot using CommonJS require
 let lowCardBot = null;
 try {
@@ -389,6 +392,24 @@ pool.connect(async (err, client, release) => {
       console.log('✅ Tokens table initialized successfully');
     } catch (tableError) {
       console.error('Error creating tokens table:', tableError);
+    }
+
+    // Create device_tokens table for Firebase push notifications
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS device_tokens (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          device_token TEXT NOT NULL,
+          platform VARCHAR(20) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, device_token)
+        )
+      `);
+      console.log('✅ Device tokens table initialized successfully');
+    } catch (tableError) {
+      console.error('Error creating device_tokens table:', tableError);
     }
 
     // Add streaming_url column to posts table if it doesn't exist
@@ -8612,6 +8633,10 @@ setTimeout(() => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`🌐 Server accessible at: http://0.0.0.0:${PORT}`);
+  
+  // Initialize Firebase for push notifications
+  initializeFirebase();
+  
   console.log(`📋 API Endpoints:`);
   console.log(`   POST /api/auth/register - User registration`);
   console.log(`   POST /api/auth/login - User login`);
