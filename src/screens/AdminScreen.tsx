@@ -244,7 +244,7 @@ export default function AdminScreen({ navigation }: any) {
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   // Check if current user is super admin
-  const isSuperAdmin = user?.id && SUPER_ADMIN_IDS.includes(user.id);
+  const isSuperAdmin = user?.id && SUPER_ADMIN_IDS.includes(Number(user.id));
 
   const allMenuItems: MenuItem[] = [
     {
