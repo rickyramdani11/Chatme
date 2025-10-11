@@ -662,7 +662,10 @@ export default function ChatScreen() {
       // Check if room already exists in tabs
       const existingTabIndex = chatTabs.findIndex(tab => tab.id === roomId);
       if (existingTabIndex !== -1) {
-        // Room already exists - update ALL room info messages with latest data
+        // Room already exists - just switch to it (keep existing messages)
+        console.log(`Switching to existing tab for room ${roomId}`);
+        
+        // Update room info if needed
         if (type !== 'private' && !isSupport) {
           try {
             const timestamp = Date.now();
@@ -682,8 +685,7 @@ export default function ChatScreen() {
               const roomData = rooms.find((r: any) => r.id.toString() === roomId.toString());
               
               if (roomData) {
-                console.log(`🔄 Updating existing tab for room ${roomId}`);
-                console.log(`📊 Room data:`, roomData);
+                const updatedTabs = [...chatTabs];
                 
                 // Set broadcast message from room data
                 if (roomData.broadcastMessage) {
@@ -693,24 +695,7 @@ export default function ChatScreen() {
                   }));
                 }
                 
-                // Update ALL room_info messages AND tab metadata with latest owner info
-                const updatedTabs = [...chatTabs];
                 const ownerName = roomData.createdBy || roomData.created_by || roomData.managedBy || roomData.managed_by || 'System';
-                
-                console.log(`👤 Owner name resolved to: ${ownerName}`);
-                
-                const updatedMessages = updatedTabs[existingTabIndex].messages.map((msg: any) => {
-                  if (msg.type === 'room_info' && (msg.content?.startsWith('This room is managed by') || msg.content?.startsWith('This room is created by'))) {
-                    console.log(`✏️ Updating message from "${msg.content}" to "This room is created by ${ownerName}"`);
-                    return {
-                      ...msg,
-                      content: `This room is created by ${ownerName}`
-                    };
-                  }
-                  return msg;
-                });
-                
-                updatedTabs[existingTabIndex].messages = updatedMessages;
                 
                 // Update tab metadata for permission checks
                 updatedTabs[existingTabIndex].managedBy = ownerName;
@@ -738,51 +723,9 @@ export default function ChatScreen() {
         return;
       }
 
-      // For private chats, don't try to load messages from room API
+      // Start with empty messages - no message history loaded
       let messages = [];
-      if (type !== 'private' && !isSupport) { // Also exclude support chats from room message loading
-        // Load messages for the specific room
-        try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/messages/${roomId}`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'ChatMe-Mobile-App',
-            },
-          });
-          messages = messagesResponse.ok ? await messagesResponse.json() : [];
-        } catch (error) {
-          console.log('No previous messages for room');
-          messages = [];
-        }
-      } else if (type === 'private') {
-        // For private chats, try to load private chat messages
-        try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/chat/private/${roomId}/messages`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'ChatMe-Mobile-App',
-            },
-          });
-          messages = messagesResponse.ok ? await messagesResponse.json() : [];
-        } catch (error) {
-          console.log('No previous messages for private chat');
-          messages = [];
-        }
-      } else if (isSupport) {
-        // Load messages for support chat
-        try {
-          const messagesResponse = await fetch(`${API_BASE_URL}/api/support/${roomId}/messages`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'ChatMe-Mobile-App',
-            },
-          });
-          messages = messagesResponse.ok ? await messagesResponse.json() : [];
-        } catch (error) {
-          console.log('No previous messages for support chat');
-          messages = [];
-        }
-      }
+      console.log('Starting fresh chat session with no message history');
 
       // Get room data to get correct managedBy info
         let roomData = null;

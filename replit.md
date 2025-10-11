@@ -25,7 +25,7 @@ Preferred communication style: Simple, everyday language.
 - **API**: RESTful endpoints with Bearer token authorization
 
 ## Core Features
-- **Chat System**: Multi-room chat, private messaging, emoji support, media sharing, chat history notifications. Includes anti-flood rate limiting with auto-cooldown.
+- **Chat System**: Multi-room chat, private messaging, emoji support, media sharing. Includes anti-flood rate limiting with auto-cooldown. NO message history persistence - rooms start fresh on each join.
 - **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration. Single gift message rendering with auto-removal (10s) prevents duplicates.
 - **Gaming Integration**: LowCard bot game with database persistence.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API. Bot ONLY responds in private chat, NOT in public rooms.
