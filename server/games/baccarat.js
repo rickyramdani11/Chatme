@@ -82,6 +82,25 @@ function formatCard(card) {
   return `${card.rank}${card.suit}`;
 }
 
+// Card to icon mapping - returns tag for client to render image from assets/card/
+function getCardIcon(card) {
+  // Map suits to file suffixes
+  const suitMap = { '♠': 's', '♥': 'h', '♦': 'd', '♣': 'c' };
+  // Map ranks to file prefixes
+  const rankMap = {
+    'A': 'a', '2': '2', '3': '3', '4': '4', '5': '5',
+    '6': '6', '7': '7', '8': '8', '9': '9', '10': '10',
+    'J': 'j', 'Q': 'q', 'K': 'k'
+  };
+  
+  const suit = suitMap[card.suit];
+  const rank = rankMap[card.rank];
+  
+  // Return card icon tag (client will render image from assets/card/)
+  // Include .png extension to match CARD_IMAGES dictionary keys
+  return `<card:lc_${rank}${suit}.png>`;
+}
+
 function shouldPlayerDrawThird(playerValue) {
   return playerValue <= 5;
 }
@@ -371,8 +390,8 @@ async function dealCards(io, roomId) {
   const bankerValue = calculateHandValue(game.bankerHand);
 
   let resultMessage = `\n━━━━━━━━━━━━━━━━━━\n`;
-  resultMessage += `🎴 PLAYER: ${game.playerHand.map(formatCard).join(' ')} = ${playerValue}\n`;
-  resultMessage += `🎴 BANKER: ${game.bankerHand.map(formatCard).join(' ')} = ${bankerValue}\n`;
+  resultMessage += `🎴 PLAYER: ${game.playerHand.map(getCardIcon).join(' ')} = ${playerValue}\n`;
+  resultMessage += `🎴 BANKER: ${game.bankerHand.map(getCardIcon).join(' ')} = ${bankerValue}\n`;
 
   if (playerValue >= 8 || bankerValue >= 8) {
     resultMessage += '\n🌟 NATURAL!\n';
@@ -382,13 +401,13 @@ async function dealCards(io, roomId) {
     if (shouldPlayerDrawThird(playerValue)) {
       playerThirdCard = game.deck.pop();
       game.playerHand.push(playerThirdCard);
-      resultMessage += `\n🎴 Player draws: ${formatCard(playerThirdCard)}\n`;
+      resultMessage += `\n🎴 Player draws: ${getCardIcon(playerThirdCard)}\n`;
     }
     
     if (shouldBankerDrawThird(bankerValue, playerThirdCard)) {
       const bankerThirdCard = game.deck.pop();
       game.bankerHand.push(bankerThirdCard);
-      resultMessage += `🎴 Banker draws: ${formatCard(bankerThirdCard)}\n`;
+      resultMessage += `🎴 Banker draws: ${getCardIcon(bankerThirdCard)}\n`;
     }
   }
 
@@ -396,8 +415,8 @@ async function dealCards(io, roomId) {
   const finalBankerValue = calculateHandValue(game.bankerHand);
 
   resultMessage += `\n━━━━━━━━━━━━━━━━━━\n`;
-  resultMessage += `🎴 FINAL PLAYER: ${game.playerHand.map(formatCard).join(' ')} = ${finalPlayerValue}\n`;
-  resultMessage += `🎴 FINAL BANKER: ${game.bankerHand.map(formatCard).join(' ')} = ${finalBankerValue}\n`;
+  resultMessage += `🎴 FINAL PLAYER: ${game.playerHand.map(getCardIcon).join(' ')} = ${finalPlayerValue}\n`;
+  resultMessage += `🎴 FINAL BANKER: ${game.bankerHand.map(getCardIcon).join(' ')} = ${finalBankerValue}\n`;
   resultMessage += `━━━━━━━━━━━━━━━━━━\n\n`;
 
   let winner;
