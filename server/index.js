@@ -8039,8 +8039,11 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
     await client.query('BEGIN');
 
     try {
-      // Check if user already has credits record
-      const creditsResult = await client.query('SELECT balance FROM user_credits WHERE user_id = $1', [targetUser.id]);
+      // CRITICAL FIX: Use FOR UPDATE lock to prevent race conditions
+      const creditsResult = await client.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE', 
+        [targetUser.id]
+      );
 
       if (creditsResult.rows.length === 0) {
         // Create new credits record with only required fields
@@ -8062,6 +8065,25 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
         INSERT INTO credit_transactions (to_user_id, amount, type, created_at)
         VALUES ($1, $2, 'admin_add', CURRENT_TIMESTAMP)
       `, [targetUser.id, amount]);
+
+      // CRITICAL FIX: Add comprehensive audit log for security compliance
+      await client.query(`
+        INSERT INTO admin_audit_logs 
+        (admin_id, admin_username, action, resource_type, resource_id, details, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+        req.user.id,
+        req.user.username,
+        'add_credits',
+        'user',
+        targetUser.id,
+        JSON.stringify({ 
+          username: targetUser.username, 
+          amount: amount,
+          reason: reason || 'Admin credit addition'
+        }),
+        'success'
+      ]);
 
       await client.query('COMMIT');
 

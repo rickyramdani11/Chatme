@@ -50,7 +50,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access with super admin whitelist for sensitive operations.
-- **Super Admin System**: Whitelist-based access control (SUPER_ADMIN_IDS) for sensitive features. Only whitelisted admin IDs (default: ID 4 - chatme owner) can access: "Tambah Credit", "Ganti Email User", and "Reset Password User". Enforced on both frontend (menu filtering) and backend (API validation).
+- **Super Admin System**: Whitelist-based access control (SUPER_ADMIN_IDS) for sensitive features. Only whitelisted admin IDs (ID 1 - asu, ID 4 - chatme owner) can access: "Tambah Credit", "Ganti Email User", and "Reset Password User". Enforced on both frontend (menu filtering) and backend (API validation).
 - **Credential Management Tools**: Super admin-only tools to help users who lose email access: (1) "Ganti Email User" with Gmail/Yahoo domain validation and duplicate email checking, (2) "Reset Password User" with 6-char minimum and bcrypt hashing. Both emit comprehensive audit logs with resource_type and resource_id.
 - **Audit Logging**: Comprehensive logging of admin actions with proper schema mapping (resource_type, resource_id). Includes actions: add_credits, change_email, reset_password.
 - **File Upload Security**: Base64 validation, size limits, MIME type filtering, and path traversal protection.
