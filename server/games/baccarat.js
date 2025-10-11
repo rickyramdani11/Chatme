@@ -513,9 +513,14 @@ function showHelp() {
   const helpText = `🎴 Baccarat Bot Commands:
 
 !start - Start a new game
-!bet <type> <amount> - Place bet
-  Types: player (1:1), banker (0.95:1), tie (8:1)
-  Example: !bet player 100
+
+Betting (choose one):
+!bet <type> <amount> - Full command
+!b <p/b/t> <amount> - Shorthand
+  p = player (1:1)
+  b = banker (0.95:1)
+  t = tie (8:1)
+  Example: !b p 600
 
 !status - Check game status
 !help - Show this help
@@ -544,14 +549,48 @@ export function handleBaccaratCommand(io, socket, room, message, userId, usernam
     return;
   }
 
+  // Handle !bet command
   if (cmd.startsWith('!bet ')) {
     const parts = cmd.split(' ');
     if (parts.length === 3) {
       const betType = parts[1];
       const amount = parts[2];
-      placeBet(io, room, userId, username, betType, amount);
+      const result = placeBet(io, room, userId, username, betType, amount);
+      if (!result.success) {
+        sendPrivateMessage(io, userId, room, result.message);
+      }
     } else {
       sendPrivateMessage(io, userId, room, '❌ Usage: !bet <player/banker/tie> <amount>');
+    }
+    return;
+  }
+
+  // Handle shorthand !b command
+  if (cmd.startsWith('!b ')) {
+    const parts = cmd.split(' ');
+    if (parts.length === 3) {
+      const shortType = parts[1].toLowerCase();
+      const amount = parts[2];
+      
+      // Map shorthand to full type
+      const typeMap = {
+        'p': 'player',
+        'b': 'banker',
+        't': 'tie'
+      };
+      
+      const betType = typeMap[shortType];
+      if (!betType) {
+        sendPrivateMessage(io, userId, room, '❌ Invalid type! Use: p (player), b (banker), or t (tie)');
+        return;
+      }
+      
+      const result = placeBet(io, room, userId, username, betType, amount);
+      if (!result.success) {
+        sendPrivateMessage(io, userId, room, result.message);
+      }
+    } else {
+      sendPrivateMessage(io, userId, room, '❌ Usage: !b <p/b/t> <amount>\nExample: !b p 600');
     }
     return;
   }

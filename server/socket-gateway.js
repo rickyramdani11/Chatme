@@ -1916,6 +1916,7 @@ io.on('connection', (socket) => {
           const baccaratActive = isBaccaratBotActive(roomId);
           if (baccaratActive && (
               trimmedContent.startsWith('!bet ') || 
+              trimmedContent.startsWith('!b ') ||
               trimmedContent.startsWith('!deal') ||
               trimmedContent.startsWith('!bacarat') ||
               trimmedContent === '!start' ||
