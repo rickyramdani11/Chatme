@@ -1349,7 +1349,7 @@ export default function ChatScreen() {
           )
         );
 
-        // Auto-hide gift message after 6 seconds (use captured targetRoomId)
+        // Auto-hide gift message after 10 seconds (use captured targetRoomId)
         setTimeout(() => {
           setChatTabs(prevTabs =>
             prevTabs.map(tab =>
@@ -1358,7 +1358,7 @@ export default function ChatScreen() {
                 : tab
             )
           );
-        }, 6000);
+        }, 10000);
       });
 
       // Listen for private gift notifications
