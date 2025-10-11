@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing, chat history notifications. Includes anti-flood rate limiting with auto-cooldown.
 - **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration. Single gift message rendering with auto-removal (6s) prevents duplicates.
 - **Gaming Integration**: LowCard bot game with database persistence.
-- **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API.
+- **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API. Bot ONLY responds in private chat, NOT in public rooms.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
 - **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Supports admin-created special accounts with custom IDs bypassing OTP.

@@ -65,7 +65,7 @@ async function shouldBotRespond(message, roomId, sender, pool = null) {
   
   const isPrivateMessage = roomId.startsWith('private_');
   
-  // In private chat, check if bot is part of the room ID
+  // Bot ONLY works in private chat, NOT in public rooms
   if (isPrivateMessage) {
     // Only respond if chatme_bot is actually in the private chat
     // Room format: private_userId1_userId2
@@ -73,13 +73,8 @@ async function shouldBotRespond(message, roomId, sender, pool = null) {
     return roomId.includes('_43_') || roomId.endsWith('_43');
   }
   
-  // In public rooms, bot responds only if it's been added to the room
-  if (pool) {
-    const isMember = await isBotInRoom(roomId, pool);
-    return isMember; // Bot responds to ALL messages if it's in the room
-  }
-  
-  return false; // Default: don't respond if no pool provided
+  // NEVER respond in public rooms - bot is for private chat only
+  return false;
 }
 
 /**
