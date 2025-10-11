@@ -17,6 +17,9 @@ import { handleSicboCommand, handleSicboAdminCommand, ensureBotPresence as ensur
 // Import ChatMe AI Bot
 import { processBotMessage, BOT_USERNAME } from './bot/chatme-bot.js';
 
+// Import Firebase push notification service
+import { initializeFirebase, sendNotificationToUser } from './services/firebase.js';
+
 const app = express();
 const server = createServer(app);
 
@@ -1974,6 +1977,48 @@ io.on('connection', (socket) => {
 
       console.log(`Message broadcasted to room ${roomId} from ${sender}`);
 
+      // Send push notification for private chats
+      if (isPrivateChat && sender) {
+        try {
+          // Extract user IDs from private chat room ID (format: private_id1_id2)
+          const roomParts = roomId.split('_');
+          if (roomParts.length >= 3) {
+            const userId1 = parseInt(roomParts[1]);
+            const userId2 = parseInt(roomParts[2]);
+            
+            // Get sender ID
+            const senderResult = await pool.query('SELECT id FROM users WHERE username = $1', [sender]);
+            if (senderResult.rows.length > 0) {
+              const senderId = senderResult.rows[0].id;
+              
+              // Determine recipient ID (the other user in the chat)
+              const recipientId = userId1 === senderId ? userId2 : userId1;
+              
+              // Send push notification to recipient
+              await sendNotificationToUser(
+                pool,
+                recipientId,
+                {
+                  title: `New message from ${sender}`,
+                  body: content.substring(0, 100), // Truncate long messages
+                },
+                {
+                  type: 'private_message',
+                  roomId: roomId,
+                  senderId: senderId.toString(),
+                  senderUsername: sender
+                }
+              );
+              
+              console.log(`📱 Push notification sent to user ${recipientId} for private message`);
+            }
+          }
+        } catch (pushError) {
+          console.error('❌ Error sending push notification for private message:', pushError);
+          // Don't block message sending if push notification fails
+        }
+      }
+
       // ChatMe AI Bot Integration
       // Check if bot should respond to this message
       if (sender !== BOT_USERNAME) { // Don't respond to bot's own messages
@@ -2931,6 +2976,9 @@ server.listen(GATEWAY_PORT, '0.0.0.0', () => {
   console.log(`🔌 WebSocket endpoint: ws://0.0.0.0:${GATEWAY_PORT}`);
   console.log(`📡 Real-time features: Chat, Notifications, Typing indicators`);
   console.log(`🔐 JWT Authentication required for socket connections`);
+  
+  // Initialize Firebase for push notifications
+  initializeFirebase();
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${GATEWAY_PORT} is already in use`);

@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 - **Merchant Recas System**: Monthly revenue requirement system for merchant promotions.
 - **Help & Support System**: Live chat support with ticket creation and FAQ.
 - **Privacy & Security System**: Privacy settings management with user-scoped access control, data download requests, password/PIN changes.
-- **Notification System**: Real-time notifications via Socket.IO for follow and friend add events.
+- **Notification System**: Real-time notifications via Socket.IO for follow and friend add events. Push notifications via Firebase Cloud Messaging (FCM) for private messages when app is in background.
 - **User Presence System**: Friends list displays real-time status with smart sorting. Participant auto-removal on leave.
 - **Device & Location Tracking**: Collects device information and city/country level location.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear.
@@ -44,6 +44,7 @@ Preferred communication style: Simple, everyday language.
 - **Video Call System**: Private video/audio calls with Daily.co integration.
 - **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 - **Info Center**: Displays game commands and merchant/mentor contacts.
+- **Push Notifications**: Firebase Cloud Messaging integration for private message notifications when app is backgrounded. Automatic device token registration on login and removal on logout.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access.

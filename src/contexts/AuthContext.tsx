@@ -6,6 +6,7 @@ import * as Location from 'expo-location';
 
 import { API_BASE_URL } from '../utils/apiConfig';
 import { maskEmail, maskPhone, maskToken, maskSensitiveData } from '../utils/maskSensitiveData';
+import { initializePushNotifications, removeDeviceTokenFromBackend, setupNotificationListeners } from '../services/pushNotifications';
 
 interface User {
   id: string;
@@ -206,6 +207,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await AsyncStorage.setItem('user', JSON.stringify(userWithBalance));
 
       console.log('Login successful, token stored');
+
+      // Initialize push notifications after successful login
+      try {
+        await initializePushNotifications(data.token);
+      } catch (pushError) {
+        console.error('Failed to initialize push notifications:', pushError);
+        // Don't block login if push notifications fail
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       
@@ -406,6 +415,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Remove device token from backend before logout
+      if (token) {
+        try {
+          await removeDeviceTokenFromBackend(token);
+        } catch (pushError) {
+          console.log('Failed to remove device token:', pushError);
+        }
+      }
+
       // Call server logout endpoint if token exists
       if (token) {
         try {
