@@ -39,7 +39,7 @@ Preferred communication style: Simple, everyday language.
 - **Notification System**: Real-time notifications via Socket.IO for follow and friend add events. Push notifications via Firebase Cloud Messaging (FCM) for private messages when app is in background.
 - **User Presence System**: Friends list displays real-time status with smart sorting. Participant auto-removal on leave.
 - **Device & Location Tracking**: Collects device information and city/country level location.
-- **Avatar Customization**: Frame rental system with auto-expiry and headwear.
+- **Avatar Customization**: Frame rental system with auto-expiry and headwear. Supports both static image frames and animated Lottie JSON frames with real-time preview in profile and store.
 - **Room Connection Persistence**: Maintains user connection across app states with inactivity cleanup and intelligent socket reconnection. Comprehensive socket listener stacking prevention: all 18+ event listeners use socket.off() before socket.on() to ensure single listener attachment, eliminating duplicate event handling.
 - **Room Capacity Management**: Real-time participant count sync and client-side validation.
 - **Video Call System**: Private video/audio calls with Daily.co integration.
