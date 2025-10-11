@@ -305,6 +305,14 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
         ) THEN
           ALTER TABLE withdrawal_requests ADD COLUMN xendit_response JSONB;
         END IF;
+
+        -- Add refunded column to prevent double refund (safeguard)
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'withdrawal_requests' AND column_name = 'refunded'
+        ) THEN
+          ALTER TABLE withdrawal_requests ADD COLUMN refunded BOOLEAN DEFAULT false;
+        END IF;
       END $$;
     `);
 
@@ -464,11 +472,13 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
       } catch (xenditError) {
         console.error('Xendit payout error:', xenditError);
         
-        // Update withdrawal with error details (use 'rejected' status, not 'failed')
-        await client.query(`
+        // CRITICAL: AUTO-REFUND with strict safeguard to prevent double refund
+        // Step 1: Update withdrawal status to 'rejected' with refunded=false atomically
+        const updateResult = await client.query(`
           UPDATE withdrawal_requests 
-          SET status = $1, notes = $2, xendit_response = $3
-          WHERE id = $4
+          SET status = $1, notes = $2, xendit_response = $3, refunded = false
+          WHERE id = $4 AND refunded = false
+          RETURNING id
         `, [
           'rejected',
           `Xendit error: ${xenditError.message}`,
@@ -476,11 +486,40 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           withdrawal.id
         ]);
 
+        // Step 2: Only refund if update was successful (prevents double refund)
+        if (updateResult.rows.length > 0) {
+          console.log(`🔄 AUTO-REFUND: Refunding ${amountCoins} coins to user ${userId} for failed withdrawal ${withdrawal.id}`);
+          
+          // Atomic refund with safeguard: only execute if refunded=false
+          const refundResult = await client.query(`
+            UPDATE user_gift_earnings_balance 
+            SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = $2
+            RETURNING balance
+          `, [amountCoins, userId]);
+
+          // Mark as refunded to prevent any future double refund
+          await client.query(`
+            UPDATE withdrawal_requests 
+            SET refunded = true, notes = $1
+            WHERE id = $2 AND refunded = false
+          `, [
+            `Xendit error: ${xenditError.message}. AUTO-REFUNDED ${amountCoins} coins to user balance.`,
+            withdrawal.id
+          ]);
+
+          console.log(`✅ AUTO-REFUND SUCCESS: User ${userId} balance restored. New balance: ${refundResult.rows[0].balance}`);
+        } else {
+          console.log(`⚠️ REFUND SKIPPED: Withdrawal ${withdrawal.id} already refunded`);
+        }
+
         await client.query('COMMIT');
 
         return res.status(500).json({ 
-          error: 'Failed to process payout with Xendit',
-          details: xenditError.message
+          error: 'Failed to process payout with Xendit. Your balance has been automatically refunded.',
+          details: xenditError.message,
+          refunded: true,
+          refundedAmount: amountCoins
         });
       }
 
