@@ -41,6 +41,8 @@ import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/bac
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import Daily, { DailyMediaView } from '@daily-co/react-native-daily-js';
 import RoomManagement from '../components/RoomManagement';
+import RedPacketModal from '../components/RedPacketModal';
+import RedEnvelopeAnimation from '../components/RedEnvelopeAnimation';
 
 const { width } = Dimensions.get('window');
 
@@ -246,6 +248,12 @@ export default function ChatScreen() {
   const lastGiftEventRef = useRef<Record<string, number>>({}); // Track last gift event by unique key to prevent duplicates
   const [broadcastMessages, setBroadcastMessages] = useState<Record<string, string | null>>({});
   const listenersSetupRef = useRef<boolean>(false); // Track if listeners are already set up
+  
+  // Red Packet States
+  const [showRedPacketModal, setShowRedPacketModal] = useState(false);
+  const [redPacketData, setRedPacketData] = useState<any>(null); // Active red packet to display
+  const [userBalance, setUserBalance] = useState(0); // User credit balance
+  const [claimedPackets, setClaimedPackets] = useState<number[]>([]); // Track claimed packet IDs
   
   // Get user and token before any refs that depend on them
   const { user, token, logout } = useAuth();
@@ -1512,6 +1520,56 @@ export default function ChatScreen() {
         setShowIncomingCallModal(false);
         endCall();
         Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
+      });
+
+      // Red Packet Listeners
+      socketInstance.off('red-packet-dropped');
+      socketInstance.on('red-packet-dropped', (data) => {
+        console.log('🧧 Red packet dropped:', data);
+        setRedPacketData(data.packet);
+      });
+
+      socketInstance.off('red-packet-update');
+      socketInstance.on('red-packet-update', (data) => {
+        console.log('🧧 Red packet update:', data);
+        if (redPacketData && redPacketData.id === data.packetId) {
+          setRedPacketData({
+            ...redPacketData,
+            remainingSlots: data.remainingSlots,
+            remainingAmount: data.remainingAmount,
+            status: data.status
+          });
+        }
+      });
+
+      socketInstance.off('red-packet-completed');
+      socketInstance.on('red-packet-completed', (data) => {
+        console.log('🧧 Red packet completed:', data);
+        if (redPacketData && redPacketData.id === data.packetId) {
+          setRedPacketData(null); // Remove from display
+        }
+      });
+
+      socketInstance.off('red-packet-claimed-success');
+      socketInstance.on('red-packet-claimed-success', (data) => {
+        console.log('🧧 Red packet claimed successfully:', data);
+        // Update claimed packets list
+        setClaimedPackets(prev => [...prev, data.packetId]);
+        // Show success message will be handled by RedEnvelopeAnimation component
+      });
+
+      socketInstance.off('red-packet-claimed-error');
+      socketInstance.on('red-packet-claimed-error', (data) => {
+        console.log('🧧 Red packet claim error:', data);
+        Alert.alert('Error', data.message);
+      });
+
+      socketInstance.off('red-packet-created');
+      socketInstance.on('red-packet-created', (data) => {
+        console.log('🧧 Red packet created response:', data);
+        if (!data.success) {
+          Alert.alert('Error', data.message || 'Failed to create red packet');
+        }
       });
       
       // Mark listeners as set up
