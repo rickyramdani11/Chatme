@@ -381,14 +381,14 @@ export async function handleSicboCommand(io, socket, room, args, userId, usernam
         roundId: `sicbo_${room}_${Date.now()}`
       };
 
-      sendBotMessage(io, room, `🎲 **Sicbo Game Started!**\n\nPlace your bets now! (30 seconds)\n\nBet types:\n• !s <amount> big/small\n• !s <amount> odd/even\n• !s <amount> total:10\n• !s <amount> single:5\n• !s <amount> double:3\n• !s <amount> triple:6\n• !s <amount> anytriple`);
+      sendBotMessage(io, room, `🎲 **Sicbo Game Started!**\n\nPlace your bets now! (60 seconds)\n\nBet types:\n• !s <amount> big/small\n• !s <amount> odd/even\n• !s <amount> total:10\n• !s <amount> single:5\n• !s <amount> double:3\n• !s <amount> triple:6\n• !s <amount> anytriple`);
 
-      // Auto-roll after 30 seconds
+      // Auto-roll after 60 seconds
       setTimeout(() => {
         if (games[room] && games[room].phase === 'betting') {
           rollAndCalculate(io, room);
         }
-      }, 30000);
+      }, 60000);
       break;
     }
 
