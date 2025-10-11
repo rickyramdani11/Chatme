@@ -305,7 +305,11 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
     await pool.query('BEGIN');
 
     try {
-      const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [fromUserId]);
+      // CRITICAL FIX: Use FOR UPDATE lock to prevent race conditions
+      const balanceResult = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE', 
+        [fromUserId]
+      );
       let senderBalance = 0;
 
       if (balanceResult.rows.length > 0) {

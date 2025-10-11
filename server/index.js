@@ -1124,8 +1124,9 @@ app.post('/api/frame/purchase', authenticateToken, async (req, res) => {
 
       const frameItem = frameResult.rows[0];
 
+      // CRITICAL FIX: Use FOR UPDATE lock to prevent race conditions
       const balanceResult = await pool.query(
-        'SELECT balance FROM user_credits WHERE user_id = $1',
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
         [userId]
       );
 
@@ -1232,9 +1233,9 @@ app.post('/api/headwear/purchase', authenticateToken, async (req, res) => {
 
       const headwearItem = headwearResult.rows[0];
 
-      // Check user's balance
+      // CRITICAL FIX: Use FOR UPDATE lock to prevent race conditions
       const balanceResult = await pool.query(
-        'SELECT balance FROM user_credits WHERE user_id = $1',
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
         [userId]
       );
 
@@ -1428,9 +1429,9 @@ app.post('/api/frames/purchase', authenticateToken, async (req, res) => {
 
       const frameItem = frameResult.rows[0];
 
-      // Check user's balance
+      // CRITICAL FIX: Use FOR UPDATE lock to prevent race conditions
       const balanceResult = await pool.query(
-        'SELECT balance FROM user_credits WHERE user_id = $1',
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
         [userId]
       );
 
@@ -3603,8 +3604,11 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
       const giftPrice = giftResult.rows[0].price;
       const giftName = giftResult.rows[0].name;
 
-      // Check sender balance
-      const balanceResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
+      // CRITICAL FIX: Use FOR UPDATE lock to prevent race conditions
+      const balanceResult = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE', 
+        [userId]
+      );
       const currentBalance = balanceResult.rows.length > 0 ? balanceResult.rows[0].balance : 0;
 
       if (currentBalance < giftPrice) {

@@ -60,60 +60,73 @@ export async function createRedPacket(roomId, senderId, senderName, totalAmount,
       return { success: false, message: 'Maximum 50 users allowed!' };
     }
 
-    // Check sender has enough credits
-    const creditsResult = await pool.query(
-      'SELECT balance FROM user_credits WHERE user_id = $1',
-      [senderId]
-    );
+    // CRITICAL FIX: Start transaction and use FOR UPDATE lock to prevent race conditions
+    await pool.query('BEGIN');
 
-    if (creditsResult.rows.length === 0 || creditsResult.rows[0].balance < totalAmount) {
-      return { success: false, message: 'Insufficient credits!' };
-    }
+    try {
+      // Check sender has enough credits with lock
+      const creditsResult = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+        [senderId]
+      );
 
-    // Deduct credits from sender
-    await pool.query(
-      'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-      [totalAmount, senderId]
-    );
-
-    // Record transaction
-    await pool.query(
-      `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
-       VALUES ($1, $1, $2, 'red_packet_send', $3)`,
-      [senderId, totalAmount, `Red Packet: ${message || 'Lucky Money'}`]
-    );
-
-    // Create red packet
-    const expiresAt = new Date(Date.now() + EXPIRY_MINUTES * 60 * 1000);
-    
-    const result = await pool.query(
-      `INSERT INTO red_packets 
-       (room_id, sender_id, sender_name, total_amount, total_slots, remaining_slots, remaining_amount, message, expires_at, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active')
-       RETURNING *`,
-      [roomId, senderId, senderName, totalAmount, totalSlots, totalSlots, totalAmount, message, expiresAt]
-    );
-
-    const packet = result.rows[0];
-
-    console.log(`[RedPacket] Created packet ${packet.id} by ${senderName} in room ${roomId}: ${totalAmount} credits, ${totalSlots} slots`);
-
-    return {
-      success: true,
-      packet: {
-        id: packet.id,
-        roomId: packet.room_id,
-        senderId: packet.sender_id,
-        senderName: packet.sender_name,
-        totalAmount: packet.total_amount,
-        totalSlots: packet.total_slots,
-        remainingSlots: packet.remaining_slots,
-        remainingAmount: packet.remaining_amount,
-        message: packet.message,
-        expiresAt: packet.expires_at,
-        status: packet.status
+      if (creditsResult.rows.length === 0 || creditsResult.rows[0].balance < totalAmount) {
+        await pool.query('ROLLBACK');
+        return { success: false, message: 'Insufficient credits!' };
       }
-    };
+
+      // Deduct credits from sender
+      await pool.query(
+        'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+        [totalAmount, senderId]
+      );
+
+      // Record transaction
+      await pool.query(
+        `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+         VALUES ($1, $1, $2, 'red_packet_send', $3)`,
+        [senderId, totalAmount, `Red Packet: ${message || 'Lucky Money'}`]
+      );
+
+      // Create red packet
+      const expiresAt = new Date(Date.now() + EXPIRY_MINUTES * 60 * 1000);
+      
+      const result = await pool.query(
+        `INSERT INTO red_packets 
+         (room_id, sender_id, sender_name, total_amount, total_slots, remaining_slots, remaining_amount, message, expires_at, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active')
+         RETURNING *`,
+        [roomId, senderId, senderName, totalAmount, totalSlots, totalSlots, totalAmount, message, expiresAt]
+      );
+
+      const packet = result.rows[0];
+
+      // COMMIT transaction
+      await pool.query('COMMIT');
+
+      console.log(`[RedPacket] Created packet ${packet.id} by ${senderName} in room ${roomId}: ${totalAmount} credits, ${totalSlots} slots`);
+
+      return {
+        success: true,
+        packet: {
+          id: packet.id,
+          roomId: packet.room_id,
+          senderId: packet.sender_id,
+          senderName: packet.sender_name,
+          totalAmount: packet.total_amount,
+          totalSlots: packet.total_slots,
+          remainingSlots: packet.remaining_slots,
+          remainingAmount: packet.remaining_amount,
+          message: packet.message,
+          expiresAt: packet.expires_at,
+          status: packet.status
+        }
+      };
+    } catch (txError) {
+      await pool.query('ROLLBACK');
+      console.error('[RedPacket] Transaction error creating packet:', txError);
+      throw txError;
+    }
   } catch (error) {
     console.error('[RedPacket] Error creating packet:', error);
     return { success: false, message: 'Failed to create red packet' };
