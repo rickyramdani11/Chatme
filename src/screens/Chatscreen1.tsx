@@ -282,6 +282,29 @@ export default function ChatScreen() {
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  // Fetch user balance for red packets
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!token) return;
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const data = await response.json();
+        if (data.success) {
+          setUserBalance(data.balance || 0);
+        }
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+      }
+    };
+
+    fetchBalance();
+  }, [token]);
   
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
@@ -660,6 +683,40 @@ export default function ChatScreen() {
 
     setShowIncomingCallModal(false);
     setIncomingCallData(null);
+  };
+
+  // Red Packet Handlers
+  const handleSendRedPacket = (totalAmount: number, totalSlots: number, message: string) => {
+    if (!socket || !user) return;
+
+    const currentTab = chatTabs[activeTab];
+    if (!currentTab) return;
+
+    socket.emit('create-red-packet', {
+      roomId: currentTab.id,
+      senderId: user.id,
+      senderName: user.username,
+      totalAmount,
+      totalSlots,
+      message
+    });
+
+    // Optimistically update balance
+    setUserBalance(prev => prev - totalAmount);
+  };
+
+  const handleClaimRedPacket = (packetId: number) => {
+    if (!socket || !user) return;
+
+    const currentTab = chatTabs[activeTab];
+    if (!currentTab) return;
+
+    socket.emit('claim-red-packet', {
+      packetId,
+      userId: user.id,
+      username: user.username,
+      roomId: currentTab.id
+    });
   };
 
   // Function to join a specific room (called when navigating from RoomScreen)
@@ -4676,6 +4733,12 @@ export default function ChatScreen() {
                 <TouchableOpacity style={styles.headerIcon} onPress={handleListPress}>
                   <Ionicons name="list-outline" size={24} color={COLORS.badgeTextLight} />
                 </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.headerIcon} 
+                  onPress={() => setShowRedPacketModal(true)}
+                >
+                  <Text style={{ fontSize: 24 }}>🧧</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
                   <Ionicons name="ellipsis-vertical" size={24} color={COLORS.badgeTextLight} />
                 </TouchableOpacity>
@@ -5843,6 +5906,24 @@ export default function ChatScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Red Packet Modal */}
+      <RedPacketModal
+        visible={showRedPacketModal}
+        onClose={() => setShowRedPacketModal(false)}
+        onSend={handleSendRedPacket}
+        userBalance={userBalance}
+      />
+
+      {/* Red Envelope Animation */}
+      {redPacketData && (
+        <RedEnvelopeAnimation
+          packet={redPacketData}
+          onClaim={handleClaimRedPacket}
+          onClose={() => setRedPacketData(null)}
+          hasUserClaimed={claimedPackets.includes(redPacketData.id)}
+        />
+      )}
     </SafeAreaView>
   );
 }
