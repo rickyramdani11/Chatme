@@ -213,6 +213,39 @@ async function logTransaction(userId, amount, type, details) {
   }
 }
 
+async function logGameResult(game, winner) {
+  try {
+    const totalBets = Object.values(game.bets).reduce((sum, bet) => sum + bet.amount, 0);
+    const totalPayout = Object.entries(game.bets).reduce((sum, [userId, bet]) => {
+      if (bet.betType === winner) {
+        return sum + Math.floor(bet.amount * PAYOUTS[winner]);
+      } else if (winner === 'tie' && (bet.betType === 'player' || bet.betType === 'banker')) {
+        return sum + bet.amount; // Push - return bet
+      }
+      return sum;
+    }, 0);
+
+    await pool.query(
+      `INSERT INTO baccarat_games 
+       (room_id, winner, player_cards, banker_cards, player_value, banker_value, total_bets, total_payout)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        game.roomId,
+        winner,
+        game.playerHand.map(formatCard).join(' '),
+        game.bankerHand.map(formatCard).join(' '),
+        calculateHandValue(game.playerHand),
+        calculateHandValue(game.bankerHand),
+        totalBets,
+        totalPayout
+      ]
+    );
+    console.log(`[Baccarat] Game result logged for room ${game.roomId}: ${winner} wins`);
+  } catch (error) {
+    console.error('[Baccarat] Error logging game result:', error);
+  }
+}
+
 function startGame(io, roomId, initiatorId, initiatorName) {
   if (games[roomId]) {
     return { success: false, message: 'Game already in progress!' };
@@ -259,6 +292,12 @@ function placeBet(io, roomId, userId, username, betType, amount) {
   const betAmount = parseInt(amount);
   if (isNaN(betAmount) || betAmount <= 0) {
     return { success: false, message: 'Invalid bet amount!' };
+  }
+
+  // Check if user already has a bet
+  if (game.bets[userId]) {
+    sendPrivateMessage(io, userId, roomId, '❌ You already have a bet in this game!');
+    return { success: false, message: 'Already bet in this game' };
   }
 
   if (Object.keys(game.bets).length >= MAX_PLAYERS) {
@@ -368,6 +407,7 @@ async function processPayouts(io, roomId, game, winner, resultMessage) {
     let profit = 0;
 
     if (bet.betType === winner) {
+      // Won the bet
       winAmount = Math.floor(bet.amount * PAYOUTS[winner]);
       profit = winAmount - bet.amount;
       
@@ -375,13 +415,23 @@ async function processPayouts(io, roomId, game, winner, resultMessage) {
       await logTransaction(parseInt(userId), winAmount, 'win', `Baccarat win: ${winner} ${winAmount}`);
       
       results.push(`✅ ${bet.username}: Won ${winAmount} credits (+${profit})`);
+    } else if (winner === 'tie' && (bet.betType === 'player' || bet.betType === 'banker')) {
+      // Push on tie - return bet amount
+      await addCredits(parseInt(userId), bet.amount);
+      await logTransaction(parseInt(userId), bet.amount, 'win', `Baccarat tie push: returned ${bet.amount}`);
+      
+      results.push(`🤝 ${bet.username}: Tie - Bet returned ${bet.amount} credits`);
     } else {
+      // Lost the bet
       results.push(`❌ ${bet.username}: Lost ${bet.amount} credits`);
     }
   }
 
   resultMessage += results.join('\n');
   sendBotMessage(io, roomId, resultMessage);
+
+  // Log game result to database
+  await logGameResult(game, winner);
 
   endGame(io, roomId, false);
 }
