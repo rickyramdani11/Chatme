@@ -1925,13 +1925,16 @@ io.on('connection', (socket) => {
             return;
           }
 
-          // Route to appropriate bot based on command
-          // Sicbo shortened commands: !start, !s, !help, !status
-          if (trimmedContent.startsWith('!start') || 
+          // Check if Sicbo bot is active
+          const sicboActive = botPresence[roomId];
+          
+          // Route to appropriate bot based on command and active status
+          // Sicbo shortened commands: !start, !s, !help, !status (only if Sicbo is active)
+          if (sicboActive && (trimmedContent.startsWith('!start') || 
               trimmedContent.startsWith('!s ') || 
               trimmedContent === '!s' ||
-              (trimmedContent === '!help' && botPresence[roomId]) ||
-              (trimmedContent === '!status' && botPresence[roomId])) {
+              trimmedContent === '!help' ||
+              trimmedContent === '!status')) {
             // Sicbo game command (shortened format)
             const args = trimmedContent.slice(1).split(/\s+/);
             const cmd = args.shift(); // Remove '!start', '!s', etc
@@ -1963,9 +1966,21 @@ io.on('connection', (socket) => {
               console.log(`[Sicbo] Not handled, passing to LowCard`);
               processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
             }
-          } else {
-            // LowCard or other commands
+          } else if (trimmedContent.startsWith('!lowcard') || trimmedContent.startsWith('/lowcard') || trimmedContent.startsWith('/add lowcard') || trimmedContent.startsWith('/bot lowcard')) {
+            // Only route to LowCard if explicitly LowCard command
             processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+          } else {
+            // Unknown bot command - send error message to user
+            socket.emit('chat-message', {
+              id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: `Unknown command: ${trimmedContent}. Make sure the correct bot is active in this room.`,
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
           }
         } else {
           console.error('User info not found for socket:', socket.id);
