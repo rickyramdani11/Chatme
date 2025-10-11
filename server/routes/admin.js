@@ -1375,12 +1375,14 @@ router.post('/create-special-account', authenticateToken, adminOnly, async (req,
 
     // Log admin action
     await pool.query(
-      `INSERT INTO admin_audit_logs (admin_id, action, target_user_id, details, created_at) 
-       VALUES ($1, $2, $3, $4, NOW())`,
+      `INSERT INTO admin_audit_logs (admin_id, admin_username, action, resource_type, resource_id, details, created_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
       [
         req.user.id,
+        req.user.username,
         'create_special_account',
-        newUser.id,
+        'user',
+        newUser.id.toString(),
         JSON.stringify({ username, email, custom_id: idNum })
       ]
     );
