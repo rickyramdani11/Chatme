@@ -304,7 +304,7 @@ export default function ChatScreen() {
     };
 
     fetchBalance();
-  }, [token]);
+  }, [token, showRedPacketModal]);
   
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
