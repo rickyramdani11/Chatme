@@ -118,6 +118,11 @@ Classic casino card game with multi-player betting (up to 30 players per game).
 - One bet per user per game (atomic placement prevents duplicates)
 - All results logged to `baccarat_games` table with full audit trail
 
+**Visual Features**:
+- Card icons displayed using shared `assets/card/` directory (same as LowCard bot)
+- Client renders card images via `<card:lc_[rank][suit].png>` tags
+- Icons appear in game results and card dealing messages
+
 ### SicboBot
 3-dice betting game with various bet types and payouts.
 
