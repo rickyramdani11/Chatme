@@ -3966,8 +3966,8 @@ export default function ChatScreen() {
     }
 
     // Regular message
-    const userColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'chatme_bot') ? COLORS.success : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
-    const contentColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'chatme_bot') ? COLORS.info : COLORS.text;
+    const userColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'BaccaratBot' || item.sender === 'chatme_bot') ? COLORS.success : getRoleColor(item.role, item.sender, chatTabs[activeTab]?.id);
+    const contentColor = (item.sender === 'LowCardBot' || item.sender === 'SicboBot' || item.sender === 'BaccaratBot' || item.sender === 'chatme_bot') ? COLORS.info : COLORS.text;
     
     return (
       <TouchableOpacity 
