@@ -545,8 +545,7 @@ async function rollAndCalculate(io, room) {
       
       if (winAmount > 0) {
         await addCoins(bet.userId, winAmount, 'sicbo_win');
-        const profit = winAmount - bet.amount;
-        results.push(`✅ ${bet.username}: +${profit} COIN`);
+        results.push(`✅ ${bet.username} ${winAmount} COIN`);
       } else {
         results.push(`❌ ${bet.username}: -${bet.amount} COIN`);
       }
