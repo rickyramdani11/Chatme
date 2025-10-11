@@ -294,7 +294,7 @@ function placeBet(io, roomId, userId, username, betType, amount) {
     return { success: false, message: 'Invalid bet amount!' };
   }
 
-  // Check if user already has a bet
+  // Check if user already has a bet (atomic check with immediate flag)
   if (game.bets[userId]) {
     sendPrivateMessage(io, userId, roomId, '❌ You already have a bet in this game!');
     return { success: false, message: 'Already bet in this game' };
@@ -304,28 +304,44 @@ function placeBet(io, roomId, userId, username, betType, amount) {
     return { success: false, message: `Maximum ${MAX_PLAYERS} players reached!` };
   }
 
+  // Set pending flag immediately to prevent race conditions
+  game.bets[userId] = {
+    username,
+    betType: betType.toLowerCase(),
+    amount: betAmount,
+    pending: true
+  };
+
   getUserCredits(userId).then(async credits => {
+    // Check if bet was cancelled
+    if (!game.bets[userId]) {
+      return;
+    }
+
     if (credits < betAmount) {
       sendPrivateMessage(io, userId, roomId, `❌ Insufficient credits! You have ${credits}, need ${betAmount}`);
+      delete game.bets[userId]; // Remove pending bet
       return;
     }
 
     const success = await deductCredits(userId, betAmount);
     if (!success) {
       sendPrivateMessage(io, userId, roomId, '❌ Failed to place bet. Please try again');
+      delete game.bets[userId]; // Remove pending bet
       return;
     }
 
-    game.bets[userId] = {
-      username,
-      betType: betType.toLowerCase(),
-      amount: betAmount
-    };
+    // Confirm bet by removing pending flag
+    game.bets[userId].pending = false;
 
     await logTransaction(userId, betAmount, 'bet', `Baccarat bet: ${betType} ${betAmount}`);
 
     const playerCount = Object.keys(game.bets).length;
     sendBotMessage(io, roomId, `✅ ${username} bet ${betAmount} credits on ${betType.toUpperCase()} (${playerCount}/${MAX_PLAYERS} players)`);
+  }).catch(error => {
+    console.error('[Baccarat] Error placing bet:', error);
+    delete game.bets[userId]; // Remove pending bet on error
+    sendPrivateMessage(io, userId, roomId, '❌ Error placing bet. Please try again');
   });
 
   return { success: true, message: 'Bet placed!' };
