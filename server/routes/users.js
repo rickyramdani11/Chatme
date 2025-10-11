@@ -57,15 +57,23 @@ router.get('/:userId/profile', async (req, res) => {
     let result;
 
     if (isNumeric) {
-      result = await pool.query(
-        'SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, avatar_frame, level, role, verified, status, is_busy, busy_until FROM users WHERE id = $1',
-        [userId]
-      );
+      result = await pool.query(`
+        SELECT u.id, u.username, u.email, u.bio, u.phone, u.gender, u.birth_date, u.country, u.signature, 
+               u.avatar, u.avatar_frame, u.level, u.role, u.verified, u.status, u.is_busy, u.busy_until,
+               fi.animation_url as frame_animation_url
+        FROM users u
+        LEFT JOIN frame_items fi ON u.avatar_frame = fi.image
+        WHERE u.id = $1
+      `, [userId]);
     } else {
-      result = await pool.query(
-        'SELECT id, username, email, bio, phone, gender, birth_date, country, signature, avatar, avatar_frame, level, role, verified, status, is_busy, busy_until FROM users WHERE username = $1',
-        [userId]
-      );
+      result = await pool.query(`
+        SELECT u.id, u.username, u.email, u.bio, u.phone, u.gender, u.birth_date, u.country, u.signature, 
+               u.avatar, u.avatar_frame, u.level, u.role, u.verified, u.status, u.is_busy, u.busy_until,
+               fi.animation_url as frame_animation_url
+        FROM users u
+        LEFT JOIN frame_items fi ON u.avatar_frame = fi.image
+        WHERE u.username = $1
+      `, [userId]);
     }
 
     if (result.rows.length === 0) {
@@ -92,6 +100,7 @@ router.get('/:userId/profile', async (req, res) => {
       following: parseInt(followingResult.rows[0].count),
       avatar: user.avatar,
       avatarFrame: user.avatar_frame,
+      frameAnimationUrl: user.frame_animation_url || null,
       level: user.level || 1,
       isOnline: Math.random() > 0.5,
       country: user.country || 'ID',

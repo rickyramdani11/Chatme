@@ -20,6 +20,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../hooks';
 import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
+import AnimatedFrameOverlay from '../components/AnimatedFrameOverlay';
 
 
 interface MerchantStatus {
@@ -39,6 +40,7 @@ interface UserProfile {
   following: number;
   avatar?: string | null;
   avatarFrame?: string;
+  frameAnimationUrl?: string | null;
   profileBackground?: string;
   level: number;
   role?: string;
@@ -1018,12 +1020,13 @@ export default function ProfileScreen({ navigation, route }: any) {
             ]}
           >
             <View style={themedStyles.simpleAvatarContainer}>
-              {/* Avatar Frame (if exists) */}
-              {profile.avatarFrame && (
-                <Image
-                  source={{ uri: profile.avatarFrame.startsWith('http') ? profile.avatarFrame : `${BASE_URL}${profile.avatarFrame}` }}
-                  style={styles.avatarFrameImage}
-                  resizeMode="contain"
+              {/* Avatar Frame (static or animated) */}
+              {(profile.avatarFrame || profile.frameAnimationUrl) && (
+                <AnimatedFrameOverlay
+                  frameImage={profile.avatarFrame ? (profile.avatarFrame.startsWith('http') ? profile.avatarFrame : `${BASE_URL}${profile.avatarFrame}`) : null}
+                  animationUrl={profile.frameAnimationUrl}
+                  size={120}
+                  style={{ top: -16, left: -16 }}
                 />
               )}
               
