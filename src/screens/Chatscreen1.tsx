@@ -1598,6 +1598,35 @@ export default function ChatScreen() {
             status: data.status
           });
         }
+        
+        // Show claim message for all users in room
+        if (data.claimInfo && redPacketData?.roomId) {
+          const claimMessage = {
+            id: `claim-${data.claimInfo.userId}-${Date.now()}`,
+            content: `${data.claimInfo.username} mendapat ${data.claimInfo.amount} coin`,
+            sender: 'System',
+            type: 'system',
+            timestamp: new Date().toISOString(),
+            role: 'system'
+          };
+          
+          // Add to correct room tab (based on packet's roomId)
+          setChatTabs(prevTabs => {
+            const updatedTabs = [...prevTabs];
+            const tabIndex = updatedTabs.findIndex(tab => tab.id === redPacketData.roomId);
+            if (tabIndex !== -1) {
+              const isActiveTab = redPacketData.roomId === currentRoomId;
+              updatedTabs[tabIndex] = {
+                ...updatedTabs[tabIndex],
+                messages: [...(updatedTabs[tabIndex].messages || []), claimMessage],
+                lastMessage: claimMessage.content,
+                timestamp: new Date().toISOString(),
+                hasNewMessage: !isActiveTab // Set badge if not active tab
+              };
+            }
+            return updatedTabs;
+          });
+        }
       });
 
       socketInstance.off('red-packet-completed');
@@ -1613,7 +1642,11 @@ export default function ChatScreen() {
         console.log('🧧 Red packet claimed successfully:', data);
         // Update claimed packets list
         setClaimedPackets(prev => [...prev, data.packetId]);
-        // Show success message will be handled by RedEnvelopeAnimation component
+        
+        // Hide red packet immediately for claimer
+        setRedPacketData(null);
+        
+        // Chat message will be shown via 'red-packet-update' broadcast
       });
 
       socketInstance.off('red-packet-claimed-error');
