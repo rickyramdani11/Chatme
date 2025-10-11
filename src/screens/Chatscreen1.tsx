@@ -1600,7 +1600,7 @@ export default function ChatScreen() {
         }
         
         // Show claim message for all users in room
-        if (data.claimInfo && redPacketData?.roomId) {
+        if (data.claimInfo && data.roomId) {
           const claimMessage = {
             id: `claim-${data.claimInfo.userId}-${Date.now()}`,
             content: `${data.claimInfo.username} mendapat ${data.claimInfo.amount} coin`,
@@ -1610,12 +1610,12 @@ export default function ChatScreen() {
             role: 'system'
           };
           
-          // Add to correct room tab (based on packet's roomId)
+          // Add to correct room tab (based on event's roomId)
           setChatTabs(prevTabs => {
             const updatedTabs = [...prevTabs];
-            const tabIndex = updatedTabs.findIndex(tab => tab.id === redPacketData.roomId);
+            const tabIndex = updatedTabs.findIndex(tab => tab.id === data.roomId);
             if (tabIndex !== -1) {
-              const isActiveTab = redPacketData.roomId === currentRoomId;
+              const isActiveTab = data.roomId === currentRoomId;
               updatedTabs[tabIndex] = {
                 ...updatedTabs[tabIndex],
                 messages: [...(updatedTabs[tabIndex].messages || []), claimMessage],

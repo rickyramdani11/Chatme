@@ -68,6 +68,7 @@ export function setupRedPacketEvents(io, socket) {
       // Broadcast update to room
       io.to(roomId).emit('red-packet-update', {
         packetId: claim.packetId,
+        roomId: roomId, // Include roomId for client routing
         remainingSlots: claim.remainingSlots,
         remainingAmount: claim.remainingAmount,
         status: claim.status,
