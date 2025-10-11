@@ -8120,6 +8120,69 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
   }
 });
 
+// Get admin credit transfer history (Super Admin Only)
+app.get('/api/admin/audit-logs/transfers', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== ADMIN TRANSFER HISTORY REQUEST ===');
+    console.log('Admin ID:', req.user.id);
+    console.log('Admin Role:', req.user.role);
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Check if user is super admin
+    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
+      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
+      return res.status(403).json({ error: 'Super admin access required to view transfer history' });
+    }
+
+    // Fetch all admin credit transfers from audit logs
+    const result = await pool.query(`
+      SELECT 
+        id,
+        admin_id,
+        admin_username,
+        action,
+        resource_type,
+        resource_id,
+        details,
+        status,
+        created_at
+      FROM admin_audit_logs
+      WHERE action = 'add_credits' 
+        AND resource_type = 'user'
+        AND status = 'success'
+      ORDER BY created_at DESC
+      LIMIT 100
+    `);
+
+    console.log(`Found ${result.rows.length} transfer records`);
+
+    res.json({ 
+      success: true,
+      transfers: result.rows.map(row => ({
+        id: row.id,
+        adminId: row.admin_id,
+        adminUsername: row.admin_username,
+        action: row.action,
+        resourceType: row.resource_type,
+        resourceId: row.resource_id,
+        details: row.details, // Contains: username, amount, reason
+        status: row.status,
+        createdAt: row.created_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error fetching transfer history:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message 
+    });
+  }
+});
+
 // Change user email endpoint (Super Admin Only)
 app.post('/api/admin/change-user-email', authenticateToken, async (req, res) => {
   try {

@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Device from 'expo-device';
 import * as Location from 'expo-location';
 import { API_BASE_URL } from '../utils/apiConfig';
+import AdminTransferHistoryModal from '../components/AdminTransferHistoryModal';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -243,6 +244,9 @@ export default function AdminScreen({ navigation }: any) {
   const [resetPasswordNewPassword, setResetPasswordNewPassword] = useState('');
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
+  // Transfer history modal state
+  const [showTransferHistoryModal, setShowTransferHistoryModal] = useState(false);
+
   // Check if current user is super admin
   const isSuperAdmin = user?.id && SUPER_ADMIN_IDS.includes(Number(user.id));
 
@@ -330,12 +334,19 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'key-outline',
       color: '#FF5722',
       description: 'Reset password user yang lupa (Super Admin Only)'
+    },
+    {
+      id: 'transfer-history',
+      title: 'Lihat History Transfer',
+      icon: 'receipt-outline',
+      color: '#4a90e2',
+      description: 'Lihat history transfer credit admin (Super Admin Only)'
     }
   ];
 
   // Filter menu: hide super admin features if not super admin
   const menuItems = allMenuItems.filter(item => {
-    if (item.id === 'admin-credit' || item.id === 'change-email' || item.id === 'reset-password') {
+    if (item.id === 'admin-credit' || item.id === 'change-email' || item.id === 'reset-password' || item.id === 'transfer-history') {
       return isSuperAdmin;
     }
     return true;
@@ -424,8 +435,13 @@ export default function AdminScreen({ navigation }: any) {
   };
 
   const selectMenuItem = (itemId: string) => {
-    setActiveTab(itemId);
-    toggleSideMenu();
+    if (itemId === 'transfer-history') {
+      setShowTransferHistoryModal(true);
+      toggleSideMenu();
+    } else {
+      setActiveTab(itemId);
+      toggleSideMenu();
+    }
   };
 
   const loadUserStats = async () => {
@@ -4031,6 +4047,12 @@ export default function AdminScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
+      {/* Admin Transfer History Modal */}
+      <AdminTransferHistoryModal
+        visible={showTransferHistoryModal}
+        onClose={() => setShowTransferHistoryModal(false)}
+      />
     </SafeAreaView>
   );
 }
