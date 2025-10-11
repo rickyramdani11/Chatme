@@ -288,6 +288,13 @@ export default function AdminScreen({ navigation }: any) {
       description: 'Monitor status dan aktivitas user'
     },
     {
+      id: 'ban-manage',
+      title: 'Ban Management',
+      icon: 'shield-outline',
+      color: '#D32F2F',
+      description: 'Kelola banned devices dan IP address'
+    },
+    {
       id: 'support-tickets',
       title: 'Support Tickets',
       icon: 'mail-outline',
