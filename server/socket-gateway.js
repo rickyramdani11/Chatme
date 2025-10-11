@@ -30,6 +30,11 @@ import { processBotMessage, BOT_USERNAME } from './bot/chatme-bot.js';
 // Import Firebase push notification service
 import { initializeFirebase, sendNotificationToUser } from './services/firebase.js';
 
+// Import Red Packet System
+import { initRedPacketTables } from './redpacket/database.js';
+import { setupRedPacketEvents } from './redpacket/socket-handler.js';
+import { expireOldPackets } from './redpacket/redpacket.js';
+
 const app = express();
 const server = createServer(app);
 
@@ -253,6 +258,9 @@ initRoomSecurityTables();
 initPrivateMessagesTable();
 initBotRoomMembersTable();
 initBaccaratTables();
+
+// Initialize Red Packet tables
+initRedPacketTables();
 
 // Server-side permission verification functions
 const hasPermission = async (userId, username, roomId, action) => {
@@ -872,6 +880,9 @@ io.on('connection', (socket) => {
   const personalRoom = `user_${socket.userId}`;
   socket.join(personalRoom);
   console.log(`🔔 User ${socket.username} joined personal notification room: ${personalRoom}`);
+
+  // Setup Red Packet event handlers
+  setupRedPacketEvents(io, socket);
 
   // Join room event
   socket.on('join-room', async (data) => {
@@ -3026,6 +3037,16 @@ setInterval(() => {
 }, CLEANUP_INTERVAL_MS);
 
 console.log(`⏰ Inactivity cleanup job scheduled (runs every hour, 8-hour timeout)`);
+
+// Red Packet expiry check (every minute)
+setInterval(async () => {
+  const expiredCount = await expireOldPackets();
+  if (expiredCount > 0) {
+    console.log(`🧧 Expired ${expiredCount} red packets and refunded unclaimed amounts`);
+  }
+}, 60000); // 1 minute
+
+console.log(`🧧 Red packet expiry check scheduled (runs every minute)`);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
