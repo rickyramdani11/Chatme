@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing. Includes anti-flood rate limiting with auto-cooldown. NO message history persistence - rooms start fresh on each join.
 - **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration. Single gift message rendering with auto-removal (10s) prevents duplicates.
-- **Gaming Integration**: LowCard bot game with database persistence.
+- **Gaming Integration**: LowCard bot game, SicboBot (3-dice betting), and BaccaratBot (classic casino card game) with database persistence and multi-player support.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API. Bot ONLY responds in private chat, NOT in public rooms.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
@@ -89,3 +89,37 @@ Preferred communication style: Simple, everyday language.
 - **Storage**: Cloudinary for gift media, avatar frame assets, and feed post media.
 - **Video Calls**: Daily.co.
 - **Payment Gateway**: Xendit Payout API.
+
+## Game Bots
+
+### BaccaratBot
+Classic casino card game with multi-player betting (up to 30 players per game).
+
+**Activation Commands (Admin Only)**:
+- `/bot bacarat add` - Activate BaccaratBot in room
+- `/bot bacarat off` - Deactivate BaccaratBot in room
+
+**Game Commands**:
+- `!start` - Start betting phase (60 second timer)
+- `!bet <player/banker/tie> <amount>` - Place bet
+  - `player` pays 1:1
+  - `banker` pays 0.95:1 (5% commission)
+  - `tie` pays 8:1
+- `!deal` - Force deal cards (auto-deals after timer)
+- `!status` - Check game status
+- `!help` - Show commands
+
+**Game Rules**:
+- Card values: A=1, 2-9=face value, 10/J/Q/K=0
+- Hand value = sum modulo 10 (9 is highest)
+- Natural win: 8 or 9 with first 2 cards
+- Third card drawn based on fixed Baccarat rules
+- Tie: Player/Banker bets push (returned), Tie bets win 8:1
+- One bet per user per game (atomic placement prevents duplicates)
+- All results logged to `baccarat_games` table with full audit trail
+
+### SicboBot
+3-dice betting game with various bet types and payouts.
+
+### LowCard Bot
+Card comparison game with database persistence.
