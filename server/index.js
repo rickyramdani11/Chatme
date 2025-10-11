@@ -18,6 +18,7 @@ const creditsRouter = require('./routes/credits');
 const feedRouter = require('./routes/feed');
 const roomsRouter = require('./routes/rooms');
 const withdrawRouter = require('./routes/withdraw');
+const pushNotificationsRouter = require('./routes/push-notifications');
 const fetch = require('node-fetch'); // Import node-fetch
 const { createProxyMiddleware } = require('http-proxy-middleware'); // For Socket.IO proxy
 const { maskEmail, maskPhone, maskToken, maskSensitiveData } = require('./utils/maskSensitiveData');
@@ -805,6 +806,9 @@ app.use('/chat', (req, res, next) => {
 // Handle preflight requests
 app.options('*', cors());
 
+// Make pool accessible to routes
+app.set('pool', pool);
+
 // Import and mount route modules
 const adminRouter = require('./routes/admin');
 const supportRouter = require('./routes/support'); // Import support routes
@@ -818,6 +822,7 @@ app.use('/api/feed', feedRouter);
 app.use('/api/rooms', roomsRouter);
 app.use('/api/withdraw', withdrawRouter); // Mount withdrawal routes at /api/withdraw to avoid conflicts
 app.use('/api/support', supportRouter); // Mount support routes
+app.use('/api/notifications', authenticateToken, pushNotificationsRouter); // Push notifications with auth
 
 // JWT authentication middleware is now imported from auth module
 
