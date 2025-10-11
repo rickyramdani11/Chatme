@@ -47,8 +47,15 @@ export async function registerForPushNotifications(): Promise<string | null> {
     }
 
     // Get Expo Push Token (works without Firebase setup in mobile)
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    
+    if (!projectId) {
+      console.error('❌ EAS projectId not found in app.json');
+      return null;
+    }
+
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+      projectId: projectId,
     });
 
     token = tokenData.data;
