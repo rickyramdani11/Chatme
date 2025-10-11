@@ -626,5 +626,10 @@ export function hasActiveSicboGame(roomId) {
   return games[roomId] !== undefined;
 }
 
+// Check if Sicbo bot is active in room
+export function isSicboBotActive(roomId) {
+  return botPresence[roomId] === true;
+}
+
 // Export ensureBotPresence for socket-gateway
 export { ensureBotPresence };

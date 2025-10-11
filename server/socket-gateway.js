@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { processLowCardCommand } from './games/lowcard.js';
 
 // Import Sicbo bot
-import { handleSicboCommand, handleSicboAdminCommand, ensureBotPresence as ensureSicboBotPresence } from './games/sicbo.js';
+import { handleSicboCommand, handleSicboAdminCommand, ensureBotPresence as ensureSicboBotPresence, isSicboBotActive } from './games/sicbo.js';
 
 // Import Baccarat bot
 import { 
@@ -1926,7 +1926,7 @@ io.on('connection', (socket) => {
           }
 
           // Check if Sicbo bot is active
-          const sicboActive = botPresence[roomId];
+          const sicboActive = isSicboBotActive(roomId);
           
           // Route to appropriate bot based on command and active status
           // Sicbo shortened commands: !start, !s, !help, !status (only if Sicbo is active)
