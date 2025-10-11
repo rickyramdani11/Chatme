@@ -186,8 +186,8 @@ export function ensureBaccaratBotPresence(io, roomId) {
 
 async function getUserCredits(userId) {
   try {
-    const result = await pool.query('SELECT credits FROM users WHERE id = $1', [userId]);
-    return result.rows.length > 0 ? result.rows[0].credits : 0;
+    const result = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
+    return result.rows.length > 0 ? result.rows[0].balance : 0;
   } catch (error) {
     console.error('[Baccarat] Error getting user credits:', error);
     return 0;
@@ -197,7 +197,7 @@ async function getUserCredits(userId) {
 async function deductCredits(userId, amount) {
   try {
     await pool.query(
-      'UPDATE users SET credits = credits - $1 WHERE id = $2',
+      'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
     return true;
@@ -210,7 +210,7 @@ async function deductCredits(userId, amount) {
 async function addCredits(userId, amount) {
   try {
     await pool.query(
-      'UPDATE users SET credits = credits + $1 WHERE id = $2',
+      'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
     return true;
