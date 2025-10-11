@@ -6,55 +6,55 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { RootStackParamList, TabParamList } from './types';
 
-import AuthScreen from '../screens/AuthScreen';
-import HomeScreen from '../screens/HomeScreen';
-import FriendsScreen from '../screens/FriendsScreen';
-import FeedScreen from '../screens/FeedScreen';
-import SettingsScreen from '../screens/SettingsScreen';
-import EditProfileScreen from '../screens/EditProfileScreen';
-import RoomScreen from '../screens/RoomScreen';
-import ChatScreen from '../screens/Chatscreen1';
-import PrivateChatScreen from '../screens/PrivateChatScreen';
-import ProfileScreen from '../screens/ProfileScreen'; // Assuming ProfileScreen is in ../screens/ProfileScreen
-import PrivacySecurityScreen from '../screens/PrivacySecurityScreen'; // Import the new screen
-import ChangePasswordScreen from '../screens/ChangePasswordScreen'; // Import ChangePasswordScreen
-import ChangePinScreen from '../screens/ChangePinScreen'; // Import ChangePinScreen
-import HelpSupportScreen from '../screens/HelpSupportScreen';
-import LiveChatScreen from '../screens/LiveChatScreen';
+import AuthScreen from '../../screens/AuthScreen';
+import HomeScreen from '../../screens/HomeScreen';
+import FriendsScreen from '../../screens/FriendsScreen';
+import FeedScreen from '../../screens/FeedScreen';
+import SettingsScreen from '../../screens/SettingsScreen';
+import EditProfileScreen from '../../screens/EditProfileScreen';
+import RoomScreen from '../../screens/RoomScreen';
+import ChatScreen from '../../screens/Chatscreen1';
+import PrivateChatScreen from '../../screens/PrivateChatScreen';
+import ProfileScreen from '../../screens/ProfileScreen'; // Assuming ProfileScreen is in ../../screens/ProfileScreen
+import PrivacySecurityScreen from '../../screens/PrivacySecurityScreen'; // Import the new screen
+import ChangePasswordScreen from '../../screens/ChangePasswordScreen'; // Import ChangePasswordScreen
+import ChangePinScreen from '../../screens/ChangePinScreen'; // Import ChangePinScreen
+import HelpSupportScreen from '../../screens/HelpSupportScreen';
+import LiveChatScreen from '../../screens/LiveChatScreen';
 
 // Import the new CreditScreen
-import CreditScreen from '../screens/CreditScreen';
+import CreditScreen from '../../screens/CreditScreen';
 // Import the new TransactionHistoryScreen
-import TransactionHistoryScreen from '../screens/TransactionHistoryScreen';
+import TransactionHistoryScreen from '../../screens/TransactionHistoryScreen';
 // Import MentorScreen
-import MentorScreen from '../screens/MentorScreen';
+import MentorScreen from '../../screens/MentorScreen';
 // Import NotificationsScreen
-import NotificationsScreen from '../screens/NotificationsScreen';
+import NotificationsScreen from '../../screens/NotificationsScreen';
 
 // Import AdminScreen
-import AdminScreen from '../screens/AdminScreen';
+import AdminScreen from '../../screens/AdminScreen';
 // Import TopRankScreen
-import TopRankScreen from '../screens/TopRankScreen';
+import TopRankScreen from '../../screens/TopRankScreen';
 // Import WithdrawScreen
-import WithdrawScreen from '../screens/WithdrawScreen';
+import WithdrawScreen from '../../screens/WithdrawScreen';
 // Import WithdrawHistoryScreen
-import WithdrawHistoryScreen from '../screens/WithdrawHistoryScreen';
+import WithdrawHistoryScreen from '../../screens/WithdrawHistoryScreen';
 // Import StoreScreen
-import StoreScreen from '../screens/StoreScreen';
+import StoreScreen from '../../screens/StoreScreen';
 // Import FamilyScreen
-import FamilyScreen from '../screens/FamilyScreen';
+import FamilyScreen from '../../screens/FamilyScreen';
 // Import CreateFamilyScreen
-import CreateFamilyScreen from '../screens/CreateFamilyScreen';
+import CreateFamilyScreen from '../../screens/CreateFamilyScreen';
 // Import FamilyDetailScreen
-import FamilyDetailScreen from '../screens/FamilyDetailScreen';
+import FamilyDetailScreen from '../../screens/FamilyDetailScreen';
 // Import ChatHistoryScreen
-import ChatHistoryScreen from '../screens/ChatHistoryScreen';
+import ChatHistoryScreen from '../../screens/ChatHistoryScreen';
 // Import InfoScreen
-import InfoScreen from '../screens/InfoScreen';
+import InfoScreen from '../../screens/InfoScreen';
 // Import GlobalIncomingCallManager
-import { GlobalIncomingCallManager } from '../components/GlobalIncomingCallManager';
+import { GlobalIncomingCallManager } from '../../components/GlobalIncomingCallManager';
 
-import { useAuth } from '../hooks';
+import { useAuth } from '../../hooks';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createMaterialTopTabNavigator<TabParamList>();
