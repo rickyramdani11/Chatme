@@ -1,6 +1,8 @@
 const admin = require('firebase-admin');
+const { Expo } = require('expo-server-sdk');
 
 let firebaseInitialized = false;
+let expo = new Expo();
 
 /**
  * Initialize Firebase Admin SDK
@@ -45,46 +47,84 @@ function initializeFirebase() {
 }
 
 /**
+ * Check if token is Expo Push Token
+ * @param {string} token - Push token
+ */
+function isExpoPushToken(token) {
+  return token && token.startsWith('ExponentPushToken[');
+}
+
+/**
  * Send push notification to a specific device token
- * @param {string} token - FCM device token
+ * @param {string} token - Device push token (Expo or FCM)
  * @param {object} notification - Notification payload
  * @param {object} data - Additional data payload
  */
 async function sendNotificationToDevice(token, notification, data = {}) {
-  if (!firebaseInitialized) {
-    console.warn('⚠️  Firebase not initialized. Cannot send notification.');
-    return { success: false, error: 'Firebase not initialized' };
-  }
-
   try {
-    const message = {
-      token,
-      notification: {
+    // Check if it's an Expo Push Token
+    if (isExpoPushToken(token)) {
+      // Send via Expo Push Service
+      if (!Expo.isExpoPushToken(token)) {
+        console.error('❌ Invalid Expo push token:', token);
+        return { success: false, error: 'Invalid Expo push token' };
+      }
+
+      const message = {
+        to: token,
+        sound: 'default',
         title: notification.title,
         body: notification.body,
-        ...(notification.imageUrl && { imageUrl: notification.imageUrl })
-      },
-      data,
-      android: {
+        data: data,
         priority: 'high',
+      };
+
+      const chunks = expo.chunkPushNotifications([message]);
+      const tickets = [];
+      
+      for (const chunk of chunks) {
+        const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+        tickets.push(...ticketChunk);
+      }
+
+      console.log('✅ Expo notification sent successfully:', tickets[0]);
+      return { success: true, ticket: tickets[0] };
+    } else {
+      // Send via Firebase FCM
+      if (!firebaseInitialized) {
+        console.warn('⚠️  Firebase not initialized. Cannot send FCM notification.');
+        return { success: false, error: 'Firebase not initialized' };
+      }
+
+      const message = {
+        token,
         notification: {
-          sound: 'default',
-          clickAction: 'FLUTTER_NOTIFICATION_CLICK'
-        }
-      },
-      apns: {
-        payload: {
-          aps: {
+          title: notification.title,
+          body: notification.body,
+          ...(notification.imageUrl && { imageUrl: notification.imageUrl })
+        },
+        data,
+        android: {
+          priority: 'high',
+          notification: {
             sound: 'default',
-            badge: 1
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK'
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1
+            }
           }
         }
-      }
-    };
+      };
 
-    const response = await admin.messaging().send(message);
-    console.log('✅ Notification sent successfully:', response);
-    return { success: true, messageId: response };
+      const response = await admin.messaging().send(message);
+      console.log('✅ FCM notification sent successfully:', response);
+      return { success: true, messageId: response };
+    }
   } catch (error) {
     console.error('❌ Error sending notification:', error.message);
     return { success: false, error: error.message };
@@ -93,55 +133,98 @@ async function sendNotificationToDevice(token, notification, data = {}) {
 
 /**
  * Send push notification to multiple devices
- * @param {string[]} tokens - Array of FCM device tokens
+ * @param {string[]} tokens - Array of device tokens (Expo or FCM)
  * @param {object} notification - Notification payload
  * @param {object} data - Additional data payload
  */
 async function sendNotificationToMultipleDevices(tokens, notification, data = {}) {
-  if (!firebaseInitialized) {
-    console.warn('⚠️  Firebase not initialized. Cannot send notification.');
-    return { success: false, error: 'Firebase not initialized' };
-  }
-
   if (!tokens || tokens.length === 0) {
     return { success: false, error: 'No tokens provided' };
   }
 
   try {
-    const message = {
-      notification: {
-        title: notification.title,
-        body: notification.body,
-        ...(notification.imageUrl && { imageUrl: notification.imageUrl })
-      },
-      data,
-      tokens, // Send to multiple tokens
-      android: {
-        priority: 'high',
-        notification: {
-          sound: 'default',
-          clickAction: 'FLUTTER_NOTIFICATION_CLICK'
-        }
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: 'default',
-            badge: 1
-          }
-        }
-      }
+    // Separate Expo and FCM tokens
+    const expoTokens = tokens.filter(token => isExpoPushToken(token));
+    const fcmTokens = tokens.filter(token => !isExpoPushToken(token));
+
+    const results = {
+      success: true,
+      totalSuccess: 0,
+      totalFailure: 0,
+      expoResults: null,
+      fcmResults: null
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
-    console.log(`✅ Notifications sent: ${response.successCount} success, ${response.failureCount} failed`);
-    
-    return { 
-      success: true, 
-      successCount: response.successCount,
-      failureCount: response.failureCount,
-      responses: response.responses
-    };
+    // Send to Expo tokens
+    if (expoTokens.length > 0) {
+      const messages = expoTokens.map(token => ({
+        to: token,
+        sound: 'default',
+        title: notification.title,
+        body: notification.body,
+        data: data,
+        priority: 'high',
+      }));
+
+      const chunks = expo.chunkPushNotifications(messages);
+      const tickets = [];
+      
+      for (const chunk of chunks) {
+        const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+        tickets.push(...ticketChunk);
+      }
+
+      const expoSuccessCount = tickets.filter(t => t.status === 'ok').length;
+      const expoFailureCount = tickets.filter(t => t.status === 'error').length;
+
+      results.expoResults = { successCount: expoSuccessCount, failureCount: expoFailureCount };
+      results.totalSuccess += expoSuccessCount;
+      results.totalFailure += expoFailureCount;
+
+      console.log(`📱 Expo notifications: ${expoSuccessCount} success, ${expoFailureCount} failed`);
+    }
+
+    // Send to FCM tokens
+    if (fcmTokens.length > 0 && firebaseInitialized) {
+      const message = {
+        notification: {
+          title: notification.title,
+          body: notification.body,
+          ...(notification.imageUrl && { imageUrl: notification.imageUrl })
+        },
+        data,
+        tokens: fcmTokens,
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK'
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1
+            }
+          }
+        }
+      };
+
+      const response = await admin.messaging().sendEachForMulticast(message);
+      
+      results.fcmResults = { 
+        successCount: response.successCount, 
+        failureCount: response.failureCount 
+      };
+      results.totalSuccess += response.successCount;
+      results.totalFailure += response.failureCount;
+
+      console.log(`🔥 FCM notifications: ${response.successCount} success, ${response.failureCount} failed`);
+    }
+
+    console.log(`✅ Total notifications sent: ${results.totalSuccess} success, ${results.totalFailure} failed`);
+    return results;
   } catch (error) {
     console.error('❌ Error sending notifications:', error.message);
     return { success: false, error: error.message };

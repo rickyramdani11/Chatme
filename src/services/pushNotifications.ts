@@ -46,11 +46,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
       return null;
     }
 
-    // Get FCM/APNS token (device push token for Firebase)
-    const tokenData = await Notifications.getDevicePushTokenAsync();
+    // Get Expo Push Token (works without Firebase setup in mobile)
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    });
 
     token = tokenData.data;
-    console.log('📱 Device token obtained:', token);
+    console.log('📱 Expo Push Token obtained:', token);
 
     // Configure Android channel
     if (Platform.OS === 'android') {
