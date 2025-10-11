@@ -8084,6 +8084,168 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
   }
 });
 
+// Change user email endpoint (Super Admin Only)
+app.post('/api/admin/change-user-email', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== ADMIN CHANGE USER EMAIL REQUEST ===');
+    console.log('Admin ID:', req.user.id);
+    console.log('Admin Role:', req.user.role);
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Check if user is super admin
+    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
+      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
+      return res.status(403).json({ error: 'Super admin access required to change user email' });
+    }
+
+    const { username, newEmail } = req.body;
+
+    if (!username || !newEmail) {
+      return res.status(400).json({ error: 'Username and new email are required' });
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Validate email domain (only Gmail and Yahoo)
+    const emailLower = newEmail.toLowerCase();
+    const allowedDomains = [
+      'gmail.com', 'yahoo.com', 'yahoo.co.id', 'yahoo.co.uk',
+      'yahoo.com.au', 'yahoo.ca', 'yahoo.fr', 'yahoo.de',
+      'yahoo.co.jp', 'yahoo.in'
+    ];
+    
+    const domain = emailLower.split('@')[1];
+    if (!allowedDomains.includes(domain)) {
+      return res.status(400).json({ 
+        error: 'Email domain not allowed. Only Gmail and Yahoo email addresses are accepted.' 
+      });
+    }
+
+    // Find target user
+    const userResult = await pool.query('SELECT id, username, email FROM users WHERE username = $1', [username]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // Check if new email already exists
+    const emailCheck = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [newEmail, targetUser.id]);
+    if (emailCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'Email already in use by another user' });
+    }
+
+    // Update email
+    await pool.query('UPDATE users SET email = $1 WHERE id = $2', [newEmail, targetUser.id]);
+
+    // Log audit
+    await pool.query(`
+      INSERT INTO admin_audit_logs 
+      (admin_id, admin_username, action, resource_type, resource_id, details, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [
+      req.user.id,
+      req.user.username,
+      'change_email',
+      'user',
+      targetUser.id,
+      JSON.stringify({ 
+        username: targetUser.username, 
+        oldEmail: targetUser.email,
+        newEmail: newEmail 
+      }),
+      'success'
+    ]);
+
+    console.log(`✅ Admin ${req.user.username} changed email for user ${username}: ${targetUser.email} → ${newEmail}`);
+    res.json({ 
+      success: true, 
+      message: `Email for user "${username}" has been successfully changed to ${newEmail}`
+    });
+
+  } catch (error) {
+    console.error('Error changing user email:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reset user password endpoint (Super Admin Only)
+app.post('/api/admin/reset-user-password', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== ADMIN RESET USER PASSWORD REQUEST ===');
+    console.log('Admin ID:', req.user.id);
+    console.log('Admin Role:', req.user.role);
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    // Check if user is super admin
+    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
+      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
+      return res.status(403).json({ error: 'Super admin access required to reset user password' });
+    }
+
+    const { username, newPassword } = req.body;
+
+    if (!username || !newPassword) {
+      return res.status(400).json({ error: 'Username and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Find target user
+    const userResult = await pool.query('SELECT id, username FROM users WHERE username = $1', [username]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const targetUser = userResult.rows[0];
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, targetUser.id]);
+
+    // Log audit
+    await pool.query(`
+      INSERT INTO admin_audit_logs 
+      (admin_id, admin_username, action, resource_type, resource_id, details, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [
+      req.user.id,
+      req.user.username,
+      'reset_password',
+      'user',
+      targetUser.id,
+      JSON.stringify({ 
+        username: targetUser.username
+      }),
+      'success'
+    ]);
+
+    console.log(`✅ Admin ${req.user.username} reset password for user ${username}`);
+    res.json({ 
+      success: true, 
+      message: `Password for user "${username}" has been successfully reset`
+    });
+
+  } catch (error) {
+    console.error('Error resetting user password:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/admin/users/history/:userId', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
