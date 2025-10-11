@@ -47,8 +47,8 @@ export default function RedPacketModal({
       return;
     }
 
-    if (slots < 2) {
-      Alert.alert('Error', 'Minimum 2 users required to prevent coin transfer abuse!');
+    if (slots < 5) {
+      Alert.alert('Error', 'Minimum 5 users required to prevent coin transfer abuse!');
       return;
     }
 
@@ -131,12 +131,12 @@ export default function RedPacketModal({
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Number of Users (Min: 2)</Text>
+              <Text style={styles.inputLabel}>Number of Users (Min: 5)</Text>
               <TextInput
                 style={styles.input}
                 value={totalSlots}
                 onChangeText={setTotalSlots}
-                placeholder="Min 2 users (e.g., 5)"
+                placeholder="Min 5 users (e.g., 10)"
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 keyboardType="numeric"
               />
@@ -156,7 +156,7 @@ export default function RedPacketModal({
 
             {/* Info Text */}
             <Text style={styles.infoText}>
-              💡 Min 2 users to prevent coin transfer abuse{'\n'}
+              💡 Min 5 users to prevent coin transfer abuse{'\n'}
               Amount will be randomly distributed
             </Text>
 

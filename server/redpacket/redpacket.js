@@ -52,8 +52,8 @@ export async function createRedPacket(roomId, senderId, senderName, totalAmount,
       return { success: false, message: 'Total amount must be at least equal to number of slots!' };
     }
     
-    if (totalSlots < 2) {
-      return { success: false, message: 'Minimum 2 users required to prevent coin transfer abuse!' };
+    if (totalSlots < 5) {
+      return { success: false, message: 'Minimum 5 users required to prevent coin transfer abuse!' };
     }
     
     if (totalSlots > 50) {
