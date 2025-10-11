@@ -416,9 +416,22 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
 
         console.log('🚀 Sending Xendit payout via raw HTTP:', JSON.stringify(payoutData, null, 2));
 
+        // Environment detection for API key selection
+        const isProduction = process.env.REPLIT_DEPLOYMENT === '1';
+        const xenditSecretKey = isProduction && process.env.XENDIT_PRODUCTION_KEY
+          ? process.env.XENDIT_PRODUCTION_KEY  // Use production key if available
+          : process.env.XENDIT_SECRET_KEY;     // Fallback to development key
+        
+        // Log environment status
+        if (isProduction && !process.env.XENDIT_PRODUCTION_KEY) {
+          console.warn('⚠️ WARNING: Running in PRODUCTION but XENDIT_PRODUCTION_KEY not set! Using development key as fallback.');
+          console.warn('⚠️ Please add XENDIT_PRODUCTION_KEY secret for live transactions.');
+        } else {
+          console.log(`🔑 Using Xendit ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'} API key`);
+        }
+
         // Call Xendit Payout API v2 directly (SDK v7.0.0 is broken)
         // Using Basic Auth: base64(XENDIT_SECRET_KEY:)
-        const xenditSecretKey = process.env.XENDIT_SECRET_KEY;
         const authHeader = 'Basic ' + Buffer.from(xenditSecretKey + ':').toString('base64');
         
         const xenditResponse = await fetch('https://api.xendit.co/v2/payouts', {
