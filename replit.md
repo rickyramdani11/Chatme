@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing. Includes anti-flood rate limiting with auto-cooldown. NO message history persistence - rooms start fresh on each join.
 - **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration. Single gift message rendering with auto-removal (10s) prevents duplicates.
-- **Red Packet System**: WeChat-style virtual red envelopes with random credit distribution. UI modal interface for sending packets, falling envelope animation for claiming, auto-expiry with refund mechanism, and real-time socket events for broadcast and updates.
+- **Red Packet System**: WeChat-style virtual red envelopes with random credit distribution. UI modal interface for sending packets (minimum 2 users to prevent coin transfer abuse), falling envelope animation for claiming, auto-expiry with refund mechanism, and real-time socket events for broadcast and updates.
 - **Gaming Integration**: LowCard bot game, SicboBot (3-dice betting), and BaccaratBot (classic casino card game) with database persistence and multi-player support.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API. Bot ONLY responds in private chat, NOT in public rooms.
 - **Credit System**: Virtual currency with transactions and transfers.
