@@ -233,6 +233,16 @@ export default function AdminScreen({ navigation }: any) {
   const [createAccountPassword, setCreateAccountPassword] = useState('');
   const [createAccountLoading, setCreateAccountLoading] = useState(false);
 
+  // Change user email states
+  const [changeEmailUsername, setChangeEmailUsername] = useState('');
+  const [changeEmailNewEmail, setChangeEmailNewEmail] = useState('');
+  const [changeEmailLoading, setChangeEmailLoading] = useState(false);
+
+  // Reset user password states
+  const [resetPasswordUsername, setResetPasswordUsername] = useState('');
+  const [resetPasswordNewPassword, setResetPasswordNewPassword] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+
   // Check if current user is super admin
   const isSuperAdmin = user?.id && SUPER_ADMIN_IDS.includes(user.id);
 
@@ -306,12 +316,26 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'mail-outline',
       color: '#2196F3',
       description: 'Kelola support tickets dari user'
+    },
+    {
+      id: 'change-email',
+      title: 'Ganti Email User',
+      icon: 'mail-open-outline',
+      color: '#00BCD4',
+      description: 'Ganti email user yang lupa akses (Super Admin Only)'
+    },
+    {
+      id: 'reset-password',
+      title: 'Reset Password User',
+      icon: 'key-outline',
+      color: '#FF5722',
+      description: 'Reset password user yang lupa (Super Admin Only)'
     }
   ];
 
-  // Filter menu: hide "Tambah Credit" if not super admin
+  // Filter menu: hide super admin features if not super admin
   const menuItems = allMenuItems.filter(item => {
-    if (item.id === 'admin-credit') {
+    if (item.id === 'admin-credit' || item.id === 'change-email' || item.id === 'reset-password') {
       return isSuperAdmin;
     }
     return true;
@@ -1509,6 +1533,104 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
+  const handleChangeUserEmail = async () => {
+    if (!changeEmailUsername.trim()) {
+      Alert.alert('Error', 'Username harus diisi');
+      return;
+    }
+
+    if (!changeEmailNewEmail.trim()) {
+      Alert.alert('Error', 'Email baru harus diisi');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(changeEmailNewEmail)) {
+      Alert.alert('Error', 'Format email tidak valid');
+      return;
+    }
+
+    setChangeEmailLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/change-user-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: changeEmailUsername.trim(),
+          newEmail: changeEmailNewEmail.trim()
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', `Email untuk user "${changeEmailUsername}" berhasil diganti!`);
+        setChangeEmailUsername('');
+        setChangeEmailNewEmail('');
+      } else {
+        Alert.alert('Error', data.error || 'Gagal mengganti email');
+      }
+    } catch (error) {
+      console.error('Error changing user email:', error);
+      Alert.alert('Error', 'Network error. Silakan coba lagi.');
+    } finally {
+      setChangeEmailLoading(false);
+    }
+  };
+
+  const handleResetUserPassword = async () => {
+    if (!resetPasswordUsername.trim()) {
+      Alert.alert('Error', 'Username harus diisi');
+      return;
+    }
+
+    if (!resetPasswordNewPassword.trim()) {
+      Alert.alert('Error', 'Password baru harus diisi');
+      return;
+    }
+
+    if (resetPasswordNewPassword.length < 6) {
+      Alert.alert('Error', 'Password minimal 6 karakter');
+      return;
+    }
+
+    setResetPasswordLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/reset-user-password`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: resetPasswordUsername.trim(),
+          newPassword: resetPasswordNewPassword
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert('Success', `Password untuk user "${resetPasswordUsername}" berhasil direset!`);
+        setResetPasswordUsername('');
+        setResetPasswordNewPassword('');
+      } else {
+        Alert.alert('Error', data.error || 'Gagal reset password');
+      }
+    } catch (error) {
+      console.error('Error resetting user password:', error);
+      Alert.alert('Error', 'Network error. Silakan coba lagi.');
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
+
   const handleAdminAddCredit = async () => {
     if (!adminCreditUsername.trim()) {
       Alert.alert('Error', 'Username harus diisi');
@@ -2637,6 +2759,113 @@ export default function AdminScreen({ navigation }: any) {
                     <>
                       <Ionicons name="add-circle" size={20} color="#fff" />
                       <Text style={styles.transferButtonText}>Add Credit</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        );
+
+      case 'change-email':
+        return (
+          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.creditTransferCard}>
+              <Text style={styles.creditTransferTitle}>Ganti Email User</Text>
+              <Text style={styles.creditTransferSubtitle}>
+                Fitur ini untuk membantu user yang lupa/kehilangan akses email lama
+              </Text>
+
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Username User</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={changeEmailUsername}
+                  onChangeText={setChangeEmailUsername}
+                  placeholder="Masukkan username user..."
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Email Baru</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={changeEmailNewEmail}
+                  onChangeText={setChangeEmailNewEmail}
+                  placeholder="user@gmail.com atau user@yahoo.com"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.transferButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.transferButton, { backgroundColor: '#00BCD4' }]}
+                  onPress={handleChangeUserEmail}
+                  disabled={changeEmailLoading}
+                >
+                  {changeEmailLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="mail-open" size={20} color="#fff" />
+                      <Text style={styles.transferButtonText}>Ganti Email</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        );
+
+      case 'reset-password':
+        return (
+          <ScrollView style={styles.creditTransferContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.creditTransferCard}>
+              <Text style={styles.creditTransferTitle}>Reset Password User</Text>
+              <Text style={styles.creditTransferSubtitle}>
+                Fitur ini untuk membantu user yang lupa password
+              </Text>
+
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Username User</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={resetPasswordUsername}
+                  onChangeText={setResetPasswordUsername}
+                  placeholder="Masukkan username user..."
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.creditInputGroup}>
+                <Text style={styles.creditInputLabel}>Password Baru</Text>
+                <TextInput
+                  style={styles.creditInput}
+                  value={resetPasswordNewPassword}
+                  onChangeText={setResetPasswordNewPassword}
+                  placeholder="Minimal 6 karakter..."
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+              </View>
+
+              <View style={styles.transferButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.transferButton, { backgroundColor: '#FF5722' }]}
+                  onPress={handleResetUserPassword}
+                  disabled={resetPasswordLoading}
+                >
+                  {resetPasswordLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="key" size={20} color="#fff" />
+                      <Text style={styles.transferButtonText}>Reset Password</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -4538,6 +4767,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  creditTransferSubtitle: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 24,
     textAlign: 'center',
   },
