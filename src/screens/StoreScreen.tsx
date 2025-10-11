@@ -16,11 +16,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { API_BASE_URL } from '../utils/apiConfig';
+import AnimatedFrameOverlay from '../components/AnimatedFrameOverlay';
 
 interface FrameItem {
   id: string;
   name: string;
   image: string;
+  animation_url?: string | null;
   price: number;
   duration: number; // days
   description: string;
@@ -184,11 +186,20 @@ export default function StoreScreen({ navigation }: any) {
     return (
       <View key={item.id} style={styles.itemCard}>
         <View style={styles.itemImageContainer}>
-          <Image 
-            source={{ uri: item.image }} 
-            style={styles.itemImage}
-            resizeMode="cover"
-          />
+          {item.animation_url ? (
+            <AnimatedFrameOverlay
+              frameImage={item.image}
+              animationUrl={item.animation_url}
+              size={100}
+              style={styles.itemImage}
+            />
+          ) : (
+            <Image 
+              source={{ uri: item.image }} 
+              style={styles.itemImage}
+              resizeMode="cover"
+            />
+          )}
           {isOwned && (
             <View style={styles.ownedBadge}>
               <Ionicons name="checkmark-circle" size={16} color="#fff" />
@@ -315,11 +326,20 @@ export default function StoreScreen({ navigation }: any) {
 
             {selectedItem && (
               <View style={styles.modalContent}>
-                <Image 
-                  source={{ uri: selectedItem.image }} 
-                  style={styles.modalItemImage}
-                  resizeMode="cover"
-                />
+                {selectedItem.animation_url ? (
+                  <AnimatedFrameOverlay
+                    frameImage={selectedItem.image}
+                    animationUrl={selectedItem.animation_url}
+                    size={120}
+                    style={styles.modalItemImage}
+                  />
+                ) : (
+                  <Image 
+                    source={{ uri: selectedItem.image }} 
+                    style={styles.modalItemImage}
+                    resizeMode="cover"
+                  />
+                )}
                 <Text style={styles.modalItemName}>{selectedItem.name}</Text>
                 <Text style={styles.modalItemDescription}>{selectedItem.description}</Text>
                 
