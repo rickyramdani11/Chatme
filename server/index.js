@@ -595,13 +595,15 @@ pool.connect(async (err, client, release) => {
 
 // Track revenue for merchant when receiving gifts
 async function trackMerchantRevenue(merchantId, amount, source, sourceUserId = null, description = '') {
+  const client = await pool.connect();
+  
   try {
     // Get current month-year format
     const now = new Date();
     const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     
     // Check if user is a merchant
-    const merchantCheck = await pool.query(`
+    const merchantCheck = await client.query(`
       SELECT mp.* FROM merchant_promotions mp
       JOIN users u ON mp.user_id = u.id
       WHERE mp.user_id = $1 AND mp.status = 'active' AND u.role = 'merchant'
@@ -614,26 +616,45 @@ async function trackMerchantRevenue(merchantId, amount, source, sourceUserId = n
     
     const promotion = merchantCheck.rows[0];
     
-    // Insert revenue tracking record
-    await pool.query(`
-      INSERT INTO merchant_revenue_tracking 
-      (merchant_id, amount, source, source_user_id, description, month_year)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    `, [merchantId, amount, source, sourceUserId, description, monthYear]);
+    // CRITICAL FIX: Use transaction with FOR UPDATE lock to prevent race conditions
+    await client.query('BEGIN');
     
-    // Update monthly revenue in merchant_promotions
-    await pool.query(`
-      UPDATE merchant_promotions 
-      SET monthly_revenue = monthly_revenue + $1,
-          last_revenue_check = CURRENT_TIMESTAMP
-      WHERE id = $2
-    `, [amount, promotion.id]);
-    
-    console.log(`✅ Tracked ${amount} coins revenue for merchant ${merchantId} from ${source}`);
-    return true;
+    try {
+      // Lock the merchant_promotions row to prevent concurrent updates
+      await client.query(`
+        SELECT monthly_revenue FROM merchant_promotions 
+        WHERE id = $1 FOR UPDATE
+      `, [promotion.id]);
+      
+      // Insert revenue tracking record
+      await client.query(`
+        INSERT INTO merchant_revenue_tracking 
+        (merchant_id, amount, source, source_user_id, description, month_year)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [merchantId, amount, source, sourceUserId, description, monthYear]);
+      
+      // Update monthly revenue in merchant_promotions
+      await client.query(`
+        UPDATE merchant_promotions 
+        SET monthly_revenue = monthly_revenue + $1,
+            last_revenue_check = CURRENT_TIMESTAMP
+        WHERE id = $2
+      `, [amount, promotion.id]);
+      
+      await client.query('COMMIT');
+      
+      console.log(`✅ Tracked ${amount} coins revenue for merchant ${merchantId} from ${source}`);
+      return true;
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      console.error('Transaction error in trackMerchantRevenue:', txError);
+      throw txError;
+    }
   } catch (error) {
     console.error('Error tracking merchant revenue:', error);
     return false;
+  } finally {
+    client.release();
   }
 }
 
