@@ -1019,7 +1019,7 @@ app.get('/api/store/frames', authenticateToken, async (req, res) => {
     console.log('=== FETCHING FRAME ITEMS ===');
 
     const result = await pool.query(`
-      SELECT id, name, description, image, price, duration_days, is_active
+      SELECT id, name, description, image, price, duration_days, is_active, animation_url
       FROM frame_items
       WHERE is_active = true
       ORDER BY price ASC
@@ -1033,11 +1033,15 @@ app.get('/api/store/frames', authenticateToken, async (req, res) => {
         imageUrl = `${API_BASE_URL}${imageUrl}`;
       }
       
+      // Handle animation_url (Lottie JSON URL)
+      let animationUrl = row.animation_url || null;
+      
       return {
         id: row.id.toString(),
         name: row.name,
         description: row.description,
         image: imageUrl,
+        animationUrl: animationUrl,
         price: row.price,
         duration: row.duration_days
       };
@@ -1060,7 +1064,7 @@ app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
 
     const result = await pool.query(`
       SELECT uf.id, uf.frame_id, uf.expires_at, uf.is_active,
-             fi.name, fi.image
+             fi.name, fi.image, fi.animation_url
       FROM user_frames uf
       JOIN frame_items fi ON uf.frame_id = fi.id
       WHERE uf.user_id = $1 AND uf.is_active = true
@@ -1078,6 +1082,7 @@ app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
         frameId: row.frame_id.toString(),
         name: row.name,
         image: imageUrl,
+        animationUrl: row.animation_url || null,
         expiresAt: row.expires_at,
         isActive: row.is_active && new Date(row.expires_at) > new Date()
       };
@@ -1316,7 +1321,7 @@ app.get('/api/store/frames', authenticateToken, async (req, res) => {
     console.log('=== FETCHING FRAME ITEMS ===');
 
     const result = await pool.query(`
-      SELECT id, name, description, image, price, duration_days, is_active
+      SELECT id, name, description, image, price, duration_days, is_active, animation_url
       FROM frame_items
       WHERE is_active = true
       ORDER BY price ASC
@@ -1330,11 +1335,15 @@ app.get('/api/store/frames', authenticateToken, async (req, res) => {
         imageUrl = `${API_BASE_URL}${imageUrl}`;
       }
       
+      // Handle animation_url (Lottie JSON URL)
+      let animationUrl = row.animation_url || null;
+      
       return {
         id: row.id.toString(),
         name: row.name,
         description: row.description,
         image: imageUrl,
+        animationUrl: animationUrl,
         price: row.price,
         duration: row.duration_days
       };
@@ -1357,7 +1366,7 @@ app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
 
     const result = await pool.query(`
       SELECT uf.id, uf.frame_id, uf.expires_at, uf.is_active,
-             fi.name, fi.image
+             fi.name, fi.image, fi.animation_url
       FROM user_frames uf
       JOIN frame_items fi ON uf.frame_id = fi.id
       WHERE uf.user_id = $1 AND uf.is_active = true
@@ -1375,6 +1384,7 @@ app.get('/api/store/user-frames', authenticateToken, async (req, res) => {
         frameId: row.frame_id.toString(),
         name: row.name,
         image: imageUrl,
+        animationUrl: row.animation_url || null,
         expiresAt: row.expires_at,
         isActive: row.is_active && new Date(row.expires_at) > new Date()
       };
