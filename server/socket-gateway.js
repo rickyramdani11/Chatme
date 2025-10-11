@@ -14,6 +14,16 @@ import { processLowCardCommand } from './games/lowcard.js';
 // Import Sicbo bot
 import { handleSicboCommand, handleSicboAdminCommand, ensureBotPresence as ensureSicboBotPresence } from './games/sicbo.js';
 
+// Import Baccarat bot
+import { 
+  handleBaccaratCommand, 
+  activateBaccaratBot, 
+  deactivateBaccaratBot, 
+  ensureBaccaratBotPresence,
+  isBaccaratBotActive,
+  initBaccaratTables 
+} from './games/baccarat.js';
+
 // Import ChatMe AI Bot
 import { processBotMessage, BOT_USERNAME } from './bot/chatme-bot.js';
 
@@ -242,6 +252,7 @@ const initBotRoomMembersTable = async () => {
 initRoomSecurityTables();
 initPrivateMessagesTable();
 initBotRoomMembersTable();
+initBaccaratTables();
 
 // Server-side permission verification functions
 const hasPermission = async (userId, username, roomId, action) => {
@@ -1045,6 +1056,9 @@ io.on('connection', (socket) => {
 
       // Show SicboBot activation message if bot is active in this room
       ensureSicboBotPresence(io, roomId);
+      
+      // Show BaccaratBot activation message if bot is active in this room
+      ensureBaccaratBotPresence(io, roomId);
 
     } catch (error) {
       console.error('Error in join-room handler:', error);
@@ -1856,6 +1870,7 @@ io.on('connection', (socket) => {
       // Handle bot commands
       if (trimmedContent.startsWith('/bot lowcard add') || 
           trimmedContent.startsWith('/bot sicbo') ||
+          trimmedContent.startsWith('/bot bacarat') ||
           trimmedContent.startsWith('/add') || 
           trimmedContent.startsWith('/init_bot') ||
           trimmedContent.startsWith('/bot off') ||
@@ -1866,6 +1881,50 @@ io.on('connection', (socket) => {
         // Get user info from connected users
         const userInfo = connectedUsers.get(socket.id);
         if (userInfo && userInfo.userId) {
+          // Handle Baccarat bot activation/deactivation
+          if (trimmedContent === '/bot bacarat add') {
+            const result = activateBaccaratBot(io, roomId);
+            socket.emit('chat-message', {
+              id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: result.message,
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          if (trimmedContent === '/bot bacarat off') {
+            const result = deactivateBaccaratBot(io, roomId);
+            socket.emit('chat-message', {
+              id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: result.message,
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          // Handle Baccarat game commands (check if Baccarat bot is active)
+          const baccaratActive = isBaccaratBotActive(roomId);
+          if (baccaratActive && (
+              trimmedContent.startsWith('!bet ') || 
+              trimmedContent.startsWith('!deal') ||
+              trimmedContent.startsWith('!bacarat') ||
+              trimmedContent === '!start' ||
+              trimmedContent === '!help' ||
+              trimmedContent === '!status')) {
+            handleBaccaratCommand(io, socket, roomId, trimmedContent, userInfo.userId, sender);
+            return;
+          }
+
           // Route to appropriate bot based on command
           // Sicbo shortened commands: !start, !s, !help, !status
           if (trimmedContent.startsWith('!start') || 
