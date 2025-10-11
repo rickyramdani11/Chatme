@@ -380,7 +380,11 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
             'BNI': 'ID_BNI',
             'BRI': 'ID_BRI',
             'CIMB': 'ID_CIMB',
-            'PERMATA': 'ID_PERMATA'
+            'PERMATA': 'ID_PERMATA',
+            'JAGO': 'ID_JAGO',
+            'BSI': 'ID_BSI',
+            'DANAMON': 'ID_DANAMON',
+            'BANK JAGO': 'ID_JAGO'
           };
           channelCode = bankMapping[linkedAccount.account_name?.toUpperCase()];
           if (!channelCode) {
