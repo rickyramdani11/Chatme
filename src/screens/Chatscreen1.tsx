@@ -289,9 +289,10 @@ export default function ChatScreen() {
       if (!token) return;
       
       try {
-        const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
+        const response = await fetch(`${API_BASE_URL}/credits/balance`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
         if (response.ok) {
@@ -360,7 +361,7 @@ export default function ChatScreen() {
   // Call handling functions
   const checkUserBalance = async (requiredAmount: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/credits/balance`, {
+      const response = await fetch(`${API_BASE_URL}/credits/balance`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
