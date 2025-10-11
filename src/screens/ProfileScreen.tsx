@@ -320,10 +320,16 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => ({
     ...styles.toggleSwitchActive,
     backgroundColor: colors.success,
   },
+  busyToggle: {
+    ...styles.busyToggle,
+  },
   toggleThumb: {
     ...styles.toggleThumb,
     backgroundColor: colors.switchThumb,
     shadowColor: colors.shadow,
+  },
+  toggleThumbActive: {
+    ...styles.toggleThumbActive,
   },
   busyToggleText: {
     ...styles.busyToggleText,
@@ -1294,7 +1300,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                       onPress={handleBusyToggle}
                     >
                       <View style={[themedStyles.toggleSwitch, isBusy && themedStyles.toggleSwitchActive]}>
-                        <View style={[themedStyles.toggleThumb, isBusy && styles.toggleThumbActive]} />
+                        <View style={[themedStyles.toggleThumb, isBusy && themedStyles.toggleThumbActive]} />
                       </View>
                       <Text style={themedStyles.busyToggleText}>
                         {isBusy ? 'Busy' : 'Available'}
