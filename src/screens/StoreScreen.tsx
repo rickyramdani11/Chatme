@@ -17,22 +17,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { API_BASE_URL } from '../utils/apiConfig';
 
-interface HeadwearItem {
-  id: string;
-  name: string;
-  image: string;
-  price: number;
-  duration: number; // days
-  description: string;
-}
-
-interface UserHeadwear {
-  id: string;
-  headwearId: string;
-  expiresAt: string;
-  isActive: boolean;
-}
-
 interface FrameItem {
   id: string;
   name: string;
@@ -49,27 +33,18 @@ interface UserFrame {
   isActive: boolean;
 }
 
-type StoreTab = 'frames' | 'headwear';
-type ItemType = 'frame' | 'headwear';
-
 export default function StoreScreen({ navigation }: any) {
   const { user, token, refreshUserData } = useAuth();
   const [balance, setBalance] = useState(0);
-  const [headwearItems, setHeadwearItems] = useState<HeadwearItem[]>([]);
-  const [userHeadwear, setUserHeadwear] = useState<UserHeadwear[]>([]);
   const [frameItems, setFrameItems] = useState<FrameItem[]>([]);
   const [userFrames, setUserFrames] = useState<UserFrame[]>([]);
-  const [activeTab, setActiveTab] = useState<StoreTab>('frames');
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<(HeadwearItem | FrameItem) | null>(null);
-  const [selectedItemType, setSelectedItemType] = useState<ItemType>('frame');
+  const [selectedItem, setSelectedItem] = useState<FrameItem | null>(null);
 
   useEffect(() => {
     fetchBalance();
-    fetchHeadwearItems();
-    fetchUserHeadwear();
     fetchFrameItems();
     fetchUserFrames();
   }, []);
@@ -89,52 +64,6 @@ export default function StoreScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('Error fetching balance:', error);
-    }
-  };
-
-  const fetchHeadwearItems = async () => {
-    try {
-      console.log('Fetching headwear items from:', `${API_BASE_URL}/store/headwear`);
-      const response = await fetch(`${API_BASE_URL}/store/headwear`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      console.log('Headwear response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Headwear data received:', data);
-        setHeadwearItems(data.items || []);
-        console.log('Total headwear items loaded:', (data.items || []).length);
-      } else {
-        const errorText = await response.text();
-        console.error('Failed to fetch headwear:', response.status, errorText);
-      }
-    } catch (error) {
-      console.error('Error fetching headwear items:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUserHeadwear = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/store/user-headwear`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUserHeadwear(data.headwear || []);
-      }
-    } catch (error) {
-      console.error('Error fetching user headwear:', error);
     }
   };
 
@@ -194,91 +123,63 @@ export default function StoreScreen({ navigation }: any) {
 
     setPurchasing(selectedItem.id);
     try {
-      const endpoint = selectedItemType === 'frame' 
-        ? `${API_BASE_URL}/frames/purchase`
-        : `${API_BASE_URL}/headwear/purchase`;
-      
-      const bodyKey = selectedItemType === 'frame' ? 'frameId' : 'headwearId';
-
-      const response = await fetch(endpoint, {
+      const response = await fetch(`${API_BASE_URL}/frames/purchase`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          [bodyKey]: selectedItem.id,
+          frameId: selectedItem.id,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        const itemTypeText = selectedItemType === 'frame' ? 'Frame' : 'Headwear';
-        Alert.alert('Berhasil!', `${itemTypeText} "${selectedItem.name}" berhasil dibeli untuk ${selectedItem.duration} hari dan otomatis terpasang di profil Anda!`);
+        Alert.alert('Berhasil!', `Frame "${selectedItem.name}" berhasil dibeli untuk ${selectedItem.duration} hari dan otomatis terpasang di profil Anda!`);
         setBalance(data.newBalance);
-        if (selectedItemType === 'frame') {
-          fetchUserFrames();
-        } else {
-          fetchUserHeadwear();
-        }
+        fetchUserFrames();
         
         // Refresh user data to update avatarFrame in profile
         await refreshUserData();
         
         setShowPurchaseModal(false);
       } else {
-        Alert.alert('Gagal', data.error || `Terjadi kesalahan saat membeli ${selectedItemType === 'frame' ? 'frame' : 'headwear'}`);
+        Alert.alert('Gagal', data.error || 'Terjadi kesalahan saat membeli frame');
       }
     } catch (error) {
-      console.error(`Error purchasing ${selectedItemType}:`, error);
-      Alert.alert('Error', `Gagal membeli ${selectedItemType === 'frame' ? 'frame' : 'headwear'}`);
+      console.error('Error purchasing frame:', error);
+      Alert.alert('Error', 'Gagal membeli frame');
     } finally {
       setPurchasing(null);
     }
   };
 
-  const isItemOwned = (itemId: string, itemType: ItemType) => {
-    if (itemType === 'frame') {
-      return userFrames.some(uf => 
-        uf.frameId === itemId && 
-        uf.isActive && 
-        new Date(uf.expiresAt) > new Date()
-      );
-    } else {
-      return userHeadwear.some(hw => 
-        hw.headwearId === itemId && 
-        hw.isActive && 
-        new Date(hw.expiresAt) > new Date()
-      );
-    }
+  const isItemOwned = (itemId: string) => {
+    return userFrames.some(uf => 
+      uf.frameId === itemId && 
+      uf.isActive && 
+      new Date(uf.expiresAt) > new Date()
+    );
   };
 
-  const getItemExpiry = (itemId: string, itemType: ItemType) => {
-    if (itemType === 'frame') {
-      const owned = userFrames.find(uf => 
-        uf.frameId === itemId && 
-        uf.isActive && 
-        new Date(uf.expiresAt) > new Date()
-      );
-      return owned ? new Date(owned.expiresAt) : null;
-    } else {
-      const owned = userHeadwear.find(hw => 
-        hw.headwearId === itemId && 
-        hw.isActive && 
-        new Date(hw.expiresAt) > new Date()
-      );
-      return owned ? new Date(owned.expiresAt) : null;
-    }
+  const getItemExpiry = (itemId: string) => {
+    const owned = userFrames.find(uf => 
+      uf.frameId === itemId && 
+      uf.isActive && 
+      new Date(uf.expiresAt) > new Date()
+    );
+    return owned ? new Date(owned.expiresAt) : null;
   };
 
   const formatPrice = (price: number) => {
     return price.toLocaleString('id-ID');
   };
 
-  const renderItem = (item: HeadwearItem | FrameItem, itemType: ItemType) => {
-    const isOwned = isItemOwned(item.id, itemType);
-    const expiry = getItemExpiry(item.id, itemType);
+  const renderItem = (item: FrameItem) => {
+    const isOwned = isItemOwned(item.id);
+    const expiry = getItemExpiry(item.id);
 
     return (
       <View key={item.id} style={styles.itemCard}>
@@ -322,10 +223,9 @@ export default function StoreScreen({ navigation }: any) {
           ]}
           onPress={() => {
             if (isOwned) {
-              Alert.alert('Sudah Dimiliki', `Anda sudah memiliki ${itemType === 'frame' ? 'frame' : 'headwear'} ini.`);
+              Alert.alert('Sudah Dimiliki', 'Anda sudah memiliki frame ini.');
             } else {
               setSelectedItem(item);
-              setSelectedItemType(itemType);
               setShowPurchaseModal(true);
             }
           }}
@@ -374,72 +274,27 @@ export default function StoreScreen({ navigation }: any) {
         </View>
       </LinearGradient>
 
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'frames' && styles.activeTab]}
-          onPress={() => setActiveTab('frames')}
-        >
-          <Text style={[styles.tabText, activeTab === 'frames' && styles.activeTabText]}>
-            🖼️ Avatar Frames
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'headwear' && styles.activeTab]}
-          onPress={() => setActiveTab('headwear')}
-        >
-          <Text style={[styles.tabText, activeTab === 'headwear' && styles.activeTabText]}>
-            🎩 Headwear
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Frames Section */}
-        {activeTab === 'frames' && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <Text style={styles.sectionIcon}>🖼️</Text>
-                <Text style={styles.sectionTitle}>Avatar Frames</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>Bingkai Avatar - Rental 14 Hari</Text>
+        {/* Avatar Frames Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleContainer}>
+              <Text style={styles.sectionIcon}>🖼️</Text>
+              <Text style={styles.sectionTitle}>Avatar Frames</Text>
             </View>
-
-            <View style={styles.itemsGrid}>
-              {frameItems.map(item => renderItem(item, 'frame'))}
-            </View>
-
-            {frameItems.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Belum ada frame tersedia</Text>
-              </View>
-            )}
+            <Text style={styles.sectionSubtitle}>Bingkai Avatar Premium</Text>
           </View>
-        )}
 
-        {/* Headwear Section */}
-        {activeTab === 'headwear' && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleContainer}>
-                <Text style={styles.sectionIcon}>🎩</Text>
-                <Text style={styles.sectionTitle}>Headwear</Text>
-              </View>
-              <Text style={styles.sectionSubtitle}>Aksesoris Kepala Premium</Text>
-            </View>
-
-            <View style={styles.itemsGrid}>
-              {headwearItems.map(item => renderItem(item, 'headwear'))}
-            </View>
-
-            {headwearItems.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Belum ada headwear tersedia</Text>
-              </View>
-            )}
+          <View style={styles.itemsGrid}>
+            {frameItems.map(item => renderItem(item))}
           </View>
-        )}
+
+          {frameItems.length === 0 && (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Belum ada frame tersedia</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Purchase Confirmation Modal */}
@@ -565,32 +420,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     marginLeft: 4,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  activeTab: {
-    backgroundColor: '#4CAF50',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  activeTabText: {
-    color: '#fff',
   },
   content: {
     flex: 1,
