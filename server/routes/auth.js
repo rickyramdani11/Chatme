@@ -173,43 +173,18 @@ router.post('/register', async (req, res) => {
     // Normalize Gmail address (remove dots) to prevent duplicate accounts
     const normalizedEmail = normalizeGmailAddress(email);
 
-    // Check for existing username
-    const existingUsername = await pool.query(
-      'SELECT id FROM users WHERE username = $1',
-      [username]
-    );
-
-    if (existingUsername.rows.length > 0) {
-      return res.status(400).json({ error: 'Username already exists' });
-    }
-
-    // Check for existing email with normalization for Gmail
-    // For Gmail: remove dots from username part before comparing
-    // For other emails: direct comparison
-    const existingEmail = await pool.query(`
-      SELECT id, email FROM users 
-      WHERE CASE 
-        WHEN LOWER(SPLIT_PART(email, '@', 2)) = 'gmail.com' THEN 
-          REPLACE(LOWER(SPLIT_PART(email, '@', 1)), '.', '') || '@gmail.com'
-        ELSE 
-          LOWER(email)
-      END = $1
-    `, [normalizedEmail]);
-
-    if (existingEmail.rows.length > 0) {
-      return res.status(400).json({ error: 'Email already exists' });
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Generate 6-digit OTP
     const verificationOTP = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+    // Direct insert with normalized email - database UNIQUE constraints handle duplicate prevention
+    // This is race-condition proof: concurrent inserts will be serialized by the database
     const result = await pool.query(
       `INSERT INTO users (username, email, password, phone, country, gender, bio, avatar, verified, exp, level, last_login, status, verification_otp, otp_expiry)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, username, email`,
-      [username, email, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline', verificationOTP, otpExpiry]
+      [username, normalizedEmail, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline', verificationOTP, otpExpiry]
     );
 
     const newUser = result.rows[0];
@@ -229,6 +204,20 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
+    
+    // Handle PostgreSQL unique constraint violation (error code 23505)
+    if (error.code === '23505') {
+      // Check which field caused the conflict
+      if (error.constraint && error.constraint.includes('username')) {
+        return res.status(400).json({ error: 'Username already exists' });
+      }
+      if (error.constraint && error.constraint.includes('email')) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+      // Generic duplicate error if constraint name not recognized
+      return res.status(400).json({ error: 'Username or email already exists' });
+    }
+    
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -430,9 +419,12 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Email and OTP are required' });
     }
 
+    // Normalize email for lookup (Gmail dots removal)
+    const normalizedEmail = normalizeGmailAddress(email);
+
     const result = await pool.query(
       'SELECT id, username, email, verified, verification_otp, otp_expiry FROM users WHERE email = $1',
-      [email]
+      [normalizedEmail]
     );
 
     if (result.rows.length === 0) {
@@ -485,9 +477,12 @@ router.post('/resend-verification', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    // Normalize email for lookup (Gmail dots removal)
+    const normalizedEmail = normalizeGmailAddress(email);
+
     const result = await pool.query(
       'SELECT id, username, email, verified FROM users WHERE email = $1',
-      [email]
+      [normalizedEmail]
     );
 
     if (result.rows.length === 0) {
