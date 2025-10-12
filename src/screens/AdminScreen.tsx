@@ -179,6 +179,7 @@ export default function AdminScreen({ navigation }: any) {
   const [editRoomMaxMembers, setEditRoomMaxMembers] = useState(25);
   const [editRoomMaxMembersInput, setEditRoomMaxMembersInput] = useState('25');
   const [editRoomOwner, setEditRoomOwner] = useState('');
+  const [editRoomCategory, setEditRoomCategory] = useState<'social' | 'game'>('social');
   const [editingRoom, setEditingRoom] = useState(false);
 
   // Ban management states
@@ -1900,6 +1901,7 @@ export default function AdminScreen({ navigation }: any) {
     setEditRoomMaxMembers(capacity);
     setEditRoomMaxMembersInput(capacity.toString());
     setEditRoomOwner(room.managedBy || room.createdBy || '');
+    setEditRoomCategory((room.category === 'game' ? 'game' : 'social') as 'social' | 'game');
     setShowEditRoomModal(true);
   };
 
@@ -1935,7 +1937,8 @@ export default function AdminScreen({ navigation }: any) {
           name: editRoomName.trim(),
           description: editRoomDescription.trim(),
           maxMembers: editRoomMaxMembers,
-          managedBy: editRoomOwner.trim()
+          managedBy: editRoomOwner.trim(),
+          category: editRoomCategory
         }),
       });
 
@@ -3191,6 +3194,47 @@ export default function AdminScreen({ navigation }: any) {
                         maxLength={50}
                         placeholderTextColor="#999"
                       />
+                    </View>
+
+                    <View style={styles.editFormSection}>
+                      <Text style={styles.editFormLabel}>Category *</Text>
+                      <View style={styles.categoryPickerContainer}>
+                        <TouchableOpacity
+                          style={[
+                            styles.categoryOption,
+                            editRoomCategory === 'social' && styles.categoryOptionActive
+                          ]}
+                          onPress={() => setEditRoomCategory('social')}
+                        >
+                          <Ionicons 
+                            name="people" 
+                            size={20} 
+                            color={editRoomCategory === 'social' ? '#fff' : '#666'} 
+                          />
+                          <Text style={[
+                            styles.categoryOptionText,
+                            editRoomCategory === 'social' && styles.categoryOptionTextActive
+                          ]}>Social</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={[
+                            styles.categoryOption,
+                            editRoomCategory === 'game' && styles.categoryOptionActive
+                          ]}
+                          onPress={() => setEditRoomCategory('game')}
+                        >
+                          <Ionicons 
+                            name="game-controller" 
+                            size={20} 
+                            color={editRoomCategory === 'game' ? '#fff' : '#666'} 
+                          />
+                          <Text style={[
+                            styles.categoryOptionText,
+                            editRoomCategory === 'game' && styles.categoryOptionTextActive
+                          ]}>Game</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
 
                     <View style={styles.editFormSection}>
@@ -5658,6 +5702,36 @@ const styles = StyleSheet.create({
   editFormInputMultiline: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  categoryPickerContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  categoryOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  categoryOptionActive: {
+    backgroundColor: '#673AB7',
+    borderColor: '#673AB7',
+  },
+  categoryOptionText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  categoryOptionTextActive: {
+    color: '#fff',
+    fontWeight: '600',
   },
   capacityEditContainer: {
     flexDirection: 'row',

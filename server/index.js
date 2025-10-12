@@ -4341,6 +4341,7 @@ app.get('/api/admin/rooms', authenticateToken, async (req, res) => {
       managedBy: row.managed_by,
       createdBy: row.created_by,
       type: row.type,
+      category: row.category || 'social',
       members: row.members || 0,
       maxMembers: row.max_members || 25,
       createdAt: row.created_at
@@ -4361,7 +4362,7 @@ app.put('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
     }
 
     const { roomId } = req.params;
-    const { name, description, maxMembers, managedBy } = req.body;
+    const { name, description, maxMembers, managedBy, category } = req.body;
 
     if (!name || !description) {
       return res.status(400).json({ error: 'Name and description are required' });
@@ -4369,6 +4370,11 @@ app.put('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
 
     if (!maxMembers || typeof maxMembers !== 'number' || maxMembers < 1 || maxMembers > 9999) {
       return res.status(400).json({ error: 'Invalid max members. Must be between 1 and 9999' });
+    }
+    
+    // Validate category if provided
+    if (category && !['social', 'game'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category. Must be "social" or "game"' });
     }
 
     // Check if room exists
@@ -4394,10 +4400,11 @@ app.put('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
         name = $1,
         description = $2,
         max_members = $3,
-        managed_by = $4
-      WHERE id = $5
+        managed_by = $4,
+        category = $5
+      WHERE id = $6
       RETURNING *
-    `, [name.trim(), description.trim(), maxMembers, managedBy?.trim(), roomId]);
+    `, [name.trim(), description.trim(), maxMembers, managedBy?.trim(), category || 'social', roomId]);
 
     const updatedRoom = result.rows[0];
 
@@ -4410,6 +4417,7 @@ app.put('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
         description: updatedRoom.description,
         managedBy: updatedRoom.managed_by,
         type: updatedRoom.type,
+        category: updatedRoom.category || 'social',
         members: updatedRoom.members || 0,
         maxMembers: updatedRoom.max_members,
         createdBy: updatedRoom.created_by,
