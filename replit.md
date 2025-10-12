@@ -33,7 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **Credit System**: Virtual currency with transactions and transfers.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
 - **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Supports admin-created special accounts with custom IDs bypassing OTP.
-- **Merchant Recas System**: Monthly revenue requirement system for merchant promotions.
+- **Merchant Recas System**: Commission-based revenue system where merchants earn 100% of gift value when users they promoted receive gifts. Revenue goes to merchant's withdrawable balance and counts toward 800k/month recas requirement. Auto-downgrade to 'user' role if monthly target not met. Users still receive 30% gift earnings as normal (merchant commission is additional, not deducted from user).
 - **Help & Support System**: Live chat support with ticket creation and FAQ.
 - **Privacy & Security System**: Privacy settings management with user-scoped access control, data download requests, password/PIN changes.
 - **Notification System**: Real-time notifications via Socket.IO for follow and friend add events. Push notifications via Firebase Cloud Messaging (FCM) for private messages when app is in background.
