@@ -111,6 +111,22 @@ const DICE_IMAGES: { [key: string]: any } = {
   '6': require('../../assets/dice/dice_6.jpg'),
 };
 
+// Call constants
+const CALL_CONSTANTS = {
+  COST_PER_SECOND: 41.67,
+  INTERVAL_COST: 250,
+  INTERVAL_SECONDS: 6,
+  MINIMUM_CHARGE: 2500,
+  MINIMUM_DURATION_FOR_CHARGE: 60,
+};
+
+// Gift animation durations
+const GIFT_ANIMATION_DURATION = {
+  ANIMATED: 5000,
+  STATIC: 3000,
+  FADE_OUT: 600,
+};
+
 interface Message {
   id: string;
   sender: string;
@@ -429,12 +445,11 @@ export default function ChatScreen() {
       setCallTimer(prev => {
         const newTime = prev + 1;
         
-        const costPerSecond = 41.67;
-        const newCost = Math.floor(newTime * costPerSecond);
+        const newCost = Math.floor(newTime * CALL_CONSTANTS.COST_PER_SECOND);
         setCallCost(newCost);
 
-        if (isInitiator && newTime % 6 === 0 && newTime > 0) {
-          const intervalCost = 250;
+        if (isInitiator && newTime % CALL_CONSTANTS.INTERVAL_SECONDS === 0 && newTime > 0) {
+          const intervalCost = CALL_CONSTANTS.INTERVAL_COST;
           
           deductCoins(intervalCost, type, `${newTime} seconds`).then(success => {
             if (success) {
@@ -460,7 +475,7 @@ export default function ChatScreen() {
 
     if (isCaller && finalDuration > 0 && callTargetUser?.id) {
       try {
-        const minimumCharge = finalDuration < 60 ? 2500 : actualDeducted;
+        const minimumCharge = finalDuration < CALL_CONSTANTS.MINIMUM_DURATION_FOR_CHARGE ? CALL_CONSTANTS.MINIMUM_CHARGE : actualDeducted;
         const shortfall = minimumCharge - actualDeducted;
         
         if (shortfall > 0) {
@@ -546,15 +561,15 @@ export default function ChatScreen() {
       return;
     }
 
-    const hasBalance = await checkUserBalance(2500);
+    const hasBalance = await checkUserBalance(CALL_CONSTANTS.MINIMUM_CHARGE);
     if (!hasBalance) {
-      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start a video call');
+      Alert.alert('Insufficient Balance', `You need at least ${CALL_CONSTANTS.MINIMUM_CHARGE.toLocaleString()} coins to start a video call`);
       return;
     }
 
     Alert.alert(
       'Start Video Call',
-      `Video call rate: 41.67 coins/second (2,500 coins/minute)\n\nStart call with ${callTargetUser.username}?`,
+      `Video call rate: ${CALL_CONSTANTS.COST_PER_SECOND} coins/second (${CALL_CONSTANTS.MINIMUM_CHARGE.toLocaleString()} coins/minute)\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -585,15 +600,15 @@ export default function ChatScreen() {
       return;
     }
 
-    const hasBalance = await checkUserBalance(2500);
+    const hasBalance = await checkUserBalance(CALL_CONSTANTS.MINIMUM_CHARGE);
     if (!hasBalance) {
-      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to start an audio call');
+      Alert.alert('Insufficient Balance', `You need at least ${CALL_CONSTANTS.MINIMUM_CHARGE.toLocaleString()} coins to start an audio call`);
       return;
     }
 
     Alert.alert(
       'Start Audio Call',
-      `Audio call rate: 41.67 coins/second (2,500 coins/minute)\n\nStart call with ${callTargetUser.username}?`,
+      `Audio call rate: ${CALL_CONSTANTS.COST_PER_SECOND} coins/second (${CALL_CONSTANTS.MINIMUM_CHARGE.toLocaleString()} coins/minute)\n\nStart call with ${callTargetUser.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -624,9 +639,9 @@ export default function ChatScreen() {
   const handleAcceptCall = async () => {
     if (!incomingCallData) return;
 
-    const hasBalance = await checkUserBalance(2500);
+    const hasBalance = await checkUserBalance(CALL_CONSTANTS.MINIMUM_CHARGE);
     if (!hasBalance) {
-      Alert.alert('Insufficient Balance', 'You need at least 2,500 coins to accept this call');
+      Alert.alert('Insufficient Balance', `You need at least ${CALL_CONSTANTS.MINIMUM_CHARGE.toLocaleString()} coins to accept this call`);
       handleDeclineCall();
       return;
     }
@@ -1413,19 +1428,19 @@ export default function ChatScreen() {
 
         // For non-video gifts, use fixed timeout with smooth Reanimated fade-out
         if (!isVideoGift) {
-          const duration = data.gift.type === 'animated' ? 5000 : 3000;
+          const duration = data.gift.type === 'animated' ? GIFT_ANIMATION_DURATION.ANIMATED : GIFT_ANIMATION_DURATION.STATIC;
           setTimeout(() => {
             // Smooth fade-out with improved easing
             Animated.parallel([
               Animated.timing(giftScaleAnim, {
                 toValue: 1.1,
-                duration: 600, // Slightly longer for smoother effect
+                duration: GIFT_ANIMATION_DURATION.FADE_OUT,
                 easing: Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
                 useNativeDriver: true,
               }),
               Animated.timing(giftOpacityAnim, {
                 toValue: 0,
-                duration: 600, // Smooth fade
+                duration: GIFT_ANIMATION_DURATION.FADE_OUT,
                 easing: Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
                 useNativeDriver: true,
               }),
@@ -1437,8 +1452,6 @@ export default function ChatScreen() {
         // For video gifts, auto-close is handled by video completion callback
       });
 
-      // Listen for gift animations (legacy support) - DISABLED to prevent duplicate gift messages
-      // The receiveGift listener already handles all gift broadcasts
       socketInstance.off('gift-animation');
 
       // Listen for admin joined support chat
@@ -4741,12 +4754,16 @@ export default function ChatScreen() {
             {chatTabs[activeTab]?.type === 'private' ? (
               // Private Chat Icons
               <>
-                <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
-                  <Ionicons name="videocam-outline" size={24} color={COLORS.badgeTextLight} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
-                  <Ionicons name="call-outline" size={24} color={COLORS.badgeTextLight} />
-                </TouchableOpacity>
+                {!showCallModal && (
+                  <>
+                    <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
+                      <Ionicons name="videocam-outline" size={24} color={COLORS.badgeTextLight} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
+                      <Ionicons name="call-outline" size={24} color={COLORS.badgeTextLight} />
+                    </TouchableOpacity>
+                  </>
+                )}
                 <TouchableOpacity style={styles.headerIcon} onPress={handleEllipsisPress}>
                   <Ionicons name="ellipsis-vertical" size={24} color={COLORS.badgeTextLight} />
                 </TouchableOpacity>
