@@ -42,6 +42,11 @@ export default function RedPacketModal({
       return;
     }
 
+    if (amount < 9600) {
+      Alert.alert('Error', 'Minimum amount is 9600 credits!');
+      return;
+    }
+
     if (!slots || slots <= 0) {
       Alert.alert('Error', 'Please enter number of users!');
       return;
@@ -119,12 +124,12 @@ export default function RedPacketModal({
 
             {/* Input Fields */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Total Amount (Credits)</Text>
+              <Text style={styles.inputLabel}>Total Amount (Min: 9600 Credits)</Text>
               <TextInput
                 style={styles.input}
                 value={totalAmount}
                 onChangeText={setTotalAmount}
-                placeholder="Enter amount"
+                placeholder="Min 9600 credits"
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 keyboardType="numeric"
               />
@@ -156,7 +161,7 @@ export default function RedPacketModal({
 
             {/* Info Text */}
             <Text style={styles.infoText}>
-              💡 Min 5 users to prevent coin transfer abuse{'\n'}
+              💡 Min 9600 credits, Min 5 users{'\n'}
               Amount will be randomly distributed
             </Text>
 
