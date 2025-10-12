@@ -12,8 +12,9 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 
 
 interface FAQCategory {
@@ -47,6 +48,7 @@ export default function HelpSupportScreen({ navigation }: any) {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [liveChatStatus, setLiveChatStatus] = useState<any>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   // Create ticket form
   const [ticketForm, setTicketForm] = useState({
@@ -61,6 +63,59 @@ export default function HelpSupportScreen({ navigation }: any) {
     fetchSupportTickets();
     checkLiveChatStatus();
   }, []);
+
+  // Setup socket connection for live chat notifications (admin only)
+  useEffect(() => {
+    if (token && user && user.role === 'admin') {
+      const socketInstance = io(SOCKET_URL, {
+        path: '/socket.io/',
+        auth: { token },
+        transports: ['polling', 'websocket']
+      });
+
+      socketInstance.on('connect', () => {
+        console.log('🔔 HelpSupport: Connected to socket for live chat notifications');
+        setSocket(socketInstance);
+      });
+
+      // Listen for live chat message notifications
+      socketInstance.on('new_notification', (notification) => {
+        console.log('🔔 HelpSupport: New notification received:', notification);
+        
+        // Show alert for live chat messages
+        if (notification.type === 'live_chat_message') {
+          Alert.alert(
+            '💬 ' + notification.title,
+            notification.message,
+            [
+              { 
+                text: 'View', 
+                onPress: () => {
+                  if (notification.data?.sessionId) {
+                    navigation.navigate('LiveChat', {
+                      sessionId: notification.data.sessionId,
+                      adminUsername: user.username
+                    });
+                  }
+                }
+              },
+              { text: 'Dismiss' }
+            ]
+          );
+        }
+      });
+
+      socketInstance.on('disconnect', () => {
+        console.log('🔴 HelpSupport: Disconnected from socket');
+        setSocket(null);
+      });
+
+      return () => {
+        socketInstance.off('new_notification');
+        socketInstance.disconnect();
+      };
+    }
+  }, [token, user, navigation]);
 
   const fetchFAQCategories = async () => {
     try {
