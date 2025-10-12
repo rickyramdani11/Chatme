@@ -4420,7 +4420,7 @@ export default function ChatScreen() {
               mappedGift.videoSource = { uri: gift.animation };
             } else if (gift.animation.includes('hearts-feedback.json')) {
               // Local Lottie file - use require()
-              mappedGift.animation = require('../../assets/lottie/hearts-feedback.json');
+              mappedGift.animation = require('../assets/lottie/hearts-feedback.json');
               mappedGift.mediaType = 'lottie';
             } else {
               mappedGift.videoUrl = gift.animation;
