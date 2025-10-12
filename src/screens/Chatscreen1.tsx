@@ -154,6 +154,9 @@ interface ChatTab {
   description?: string;
   moderators?: string[];
   isSupport?: boolean;
+  lastMessage?: string;
+  timestamp?: string;
+  hasNewMessage?: boolean;
 }
 
 // Hardcoded color constants (restored from original theme)
@@ -240,7 +243,7 @@ export default function ChatScreen() {
   const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
   const flatListRefs = useRef<Record<string, FlatList<Message> | null>>({}); // Refs for each FlatList in tabs
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // State for auto-scroll toggle
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Debounce scroll calls
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null); // Debounce scroll calls
   
   // Create refs for state values that socket listeners need to avoid stale closures
   const chatTabsRef = useRef<ChatTab[]>([]);
@@ -257,7 +260,7 @@ export default function ChatScreen() {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const maxReconnectAttempts = 5;
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const socketRef = useRef<Socket | null>(null); // Track socket instance
@@ -332,7 +335,7 @@ export default function ChatScreen() {
   const [callTimer, setCallTimer] = useState(0);
   const [callCost, setCallCost] = useState(0);
   const [totalDeducted, setTotalDeducted] = useState(0);
-  const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const callIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
   const [callRinging, setCallRinging] = useState(false);
@@ -1614,13 +1617,14 @@ export default function ChatScreen() {
         
         // Show claim message for all users in room
         if (data.claimInfo && data.roomId) {
-          const claimMessage = {
+          const claimMessage: Message = {
             id: `claim-${data.claimInfo.userId}-${Date.now()}`,
             content: `${data.claimInfo.username} mendapat ${data.claimInfo.amount} coin`,
             sender: 'System',
             type: 'system',
             timestamp: new Date().toISOString(),
-            role: 'system'
+            role: 'system',
+            roomId: data.roomId
           };
           
           // Add to correct room tab (based on event's roomId)
@@ -3225,7 +3229,7 @@ export default function ChatScreen() {
         // If no tabs left, navigate to Room screen
         if (newTabs.length === 0) {
           setTimeout(() => {
-            navigation.navigate('Room');
+            navigation.navigate('Room' as any);
           }, 100);
         } else {
           // Set new active tab if there are remaining tabs
@@ -3287,7 +3291,7 @@ export default function ChatScreen() {
 
             // Update the "Currently in the room" message with actual participants
             if (chatTabs[activeTab].type !== 'private' && !isSupportChat && participantData.length > 0) {
-              const participantNames = participantData.map(p => p.username).join(', ');
+              const participantNames = participantData.map((p: any) => p.username).join(', ');
               const updatedContent = `Currently in the room: ${participantNames}`;
 
               setChatTabs(prevTabs =>
@@ -4079,7 +4083,7 @@ export default function ChatScreen() {
             <Text style={[styles.usernameText, { color: getRoleColor(userRole, username, chatTabs[activeTab]?.id) }]}>{username} </Text>
             <Text style={styles.roleBadgeText}>{getRoleBadgeText(userRole)} </Text>
             <Text style={styles.actionText}>{actionText} </Text>
-            <Text style={styles.joinLeaveTime}>({formatTime(item.timestamp)})</Text>
+            <Text style={styles.joinLeaveTime}>({formatTime(typeof item.timestamp === 'string' ? new Date(item.timestamp) : item.timestamp)})</Text>
           </Text>
         </TouchableOpacity>
       );
@@ -5451,7 +5455,7 @@ export default function ChatScreen() {
                             <Video
                               source={animSource}
                               style={styles.giftImage}
-                              resizeMode="contain"
+                              resizeMode={'contain' as any}
                               shouldPlay={false}
                               isLooping={false}
                               isMuted={true}
@@ -5507,7 +5511,7 @@ export default function ChatScreen() {
         onRequestClose={() => setShowUserGiftPicker(false)}
       >
         <View style={styles.giftModalOverlay}>
-          <View style={styles.userGiftPickerModal}>
+          <View style={styles.giftPickerModal}>
             <View style={styles.giftPickerHeader}>
               <Text style={styles.giftPickerTitle}>
                 Send {selectedGiftForUser?.name} {selectedGiftForUser?.icon} to User
@@ -5755,12 +5759,12 @@ export default function ChatScreen() {
                     ref={giftVideoRef}
                     source={videoSource}
                     style={styles.fullScreenVideo}
-                    resizeMode="cover"
+                    resizeMode={'cover' as any}
                     shouldPlay
                     isLooping={false}
                     isMuted={false}
                     volume={0.7}
-                    onPlaybackStatusUpdate={(status) => {
+                    onPlaybackStatusUpdate={(status: any) => {
                       if (status.didJustFinish) {
                         setTimeout(() => {
                           Animated.parallel([
@@ -7172,10 +7176,9 @@ const createThemedStyles = () => StyleSheet.create({
     textAlign: 'center',
   },
   newGiftPrice: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
     color: COLORS.warning,
-    marginLeft: 4,
   },
   giftGridContainer: {
     paddingHorizontal: 8,
@@ -7190,11 +7193,6 @@ const createThemedStyles = () => StyleSheet.create({
   coinPriceIcon: {
     fontSize: 14,
     marginRight: 4,
-  },
-  newGiftPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: COLORS.warning,
   },
   // Legacy styles for backward compatibility
   giftGrid: {
@@ -7801,9 +7799,6 @@ const createThemedStyles = () => StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 18,
-  },
-  roomInfoContent: {
-    fontSize: 14,
     color: COLORS.success,
     fontWeight: '500',
   },
