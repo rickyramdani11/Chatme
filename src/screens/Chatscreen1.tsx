@@ -3226,6 +3226,9 @@ export default function ChatScreen() {
       setChatTabs(prevTabs => {
         const newTabs = prevTabs.filter((_, index) => index !== currentActiveTab);
 
+        // CRITICAL: Immediately update ref to prevent auto-rejoin on reconnect
+        chatTabsRef.current = newTabs;
+
         // If no tabs left, navigate to Room screen
         if (newTabs.length === 0) {
           setTimeout(() => {
