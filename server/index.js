@@ -8451,6 +8451,156 @@ app.get('/api/admin/users/history/:userId', authenticateToken, async (req, res) 
   }
 });
 
+// Download Gift Earnings Report as CSV (Admin Only)
+app.get('/api/admin/reports/gift-earnings-csv', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GIFT EARNINGS CSV DOWNLOAD REQUEST ===');
+    console.log('Admin ID:', req.user.id);
+    console.log('Admin Role:', req.user.role);
+
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { month, year } = req.query;
+
+    // Build query with optional month/year filter
+    let query = `
+      SELECT 
+        ge.id,
+        ge.created_at,
+        ge.sender_username,
+        u.username as recipient_username,
+        ge.gift_name,
+        ge.gift_price,
+        ge.user_share,
+        ge.system_share,
+        ge.room_id,
+        CASE WHEN ge.is_private THEN 'Private' ELSE 'Public' END as chat_type
+      FROM gift_earnings ge
+      LEFT JOIN users u ON ge.user_id = u.id
+    `;
+
+    const params = [];
+    const conditions = [];
+
+    // Add month/year filter if provided
+    if (month && year) {
+      conditions.push(`EXTRACT(MONTH FROM ge.created_at) = $${params.length + 1}`);
+      params.push(parseInt(month));
+      conditions.push(`EXTRACT(YEAR FROM ge.created_at) = $${params.length + 1}`);
+      params.push(parseInt(year));
+    } else if (year) {
+      conditions.push(`EXTRACT(YEAR FROM ge.created_at) = $${params.length + 1}`);
+      params.push(parseInt(year));
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    query += ` ORDER BY ge.created_at DESC`;
+
+    const result = await pool.query(query, params);
+
+    // Generate CSV content
+    const csvHeaders = [
+      'ID',
+      'Tanggal',
+      'Jam',
+      'Pengirim',
+      'Penerima',
+      'Nama Gift',
+      'Harga Gift',
+      'Bagian User (30%)',
+      'Bagian System (70%)',
+      'Room ID',
+      'Tipe Chat'
+    ];
+
+    // Convert data to CSV rows
+    const csvRows = result.rows.map(row => {
+      const date = new Date(row.created_at);
+      const tanggal = date.toLocaleDateString('id-ID', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      });
+      const jam = date.toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      });
+
+      return [
+        row.id,
+        tanggal,
+        jam,
+        row.sender_username || 'Unknown',
+        row.recipient_username || 'Unknown',
+        row.gift_name,
+        row.gift_price,
+        row.user_share,
+        row.system_share,
+        row.room_id,
+        row.chat_type
+      ].map(field => {
+        // Escape fields that contain commas or quotes
+        const fieldStr = String(field);
+        if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+          return `"${fieldStr.replace(/"/g, '""')}"`;
+        }
+        return fieldStr;
+      }).join(',');
+    });
+
+    // Combine headers and rows
+    const csvContent = [csvHeaders.join(','), ...csvRows].join('\n');
+
+    // Calculate summary
+    const totalGiftValue = result.rows.reduce((sum, row) => sum + row.gift_price, 0);
+    const totalUserShare = result.rows.reduce((sum, row) => sum + row.user_share, 0);
+    const totalSystemShare = result.rows.reduce((sum, row) => sum + row.system_share, 0);
+
+    // Add summary at the end
+    const summary = [
+      '',
+      'RINGKASAN',
+      `Total Transaksi: ${result.rows.length}`,
+      `Total Nilai Gift: ${totalGiftValue.toLocaleString('id-ID')} coins`,
+      `Total Bagian User (30%): ${totalUserShare.toLocaleString('id-ID')} coins`,
+      `Total Bagian System (70%): ${totalSystemShare.toLocaleString('id-ID')} coins`
+    ];
+
+    const finalCsv = csvContent + '\n\n' + summary.join('\n');
+
+    // Set filename with month/year if filtered
+    let filename = 'laporan-gift-earnings';
+    if (month && year) {
+      filename += `-${year}-${String(month).padStart(2, '0')}`;
+    } else if (year) {
+      filename += `-${year}`;
+    }
+    filename += '.csv';
+
+    // Set response headers for CSV download
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Add BOM for Excel UTF-8 support
+    res.write('\uFEFF');
+    res.write(finalCsv);
+    res.end();
+
+    console.log(`✅ CSV report generated: ${result.rows.length} records, File: ${filename}`);
+
+  } catch (error) {
+    console.error('Error generating CSV report:', error);
+    res.status(500).json({ error: 'Failed to generate CSV report' });
+  }
+});
+
 // Admin user management endpoints
 app.get('/api/admin/users/search', authenticateToken, async (req, res) => {
   try {
