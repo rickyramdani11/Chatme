@@ -5806,16 +5806,39 @@ export default function ChatScreen() {
               return null;
             })()}
 
-            {/* Small Static Image/GIF Effect (30x30) */}
-            {activeGiftAnimation.image && (
-              <View style={styles.smallGiftContainer}>
-                <Image 
-                  source={activeGiftAnimation.image} 
-                  style={styles.smallGiftImage}
-                  resizeMode="contain"
-                />
-              </View>
-            )}
+            {/* Small Static Image Effect - Only show if NO video/lottie/gif animation */}
+            {(() => {
+              const animationData = activeGiftAnimation.animation || activeGiftAnimation.videoSource;
+              const animStr = animationData?.uri || activeGiftAnimation.videoUrl || (typeof animationData === 'string' ? animationData : '');
+              
+              const hasLottie = activeGiftAnimation.mediaType === 'lottie' || (
+                animStr && 
+                (animStr.toLowerCase().includes('.json') || animStr.toLowerCase().includes('lottie'))
+              );
+              
+              const hasVideo = activeGiftAnimation.mediaType === 'video' || (
+                animStr && 
+                (animStr.toLowerCase().includes('.mp4') || 
+                 animStr.toLowerCase().includes('.webm') || 
+                 animStr.toLowerCase().includes('.mov'))
+              );
+              
+              const hasGifAnimation = activeGiftAnimation.animation && !hasVideo && !hasLottie;
+              
+              // Only show small image if there's NO video/lottie/gif animation
+              if (activeGiftAnimation.image && !hasVideo && !hasLottie && !hasGifAnimation) {
+                return (
+                  <View style={styles.smallGiftContainer}>
+                    <Image 
+                      source={activeGiftAnimation.image} 
+                      style={styles.smallGiftImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                );
+              }
+              return null;
+            })()}
 
             {/* Fullscreen GIF layer for non-video, non-lottie animations */}
             {(() => {
