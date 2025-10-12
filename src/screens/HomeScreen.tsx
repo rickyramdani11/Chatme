@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { useTheme } from '../contexts/ThemeContext';
 import { API_BASE_URL, BASE_URL, SOCKET_URL } from '../utils/apiConfig';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 
 type StatusType = 'online' | 'offline' | 'away' | 'busy';
 
@@ -32,15 +32,31 @@ interface Friend {
   lastSeen?: string;
   avatar?: string;
   role?: string;
-  username?: string; // Added username for consistency
+  username?: string;
 }
 
-// Placeholder for Room type, assuming it's defined elsewhere
 interface Room {
   id: string;
   name: string;
   lastMessage: string;
   timestamp: string;
+}
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+}
+
+interface Banner {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl?: string;
+  isActive: boolean;
 }
 
 const HomeScreen = ({ navigation }: any) => {
@@ -53,17 +69,15 @@ const HomeScreen = ({ navigation }: any) => {
   const [userStatus, setUserStatus] = useState<StatusType>('online');
   const [searchText, setSearchText] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showFriendMenu, setShowFriendMenu] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [userBalance, setUserBalance] = useState(0);
-  const [showMessageHistory, setShowMessageHistory] = useState(false);
-  const [chatHistory, setChatHistory] = useState([]);
-  const [banners, setBanners] = useState([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const { token } = useAuth();
-  const [socket, setSocket] = useState(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   // Animation for blinking border
   const borderBlinkAnim = useRef(new Animated.Value(1)).current;
@@ -610,22 +624,6 @@ const HomeScreen = ({ navigation }: any) => {
     friendMenuText: { color: colors.text },
     friendMenuAvatarText: { color: colors.badgeTextLight },
     friendMenuItem: { borderTopColor: colors.border },
-    messageHistoryModal: { 
-      backgroundColor: colors.card, 
-      shadowColor: colors.shadow 
-    },
-    messageHistoryHeader: { borderBottomColor: colors.border },
-    messageHistoryTitle: { color: colors.text },
-    emptyChatText: { color: colors.textSecondary },
-    emptyChatSubtext: { color: colors.textSecondary },
-    chatHistoryItemBorder: { borderBottomColor: colors.border },
-    chatName: { color: colors.text },
-    chatLastMessage: { color: colors.textSecondary },
-    chatTime: { color: colors.textSecondary },
-    chatAvatarText: { color: colors.badgeTextLight },
-    onlineIndicatorBorder: { borderColor: colors.card },
-    unreadBadge: { backgroundColor: colors.error },
-    unreadText: { color: colors.badgeTextLight },
     bannerContainer: { shadowColor: colors.shadow },
     bannerTitle: { color: colors.badgeTextLight },
     bannerIndicatorActive: { backgroundColor: colors.primary },
@@ -725,30 +723,6 @@ const HomeScreen = ({ navigation }: any) => {
     const currentIndex = statuses.indexOf(userStatus);
     const nextIndex = (currentIndex + 1) % statuses.length;
     updateUserStatus(statuses[nextIndex]);
-  };
-
-  // Fetch chat history function
-  const fetchChatHistory = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/chat/history`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'User-Agent': 'ChatMe-Mobile-App',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setChatHistory(data);
-      } else {
-        console.error('Failed to fetch chat history');
-        setChatHistory([]);
-      }
-    } catch (error) {
-      console.error('Error fetching chat history:', error);
-      setChatHistory([]);
-    }
   };
 
   // Add friend function
@@ -1108,10 +1082,7 @@ const HomeScreen = ({ navigation }: any) => {
               </View>
               <TouchableOpacity
                 style={styles.messageHistoryButtonSmall}
-                onPress={() => {
-                  // fetchChatHistory(); // No longer needed as navigation handles data fetching
-                  navigation.navigate('ChatHistory');
-                }}
+                onPress={() => navigation.navigate('ChatHistory')}
               >
                 <Ionicons name="chatbubbles" size={14} color={colors.badgeTextLight} />
               </TouchableOpacity>
@@ -1265,7 +1236,7 @@ const HomeScreen = ({ navigation }: any) => {
             <View style={styles.friendMenuHeader}>
               <View style={[
                 styles.friendMenuAvatar,
-                { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username) : colors.textSecondary }
+                { backgroundColor: selectedFriend ? getRandomAvatarColor(selectedFriend.name || selectedFriend.username || 'User') : colors.textSecondary }
               ]}>
                 {selectedFriend?.avatar ? (
                   <Image
@@ -1315,97 +1286,6 @@ const HomeScreen = ({ navigation }: any) => {
             </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>
-      </Modal>
-
-      {/* Message History Modal - This modal is no longer used and can be removed */}
-      <Modal
-        visible={showMessageHistory}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowMessageHistory(false)}
-      >
-        <View style={[styles.modalOverlay, themedStyles.modalOverlay]}>
-          <View style={[styles.messageHistoryModal, themedStyles.messageHistoryModal]}>
-            <View style={[styles.messageHistoryHeader, themedStyles.messageHistoryHeader]}>
-              <Text style={[styles.messageHistoryTitle, themedStyles.messageHistoryTitle]}>Chat History</Text>
-              <TouchableOpacity
-                onPress={() => setShowMessageHistory(false)}
-                style={styles.closeButton}
-              >
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.chatHistoryList}>
-              {chatHistory.length === 0 ? (
-                <View style={styles.emptyChatHistory}>
-                  <Ionicons name="chatbubbles-outline" size={48} color={colors.textSecondary} />
-                  <Text style={[styles.emptyChatText, themedStyles.emptyChatText]}>No chat history</Text>
-                  <Text style={[styles.emptyChatSubtext, themedStyles.emptyChatSubtext]}>Start a conversation to see it here</Text>
-                </View>
-              ) : (
-                chatHistory.map((chat: any) => (
-                  <TouchableOpacity
-                    key={chat.id}
-                    style={[styles.chatHistoryItem, themedStyles.chatHistoryItemBorder]}
-                    onPress={() => {
-                      setShowMessageHistory(false);
-                      // Navigate to chat
-                      if (chat.type === 'private') {
-                        navigation.navigate('PrivateChat', {
-                          roomId: chat.id,
-                          roomName: chat.name,
-                          roomDescription: chat.description,
-                          type: chat.type,
-                          targetUser: chat.targetUser,
-                          autoFocusTab: true
-                        });
-                      } else {
-                        navigation.navigate('Chat', {
-                          roomId: chat.id,
-                          roomName: chat.name,
-                          roomDescription: chat.description,
-                          type: chat.type,
-                          targetUser: chat.targetUser,
-                          autoFocusTab: true
-                        });
-                      }
-                    }}
-                  >
-                    <View style={styles.chatAvatarContainer}>
-                      <View style={[styles.chatAvatar, { backgroundColor: getRandomAvatarColor(chat.name) }]}>
-                        <Text style={[styles.chatAvatarText, themedStyles.chatAvatarText]}>
-                          {chat.name?.charAt(0).toUpperCase() || 'C'}
-                        </Text>
-                      </View>
-                      {chat.isOnline && (
-                        <View style={[styles.onlineIndicatorSmall, themedStyles.onlineIndicatorBorder]} />
-                      )}
-                    </View>
-                    <View style={styles.chatInfo}>
-                      <Text style={[styles.chatName, themedStyles.chatName]}>{chat.name}</Text>
-                      <Text style={[styles.chatLastMessage, themedStyles.chatLastMessage]}>
-                        {chat.lastMessage || 'No messages yet'}
-                      </Text>
-                    </View>
-                    <View style={styles.chatMeta}>
-                      <Text style={[styles.chatTime, themedStyles.chatTime]}>
-                        {chat.lastMessageTime ? formatLastSeen(chat.lastMessageTime) : ''}
-                      </Text>
-                      {chat.unreadCount > 0 && (
-                        <View style={[styles.unreadBadge, themedStyles.unreadBadge]}>
-                          <Text style={[styles.unreadText, themedStyles.unreadText]}>
-                            {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
       </Modal>
     </View>
   );
@@ -1681,12 +1561,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  // Styles for header added for active users display
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
   messageHistoryButton: {
     padding: 8,
     borderRadius: 20,
@@ -1776,111 +1650,6 @@ const styles = StyleSheet.create({
   friendMenuText: {
     fontSize: 16,
     marginLeft: 15,
-  },
-
-  // Message History Modal Styles
-  messageHistoryModal: {
-    borderRadius: 16,
-    margin: 20,
-    marginTop: 100,
-    flex: 1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  messageHistoryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-  },
-  messageHistoryTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  closeButton: {
-    padding: 4,
-  },
-  chatHistoryList: {
-    flex: 1,
-    padding: 20,
-  },
-  emptyChatHistory: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyChatText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyChatSubtext: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  chatHistoryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  chatAvatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  chatAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chatAvatarText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  onlineIndicatorSmall: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-  },
-  chatInfo: {
-    flex: 1,
-  },
-  chatName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  chatLastMessage: {
-    fontSize: 14,
-  },
-  chatMeta: {
-    alignItems: 'flex-end',
-  },
-  chatTime: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  unreadBadge: {
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  unreadText: {
-    fontSize: 10,
-    fontWeight: 'bold',
   },
   messageHistoryButtonSmall: {
     padding: 4,
