@@ -1685,8 +1685,7 @@ export default function PrivateChatScreen() {
           activeOpacity={1}
           onPress={() => setShowGiftPicker(false)}
         >
-          <View style={styles.giftPickerContainer}>
-            <View style={styles.giftPickerModal}>
+          <View style={styles.giftPickerModal}>
               <View style={styles.giftPickerHeader}>
                 <Text style={styles.giftPickerTitle}>Send Gift</Text>
                 <TouchableOpacity
@@ -1784,7 +1783,6 @@ export default function PrivateChatScreen() {
                 contentContainerStyle={styles.giftGridContainer}
                 showsVerticalScrollIndicator={false}
               />
-            </View>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -2188,11 +2186,6 @@ const styles = StyleSheet.create({
     paddingTop: 15,
   },
   // Gift Picker styles
-  giftPickerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   giftPickerModal: {
     backgroundColor: 'white',
     borderRadius: 20,
