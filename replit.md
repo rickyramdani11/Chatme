@@ -78,7 +78,9 @@ Preferred communication style: Simple, everyday language.
   - `GIFT_ANIMATION_DURATION`: Animation timings (5000ms animated, 3000ms static, 600ms fade-out)
 - **Code Cleanup**: Removed commented-out legacy code, improved readability
 - **Bug Fixes**: Verified null checks in call handlers, confirmed join-room socket emit is necessary for participant tracking
-- **Performance Optimization**: Reduced auto-scroll delay from 50ms to 10ms (5x faster) for instant message display in chat rooms while maintaining debounce safety
+- **Performance Optimization**: 
+  - Reduced auto-scroll delay from 50ms to 10ms (5x faster) for instant message display in chat rooms while maintaining debounce safety
+  - **Image Caching**: Gift modal picker uses Expo Image with `cachePolicy="memory-disk"` to cache gift thumbnails. Images load once and persist across modal open/close cycles, preventing redundant network requests
 
 # External Dependencies
 
