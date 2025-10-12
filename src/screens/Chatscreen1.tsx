@@ -1376,16 +1376,7 @@ export default function ChatScreen() {
           )
         );
 
-        // Auto-hide gift message after 10 seconds (use captured targetRoomId)
-        setTimeout(() => {
-          setChatTabs(prevTabs =>
-            prevTabs.map(tab =>
-              tab.id === targetRoomId
-                ? { ...tab, messages: tab.messages.filter(msg => msg.id !== giftMessageId) }
-                : tab
-            )
-          );
-        }, 10000);
+        // Gift message now persists - no auto-hide
       });
 
       // Listen for private gift notifications
@@ -6981,7 +6972,7 @@ const createThemedStyles = () => StyleSheet.create({
     justifyContent: 'flex-end',
   },
   giftPickerModal: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '50%',
