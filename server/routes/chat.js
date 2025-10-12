@@ -86,13 +86,13 @@ router.post('/private', authenticateToken, async (req, res) => {
 
         // Insert participants with correct ID-username mapping
         await client.query(`
-          INSERT INTO private_chat_participants (chat_id, username, joined_at)
-          VALUES ($1, $2, NOW())
+          INSERT INTO private_chat_participants (chat_id, username)
+          VALUES ($1, $2)
         `, [chatId, participant1Username]);
 
         await client.query(`
-          INSERT INTO private_chat_participants (chat_id, username, joined_at)
-          VALUES ($1, $2, NOW())
+          INSERT INTO private_chat_participants (chat_id, username)
+          VALUES ($1, $2)
         `, [chatId, participant2Username]);
         
         await client.query('COMMIT');
