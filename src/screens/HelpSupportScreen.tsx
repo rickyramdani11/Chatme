@@ -95,8 +95,8 @@ export default function HelpSupportScreen({ navigation }: any) {
         },
       });
       if (response.ok) {
-        const ticketsData = await response.json();
-        setTickets(ticketsData);
+        const data = await response.json();
+        setTickets(data.tickets || []);
       }
     } catch (error) {
       console.error('Error fetching support tickets:', error);
@@ -450,7 +450,7 @@ export default function HelpSupportScreen({ navigation }: any) {
   );
 
   const getCategoryName = (category: string) => {
-    const names = {
+    const names: Record<string, string> = {
       technical: 'Teknis',
       account: 'Akun',
       billing: 'Pembayaran',
@@ -460,7 +460,7 @@ export default function HelpSupportScreen({ navigation }: any) {
   };
 
   const getPriorityName = (priority: string) => {
-    const names = {
+    const names: Record<string, string> = {
       low: 'Rendah',
       medium: 'Sedang',
       high: 'Tinggi'

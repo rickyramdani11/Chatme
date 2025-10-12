@@ -202,14 +202,11 @@ router.post('/tickets', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Subject and description are required' });
     }
 
-    // Generate unique ticket ID
-    const ticketId = `TICK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
     const result = await pool.query(`
-      INSERT INTO support_tickets (ticket_id, user_id, subject, message, category, priority)
+      INSERT INTO support_tickets (user_id, username, subject, description, category, priority)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [ticketId, userId, subject.trim(), description.trim(), category, priority]);
+    `, [userId, username, subject.trim(), description.trim(), category, priority]);
 
     const ticket = result.rows[0];
 
@@ -220,7 +217,7 @@ router.post('/tickets', authenticateToken, async (req, res) => {
         userId: ticket.user_id.toString(),
         username: username,
         subject: ticket.subject,
-        description: ticket.message,
+        description: ticket.description,
         category: ticket.category,
         priority: ticket.priority,
         status: ticket.status,
