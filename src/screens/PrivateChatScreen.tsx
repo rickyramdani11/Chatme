@@ -2190,17 +2190,17 @@ const styles = StyleSheet.create({
   // Gift Picker styles
   giftPickerContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   giftPickerModal: {
     backgroundColor: 'white',
-    borderRadius: 16,
-    maxHeight: 400,
+    borderRadius: 20,
+    width: '90%',
+    height: '50%',
     elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
   },
