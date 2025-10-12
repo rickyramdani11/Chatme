@@ -8071,8 +8071,8 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Amount must be positive' });
     }
 
-    // Find target user
-    const userResult = await client.query('SELECT id, username FROM users WHERE username = $1', [username]);
+    // Find target user with role info
+    const userResult = await client.query('SELECT id, username, role FROM users WHERE username = $1', [username]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -8108,6 +8108,27 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
         INSERT INTO credit_transactions (to_user_id, amount, type, created_at)
         VALUES ($1, $2, 'admin_add', CURRENT_TIMESTAMP)
       `, [targetUser.id, amount]);
+
+      // AUTO-DETECT: If target is MENTOR, track as mentor top up
+      if (targetUser.role === 'mentor') {
+        const now = new Date();
+        const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        // Insert into mentor_topups table
+        await client.query(`
+          INSERT INTO mentor_topups (user_id, amount, month_year, source, created_at)
+          VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+        `, [targetUser.id, amount, monthYear, 'admin_panel']);
+
+        // Update mentor_promotions monthly_topup
+        await client.query(`
+          UPDATE mentor_promotions 
+          SET monthly_topup = monthly_topup + $1
+          WHERE user_id = $2 AND status = 'active'
+        `, [amount, targetUser.id]);
+
+        console.log(`💰 MENTOR TOP UP: Admin added ${amount} credits to mentor ${targetUser.username} - tracked as monthly top up`);
+      }
 
       // CRITICAL FIX: Add comprehensive audit log for security compliance
       await client.query(`
