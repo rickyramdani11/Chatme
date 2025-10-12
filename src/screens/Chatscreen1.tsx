@@ -367,10 +367,10 @@ export default function ChatScreen() {
     if (instant) {
       flatListRefs.current[roomId]?.scrollToEnd({ animated: false });
     } else {
-      // Debounced scroll with minimal delay
+      // Debounced scroll with minimal delay (reduced from 50ms to 10ms for faster message display)
       scrollTimeoutRef.current = setTimeout(() => {
         flatListRefs.current[roomId]?.scrollToEnd({ animated: false });
-      }, 50);
+      }, 10);
     }
   };
 
