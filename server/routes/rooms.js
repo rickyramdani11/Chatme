@@ -476,9 +476,9 @@ router.post('/:roomId/moderators', authenticateToken, async (req, res) => {
 });
 
 // Remove room moderator
-router.delete('/:roomId/moderators/:moderatorId', authenticateToken, async (req, res) => {
+router.delete('/:roomId/moderators/:moderatorIdentifier', authenticateToken, async (req, res) => {
   try {
-    const { roomId, moderatorId } = req.params;
+    const { roomId, moderatorIdentifier } = req.params;
     const currentUserId = req.user.userId;
 
     // Check if current user can remove moderators
@@ -487,13 +487,13 @@ router.delete('/:roomId/moderators/:moderatorId', authenticateToken, async (req,
       return res.status(403).json({ error: 'You do not have permission to remove moderators' });
     }
 
-    // Remove moderator
+    // Remove moderator by username (client sends username, not ID)
     const result = await pool.query(`
       UPDATE room_moderators 
       SET is_active = false 
-      WHERE id = $1 AND room_id = $2
+      WHERE username = $1 AND room_id = $2 AND is_active = true
       RETURNING username
-    `, [moderatorId, roomId]);
+    `, [moderatorIdentifier, roomId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Moderator not found' });
