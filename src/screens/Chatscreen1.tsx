@@ -4742,7 +4742,7 @@ export default function ChatScreen() {
             // Support Chat Header
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>Support Chat</Text>
-              <Text style={styles.headerSubtitle}>
+              <Text style={[styles.headerSubtitle, { color: COLORS.badgeTextLight }]}>
                 {isSocketConnected ? 'Connected' : 'Connecting...'}
               </Text>
             </View>
@@ -4750,7 +4750,7 @@ export default function ChatScreen() {
             // Regular Room Header
             <View style={styles.headerTextContainer}>
               <Text style={[styles.headerTitle, { color: COLORS.badgeTextLight }]}>{chatTabs[activeTab]?.title}</Text>
-              <Text style={[styles.headerSubtitle, { color: COLORS.textSecondary }]}>
+              <Text style={[styles.headerSubtitle, { color: COLORS.badgeTextLight }]}>
                 {chatTabs[activeTab]?.type === 'room' ? 'Chatroom' : 'Private Chat'} 
                 {!isSocketConnected && ' • Reconnecting...'}
               </Text>
