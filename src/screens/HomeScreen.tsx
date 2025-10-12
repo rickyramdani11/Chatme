@@ -65,7 +65,6 @@ const HomeScreen = ({ navigation }: any) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeUsers, setActiveUsers] = useState(0);
   const [userStatus, setUserStatus] = useState<StatusType>('online');
   const [searchText, setSearchText] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -348,7 +347,6 @@ const HomeScreen = ({ navigation }: any) => {
   useEffect(() => {
     fetchRooms();
     fetchFriends();
-    fetchActiveUsers();
     fetchNotifications();
     fetchUserBalance();
     fetchBanners();
@@ -408,16 +406,6 @@ const HomeScreen = ({ navigation }: any) => {
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
-    }
-  };
-
-  const fetchActiveUsers = async () => {
-    try {
-      // Mock active users for now - in real app, get from admin dashboard
-      setActiveUsers(Math.floor(Math.random() * 100) + 50);
-    } catch (error) {
-      console.error('Error fetching active users:', error);
-      setActiveUsers(75); // Default fallback
     }
   };
 
@@ -491,7 +479,6 @@ const HomeScreen = ({ navigation }: any) => {
     setRefreshing(true);
     await fetchFriends();
     await fetchRooms(); // Also refresh rooms on pull-to-refresh
-    await fetchActiveUsers(); // Also refresh active users
     await fetchUserBalance(); // Also refresh user balance
     await fetchBanners(); // Also refresh banners
     setRefreshing(false);
@@ -608,11 +595,6 @@ const HomeScreen = ({ navigation }: any) => {
     loadingText: { color: colors.textSecondary },
     emptyTitle: { color: colors.textSecondary },
     emptySubtitle: { color: colors.textSecondary },
-    activeUsersContainer: { 
-      backgroundColor: isDarkMode ? 'rgba(3, 218, 198, 0.2)' : 'rgba(76, 175, 80, 0.2)', 
-      borderColor: isDarkMode ? 'rgba(3, 218, 198, 0.3)' : 'rgba(76, 175, 80, 0.3)' 
-    },
-    activeUsersText: { color: colors.success },
     notificationBadge: { backgroundColor: colors.error },
     notificationText: { color: colors.badgeTextLight },
     modalOverlay: { backgroundColor: 'rgba(0, 0, 0, 0.5)' },
@@ -1075,10 +1057,6 @@ const HomeScreen = ({ navigation }: any) => {
               <View style={styles.coinBalanceSmall}>
                 <Ionicons name="diamond" size={14} color={colors.warning} />
                 <Text style={[styles.coinTextSmall, themedStyles.coinTextSmall]}>{userBalance.toLocaleString()}</Text>
-              </View>
-              <View style={[styles.activeUsersContainer, themedStyles.activeUsersContainer]}>
-                <Ionicons name="people" size={14} color={colors.success} />
-                <Text style={[styles.activeUsersText, themedStyles.activeUsersText]}>{activeUsers}</Text>
               </View>
               <TouchableOpacity
                 style={styles.messageHistoryButtonSmall}
@@ -1565,19 +1543,6 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  activeUsersContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  activeUsersText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginLeft: 2,
   },
   notificationButton: {
     position: 'relative',
