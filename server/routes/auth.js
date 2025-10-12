@@ -120,6 +120,29 @@ function normalizeGmailAddress(email) {
   return emailLower;
 }
 
+// Validate password strength
+function validatePassword(password) {
+  if (!password || password.length < 6) {
+    return { valid: false, error: 'Password must be at least 6 characters long' };
+  }
+  
+  if (password.length > 12) {
+    return { valid: false, error: 'Password must be no more than 12 characters long' };
+  }
+  
+  // Check for at least one letter
+  const hasLetter = /[a-zA-Z]/.test(password);
+  
+  // Check for at least one number
+  const hasNumber = /[0-9]/.test(password);
+  
+  if (!hasLetter || !hasNumber) {
+    return { valid: false, error: 'Password must contain both letters and numbers' };
+  }
+  
+  return { valid: true };
+}
+
 // Registration endpoint
 router.post('/register', async (req, res) => {
   try {
@@ -133,6 +156,12 @@ router.post('/register', async (req, res) => {
     const usernameValidation = validateUsername(username);
     if (!usernameValidation.valid) {
       return res.status(400).json({ error: usernameValidation.error });
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return res.status(400).json({ error: passwordValidation.error });
     }
 
     // Validate email domain - only Gmail and Yahoo allowed

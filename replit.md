@@ -82,12 +82,15 @@ Preferred communication style: Simple, everyday language.
   - **Support Ticket SQL**: Fixed critical POST /support/tickets SQL schema mismatch - corrected INSERT columns to match table schema (user_id, username, subject, description vs. broken ticket_id, message)
   - **Support Ticket Response**: Fixed GET /support/tickets response parsing - frontend now correctly extracts `data.tickets` array from paginated response
   - **Live Chat Notifications**: Implemented real-time admin notification system when user sends live chat message. Uses Gateway `/emit-notification` endpoint with configurable `GATEWAY_URL` for production compatibility
+  - **Password Security**: Added server-side password validation - enforces 6-12 character length and requires combination of letters and numbers (tested with 5 scenarios, all passing)
   - Verified null checks in call handlers, confirmed join-room socket emit is necessary for participant tracking
 - **Performance Optimization**: 
   - Reduced auto-scroll delay from 50ms to 10ms (5x faster) for instant message display in chat rooms while maintaining debounce safety
   - **Image Caching**: Gift modal picker uses Expo Image with `cachePolicy="memory-disk"` to cache gift thumbnails. Images load once and persist across modal open/close cycles, preventing redundant network requests
-- **Known Security Issues**:
-  - ⚠️ Backend registration endpoint lacks password length validation (allows <6 char passwords). Frontend validates 6-char minimum but backend doesn't, allowing weak passwords via direct API access. Requires server-side validation addition to `/api/auth/register` endpoint.
+- **Security Enhancements**:
+  - ✅ Backend password validation implemented: 6-12 characters, must contain both letters and numbers
+  - ✅ Server-side validation prevents weak passwords via direct API access
+  - ✅ Frontend and backend validation aligned for consistent security
 
 # External Dependencies
 
