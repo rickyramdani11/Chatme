@@ -17,12 +17,16 @@ import { API_BASE_URL } from '../utils/apiConfig';
 
 interface Notification {
   id: string;
-  type: 'follow_request' | 'follow_accepted' | 'credit_received' | 'message';
+  type: 'follow' | 'follow_request' | 'follow_accepted' | 'friend_added' | 'credit_received' | 'message';
   title: string;
   message: string;
   data?: {
     senderId?: string;
     senderUsername?: string;
+    followerId?: string;
+    followerUsername?: string;
+    friendId?: string;
+    friendUsername?: string;
     amount?: number;
     [key: string]: any;
   } | null;
@@ -119,8 +123,10 @@ export default function NotificationsScreen({ navigation }: any) {
           <View style={styles.notificationIcon}>
             <Ionicons 
               name={
+                notification.type === 'follow' ? 'person-add' :
                 notification.type === 'follow_request' ? 'person-add' :
                 notification.type === 'follow_accepted' ? 'checkmark-circle' :
+                notification.type === 'friend_added' ? 'people' :
                 notification.type === 'credit_received' ? 'wallet' : 'chatbubble'
               }
               size={20}
