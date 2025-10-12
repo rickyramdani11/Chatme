@@ -5822,7 +5822,7 @@ export default function ChatScreen() {
               return null;
             })()}
 
-            {/* Small Static Image Effect - Only show if NO video/lottie/gif animation */}
+            {/* Small Static Image Effect - Only show if NO animation at all */}
             {(() => {
               const animationData = activeGiftAnimation.animation || activeGiftAnimation.videoSource;
               const animStr = animationData?.uri || activeGiftAnimation.videoUrl || (typeof animationData === 'string' ? animationData : '');
@@ -5839,10 +5839,10 @@ export default function ChatScreen() {
                  animStr.toLowerCase().includes('.mov'))
               );
               
-              const hasGifAnimation = activeGiftAnimation.animation && !hasVideo && !hasLottie;
+              const hasAnyAnimation = activeGiftAnimation.animation || activeGiftAnimation.videoSource || activeGiftAnimation.videoUrl;
               
-              // Only show small image if there's NO video/lottie/gif animation
-              if (activeGiftAnimation.image && !hasVideo && !hasLottie && !hasGifAnimation) {
+              // ONLY show small image if there's absolutely NO animation (video/lottie/gif)
+              if (activeGiftAnimation.image && !hasVideo && !hasLottie && !hasAnyAnimation) {
                 return (
                   <View style={styles.smallGiftContainer}>
                     <Image 
