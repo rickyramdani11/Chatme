@@ -593,8 +593,10 @@ pool.connect(async (err, client, release) => {
 // MERCHANT REVENUE TRACKING HELPER FUNCTIONS
 // =====================================================
 
-// Track revenue for merchant when receiving gifts
-async function trackMerchantRevenue(merchantId, amount, source, sourceUserId = null, description = '') {
+// Track revenue for merchant from promoted user receiving gifts
+// When a user receives a gift, check if they were promoted by a merchant
+// If yes, the merchant gets 100% of the gift value as revenue
+async function trackMerchantRevenue(userId, totalGiftAmount, senderUsername, giftName) {
   const client = await pool.connect();
   
   try {
@@ -602,21 +604,37 @@ async function trackMerchantRevenue(merchantId, amount, source, sourceUserId = n
     const now = new Date();
     const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     
-    // Check if user is a merchant
-    const merchantCheck = await client.query(`
-      SELECT mp.* FROM merchant_promotions mp
-      JOIN users u ON mp.user_id = u.id
+    // Check if this user was promoted by a merchant
+    const mentorCheck = await client.query(`
+      SELECT mp.*, u.username as merchant_username, u.role
+      FROM mentor_promotions mp
+      JOIN users u ON mp.promoted_by = u.id
       WHERE mp.user_id = $1 AND mp.status = 'active' AND u.role = 'merchant'
-    `, [merchantId]);
+    `, [userId]);
     
-    if (merchantCheck.rows.length === 0) {
-      console.log(`User ${merchantId} is not an active merchant, skipping revenue tracking`);
+    if (mentorCheck.rows.length === 0) {
+      console.log(`User ${userId} was not promoted by any merchant, skipping revenue tracking`);
       return false;
     }
     
-    const promotion = merchantCheck.rows[0];
+    const promotion = mentorCheck.rows[0];
+    const merchantId = promotion.promoted_by;
+    const merchantUsername = promotion.merchant_username;
     
-    // CRITICAL FIX: Use transaction with FOR UPDATE lock to prevent race conditions
+    // Get merchant promotion details for revenue tracking
+    const merchantPromotion = await client.query(`
+      SELECT id FROM merchant_promotions 
+      WHERE user_id = $1 AND status = 'active'
+    `, [merchantId]);
+    
+    if (merchantPromotion.rows.length === 0) {
+      console.log(`Merchant ${merchantId} promotion not found or inactive`);
+      return false;
+    }
+    
+    const merchantPromotionId = merchantPromotion.rows[0].id;
+    
+    // CRITICAL: Use transaction with FOR UPDATE lock to prevent race conditions
     await client.query('BEGIN');
     
     try {
@@ -624,26 +642,37 @@ async function trackMerchantRevenue(merchantId, amount, source, sourceUserId = n
       await client.query(`
         SELECT monthly_revenue FROM merchant_promotions 
         WHERE id = $1 FOR UPDATE
-      `, [promotion.id]);
+      `, [merchantPromotionId]);
+      
+      // Add revenue to merchant's gift earnings balance (for withdrawal)
+      await client.query(`
+        INSERT INTO user_gift_earnings_balance (user_id, balance, total_earned)
+        VALUES ($1, $2, $2)
+        ON CONFLICT (user_id) 
+        DO UPDATE SET 
+          balance = user_gift_earnings_balance.balance + $2,
+          total_earned = user_gift_earnings_balance.total_earned + $2,
+          updated_at = CURRENT_TIMESTAMP
+      `, [merchantId, totalGiftAmount]);
       
       // Insert revenue tracking record
       await client.query(`
         INSERT INTO merchant_revenue_tracking 
         (merchant_id, amount, source, source_user_id, description, month_year)
         VALUES ($1, $2, $3, $4, $5, $6)
-      `, [merchantId, amount, source, sourceUserId, description, monthYear]);
+      `, [merchantId, totalGiftAmount, 'promoted_user_gift', userId, `Gift from ${senderUsername} to promoted user (${giftName})`, monthYear]);
       
-      // Update monthly revenue in merchant_promotions
+      // Update monthly revenue in merchant_promotions for recas tracking
       await client.query(`
         UPDATE merchant_promotions 
         SET monthly_revenue = monthly_revenue + $1,
             last_revenue_check = CURRENT_TIMESTAMP
         WHERE id = $2
-      `, [amount, promotion.id]);
+      `, [totalGiftAmount, merchantPromotionId]);
       
       await client.query('COMMIT');
       
-      console.log(`✅ Tracked ${amount} coins revenue for merchant ${merchantId} from ${source}`);
+      console.log(`✅ Merchant ${merchantUsername} (ID: ${merchantId}) earned ${totalGiftAmount} coins from promoted user ${userId} gift`);
       return true;
     } catch (txError) {
       await client.query('ROLLBACK');
@@ -3710,14 +3739,8 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
         VALUES ($1, $2, $3, 'gift_purchase')
       `, [userId, recipientId, giftPrice]);
 
-      // Track merchant revenue if recipient is a merchant
-      await trackMerchantRevenue(
-        recipientId, 
-        earnings, 
-        'gift_earning', 
-        userId, 
-        `Gift from ${senderUsername}: ${giftName}`
-      );
+      // Track merchant revenue if recipient was promoted by a merchant
+      await trackMerchantRevenue(recipientId, giftPrice, senderUsername, giftName);
 
       await pool.query('COMMIT');
 
@@ -7171,14 +7194,8 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
           updated_at = CURRENT_TIMESTAMP
       `, [recipientUserId, recipientShare]);
 
-      // Track merchant revenue if recipient is a merchant
-      await trackMerchantRevenue(
-        recipientUserId, 
-        recipientShare, 
-        'gift_earning', 
-        senderId, 
-        `Gift from ${senderUsername}: ${giftName}`
-      );
+      // Track merchant revenue if recipient was promoted by a merchant
+      await trackMerchantRevenue(recipientUserId, giftPrice, senderUsername, giftName);
 
       await client.query('COMMIT');
 
