@@ -34,7 +34,7 @@ Preferred communication style: Simple, everyday language.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds.
 - **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Supports admin-created special accounts with custom IDs bypassing OTP.
 - **Merchant/Mentor TOP UP System**: Monthly subscription-based receiving system where system transfers 7M/month to mentors and mentors transfer 800k/month to merchants. Flow: SYSTEM → MENTOR → MERCHANT. Mentors receive top up from admin panel "Tambah Coin" (auto-tracked when recipient is mentor). Merchants receive top up from their promoting mentor via regular transfer (auto-tracked when mentor transfers to promoted merchant). Top ups can be made in installments throughout the month. Merchants failing to receive 800k total are auto-downgraded to 'user' role. Mentors failing to receive 7M total are downgraded and lose mentor status. All users (including merchants/mentors) receive standard 30% gift earnings to withdraw balance (top up system is separate from gift earnings).
-- **Help & Support System**: Live chat support with ticket creation and FAQ.
+- **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time admin notifications. When user sends live chat message, admin receives instant socket notification with session details and message preview.
 - **Privacy & Security System**: Privacy settings management with user-scoped access control, data download requests, password/PIN changes.
 - **Notification System**: Real-time notifications via Socket.IO for follow and friend add events. Push notifications via Firebase Cloud Messaging (FCM) for private messages when app is in background.
 - **User Presence System**: Friends list displays real-time status with smart sorting. Participant auto-removal on leave.
@@ -77,10 +77,17 @@ Preferred communication style: Simple, everyday language.
   - `CALL_CONSTANTS`: Call pricing (41.67 coins/sec), minimum charge (2,500 coins), interval costs
   - `GIFT_ANIMATION_DURATION`: Animation timings (5000ms animated, 3000ms static, 600ms fade-out)
 - **Code Cleanup**: Removed commented-out legacy code, improved readability
-- **Bug Fixes**: Verified null checks in call handlers, confirmed join-room socket emit is necessary for participant tracking
+- **Bug Fixes (October 12, 2025)**:
+  - **HelpSupportScreen TypeScript**: Fixed implicit 'any' type errors in `getCategoryName` and `getPriorityName` functions with `Record<string, string>` type annotation
+  - **Support Ticket SQL**: Fixed critical POST /support/tickets SQL schema mismatch - corrected INSERT columns to match table schema (user_id, username, subject, description vs. broken ticket_id, message)
+  - **Support Ticket Response**: Fixed GET /support/tickets response parsing - frontend now correctly extracts `data.tickets` array from paginated response
+  - **Live Chat Notifications**: Implemented real-time admin notification system when user sends live chat message. Uses Gateway `/emit-notification` endpoint with configurable `GATEWAY_URL` for production compatibility
+  - Verified null checks in call handlers, confirmed join-room socket emit is necessary for participant tracking
 - **Performance Optimization**: 
   - Reduced auto-scroll delay from 50ms to 10ms (5x faster) for instant message display in chat rooms while maintaining debounce safety
   - **Image Caching**: Gift modal picker uses Expo Image with `cachePolicy="memory-disk"` to cache gift thumbnails. Images load once and persist across modal open/close cycles, preventing redundant network requests
+- **Known Security Issues**:
+  - ⚠️ Backend registration endpoint lacks password length validation (allows <6 char passwords). Frontend validates 6-char minimum but backend doesn't, allowing weak passwords via direct API access. Requires server-side validation addition to `/api/auth/register` endpoint.
 
 # External Dependencies
 

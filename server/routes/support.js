@@ -9,6 +9,9 @@ const pool = new Pool({
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+// Gateway URL for emitting notifications
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:8000';
+
 // Initialize support tables
 const initSupportTables = async () => {
   try {
@@ -441,7 +444,8 @@ router.post('/live-chat/:sessionId/messages', authenticateToken, async (req, res
 
     // Verify session ownership or admin access
     const sessionCheck = await pool.query(
-      `SELECT id, session_status FROM live_chat_sessions 
+      `SELECT id, session_status, admin_id, admin_username, user_id, username as user_username 
+       FROM live_chat_sessions 
        WHERE id = $1 AND (user_id = $2 OR EXISTS (SELECT 1 FROM users WHERE id = $2 AND role = 'admin'))`,
       [sessionId, userId]
     );
@@ -464,6 +468,39 @@ router.post('/live-chat/:sessionId/messages', authenticateToken, async (req, res
     `, [sessionId, userId, username, message.trim(), isAdmin]);
 
     const newMessage = result.rows[0];
+
+    // Notify admin if message is from user (not admin)
+    if (!isAdmin && session.admin_id) {
+      try {
+        const notificationPayload = {
+          userId: session.admin_id,
+          notification: {
+            type: 'live_chat_message',
+            title: 'New Live Chat Message',
+            message: `${username}: ${message.trim().substring(0, 50)}${message.length > 50 ? '...' : ''}`,
+            data: {
+              sessionId: sessionId,
+              fromUserId: userId,
+              fromUsername: username,
+              messagePreview: message.trim().substring(0, 100)
+            },
+            timestamp: new Date().toISOString()
+          }
+        };
+
+        // Emit notification to admin via Gateway
+        await fetch(`${GATEWAY_URL}/emit-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(notificationPayload)
+        });
+
+        console.log(`🔔 Live chat notification sent to admin ${session.admin_username} for session ${sessionId}`);
+      } catch (notifyError) {
+        console.error('Failed to send admin notification:', notifyError);
+        // Don't fail the request if notification fails
+      }
+    }
 
     res.status(201).json({
       success: true,
