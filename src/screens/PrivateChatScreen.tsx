@@ -1711,9 +1711,15 @@ export default function PrivateChatScreen() {
                       style={styles.giftItem}
                       onPress={() => handleGiftSelect(gift)}
                     >
-                      {(gift.mediaUrl || gift.image) ? (
+                      {(gift.mediaUrl || gift.image || gift.imageUrl) ? (
                         <Image 
-                          source={{ uri: gift.mediaUrl || gift.image }} 
+                          source={
+                            gift.mediaUrl 
+                              ? (typeof gift.mediaUrl === 'string' ? { uri: gift.mediaUrl } : gift.mediaUrl)
+                              : gift.image 
+                                ? (typeof gift.image === 'string' ? { uri: gift.image } : gift.image)
+                                : { uri: gift.imageUrl }
+                          } 
                           style={styles.giftImage}
                           resizeMode="contain"
                         />
