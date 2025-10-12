@@ -247,6 +247,11 @@ export default function AdminScreen({ navigation }: any) {
   // Transfer history modal state
   const [showTransferHistoryModal, setShowTransferHistoryModal] = useState(false);
 
+  // Gift report states
+  const [reportMonth, setReportMonth] = useState('');
+  const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
+  const [downloadingReport, setDownloadingReport] = useState(false);
+
   // Check if current user is super admin
   const isSuperAdmin = user?.id && SUPER_ADMIN_IDS.includes(Number(user.id));
 
@@ -341,6 +346,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'receipt-outline',
       color: '#4a90e2',
       description: 'Lihat history transfer credit admin (Super Admin Only)'
+    },
+    {
+      id: 'gift-report',
+      title: 'Download Laporan Gift',
+      icon: 'download-outline',
+      color: '#009688',
+      description: 'Download laporan gift earnings (CSV format)'
     }
   ];
 
@@ -1537,7 +1549,7 @@ export default function AdminScreen({ navigation }: any) {
         setCreateAccountUsername('');
         setCreateAccountEmail('');
         setCreateAccountPassword('');
-        fetchUserStats();
+        loadUserStats();
       } else {
         Alert.alert('Error', data.error || 'Failed to create special account');
       }
@@ -3709,6 +3721,173 @@ export default function AdminScreen({ navigation }: any) {
           </ScrollView>
         );
 
+      case 'gift-report':
+        return (
+          <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+            <Text style={styles.reportSectionTitle}>Download Laporan Gift Earnings</Text>
+            <Text style={styles.reportSectionSubtitle}>
+              Download laporan pendapatan dari gift dalam format CSV untuk analisis keuangan
+            </Text>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Filter Bulan (Optional)</Text>
+              <View style={styles.pickerContainer}>
+                <TextInput
+                  style={styles.formInput}
+                  value={reportMonth}
+                  onChangeText={setReportMonth}
+                  placeholder="Pilih bulan (1-12) atau kosongkan untuk semua"
+                  placeholderTextColor="#999"
+                  keyboardType="numeric"
+                  maxLength={2}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Tahun</Text>
+              <TextInput
+                style={styles.formInput}
+                value={reportYear}
+                onChangeText={setReportYear}
+                placeholder="Contoh: 2025"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+                maxLength={4}
+              />
+            </View>
+
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={24} color="#009688" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.infoBoxTitle}>Format Laporan CSV</Text>
+                <Text style={styles.infoBoxText}>
+                  • Tanggal & Jam transaksi{'\n'}
+                  • Pengirim & Penerima{'\n'}
+                  • Nama & Harga Gift{'\n'}
+                  • Bagian User (30%){'\n'}
+                  • Bagian System (70%){'\n'}
+                  • Total & Ringkasan
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.addButton,
+                { backgroundColor: '#009688' },
+                downloadingReport && { opacity: 0.6 }
+              ]}
+              onPress={async () => {
+                if (downloadingReport) return;
+
+                try {
+                  setDownloadingReport(true);
+
+                  // Build URL with query params
+                  let url = `${API_BASE_URL}/admin/reports/gift-earnings-csv`;
+                  const params = [];
+                  
+                  if (reportMonth && parseInt(reportMonth) >= 1 && parseInt(reportMonth) <= 12) {
+                    params.push(`month=${reportMonth}`);
+                  }
+                  
+                  if (reportYear && reportYear.length === 4) {
+                    params.push(`year=${reportYear}`);
+                  }
+
+                  if (params.length > 0) {
+                    url += '?' + params.join('&');
+                  }
+
+                  const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'text/csv',
+                    },
+                  });
+
+                  if (!response.ok) {
+                    throw new Error('Failed to download report');
+                  }
+
+                  const csvContent = await response.text();
+
+                  // For web platform, trigger download
+                  if (typeof window !== 'undefined' && window.document) {
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const urlBlob = URL.createObjectURL(blob);
+                    
+                    let filename = 'laporan-gift-earnings';
+                    if (reportMonth && reportYear) {
+                      filename += `-${reportYear}-${String(reportMonth).padStart(2, '0')}`;
+                    } else if (reportYear) {
+                      filename += `-${reportYear}`;
+                    }
+                    filename += '.csv';
+
+                    link.href = urlBlob;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(urlBlob);
+
+                    Alert.alert(
+                      'Berhasil!',
+                      `Laporan ${filename} berhasil didownload!`,
+                      [{ text: 'OK' }]
+                    );
+                  } else {
+                    // For mobile, show the content (you can enhance this with file system)
+                    console.log('CSV Content:', csvContent);
+                    Alert.alert(
+                      'Download Ready',
+                      'CSV report generated successfully. Check console for content.',
+                      [{ text: 'OK' }]
+                    );
+                  }
+
+                } catch (error) {
+                  console.error('Error downloading report:', error);
+                  Alert.alert(
+                    'Error',
+                    'Gagal mendownload laporan. Silakan coba lagi.',
+                    [{ text: 'OK' }]
+                  );
+                } finally {
+                  setDownloadingReport(false);
+                }
+              }}
+              disabled={downloadingReport}
+            >
+              {downloadingReport ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="download-outline" size={20} color="#fff" />
+                  <Text style={styles.addButtonText}>Download Laporan CSV</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <View style={[styles.infoBox, { backgroundColor: '#FFF3E0', marginTop: 20 }]}>
+              <Ionicons name="calculator" size={24} color="#FF9800" />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.infoBoxTitle, { color: '#FF9800' }]}>Perhitungan Pendapatan System</Text>
+                <Text style={styles.infoBoxText}>
+                  Setiap gift yang dikirim:{'\n'}
+                  • 30% masuk ke saldo withdraw user penerima{'\n'}
+                  • 70% masuk ke pendapatan system{'\n\n'}
+                  Laporan ini menunjukkan total pendapatan system dari semua gift yang dikirim dalam periode yang dipilih.
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+        );
+
       default:
         return null;
     }
@@ -4761,6 +4940,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
   },
   emptyGiftList: {
     alignItems: 'center',
@@ -6002,13 +6186,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  sectionTitle: {
+  reportSectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 5,
   },
-  sectionSubtitle: {
+  reportSectionSubtitle: {
     fontSize: 14,
     color: '#666',
     marginBottom: 20,
@@ -6031,5 +6215,38 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  formContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  pickerContainer: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#E0F2F1',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    alignItems: 'flex-start',
+  },
+  infoBoxTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#009688',
+    marginBottom: 8,
+  },
+  infoBoxText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
   },
 });
