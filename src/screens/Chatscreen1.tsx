@@ -5438,36 +5438,60 @@ export default function ChatScreen() {
                     onPress={() => handleGiftSend(gift)}
                   >
                     <View style={styles.newGiftIconContainer}>
-                      {gift.image || gift.imageUrl ? (
-                        <Image 
-                          source={gift.image || { uri: gift.imageUrl }} 
-                          style={styles.giftImage} 
-                          contentFit="contain"
-                          cachePolicy="memory-disk"
-                        />
-                      ) : gift.animation || gift.videoUrl ? (
-                        (() => {
+                      {(() => {
+                        // Check mediaType first for explicit Lottie/Video
+                        if (gift.mediaType === 'lottie' || gift.mediaType === 'video') {
+                          const animSource = gift.animation || gift.videoUrl || { uri: gift.imageUrl };
+                          
+                          if (gift.mediaType === 'lottie') {
+                            // For local Lottie files, use the source directly if it's a require() object
+                            // For remote URLs, wrap in { uri: ... }
+                            let lottieSource = animSource;
+                            if (typeof animSource === 'string' && animSource.startsWith('http')) {
+                              lottieSource = { uri: animSource };
+                            }
+                            
+                            return (
+                              <LottieView
+                                source={lottieSource}
+                                autoPlay
+                                loop
+                                style={styles.giftImage}
+                              />
+                            );
+                          } else {
+                            return (
+                              <Video
+                                source={animSource}
+                                style={styles.giftImage}
+                                resizeMode={'contain' as any}
+                                shouldPlay={false}
+                                isLooping={false}
+                                isMuted={true}
+                              />
+                            );
+                          }
+                        }
+                        
+                        // Fallback: Check for animation/videoUrl (legacy detection)
+                        if (gift.animation || gift.videoUrl) {
                           const animSource = gift.animation || { uri: gift.videoUrl };
                           const animStr = gift.animation?.uri || gift.videoUrl || (typeof gift.animation === 'string' ? gift.animation : '');
                           
-                          // Detect Lottie animations
-                          const isLottie = gift.mediaType === 'lottie' || (
-                            animStr && 
-                            (animStr.toLowerCase().includes('.json') || 
-                             animStr.toLowerCase().includes('lottie'))
+                          // Detect Lottie by file extension
+                          const isLottie = animStr && (
+                            animStr.toLowerCase().includes('.json') || 
+                            animStr.toLowerCase().includes('lottie')
                           );
                           
-                          // Detect video files
-                          const isVideo = gift.mediaType === 'video' || (
-                            animStr && 
-                            (animStr.toLowerCase().includes('.mp4') || 
-                             animStr.toLowerCase().includes('.webm') || 
-                             animStr.toLowerCase().includes('.mov'))
+                          // Detect video by file extension
+                          const isVideo = animStr && (
+                            animStr.toLowerCase().includes('.mp4') || 
+                            animStr.toLowerCase().includes('.webm') || 
+                            animStr.toLowerCase().includes('.mov')
                           );
                           
                           if (isLottie) {
-                            // For local Lottie files, use the source directly if it's a require() object
-                            // For remote URLs, wrap in { uri: ... }
                             let lottieSource = animSource;
                             if (typeof animSource === 'string' && animSource.startsWith('http')) {
                               lottieSource = { uri: animSource };
@@ -5492,20 +5516,24 @@ export default function ChatScreen() {
                                 isMuted={true}
                               />
                             );
-                          } else {
-                            return (
-                              <Image 
-                                source={animSource} 
-                                style={styles.giftImage} 
-                                contentFit="contain"
-                                cachePolicy="memory-disk"
-                              />
-                            );
                           }
-                        })()
-                      ) : (
-                        <Text style={styles.newGiftIcon}>{gift.icon}</Text>
-                      )}
+                        }
+                        
+                        // Check for static image
+                        if (gift.image || gift.imageUrl) {
+                          return (
+                            <Image 
+                              source={gift.image || { uri: gift.imageUrl }} 
+                              style={styles.giftImage} 
+                              contentFit="contain"
+                              cachePolicy="memory-disk"
+                            />
+                          );
+                        }
+                        
+                        // Fallback: Show icon emoji
+                        return <Text style={styles.newGiftIcon}>{gift.icon}</Text>;
+                      })()}
                       {gift.type === 'animated' && (
                         <View style={styles.animatedBadge}>
                           <Text style={styles.animatedBadgeText}>✨</Text>
