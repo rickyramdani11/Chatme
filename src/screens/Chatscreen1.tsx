@@ -349,7 +349,7 @@ export default function ChatScreen() {
 
   const isRoomModerator = () => {
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
-    return currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+    return currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
   };
 
   // Optimized scroll helper - debounced and instant
@@ -1463,7 +1463,7 @@ export default function ChatScreen() {
           sender: 'System',
           content: data.message,
           timestamp: new Date(),
-          roomId: currentRoomId, // Use currentRoomId for context
+          roomId: currentRoomId || 'unknown', // Use currentRoomId for context
           role: 'system',
           level: 1,
           type: 'join' // Use 'join' type for system messages about users joining
@@ -2235,7 +2235,7 @@ export default function ChatScreen() {
     const isOwner = currentRoom && currentRoom.managedBy === username;
 
     // Check if user is moderator of current room
-    const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
+    const isModerator = currentRoom && currentRoom.moderators && username && currentRoom.moderators.includes(username);
 
     if (isOwner) return COLORS.roleOwner;
     if (isModerator) return COLORS.roleOwner;
@@ -2271,7 +2271,7 @@ export default function ChatScreen() {
     const isOwner = currentRoom && currentRoom.managedBy === username;
 
     // Check if user is moderator of current room
-    const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
+    const isModerator = currentRoom && currentRoom.moderators && username && currentRoom.moderators.includes(username);
 
     if (isOwner) return COLORS.roleOwnerBg;
     if (isModerator) return COLORS.roleOwnerBg;
@@ -2476,7 +2476,7 @@ export default function ChatScreen() {
         // Check if user has permission to ban user
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2580,7 +2580,7 @@ export default function ChatScreen() {
         // Check if user has permission to kick
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2681,7 +2681,7 @@ export default function ChatScreen() {
         // Check if user has permission to lock room
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2770,7 +2770,7 @@ export default function ChatScreen() {
         // Check if user has permission to ban user
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2874,7 +2874,7 @@ export default function ChatScreen() {
         // Check if user has permission to unban user
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
