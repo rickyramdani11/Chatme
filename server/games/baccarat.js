@@ -194,25 +194,72 @@ async function getUserCredits(userId) {
   }
 }
 
+// RACE CONDITION FIX: Use row-level locking with SELECT FOR UPDATE inside transaction
 async function deductCredits(userId, amount) {
+  const client = await pool.connect();
+  
   try {
-    await pool.query(
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Lock row and check balance atomically - prevents race conditions
+    const balanceResult = await client.query(
+      'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+      [userId]
+    );
+    
+    if (balanceResult.rows.length === 0 || balanceResult.rows[0].balance < amount) {
+      await client.query('ROLLBACK');
+      console.log(`[Baccarat] User ${userId} insufficient balance`);
+      return false;
+    }
+    
+    // Deduct from user_credits
+    await client.query(
       'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
+    
+    // Record transaction in credit_transactions
+    await client.query(
+      `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+       VALUES ($1, $1, $2, 'game_bet', 'Baccarat Game Bet')`,
+      [userId, amount]
+    );
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    
+    console.log(`[Baccarat] Deducted ${amount} COIN from user ${userId}`);
     return true;
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('[Baccarat] Error deducting credits:', error);
     return false;
+  } finally {
+    client.release();
   }
 }
 
-async function addCredits(userId, amount) {
+async function addCredits(userId, amount, reason = 'baccarat_win') {
   try {
+    // Add to user_credits
     await pool.query(
       'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
+    
+    // Record transaction in credit_transactions
+    const transactionType = reason === 'baccarat_win' ? 'game_win' : 'game_refund';
+    const description = reason === 'baccarat_win' ? 'Baccarat Game Win' : `Baccarat: ${reason}`;
+    
+    await pool.query(
+      `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+       VALUES ($1, $1, $2, $3, $4)`,
+      [userId, amount, transactionType, description]
+    );
+    
+    console.log(`[Baccarat] Added ${amount} COIN to user ${userId} (${reason})`);
     return true;
   } catch (error) {
     console.error('[Baccarat] Error adding credits:', error);

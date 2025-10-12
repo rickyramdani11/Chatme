@@ -195,43 +195,57 @@ function calculateWin(betType, betValue, amount, dice) {
 }
 
 // Deduct coins from user (use user_credits like LowCard)
+// RACE CONDITION FIX: Use row-level locking with SELECT FOR UPDATE inside transaction
 async function deductCoins(userId, amount) {
+  const client = await pool.connect();
+  
   try {
-    // Check balance first
-    const balanceResult = await pool.query(
-      'SELECT balance FROM user_credits WHERE user_id = $1',
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Lock row and check balance atomically - prevents race conditions
+    const balanceResult = await client.query(
+      'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
       [userId]
     );
     
     if (balanceResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       console.log(`[Sicbo] User ${userId} has no credit record`);
       return false;
     }
     
     const currentBalance = balanceResult.rows[0].balance;
     if (currentBalance < amount) {
+      await client.query('ROLLBACK');
       console.log(`[Sicbo] User ${userId} insufficient balance: ${currentBalance} < ${amount}`);
       return false;
     }
     
     // Deduct from user_credits
-    await pool.query(
+    await client.query(
       'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
     
     // Record transaction in credit_transactions (match LowCard schema)
-    await pool.query(
+    await client.query(
       `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
        VALUES ($1, $1, $2, 'game_bet', 'Sicbo Game Bet')`,
       [userId, amount]
     );
     
+    // Commit transaction
+    await client.query('COMMIT');
+    
     console.log(`[Sicbo] Deducted ${amount} COIN from user ${userId}`);
     return true;
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('[Sicbo] Error deducting coins:', error);
     return false;
+  } finally {
+    client.release();
   }
 }
 

@@ -21,21 +21,27 @@ function getCardValue(card) {
 
 // Database coin functions
 async function potongCoin(userId, amount, isRefund = false) {
-  // Check if user has enough coins and deduct from balance
+  // RACE CONDITION FIX: Use row-level locking with SELECT FOR UPDATE inside transaction
   const { Pool } = require('pg');
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
   });
 
+  const client = await pool.connect();
+  
   try {
-    // First check user's current balance
-    const balanceResult = await pool.query(
-      'SELECT balance FROM user_credits WHERE user_id = $1',
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Lock row and check balance atomically - prevents race conditions
+    const balanceResult = await client.query(
+      'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
       [userId]
     );
     
     if (balanceResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       console.log(`[LowCard] User ${userId} has no credit record`);
       return false;
     }
@@ -44,29 +50,36 @@ async function potongCoin(userId, amount, isRefund = false) {
     console.log(`[LowCard] User ${userId} has ${currentBalance} coins, needs ${amount}`);
     
     if (currentBalance < amount) {
+      await client.query('ROLLBACK');
       console.log(`[LowCard] User ${userId} insufficient balance: ${currentBalance} < ${amount}`);
       return false;
     }
     
     // Deduct coins from user's balance
-    await pool.query(
+    await client.query(
       'UPDATE user_credits SET balance = balance - $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
       [amount, userId]
     );
     
     // Record transaction in credit_transactions (if not a refund)
     if (!isRefund) {
-      await pool.query(`
+      await client.query(`
         INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
         VALUES ($1, $1, $2, 'game_bet', 'LowCard Game Bet')
       `, [userId, amount]);
     }
     
+    // Commit transaction
+    await client.query('COMMIT');
+    
     console.log(`[LowCard] Deducted ${amount} coins from user ${userId}, new balance: ${currentBalance - amount}`);
     return true;
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error checking/deducting coins:', error);
     return false;
+  } finally {
+    client.release();
   }
 }
 
