@@ -234,7 +234,7 @@ export default function ChatScreen() {
   const [isSendingGift, setIsSendingGift] = useState(false);
   const isSendingGiftRef = useRef(false);
   const [activeGiftAnimation, setActiveGiftAnimation] = useState<any>(null);
-  const [giftAnimationDuration, setGiftAnimationDuration] = useState(5000); // Default 5 seconds
+  const [giftAnimationDuration, setGiftAnimationDuration] = useState(GIFT_ANIMATION_DURATION.ANIMATED); // Default to animated duration
   const giftScaleAnim = useRef(new Animated.Value(0)).current;
   const giftOpacityAnim = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null); // Ref for the main ScrollView containing tabs
@@ -1310,7 +1310,7 @@ export default function ChatScreen() {
           }),
           Animated.timing(giftOpacityAnim, {
             toValue: 1,
-            duration: 600,
+            duration: GIFT_ANIMATION_DURATION.FADE_OUT,
             useNativeDriver: true,
           }),
         ]).start();
@@ -1326,19 +1326,19 @@ export default function ChatScreen() {
 
         // For non-video gifts, use fixed timeout with smooth Reanimated fade-out
         if (!isVideoGift) {
-          const duration = data.gift.type === 'animated' ? 5000 : 3000;
+          const duration = data.gift.type === 'animated' ? GIFT_ANIMATION_DURATION.ANIMATED : GIFT_ANIMATION_DURATION.STATIC;
           setTimeout(() => {
             // Smooth fade-out with Reanimated (more efficient & native)
             Animated.parallel([
               Animated.timing(giftScaleAnim, {
                 toValue: 1.1, // Slight zoom out effect
-                duration: 600, // Slightly longer for smoother effect
+                duration: GIFT_ANIMATION_DURATION.FADE_OUT,
                 easing: Easing.bezier(0.25, 0.1, 0.25, 1), // Smooth easing curve
                 useNativeDriver: true,
               }),
               Animated.timing(giftOpacityAnim, {
                 toValue: 0,
-                duration: 600, // Smooth fade
+                duration: GIFT_ANIMATION_DURATION.FADE_OUT,
                 easing: Easing.bezier(0.33, 0, 0.67, 1), // Smooth easing
                 useNativeDriver: true,
               }),
@@ -1412,7 +1412,7 @@ export default function ChatScreen() {
           }),
           Animated.timing(giftOpacityAnim, {
             toValue: 1,
-            duration: 600,
+            duration: GIFT_ANIMATION_DURATION.FADE_OUT,
             useNativeDriver: true,
           }),
         ]).start();
@@ -5710,13 +5710,13 @@ export default function ChatScreen() {
                         Animated.parallel([
                           Animated.timing(giftScaleAnim, {
                             toValue: 1.1,
-                            duration: 600,
+                            duration: GIFT_ANIMATION_DURATION.FADE_OUT,
                             easing: Easing.bezier(0.25, 0.1, 0.25, 1),
                             useNativeDriver: true,
                           }),
                           Animated.timing(giftOpacityAnim, {
                             toValue: 0,
-                            duration: 600,
+                            duration: GIFT_ANIMATION_DURATION.FADE_OUT,
                             easing: Easing.bezier(0.33, 0, 0.67, 1),
                             useNativeDriver: true,
                           }),
