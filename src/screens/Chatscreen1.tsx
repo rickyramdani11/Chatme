@@ -5444,6 +5444,15 @@ export default function ChatScreen() {
                         (() => {
                           const animSource = gift.animation || { uri: gift.videoUrl };
                           const animStr = gift.animation?.uri || gift.videoUrl || (typeof gift.animation === 'string' ? gift.animation : '');
+                          
+                          // Detect Lottie animations
+                          const isLottie = gift.mediaType === 'lottie' || (
+                            animStr && 
+                            (animStr.toLowerCase().includes('.json') || 
+                             animStr.toLowerCase().includes('lottie'))
+                          );
+                          
+                          // Detect video files
                           const isVideo = gift.mediaType === 'video' || (
                             animStr && 
                             (animStr.toLowerCase().includes('.mp4') || 
@@ -5451,23 +5460,36 @@ export default function ChatScreen() {
                              animStr.toLowerCase().includes('.mov'))
                           );
                           
-                          return isVideo ? (
-                            <Video
-                              source={animSource}
-                              style={styles.giftImage}
-                              resizeMode={'contain' as any}
-                              shouldPlay={false}
-                              isLooping={false}
-                              isMuted={true}
-                            />
-                          ) : (
-                            <Image 
-                              source={animSource} 
-                              style={styles.giftImage} 
-                              contentFit="contain"
-                              cachePolicy="memory-disk"
-                            />
-                          );
+                          if (isLottie) {
+                            return (
+                              <LottieView
+                                source={animSource}
+                                autoPlay
+                                loop
+                                style={styles.giftImage}
+                              />
+                            );
+                          } else if (isVideo) {
+                            return (
+                              <Video
+                                source={animSource}
+                                style={styles.giftImage}
+                                resizeMode={'contain' as any}
+                                shouldPlay={false}
+                                isLooping={false}
+                                isMuted={true}
+                              />
+                            );
+                          } else {
+                            return (
+                              <Image 
+                                source={animSource} 
+                                style={styles.giftImage} 
+                                contentFit="contain"
+                                cachePolicy="memory-disk"
+                              />
+                            );
+                          }
                         })()
                       ) : (
                         <Text style={styles.newGiftIcon}>{gift.icon}</Text>

@@ -31,6 +31,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import Daily, { DailyMediaView } from '@daily-co/react-native-daily-js';
+import LottieView from 'lottie-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -5572,10 +5573,19 @@ export default function ChatScreen() {
                           resizeMode="contain"
                         />
                       ) : gift.animation || gift.videoUrl ? (
-                        // Check if it's video based on mediaType or file extension
+                        // Check media type: Lottie, Video, or Image
                         (() => {
                           const animSource = gift.animation || { uri: gift.videoUrl };
                           const animStr = gift.animation?.uri || gift.videoUrl || (typeof gift.animation === 'string' ? gift.animation : '');
+                          
+                          // Detect Lottie animations
+                          const isLottie = gift.mediaType === 'lottie' || (
+                            animStr && 
+                            (animStr.toLowerCase().includes('.json') || 
+                             animStr.toLowerCase().includes('lottie'))
+                          );
+                          
+                          // Detect video files
                           const isVideo = gift.mediaType === 'video' || (
                             animStr && 
                             (animStr.toLowerCase().includes('.mp4') || 
@@ -5583,23 +5593,36 @@ export default function ChatScreen() {
                              animStr.toLowerCase().includes('.mov'))
                           );
                           
-                          return isVideo ? (
-                            <Video
-                              ref={giftVideoRef}
-                              source={animSource}
-                              style={styles.giftImage}
-                              resizeMode={'contain' as any}
-                              shouldPlay={false}
-                              isLooping={false}
-                              isMuted={true}
-                            />
-                          ) : (
-                            <Image
-                              source={animSource}
-                              style={styles.giftImage}
-                              resizeMode="contain"
-                            />
-                          );
+                          if (isLottie) {
+                            return (
+                              <LottieView
+                                source={animSource}
+                                autoPlay
+                                loop
+                                style={styles.giftImage}
+                              />
+                            );
+                          } else if (isVideo) {
+                            return (
+                              <Video
+                                ref={giftVideoRef}
+                                source={animSource}
+                                style={styles.giftImage}
+                                resizeMode={'contain' as any}
+                                shouldPlay={false}
+                                isLooping={false}
+                                isMuted={true}
+                              />
+                            );
+                          } else {
+                            return (
+                              <Image
+                                source={animSource}
+                                style={styles.giftImage}
+                                resizeMode="contain"
+                              />
+                            );
+                          }
                         })()
                       ) : null}
                     </View>
