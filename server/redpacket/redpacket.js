@@ -38,8 +38,13 @@ function distributeRandomly(totalAmount, slots) {
   // Last slot gets remaining
   amounts.push(remaining);
   
-  // Shuffle for fairness
-  return amounts.sort(() => Math.random() - 0.5);
+  // Fisher-Yates shuffle for uniform distribution (fixes bias bug)
+  for (let i = amounts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [amounts[i], amounts[j]] = [amounts[j], amounts[i]];
+  }
+  
+  return amounts;
 }
 
 /**
@@ -304,39 +309,90 @@ export async function getPacketDetails(packetId) {
 
 /**
  * Auto-expire red packets (cron job)
+ * RACE CONDITION FIX: Use transaction with row-level locking
  */
 export async function expireOldPackets() {
   try {
     // Get expired packets with remaining amount
     const expiredResult = await pool.query(
-      `SELECT * FROM red_packets 
+      `SELECT id FROM red_packets 
        WHERE status = 'active' AND expires_at < NOW() AND remaining_amount > 0`
     );
 
-    for (const packet of expiredResult.rows) {
-      // Refund remaining amount to sender
-      await pool.query(
-        'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-        [packet.remaining_amount, packet.sender_id]
-      );
+    let refundedCount = 0;
 
-      // Record refund transaction
-      await pool.query(
-        `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
-         VALUES ($1, $2, $3, 'red_packet_refund', 'Expired red packet refund')`,
-        [packet.sender_id, packet.sender_id, packet.remaining_amount]
-      );
+    for (const row of expiredResult.rows) {
+      const client = await pool.connect();
+      
+      try {
+        await client.query('BEGIN');
 
-      // Mark as expired
-      await pool.query(
-        "UPDATE red_packets SET status = 'expired' WHERE id = $1",
-        [packet.id]
-      );
+        // Lock packet row with FOR UPDATE to prevent race with claim
+        const packetResult = await client.query(
+          'SELECT * FROM red_packets WHERE id = $1 FOR UPDATE',
+          [row.id]
+        );
 
-      console.log(`[RedPacket] Expired packet ${packet.id}, refunded ${packet.remaining_amount} to user ${packet.sender_id}`);
+        if (packetResult.rows.length === 0) {
+          await client.query('ROLLBACK');
+          continue;
+        }
+
+        const packet = packetResult.rows[0];
+
+        // Double-check status and remaining amount after lock
+        // (another process might have claimed it while we waited for lock)
+        if (packet.status !== 'active' || packet.remaining_amount <= 0) {
+          await client.query('ROLLBACK');
+          console.log(`[RedPacket] Packet ${packet.id} already processed, skipping`);
+          continue;
+        }
+
+        // Check if really expired
+        if (new Date() <= new Date(packet.expires_at)) {
+          await client.query('ROLLBACK');
+          console.log(`[RedPacket] Packet ${packet.id} not yet expired, skipping`);
+          continue;
+        }
+
+        // Lock sender's credits row to prevent race condition
+        await client.query(
+          'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+          [packet.sender_id]
+        );
+
+        // Refund remaining amount to sender
+        await client.query(
+          'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+          [packet.remaining_amount, packet.sender_id]
+        );
+
+        // Record refund transaction
+        await client.query(
+          `INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+           VALUES ($1, $2, $3, 'red_packet_refund', 'Expired red packet refund')`,
+          [packet.sender_id, packet.sender_id, packet.remaining_amount]
+        );
+
+        // Mark as expired
+        await client.query(
+          "UPDATE red_packets SET status = 'expired' WHERE id = $1",
+          [packet.id]
+        );
+
+        await client.query('COMMIT');
+
+        console.log(`[RedPacket] Expired packet ${packet.id}, refunded ${packet.remaining_amount} to user ${packet.sender_id}`);
+        refundedCount++;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        console.error(`[RedPacket] Error expiring packet ${row.id}:`, error);
+      } finally {
+        client.release();
+      }
     }
 
-    return expiredResult.rows.length;
+    return refundedCount;
   } catch (error) {
     console.error('[RedPacket] Error expiring packets:', error);
     return 0;
