@@ -115,12 +115,13 @@ args = "npx expo start --tunnel --no-web"
 name = "Mobile Tunnel"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npx expo start --tunnel --clear --port 8082"
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx expo start --tunnel --clear --port 3000"
+waitForPort = 3000
 
 [[workflows.workflow]]
 name = "ChatMe Servers (PM2)"
@@ -137,10 +138,6 @@ outputType = "webview"
 [[ports]]
 localPort = 3000
 externalPort = 3000
-
-[[ports]]
-localPort = 3001
-externalPort = 3001
 
 [[ports]]
 localPort = 5000
