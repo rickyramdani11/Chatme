@@ -7154,8 +7154,8 @@ const createThemedStyles = () => StyleSheet.create({
     backgroundColor: 'transparent',
   },
   giftImage: {
-    width: 60,
-    height: 60,
+    width: 80,
+    height: 80,
     backgroundColor: 'transparent',
   },
   newGiftIcon: {
