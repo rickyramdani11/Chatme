@@ -44,6 +44,12 @@ interface Message {
   role?: 'user' | 'merchant' | 'mentor' | 'admin' | 'system';
   level?: number;
   type?: 'message' | 'system';
+  gift?: {
+    icon?: string;
+    name?: string;
+    image?: string | { uri: string };
+    price?: number;
+  };
 }
 
 export default function PrivateChatScreen() {
@@ -1322,7 +1328,7 @@ export default function PrivateChatScreen() {
 
 
   const renderMessage = ({ item }: { item: Message }) => {
-    // Handle system messages
+    // Handle system messages (including gift notifications)
     if (item.sender === 'System' || item.role === 'system') {
       return (
         <TouchableOpacity
@@ -1333,6 +1339,14 @@ export default function PrivateChatScreen() {
             <Text style={styles.systemMessageText}>
               {item.content}
             </Text>
+            {/* Display gift image if available */}
+            {item.gift && item.gift.image && (
+              <Image
+                source={typeof item.gift.image === 'string' ? { uri: item.gift.image } : item.gift.image}
+                style={styles.giftMessageImage}
+                contentFit="contain"
+              />
+            )}
             <Text style={styles.messageTime}>{formatTime(item.timestamp)}</Text>
           </View>
         </TouchableOpacity>
@@ -2025,7 +2039,8 @@ const styles = StyleSheet.create({
   systemMessageRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   systemMessageText: {
     fontSize: 14,
@@ -2034,6 +2049,13 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 20,
     marginRight: 8,
+  },
+  giftMessageImage: {
+    width: 60,
+    height: 60,
+    marginLeft: 8,
+    marginRight: 8,
+    borderRadius: 8,
   },
   inputContainer: {
     backgroundColor: '#f5f5f5',
