@@ -13,7 +13,7 @@ router.post('/private', authenticateToken, async (req, res) => {
   console.log('=== CREATE PRIVATE CHAT (CHAT ROUTER) ===');
   console.log('Request participants:', req.body.participants);
   console.log('Authenticated user:', req.user.username);
-  console.log('User ID:', req.user.id);
+  console.log('User ID:', req.user.userId);
   
   try {
     const { participants } = req.body;
@@ -71,22 +71,37 @@ router.post('/private', authenticateToken, async (req, res) => {
       });
     } else {
       isNewChat = true;
-      const chatResult = await pool.query(`
-        INSERT INTO private_chats (id, created_by, participant1_id, participant1_username, participant2_id, participant2_username, initiated_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING *
-      `, [chatId, req.user.username, userIds[0], participant1Username, userIds[1], participant2Username, currentUserId]);
+      
+      // Use transaction to prevent partial inserts
+      const client = await pool.connect();
+      let chatResult;
+      try {
+        await client.query('BEGIN');
+        
+        chatResult = await client.query(`
+          INSERT INTO private_chats (id, created_by, participant1_id, participant1_username, participant2_id, participant2_username, initiated_by)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          RETURNING *
+        `, [chatId, req.user.username, userIds[0], participant1Username, userIds[1], participant2Username, currentUserId]);
 
-      // Insert participants with correct ID-username mapping
-      await pool.query(`
-        INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
-        VALUES ($1, $2, $3, NOW())
-      `, [chatId, userIds[0], participant1Username]);
+        // Insert participants with correct ID-username mapping
+        await client.query(`
+          INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
+          VALUES ($1, $2, $3, NOW())
+        `, [chatId, userIds[0], participant1Username]);
 
-      await pool.query(`
-        INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
-        VALUES ($1, $2, $3, NOW())
-      `, [chatId, userIds[1], participant2Username]);
+        await client.query(`
+          INSERT INTO private_chat_participants (chat_id, user_id, username, joined_at)
+          VALUES ($1, $2, $3, NOW())
+        `, [chatId, userIds[1], participant2Username]);
+        
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
 
       console.log(`✅ New private chat created: ${chatId}`);
       res.json({
@@ -123,7 +138,7 @@ router.post('/private', authenticateToken, async (req, res) => {
 // Get private chat list for user
 router.get('/private/list', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     const query = `
       SELECT 
@@ -185,7 +200,7 @@ router.get('/private/list', authenticateToken, async (req, res) => {
 router.get('/private/:chatId/messages', authenticateToken, async (req, res) => {
   try {
     const { chatId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     console.log(`Loading messages for private chat: ${chatId}, User: ${userId}`);
 
@@ -247,7 +262,7 @@ router.post('/private/:chatId/messages', authenticateToken, async (req, res) => 
   try {
     const { chatId } = req.params;
     const { content, type = 'message' } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const username = req.user.username;
 
     if (!content) {
@@ -404,13 +419,13 @@ router.get('/notifications/:userId', async (req, res) => {
     const result = await pool.query(`
       SELECT 
         pc.id as chat_id,
-        pc.participants,
+        ARRAY[pc.participant1_username, pc.participant2_username] as participants,
         COUNT(CASE WHEN pm.is_read = false AND pm.sender_id != $1 THEN 1 END) as unread_count,
         MAX(pm.created_at) as last_message_time
       FROM private_chats pc
       LEFT JOIN private_messages pm ON pc.id = pm.chat_id
-      WHERE $1 = ANY(pc.participants)
-      GROUP BY pc.id, pc.participants
+      WHERE pc.participant1_id = $1 OR pc.participant2_id = $1
+      GROUP BY pc.id, pc.participant1_username, pc.participant2_username
       HAVING COUNT(CASE WHEN pm.is_read = false AND pm.sender_id != $1 THEN 1 END) > 0
       ORDER BY MAX(pm.created_at) DESC
     `, [userId]);
