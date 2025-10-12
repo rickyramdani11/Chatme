@@ -2960,10 +2960,58 @@ io.on('connection', (socket) => {
       }
     }
 
+    // MEMORY LEAK FIX: Clean up any pending broadcasts for this user
+    if (userInfo && userInfo.userId && userInfo.roomId) {
+      const broadcastKey = `${userInfo.userId}_${userInfo.roomId}`;
+      const pending = pendingBroadcasts.get(broadcastKey);
+      if (pending) {
+        clearTimeout(pending.timeout);
+        pendingBroadcasts.delete(broadcastKey);
+        console.log(`🧹 Cleaned up pending broadcast for ${userInfo.username} in room ${userInfo.roomId}`);
+      }
+    }
+
     // Remove from connected users
     connectedUsers.delete(socket.id);
   });
 });
+
+// MEMORY LEAK FIX: Periodic cleanup for broadcast tracking Maps
+setInterval(() => {
+  const now = Date.now();
+  let cleanedCount = 0;
+
+  // Clean up recentBroadcasts (older than 30 seconds)
+  for (const [key, timestamp] of recentBroadcasts.entries()) {
+    if (now - timestamp > 30000) {
+      recentBroadcasts.delete(key);
+      cleanedCount++;
+    }
+  }
+
+  // Clean up recentLeaveBroadcasts (older than 30 seconds)
+  for (const [key, timestamp] of recentLeaveBroadcasts.entries()) {
+    if (now - timestamp > 30000) {
+      recentLeaveBroadcasts.delete(key);
+      cleanedCount++;
+    }
+  }
+
+  // Clean up announcedJoins (older than 2 hours)
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  for (const [key, timestamp] of announcedJoins.entries()) {
+    if (now - timestamp > TWO_HOURS) {
+      announcedJoins.delete(key);
+      cleanedCount++;
+    }
+  }
+
+  if (cleanedCount > 0) {
+    console.log(`🧹 Memory cleanup: removed ${cleanedCount} old broadcast tracking entries`);
+  }
+}, 60000); // Run every 1 minute
+
+console.log('✅ Periodic memory cleanup scheduled (runs every minute)');
 
 // Periodic cleanup job for inactive users (8-hour timeout)
 const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
