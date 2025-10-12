@@ -27,7 +27,7 @@ Preferred communication style: Simple, everyday language.
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing. Features anti-flood rate limiting and no message history persistence.
 - **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration.
-- **Red Packet System**: WeChat-style virtual red envelopes with random credit distribution, UI modal for sending, falling envelope animation for claiming, auto-expiry, and real-time socket events.
+- **Red Packet System**: WeChat-style virtual red envelopes with random credit distribution, UI modal for sending, falling envelope animation for claiming, auto-expiry with transaction-based refund locking (October 2025), and real-time socket events. Uses Fisher-Yates shuffle for fair distribution (October 2025).
 - **Gaming Integration**: LowCard bot game, SicboBot, and BaccaratBot with database persistence and multi-player support.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, responding only in private chats.
 - **Credit System**: Virtual currency with transactions and transfers, protected by PostgreSQL row-level locking to prevent race conditions.
@@ -56,7 +56,7 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: Applied to sensitive operations.
 - **PIN Security**: Mandatory PIN for credit transfers.
 - **Code Protection**: Hermes engine, ProGuard/R8, auto-backup disabled.
-- **Race Condition Protection**: All credit operations use PostgreSQL row-level locking (SELECT...FOR UPDATE) with explicit transactions to prevent negative balances.
+- **Race Condition Protection**: All credit operations use PostgreSQL row-level locking (SELECT...FOR UPDATE) with explicit transactions to prevent negative balances. Red packet expiry refunds protected against duplicate credit race conditions (October 2025).
 
 ## Process Management & Stability
 - **PM2 Configuration**: Dual-process setup for API server (cluster mode) and Gateway (fork mode for Socket.IO) with auto-restart, memory limits, and centralized logging.
