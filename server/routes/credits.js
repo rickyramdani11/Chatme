@@ -348,6 +348,42 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
 
       await pool.query('COMMIT');
 
+      // AUTO-DETECT: Check if this transfer should count as merchant top up
+      // (Mentor transfers to merchant they promoted = merchant top up)
+      try {
+        const senderRole = userRole; // from earlier query
+        
+        if (senderRole === 'mentor') {
+          // Check if receiver is a merchant promoted by this mentor
+          const merchantCheck = await pool.query(
+            'SELECT user_id, monthly_topup FROM merchant_promotions WHERE user_id = $1 AND promoted_by = $2 AND status = $3',
+            [toUserId, fromUserId, 'active']
+          );
+          
+          if (merchantCheck.rows.length > 0) {
+            // This is a merchant top up! Record it
+            const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
+            
+            await pool.query(`
+              INSERT INTO merchant_topups (merchant_id, mentor_id, amount, description, month_year)
+              VALUES ($1, $2, $3, $4, $5)
+            `, [toUserId, fromUserId, amount, 'Mentor top up to merchant', monthYear]);
+            
+            // Update monthly topup tracking
+            await pool.query(`
+              UPDATE merchant_promotions 
+              SET monthly_topup = COALESCE(monthly_topup, 0) + $1 
+              WHERE user_id = $2
+            `, [amount, toUserId]);
+            
+            console.log(`✅ Auto-detected merchant top up: Mentor ${fromUserId} → Merchant ${toUserId} (${amount} coins)`);
+          }
+        }
+      } catch (topupError) {
+        console.error('Error auto-detecting merchant topup:', topupError);
+        // Don't fail the transfer if topup detection fails
+      }
+
       // Create notification for credit transfer
       const senderUsername = req.user.username;
       const notification = await notificationRouter.sendNotification(
@@ -522,138 +558,26 @@ router.post('/call-finalize', authenticateToken, async (req, res) => {
   }
 });
 
-// Merchant top up to mentor (800k/month requirement)
-router.post('/merchant/topup', authenticateToken, rateLimit(10, 60000), async (req, res) => {
+// ADMIN: Top up to mentor (mentor RECEIVES from system)
+// System transfers coins to mentor, counts as mentor monthly top up (7M/month requirement)
+router.post('/admin/topup-mentor', authenticateToken, rateLimit(10, 60000), async (req, res) => {
   try {
-    const merchantId = req.user.id;
-    const { amount, pin } = req.body;
+    const adminId = req.user.id;
+    const { mentorId, amount } = req.body;
 
-    if (!amount || !pin) {
-      return res.status(400).json({ error: 'Amount and PIN required' });
+    if (!mentorId || !amount) {
+      return res.status(400).json({ error: 'Mentor ID and amount required' });
     }
 
     if (amount <= 0) {
       return res.status(400).json({ error: 'Amount must be positive' });
     }
 
-    await pool.query('BEGIN');
-
-    try {
-      // Verify merchant status
-      const merchantCheck = await pool.query(
-        'SELECT u.pin, u.role, mp.mentor_id FROM users u LEFT JOIN merchant_promotions mp ON u.id = mp.user_id WHERE u.id = $1',
-        [merchantId]
-      );
-
-      if (merchantCheck.rows.length === 0) {
-        await pool.query('ROLLBACK');
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      const { pin: userPin, role, mentor_id } = merchantCheck.rows[0];
-
-      if (role !== 'merchant') {
-        await pool.query('ROLLBACK');
-        return res.status(403).json({ error: 'Only merchants can use this endpoint' });
-      }
-
-      if (!mentor_id) {
-        await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'No mentor assigned. Contact admin.' });
-      }
-
-      if (!userPin) {
-        await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'PIN not set. Set PIN in profile first.' });
-      }
-
-      if (pin !== userPin) {
-        await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'Invalid PIN' });
-      }
-
-      // Check balance
-      const balanceCheck = await pool.query(
-        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
-        [merchantId]
-      );
-
-      if (balanceCheck.rows.length === 0 || balanceCheck.rows[0].balance < amount) {
-        await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'Insufficient balance' });
-      }
-
-      // Deduct from merchant
-      await pool.query(
-        'UPDATE user_credits SET balance = balance - $1, updated_at = NOW() WHERE user_id = $2',
-        [amount, merchantId]
-      );
-
-      // Add to mentor
-      const mentorCreditCheck = await pool.query(
-        'SELECT user_id FROM user_credits WHERE user_id = $1',
-        [mentor_id]
-      );
-
-      if (mentorCreditCheck.rows.length === 0) {
-        await pool.query(
-          'INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)',
-          [mentor_id, amount]
-        );
-      } else {
-        await pool.query(
-          'UPDATE user_credits SET balance = balance + $1, updated_at = NOW() WHERE user_id = $2',
-          [amount, mentor_id]
-        );
-      }
-
-      // Record topup
-      const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
-      await pool.query(`
-        INSERT INTO merchant_topups (merchant_id, mentor_id, amount, description, month_year)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [merchantId, mentor_id, amount, 'Merchant top up to mentor', monthYear]);
-
-      // Update monthly topup tracking
-      await pool.query(`
-        UPDATE merchant_promotions 
-        SET monthly_topup = monthly_topup + $1 
-        WHERE user_id = $2
-      `, [amount, merchantId]);
-
-      await pool.query('COMMIT');
-
-      console.log(`💰 Merchant ${merchantId} topped up ${amount} to mentor ${mentor_id}`);
-
-      res.json({ 
-        success: true, 
-        message: `Top up ${amount} coins successful`,
-        monthlyProgress: await getMerchantTopupProgress(merchantId)
-      });
-
-    } catch (error) {
-      await pool.query('ROLLBACK');
-      throw error;
-    }
-
-  } catch (error) {
-    console.error('Error in merchant topup:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Mentor top up to system (7M/month requirement)
-router.post('/mentor/topup', authenticateToken, rateLimit(10, 60000), async (req, res) => {
-  try {
-    const mentorId = req.user.id;
-    const { amount, pin } = req.body;
-
-    if (!amount || !pin) {
-      return res.status(400).json({ error: 'Amount and PIN required' });
-    }
-
-    if (amount <= 0) {
-      return res.status(400).json({ error: 'Amount must be positive' });
+    // Verify admin role
+    const adminCheck = await pool.query('SELECT role FROM users WHERE id = $1', [adminId]);
+    
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can top up mentors' });
     }
 
     await pool.query('BEGIN');
@@ -661,70 +585,65 @@ router.post('/mentor/topup', authenticateToken, rateLimit(10, 60000), async (req
     try {
       // Verify mentor status
       const mentorCheck = await pool.query(
-        'SELECT u.pin, u.role FROM users u WHERE u.id = $1',
+        'SELECT u.role FROM users u WHERE u.id = $1',
         [mentorId]
       );
 
       if (mentorCheck.rows.length === 0) {
         await pool.query('ROLLBACK');
-        return res.status(404).json({ error: 'User not found' });
+        return res.status(404).json({ error: 'Mentor not found' });
       }
 
-      const { pin: userPin, role } = mentorCheck.rows[0];
-
-      if (role !== 'mentor') {
+      if (mentorCheck.rows[0].role !== 'mentor') {
         await pool.query('ROLLBACK');
-        return res.status(403).json({ error: 'Only mentors can use this endpoint' });
+        return res.status(400).json({ error: 'User is not a mentor' });
       }
 
-      if (!userPin) {
-        await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'PIN not set. Set PIN in profile first.' });
-      }
-
-      if (pin !== userPin) {
-        await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'Invalid PIN' });
-      }
-
-      // Check balance
-      const balanceCheck = await pool.query(
-        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+      // Add to mentor balance (mentor RECEIVES from system)
+      const mentorCreditCheck = await pool.query(
+        'SELECT user_id FROM user_credits WHERE user_id = $1 FOR UPDATE',
         [mentorId]
       );
 
-      if (balanceCheck.rows.length === 0 || balanceCheck.rows[0].balance < amount) {
-        await pool.query('ROLLBACK');
-        return res.status(400).json({ error: 'Insufficient balance' });
+      if (mentorCreditCheck.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)',
+          [mentorId, amount]
+        );
+      } else {
+        await pool.query(
+          'UPDATE user_credits SET balance = balance + $1, updated_at = NOW() WHERE user_id = $2',
+          [amount, mentorId]
+        );
       }
 
-      // Deduct from mentor (this goes to system, no recipient)
-      await pool.query(
-        'UPDATE user_credits SET balance = balance - $1, updated_at = NOW() WHERE user_id = $2',
-        [amount, mentorId]
-      );
-
-      // Record topup
+      // Record topup from system to mentor
       const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
       await pool.query(`
         INSERT INTO mentor_topups (mentor_id, amount, description, month_year)
         VALUES ($1, $2, $3, $4)
-      `, [mentorId, amount, 'Mentor top up to system', monthYear]);
+      `, [mentorId, amount, 'System top up to mentor', monthYear]);
 
       // Update monthly topup tracking
       await pool.query(`
         UPDATE mentor_promotions 
-        SET monthly_topup = monthly_topup + $1 
+        SET monthly_topup = COALESCE(monthly_topup, 0) + $1 
         WHERE user_id = $2
       `, [amount, mentorId]);
 
+      // Record credit transaction for history
+      await pool.query(`
+        INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
+        VALUES ($1, $2, $3, 'admin_topup', $4)
+      `, [adminId, mentorId, amount, `System top up ${amount} coins to mentor`]);
+
       await pool.query('COMMIT');
 
-      console.log(`💰 Mentor ${mentorId} topped up ${amount} to system`);
+      console.log(`💰 Admin ${adminId} topped up ${amount} to mentor ${mentorId} (mentor RECEIVES)`);
 
       res.json({ 
         success: true, 
-        message: `Top up ${amount} coins successful`,
+        message: `Successfully topped up ${amount} coins to mentor`,
         monthlyProgress: await getMentorTopupProgress(mentorId)
       });
 
@@ -734,7 +653,7 @@ router.post('/mentor/topup', authenticateToken, rateLimit(10, 60000), async (req
     }
 
   } catch (error) {
-    console.error('Error in mentor topup:', error);
+    console.error('Error in admin mentor topup:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
