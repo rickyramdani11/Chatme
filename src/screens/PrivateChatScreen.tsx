@@ -1410,12 +1410,13 @@ export default function PrivateChatScreen() {
           </View>
 
           <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
+            {/* Video and Audio call icons temporarily hidden */}
+            {/* <TouchableOpacity style={styles.headerIcon} onPress={handleVideoCall}>
               <Ionicons name="videocam-outline" size={24} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerIcon} onPress={handleAudioCall}>
               <Ionicons name="call-outline" size={24} color="#fff" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             {/* Debug test gift button - Remove in production */}
             <TouchableOpacity
               style={styles.headerIcon}

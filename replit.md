@@ -70,6 +70,8 @@ Preferred communication style: Simple, everyday language.
 - **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
 - **Room Management UX**: Increased modal height, participant picker for moderator selection, owner-only moderator adding, functional unban, and smart filtering.
 - **Call UI Enhancement**: Video/audio call icons hidden during active calls.
+- **Private Chat UI**: Video call and audio call icons temporarily hidden from PrivateChatScreen header (October 2025).
+- **HomeScreen**: Removed fake active users counter that displayed random numbers instead of real data (October 2025).
 
 # External Dependencies
 
