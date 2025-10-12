@@ -5743,6 +5743,8 @@ export default function ChatScreen() {
                     autoPlay
                     loop={false}
                     style={styles.fullScreenLottie}
+                    renderMode="AUTOMATIC"
+                    hardwareAccelerationAndroid
                     onAnimationFinish={() => {
                       setTimeout(() => {
                         Animated.parallel([
