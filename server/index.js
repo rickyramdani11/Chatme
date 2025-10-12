@@ -2625,15 +2625,27 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
     const user = userResult.rows[0];
 
+    // Clean up old attempts (older than 15 minutes)
+    await pool.query(
+      'DELETE FROM forgot_password_attempts WHERE attempted_at < NOW() - INTERVAL \'15 minutes\'',
+      []
+    );
+
     // Check for recent OTP attempts (rate limiting: max 3 requests per 15 minutes)
     const recentAttempts = await pool.query(
-      'SELECT COUNT(*) as count FROM password_resets WHERE user_id = $1 AND created_at > NOW() - INTERVAL \'15 minutes\'',
+      'SELECT COUNT(*) as count FROM forgot_password_attempts WHERE user_id = $1 AND attempted_at > NOW() - INTERVAL \'15 minutes\'',
       [user.id]
     );
 
     if (parseInt(recentAttempts.rows[0].count) >= 3) {
       return res.status(429).json({ error: 'Too many requests. Please try again in 15 minutes.' });
     }
+
+    // Record this attempt
+    await pool.query(
+      'INSERT INTO forgot_password_attempts (user_id, attempted_at) VALUES ($1, CURRENT_TIMESTAMP)',
+      [user.id]
+    );
 
     // Generate 6-digit OTP code using crypto-secure random
     const crypto = require('crypto');
@@ -2731,9 +2743,23 @@ app.post('/api/auth/reset-password-with-otp', async (req, res) => {
     return res.status(400).json({ error: 'Email, OTP, and new password are required' });
   }
 
-  // Validate password strength
+  // Validate password strength (same rules as registration)
   if (newPassword.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+  
+  if (newPassword.length > 12) {
+    return res.status(400).json({ error: 'Password must be no more than 12 characters long' });
+  }
+  
+  // Check for at least one letter
+  const hasLetter = /[a-zA-Z]/.test(newPassword);
+  
+  // Check for at least one number
+  const hasNumber = /[0-9]/.test(newPassword);
+  
+  if (!hasLetter || !hasNumber) {
+    return res.status(400).json({ error: 'Password must contain both letters and numbers' });
   }
 
   try {
