@@ -522,4 +522,288 @@ router.post('/call-finalize', authenticateToken, async (req, res) => {
   }
 });
 
+// Merchant top up to mentor (800k/month requirement)
+router.post('/merchant/topup', authenticateToken, rateLimit(10, 60000), async (req, res) => {
+  try {
+    const merchantId = req.user.id;
+    const { amount, pin } = req.body;
+
+    if (!amount || !pin) {
+      return res.status(400).json({ error: 'Amount and PIN required' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be positive' });
+    }
+
+    await pool.query('BEGIN');
+
+    try {
+      // Verify merchant status
+      const merchantCheck = await pool.query(
+        'SELECT u.pin, u.role, mp.mentor_id FROM users u LEFT JOIN merchant_promotions mp ON u.id = mp.user_id WHERE u.id = $1',
+        [merchantId]
+      );
+
+      if (merchantCheck.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const { pin: userPin, role, mentor_id } = merchantCheck.rows[0];
+
+      if (role !== 'merchant') {
+        await pool.query('ROLLBACK');
+        return res.status(403).json({ error: 'Only merchants can use this endpoint' });
+      }
+
+      if (!mentor_id) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'No mentor assigned. Contact admin.' });
+      }
+
+      if (!userPin) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'PIN not set. Set PIN in profile first.' });
+      }
+
+      if (pin !== userPin) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invalid PIN' });
+      }
+
+      // Check balance
+      const balanceCheck = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+        [merchantId]
+      );
+
+      if (balanceCheck.rows.length === 0 || balanceCheck.rows[0].balance < amount) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient balance' });
+      }
+
+      // Deduct from merchant
+      await pool.query(
+        'UPDATE user_credits SET balance = balance - $1, updated_at = NOW() WHERE user_id = $2',
+        [amount, merchantId]
+      );
+
+      // Add to mentor
+      const mentorCreditCheck = await pool.query(
+        'SELECT user_id FROM user_credits WHERE user_id = $1',
+        [mentor_id]
+      );
+
+      if (mentorCreditCheck.rows.length === 0) {
+        await pool.query(
+          'INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)',
+          [mentor_id, amount]
+        );
+      } else {
+        await pool.query(
+          'UPDATE user_credits SET balance = balance + $1, updated_at = NOW() WHERE user_id = $2',
+          [amount, mentor_id]
+        );
+      }
+
+      // Record topup
+      const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
+      await pool.query(`
+        INSERT INTO merchant_topups (merchant_id, mentor_id, amount, description, month_year)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [merchantId, mentor_id, amount, 'Merchant top up to mentor', monthYear]);
+
+      // Update monthly topup tracking
+      await pool.query(`
+        UPDATE merchant_promotions 
+        SET monthly_topup = monthly_topup + $1 
+        WHERE user_id = $2
+      `, [amount, merchantId]);
+
+      await pool.query('COMMIT');
+
+      console.log(`💰 Merchant ${merchantId} topped up ${amount} to mentor ${mentor_id}`);
+
+      res.json({ 
+        success: true, 
+        message: `Top up ${amount} coins successful`,
+        monthlyProgress: await getMerchantTopupProgress(merchantId)
+      });
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error in merchant topup:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Mentor top up to system (7M/month requirement)
+router.post('/mentor/topup', authenticateToken, rateLimit(10, 60000), async (req, res) => {
+  try {
+    const mentorId = req.user.id;
+    const { amount, pin } = req.body;
+
+    if (!amount || !pin) {
+      return res.status(400).json({ error: 'Amount and PIN required' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be positive' });
+    }
+
+    await pool.query('BEGIN');
+
+    try {
+      // Verify mentor status
+      const mentorCheck = await pool.query(
+        'SELECT u.pin, u.role FROM users u WHERE u.id = $1',
+        [mentorId]
+      );
+
+      if (mentorCheck.rows.length === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const { pin: userPin, role } = mentorCheck.rows[0];
+
+      if (role !== 'mentor') {
+        await pool.query('ROLLBACK');
+        return res.status(403).json({ error: 'Only mentors can use this endpoint' });
+      }
+
+      if (!userPin) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'PIN not set. Set PIN in profile first.' });
+      }
+
+      if (pin !== userPin) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Invalid PIN' });
+      }
+
+      // Check balance
+      const balanceCheck = await pool.query(
+        'SELECT balance FROM user_credits WHERE user_id = $1 FOR UPDATE',
+        [mentorId]
+      );
+
+      if (balanceCheck.rows.length === 0 || balanceCheck.rows[0].balance < amount) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ error: 'Insufficient balance' });
+      }
+
+      // Deduct from mentor (this goes to system, no recipient)
+      await pool.query(
+        'UPDATE user_credits SET balance = balance - $1, updated_at = NOW() WHERE user_id = $2',
+        [amount, mentorId]
+      );
+
+      // Record topup
+      const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
+      await pool.query(`
+        INSERT INTO mentor_topups (mentor_id, amount, description, month_year)
+        VALUES ($1, $2, $3, $4)
+      `, [mentorId, amount, 'Mentor top up to system', monthYear]);
+
+      // Update monthly topup tracking
+      await pool.query(`
+        UPDATE mentor_promotions 
+        SET monthly_topup = monthly_topup + $1 
+        WHERE user_id = $2
+      `, [amount, mentorId]);
+
+      await pool.query('COMMIT');
+
+      console.log(`💰 Mentor ${mentorId} topped up ${amount} to system`);
+
+      res.json({ 
+        success: true, 
+        message: `Top up ${amount} coins successful`,
+        monthlyProgress: await getMentorTopupProgress(mentorId)
+      });
+
+    } catch (error) {
+      await pool.query('ROLLBACK');
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('Error in mentor topup:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get merchant topup progress
+async function getMerchantTopupProgress(merchantId) {
+  const result = await pool.query(
+    'SELECT monthly_topup, topup_requirement FROM merchant_promotions WHERE user_id = $1',
+    [merchantId]
+  );
+  
+  if (result.rows.length > 0) {
+    const { monthly_topup, topup_requirement } = result.rows[0];
+    return {
+      current: monthly_topup || 0,
+      required: topup_requirement || 800000,
+      percentage: Math.min(100, Math.floor(((monthly_topup || 0) / (topup_requirement || 800000)) * 100))
+    };
+  }
+  
+  return { current: 0, required: 800000, percentage: 0 };
+}
+
+// Get mentor topup progress
+async function getMentorTopupProgress(mentorId) {
+  const result = await pool.query(
+    'SELECT monthly_topup, topup_requirement FROM mentor_promotions WHERE user_id = $1',
+    [mentorId]
+  );
+  
+  if (result.rows.length > 0) {
+    const { monthly_topup, topup_requirement } = result.rows[0];
+    return {
+      current: monthly_topup || 0,
+      required: topup_requirement || 7000000,
+      percentage: Math.min(100, Math.floor(((monthly_topup || 0) / (topup_requirement || 7000000)) * 100))
+    };
+  }
+  
+  return { current: 0, required: 7000000, percentage: 0 };
+}
+
+// Get topup status endpoint
+router.get('/topup/status', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const userCheck = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const role = userCheck.rows[0].role;
+    
+    if (role === 'merchant') {
+      const progress = await getMerchantTopupProgress(userId);
+      return res.json({ role: 'merchant', progress });
+    } else if (role === 'mentor') {
+      const progress = await getMentorTopupProgress(userId);
+      return res.json({ role: 'mentor', progress });
+    } else {
+      return res.status(403).json({ error: 'Only merchants and mentors have topup requirements' });
+    }
+    
+  } catch (error) {
+    console.error('Error getting topup status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
