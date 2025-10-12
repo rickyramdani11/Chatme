@@ -4418,9 +4418,18 @@ export default function ChatScreen() {
             if (gift.animation.startsWith('http://') || gift.animation.startsWith('https://')) {
               mappedGift.animation = { uri: gift.animation };
               mappedGift.videoSource = { uri: gift.animation };
+            } else if (gift.animation.includes('hearts-feedback.json')) {
+              // Local Lottie file - use require()
+              mappedGift.animation = require('../../assets/lottie/hearts-feedback.json');
+              mappedGift.mediaType = 'lottie';
             } else {
               mappedGift.videoUrl = gift.animation;
             }
+          }
+          
+          // Set mediaType from gift.mediaType if available
+          if (gift.mediaType) {
+            mappedGift.mediaType = gift.mediaType;
           }
 
           return mappedGift;
@@ -5455,9 +5464,16 @@ export default function ChatScreen() {
                           );
                           
                           if (isLottie) {
+                            // For local Lottie files, use the source directly if it's a require() object
+                            // For remote URLs, wrap in { uri: ... }
+                            let lottieSource = animSource;
+                            if (typeof animSource === 'string' && animSource.startsWith('http')) {
+                              lottieSource = { uri: animSource };
+                            }
+                            
                             return (
                               <LottieView
-                                source={animSource}
+                                source={lottieSource}
                                 autoPlay
                                 loop
                                 style={styles.giftImage}
