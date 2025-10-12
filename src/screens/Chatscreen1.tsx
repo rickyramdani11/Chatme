@@ -131,11 +131,11 @@ interface Message {
   id: string;
   sender: string;
   content: string;
-  timestamp: Date;
+  timestamp: Date | string;
   roomId: string;
-  role?: 'user' | 'merchant' | 'mentor' | 'admin' | 'system';
+  role?: 'user' | 'merchant' | 'mentor' | 'admin' | 'system' | string;
   level?: number;
-  type?: 'join' | 'leave' | 'message' | 'command' | 'me' | 'room_info' | 'report' | 'ban' | 'kick' | 'lock' | 'support' | 'gift' | 'error' | 'system';
+  type?: 'join' | 'leave' | 'message' | 'command' | 'me' | 'room_info' | 'report' | 'ban' | 'kick' | 'lock' | 'support' | 'gift' | 'error' | 'system' | 'broadcast' | string;
   commandType?: 'system' | 'bot';
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
   image?: string;
@@ -805,11 +805,11 @@ export default function ChatScreen() {
       }
 
       // Start with empty messages - no message history loaded
-      let messages = [];
+      let messages: any[] = [];
       console.log('Starting fresh chat session with no message history');
 
       // Get room data to get correct managedBy info
-        let roomData = null;
+        let roomData: any = null;
         if (type !== 'private' && !isSupport) {
           try {
             // Add timestamp to force fresh request and bypass cache
@@ -1004,7 +1004,7 @@ export default function ChatScreen() {
 
   // Initialize socket with persistent connection and auto-reconnect
   useEffect(() => {
-    const setupSocketListeners = (socketInstance) => {
+    const setupSocketListeners = (socketInstance: Socket) => {
       // If listeners are already set up for this socket, skip setup to prevent duplicates
       if (listenersSetupRef.current) {
         console.log('Listeners already set up, skipping duplicate setup');
@@ -1456,7 +1456,7 @@ export default function ChatScreen() {
 
       // Listen for admin joined support chat
       socketInstance.off('admin-joined');
-      socketInstance.on('admin-joined', (data) => {
+      socketInstance.on('admin-joined', (data: any) => {
         console.log('Admin joined support chat:', data);
         const adminMessage: Message = {
           id: `admin_join_${Date.now()}`,
@@ -1516,7 +1516,7 @@ export default function ChatScreen() {
 
       // Listen for incoming calls
       socketInstance.off('incoming-call');
-      socketInstance.on('incoming-call', (callData) => {
+      socketInstance.on('incoming-call', (callData: any) => {
         console.log('📞 Received incoming call:', callData);
         console.log('📞 Caller details - ID:', callData.callerId, 'Name:', callData.callerName, 'Type:', callData.callType);
         setIncomingCallData(callData);
@@ -1525,7 +1525,7 @@ export default function ChatScreen() {
 
       // Listen for call responses
       socketInstance.off('call-response-received');
-      socketInstance.on('call-response-received', (responseData) => {
+      socketInstance.on('call-response-received', (responseData: any) => {
         console.log('Call response received:', responseData);
         setCallRinging(false);
         
@@ -1553,7 +1553,7 @@ export default function ChatScreen() {
 
       // Listen for call initiated confirmation
       socketInstance.off('call-initiated');
-      socketInstance.on('call-initiated', (confirmData) => {
+      socketInstance.on('call-initiated', (confirmData: any) => {
         console.log('Call initiated:', confirmData);
         Alert.alert(
           'Calling...',
@@ -1576,7 +1576,7 @@ export default function ChatScreen() {
 
       // Listen for call errors
       socketInstance.off('call-error');
-      socketInstance.on('call-error', (errorData) => {
+      socketInstance.on('call-error', (errorData: any) => {
         console.log('Call error:', errorData);
         setCallRinging(false);
         Alert.alert('Call Error', errorData.error);
@@ -1584,7 +1584,7 @@ export default function ChatScreen() {
 
       // Listen for call ended
       socketInstance.off('call-ended');
-      socketInstance.on('call-ended', (endData) => {
+      socketInstance.on('call-ended', (endData: any) => {
         console.log('Call ended:', endData);
         setCallRinging(false);
         setShowCallModal(false);
@@ -1595,13 +1595,13 @@ export default function ChatScreen() {
 
       // Red Packet Listeners
       socketInstance.off('red-packet-dropped');
-      socketInstance.on('red-packet-dropped', (data) => {
+      socketInstance.on('red-packet-dropped', (data: any) => {
         console.log('🧧 Red packet dropped:', data);
         setRedPacketData(data.packet);
       });
 
       socketInstance.off('red-packet-update');
-      socketInstance.on('red-packet-update', (data) => {
+      socketInstance.on('red-packet-update', (data: any) => {
         console.log('🧧 Red packet update:', data);
         if (redPacketData && redPacketData.id === data.packetId) {
           setRedPacketData({
@@ -1643,7 +1643,7 @@ export default function ChatScreen() {
       });
 
       socketInstance.off('red-packet-completed');
-      socketInstance.on('red-packet-completed', (data) => {
+      socketInstance.on('red-packet-completed', (data: any) => {
         console.log('🧧 Red packet completed:', data);
         if (redPacketData && redPacketData.id === data.packetId) {
           setRedPacketData(null); // Remove from display
@@ -1651,7 +1651,7 @@ export default function ChatScreen() {
       });
 
       socketInstance.off('red-packet-claimed-success');
-      socketInstance.on('red-packet-claimed-success', (data) => {
+      socketInstance.on('red-packet-claimed-success', (data: any) => {
         console.log('🧧 Red packet claimed successfully:', data);
         // Update claimed packets list
         setClaimedPackets(prev => [...prev, data.packetId]);
@@ -1663,13 +1663,13 @@ export default function ChatScreen() {
       });
 
       socketInstance.off('red-packet-claimed-error');
-      socketInstance.on('red-packet-claimed-error', (data) => {
+      socketInstance.on('red-packet-claimed-error', (data: any) => {
         console.log('🧧 Red packet claim error:', data);
         Alert.alert('Error', data.message);
       });
 
       socketInstance.off('red-packet-created');
-      socketInstance.on('red-packet-created', (data) => {
+      socketInstance.on('red-packet-created', (data: any) => {
         console.log('🧧 Red packet created response:', data);
         if (!data.success) {
           Alert.alert('Error', data.message || 'Failed to create red packet');
