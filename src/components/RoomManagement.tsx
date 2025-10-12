@@ -154,6 +154,16 @@ export default function RoomManagement({
         Alert.alert('Success', `${username} has been added as moderator`);
         setShowParticipantPicker(false);
         loadModerators();
+
+        // Broadcast notification to room chat
+        if (socket) {
+          socket.emit('send-message', {
+            roomId: roomId,
+            message: `${username} has moderator in room ${roomName}`,
+            username: 'System',
+            isSystemMessage: true
+          });
+        }
       } else {
         const error = await response.json();
         Alert.alert('Error', error.error || 'Failed to add moderator');
