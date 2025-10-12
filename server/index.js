@@ -590,102 +590,12 @@ pool.connect(async (err, client, release) => {
 });
 
 // =====================================================
-// MERCHANT REVENUE TRACKING HELPER FUNCTIONS
+// MERCHANT/MENTOR TOP UP SYSTEM (Monthly Requirement)
 // =====================================================
-
-// Track revenue for merchant from promoted user receiving gifts
-// When a user receives a gift, check if they were promoted by a merchant
-// If yes, the merchant gets 100% of the gift value as revenue
-async function trackMerchantRevenue(userId, totalGiftAmount, senderUsername, giftName) {
-  const client = await pool.connect();
-  
-  try {
-    // Get current month-year format
-    const now = new Date();
-    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    
-    // Check if this user was promoted by a merchant
-    const mentorCheck = await client.query(`
-      SELECT mp.*, u.username as merchant_username, u.role
-      FROM mentor_promotions mp
-      JOIN users u ON mp.promoted_by = u.id
-      WHERE mp.user_id = $1 AND mp.status = 'active' AND u.role = 'merchant'
-    `, [userId]);
-    
-    if (mentorCheck.rows.length === 0) {
-      console.log(`User ${userId} was not promoted by any merchant, skipping revenue tracking`);
-      return false;
-    }
-    
-    const promotion = mentorCheck.rows[0];
-    const merchantId = promotion.promoted_by;
-    const merchantUsername = promotion.merchant_username;
-    
-    // Get merchant promotion details for revenue tracking
-    const merchantPromotion = await client.query(`
-      SELECT id FROM merchant_promotions 
-      WHERE user_id = $1 AND status = 'active'
-    `, [merchantId]);
-    
-    if (merchantPromotion.rows.length === 0) {
-      console.log(`Merchant ${merchantId} promotion not found or inactive`);
-      return false;
-    }
-    
-    const merchantPromotionId = merchantPromotion.rows[0].id;
-    
-    // CRITICAL: Use transaction with FOR UPDATE lock to prevent race conditions
-    await client.query('BEGIN');
-    
-    try {
-      // Lock the merchant_promotions row to prevent concurrent updates
-      await client.query(`
-        SELECT monthly_revenue FROM merchant_promotions 
-        WHERE id = $1 FOR UPDATE
-      `, [merchantPromotionId]);
-      
-      // Add revenue to merchant's gift earnings balance (for withdrawal)
-      await client.query(`
-        INSERT INTO user_gift_earnings_balance (user_id, balance, total_earned)
-        VALUES ($1, $2, $2)
-        ON CONFLICT (user_id) 
-        DO UPDATE SET 
-          balance = user_gift_earnings_balance.balance + $2,
-          total_earned = user_gift_earnings_balance.total_earned + $2,
-          updated_at = CURRENT_TIMESTAMP
-      `, [merchantId, totalGiftAmount]);
-      
-      // Insert revenue tracking record
-      await client.query(`
-        INSERT INTO merchant_revenue_tracking 
-        (merchant_id, amount, source, source_user_id, description, month_year)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [merchantId, totalGiftAmount, 'promoted_user_gift', userId, `Gift from ${senderUsername} to promoted user (${giftName})`, monthYear]);
-      
-      // Update monthly revenue in merchant_promotions for recas tracking
-      await client.query(`
-        UPDATE merchant_promotions 
-        SET monthly_revenue = monthly_revenue + $1,
-            last_revenue_check = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `, [totalGiftAmount, merchantPromotionId]);
-      
-      await client.query('COMMIT');
-      
-      console.log(`✅ Merchant ${merchantUsername} (ID: ${merchantId}) earned ${totalGiftAmount} coins from promoted user ${userId} gift`);
-      return true;
-    } catch (txError) {
-      await client.query('ROLLBACK');
-      console.error('Transaction error in trackMerchantRevenue:', txError);
-      throw txError;
-    }
-  } catch (error) {
-    console.error('Error tracking merchant revenue:', error);
-    return false;
-  } finally {
-    client.release();
-  }
-}
+// - Merchant must top up 800k/month to their mentor
+// - Mentor must top up 7 million/month to system
+// - Top ups can be done in installments
+// - Failure to meet monthly target results in downgrade/badge loss
 
 // Check and reset monthly revenue if new month
 async function checkAndResetMonthlyRevenue() {
@@ -3738,9 +3648,6 @@ app.post('/api/gift/purchase', authenticateToken, async (req, res) => {
         INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type)
         VALUES ($1, $2, $3, 'gift_purchase')
       `, [userId, recipientId, giftPrice]);
-
-      // Track merchant revenue if recipient was promoted by a merchant
-      await trackMerchantRevenue(recipientId, giftPrice, senderUsername, giftName);
 
       await pool.query('COMMIT');
 
@@ -7193,9 +7100,6 @@ app.post('/api/gifts/purchase', authenticateToken, async (req, res) => {
           total_earned = user_gift_earnings_balance.total_earned + EXCLUDED.balance,
           updated_at = CURRENT_TIMESTAMP
       `, [recipientUserId, recipientShare]);
-
-      // Track merchant revenue if recipient was promoted by a merchant
-      await trackMerchantRevenue(recipientUserId, giftPrice, senderUsername, giftName);
 
       await client.query('COMMIT');
 
