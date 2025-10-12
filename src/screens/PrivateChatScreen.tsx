@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   Keyboard,
   Platform,
-  Image,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   AppState,
@@ -24,6 +23,8 @@ import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
+import { Image } from 'expo-image';
+import LottieView from 'lottie-react-native';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -1703,35 +1704,94 @@ export default function PrivateChatScreen() {
                   <Ionicons name="close" size={24} color="#666" />
                 </TouchableOpacity>
               </View>
-              <ScrollView style={styles.giftScrollContent}>
-                <View style={styles.giftGrid}>
-                  {giftList.map((gift, index) => (
+              
+              <FlatList
+                data={giftList}
+                renderItem={({ item: gift, index }) => (
+                  <View style={styles.newGiftItemContainer}>
                     <TouchableOpacity
-                      key={index}
-                      style={styles.giftItem}
+                      style={styles.newGiftItem}
                       onPress={() => handleGiftSelect(gift)}
                     >
-                      {(gift.mediaUrl || gift.image || gift.imageUrl) ? (
-                        <Image 
-                          source={
-                            gift.mediaUrl 
-                              ? (typeof gift.mediaUrl === 'string' ? { uri: gift.mediaUrl } : gift.mediaUrl)
-                              : gift.image 
-                                ? (typeof gift.image === 'string' ? { uri: gift.image } : gift.image)
-                                : { uri: gift.imageUrl }
-                          } 
-                          style={styles.giftImage}
-                          resizeMode="contain"
-                        />
-                      ) : (
-                        <Text style={styles.giftEmoji}>{gift.icon || '🎁'}</Text>
-                      )}
-                      <Text style={styles.giftName}>{gift.name}</Text>
-                      <Text style={styles.giftPrice}>{gift.price} coins</Text>
+                      <View style={styles.newGiftIconContainer}>
+                        {gift.image || gift.imageUrl ? (
+                          <Image 
+                            source={gift.image || { uri: gift.imageUrl }} 
+                            style={styles.giftImage} 
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
+                          />
+                        ) : gift.animation || gift.videoUrl ? (
+                          (() => {
+                            const animSource = gift.animation || { uri: gift.videoUrl };
+                            const animStr = gift.animation?.uri || gift.videoUrl || (typeof gift.animation === 'string' ? gift.animation : '');
+                            
+                            const isLottie = gift.mediaType === 'lottie' || (
+                              animStr && 
+                              (animStr.toLowerCase().includes('.json') || 
+                               animStr.toLowerCase().includes('lottie'))
+                            );
+                            
+                            const isVideo = gift.mediaType === 'video' || (
+                              animStr && 
+                              (animStr.toLowerCase().includes('.mp4') || 
+                               animStr.toLowerCase().includes('.webm') || 
+                               animStr.toLowerCase().includes('.mov'))
+                            );
+                            
+                            if (isLottie) {
+                              return (
+                                <LottieView
+                                  source={animSource}
+                                  autoPlay
+                                  loop
+                                  style={styles.giftImage}
+                                />
+                              );
+                            } else if (isVideo) {
+                              return (
+                                <Video
+                                  source={animSource}
+                                  style={styles.giftImage}
+                                  resizeMode={'contain' as any}
+                                  shouldPlay={false}
+                                  isLooping={false}
+                                  isMuted={true}
+                                />
+                              );
+                            } else {
+                              return (
+                                <Image 
+                                  source={animSource} 
+                                  style={styles.giftImage} 
+                                  contentFit="contain"
+                                  cachePolicy="memory-disk"
+                                />
+                              );
+                            }
+                          })()
+                        ) : (
+                          <Text style={styles.newGiftIcon}>{gift.icon}</Text>
+                        )}
+                        {gift.type === 'animated' && (
+                          <View style={styles.animatedBadge}>
+                            <Text style={styles.animatedBadgeText}>✨</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.newGiftName} numberOfLines={1}>{gift.name}</Text>
+                      <View style={styles.giftPriceContainer}>
+                        <Ionicons name="diamond-outline" size={12} color="#FFC107" />
+                        <Text style={styles.newGiftPrice}>{gift.price}</Text>
+                      </View>
                     </TouchableOpacity>
-                  ))}
-                </View>
-              </ScrollView>
+                  </View>
+                )}
+                numColumns={3}
+                keyExtractor={(gift, index) => `${gift.id}-${index}`}
+                contentContainerStyle={styles.giftGridContainer}
+                showsVerticalScrollIndicator={false}
+              />
             </View>
           </View>
         </TouchableOpacity>
@@ -2211,6 +2271,68 @@ const styles = StyleSheet.create({
     color: '#FF6B35',
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  // New FlatList Gift Picker Styles
+  newGiftItemContainer: {
+    flex: 1,
+    maxWidth: '33.33%',
+    paddingHorizontal: 4,
+    marginBottom: 12,
+  },
+  newGiftItem: {
+    backgroundColor: 'rgba(128, 128, 128, 0.3)',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    position: 'relative',
+    minHeight: 140,
+  },
+  newGiftIconContainer: {
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  newGiftIcon: {
+    fontSize: 40,
+  },
+  newGiftName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  newGiftPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFC107',
+  },
+  giftPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  giftGridContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  animatedBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  animatedBadgeText: {
+    fontSize: 12,
   },
   // Gift Animation styles
   giftAnimationOverlay: {
