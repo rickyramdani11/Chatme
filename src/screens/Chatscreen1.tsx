@@ -16,12 +16,12 @@ import {
   ActivityIndicator,
   Keyboard,
   Platform,
-  Image,
   ImageBackground,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
   AppState, // Added AppState for background reconnection
 } from 'react-native';
+import { Image } from 'expo-image';
 import ReanimatedAnimated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -5433,7 +5433,8 @@ export default function ChatScreen() {
                         <Image 
                           source={gift.image || { uri: gift.imageUrl }} 
                           style={styles.giftImage} 
-                          resizeMode="contain"
+                          contentFit="contain"
+                          cachePolicy="memory-disk"
                         />
                       ) : gift.animation || gift.videoUrl ? (
                         (() => {
@@ -5459,7 +5460,8 @@ export default function ChatScreen() {
                             <Image 
                               source={animSource} 
                               style={styles.giftImage} 
-                              resizeMode="contain"
+                              contentFit="contain"
+                              cachePolicy="memory-disk"
                             />
                           );
                         })()
