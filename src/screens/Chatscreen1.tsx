@@ -7265,7 +7265,7 @@ const createThemedStyles = () => StyleSheet.create({
   newGiftPrice: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: COLORS.warning,
+    color: '#1a1a1a',
   },
   giftGridContainer: {
     paddingHorizontal: 8,
