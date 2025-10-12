@@ -56,7 +56,8 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: Applied to sensitive operations.
 - **PIN Security**: Mandatory PIN for credit transfers.
 - **Code Protection**: Hermes engine, ProGuard/R8, auto-backup disabled.
-- **Race Condition Protection**: All credit operations use PostgreSQL row-level locking (SELECT...FOR UPDATE) with explicit transactions to prevent negative balances. Red packet expiry refunds protected against duplicate credit race conditions (October 2025). Admin delete room operations use transactions to prevent partial deletes and data inconsistency (October 2025).
+- **Race Condition Protection**: All credit operations use PostgreSQL row-level locking (SELECT...FOR UPDATE) with explicit transactions to prevent negative balances. Red packet expiry refunds protected against duplicate credit race conditions (October 2025). Admin delete room operations use transactions to prevent partial deletes and data inconsistency (October 2025). User registration uses database UNIQUE constraint enforcement with error code 23505 handling to prevent concurrent duplicate user creation (October 2025).
+- **Gmail Normalization**: Registration normalizes Gmail addresses (removes dots) before storage to prevent duplicate accounts. All email-based queries (OTP verification, resend verification, password reset) normalize incoming emails before database lookup to ensure consistent user matching (October 2025).
 
 ## Process Management & Stability
 - **PM2 Configuration**: Dual-process setup for API server (cluster mode) and Gateway (fork mode for Socket.IO) with auto-restart, memory limits, and centralized logging.
