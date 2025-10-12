@@ -61,6 +61,12 @@ Preferred communication style: Simple, everyday language.
 ## Process Management & Stability
 - **PM2 Configuration**: Dual-process setup for API server (cluster mode) and Gateway (fork mode for Socket.IO) with auto-restart, memory limits, and centralized logging.
 - **Auto-Recovery**: Application-level crash recovery via PM2.
+- **Memory Leak Prevention**: Socket gateway implements periodic cleanup for broadcast tracking Maps (October 2025):
+  - `pendingBroadcasts`: Cleared on disconnect to prevent orphaned setTimeout timers
+  - `recentBroadcasts`: Periodic cleanup every 60s for entries >30s old
+  - `recentLeaveBroadcasts`: Periodic cleanup every 60s for entries >30s old
+  - `announcedJoins`: Periodic cleanup every 60s for entries >2 hours old
+  - Prevents unbounded memory growth from rapid connect/disconnect cycles
 
 ## UI/UX Decisions
 - **Theming**: Partially implemented Dark Mode.
