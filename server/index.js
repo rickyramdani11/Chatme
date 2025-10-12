@@ -597,46 +597,70 @@ pool.connect(async (err, client, release) => {
 // - Top ups can be done in installments
 // - Failure to meet monthly target results in downgrade/badge loss
 
-// Check and reset monthly revenue if new month
-async function checkAndResetMonthlyRevenue() {
+// Check and reset monthly topup if new month
+async function checkAndResetMonthlyTopup() {
   try {
     const now = new Date();
     const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     
-    // Get all active merchants
+    // Reset merchants
     const merchants = await pool.query(`
       SELECT * FROM merchant_promotions 
       WHERE status = 'active'
     `);
     
     for (const merchant of merchants.rows) {
-      const resetDate = new Date(merchant.revenue_reset_date);
-      const resetMonthYear = `${resetDate.getFullYear()}-${String(resetDate.getMonth() + 1).padStart(2, '0')}`;
-      
-      // If reset date is in previous month, reset revenue
-      if (resetMonthYear !== currentMonthYear) {
-        await pool.query(`
-          UPDATE merchant_promotions 
-          SET monthly_revenue = 0,
-              revenue_reset_date = CURRENT_TIMESTAMP,
-              warning_sent = false
-          WHERE id = $1
-        `, [merchant.id]);
+      if (merchant.topup_reset_date) {
+        const resetDate = new Date(merchant.topup_reset_date);
+        const resetMonthYear = `${resetDate.getFullYear()}-${String(resetDate.getMonth() + 1).padStart(2, '0')}`;
         
-        console.log(`✅ Reset monthly revenue for merchant ID ${merchant.user_id}`);
+        if (resetMonthYear !== currentMonthYear) {
+          await pool.query(`
+            UPDATE merchant_promotions 
+            SET monthly_topup = 0,
+                topup_reset_date = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `, [merchant.id]);
+          
+          console.log(`✅ Reset monthly topup for merchant ID ${merchant.user_id}`);
+        }
+      }
+    }
+    
+    // Reset mentors
+    const mentors = await pool.query(`
+      SELECT * FROM mentor_promotions 
+      WHERE status = 'active'
+    `);
+    
+    for (const mentor of mentors.rows) {
+      if (mentor.topup_reset_date) {
+        const resetDate = new Date(mentor.topup_reset_date);
+        const resetMonthYear = `${resetDate.getFullYear()}-${String(resetDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (resetMonthYear !== currentMonthYear) {
+          await pool.query(`
+            UPDATE mentor_promotions 
+            SET monthly_topup = 0,
+                topup_reset_date = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `, [mentor.id]);
+          
+          console.log(`✅ Reset monthly topup for mentor ID ${mentor.user_id}`);
+        }
       }
     }
   } catch (error) {
-    console.error('Error resetting monthly revenue:', error);
+    console.error('Error resetting monthly topup:', error);
   }
 }
 
-// Check merchant status and auto-downgrade if revenue requirement not met
+// Check merchant status and auto-downgrade if topup requirement not met
 async function checkMerchantStatusAndDowngrade() {
   const client = await pool.connect();
   
   try {
-    console.log('🔍 Checking merchant revenue status...');
+    console.log('🔍 Checking merchant topup status...');
     
     // Get all active merchants
     const merchants = await client.query(`
@@ -647,9 +671,9 @@ async function checkMerchantStatusAndDowngrade() {
     `);
     
     for (const merchant of merchants.rows) {
-      const revenue = merchant.monthly_revenue || 0;
-      const requirement = merchant.revenue_requirement || 800000;
-      const resetDate = new Date(merchant.revenue_reset_date);
+      const topup = merchant.monthly_topup || 0;
+      const requirement = merchant.topup_requirement || 800000;
+      const resetDate = merchant.topup_reset_date ? new Date(merchant.topup_reset_date) : new Date(merchant.promoted_at);
       const now = new Date();
       
       // Check if one month has passed since reset
@@ -657,7 +681,7 @@ async function checkMerchantStatusAndDowngrade() {
                           (now.getMonth() - resetDate.getMonth());
       
       if (monthsPassed >= 1) {
-        if (revenue < requirement) {
+        if (topup < requirement) {
           // Downgrade merchant with atomic transaction
           await client.query('BEGIN');
           
@@ -668,7 +692,7 @@ async function checkMerchantStatusAndDowngrade() {
               SET status = 'downgraded',
                   downgrade_reason = $1
               WHERE id = $2
-            `, [`Failed to meet revenue requirement: ${revenue}/${requirement} coins`, merchant.id]);
+            `, [`Failed to meet topup requirement: ${topup}/${requirement} coins`, merchant.id]);
             
             // Downgrade user role to 'user'
             await client.query(`
@@ -679,9 +703,7 @@ async function checkMerchantStatusAndDowngrade() {
             
             await client.query('COMMIT');
             
-            console.log(`⚠️ DOWNGRADED merchant ${merchant.username} (ID: ${merchant.user_id}) - Revenue: ${revenue}/${requirement}`);
-            
-            // TODO: Send notification to merchant
+            console.log(`⚠️ DOWNGRADED merchant ${merchant.username} (ID: ${merchant.user_id}) - Topup: ${topup}/${requirement}`);
             
           } catch (error) {
             await client.query('ROLLBACK');
@@ -692,13 +714,12 @@ async function checkMerchantStatusAndDowngrade() {
           // Merchant met requirement, reset for next month
           await client.query(`
             UPDATE merchant_promotions 
-            SET monthly_revenue = 0,
-                revenue_reset_date = CURRENT_TIMESTAMP,
-                warning_sent = false
+            SET monthly_topup = 0,
+                topup_reset_date = CURRENT_TIMESTAMP
             WHERE id = $1
           `, [merchant.id]);
           
-          console.log(`✅ Merchant ${merchant.username} met requirement: ${revenue}/${requirement} - Reset for next month`);
+          console.log(`✅ Merchant ${merchant.username} met topup requirement: ${topup}/${requirement} - Reset for next month`);
         }
       }
     }
@@ -711,16 +732,96 @@ async function checkMerchantStatusAndDowngrade() {
   }
 }
 
+// Check mentor status and fade badge if topup requirement not met
+async function checkMentorStatusAndFade() {
+  const client = await pool.connect();
+  
+  try {
+    console.log('🔍 Checking mentor topup status...');
+    
+    // Get all active mentors
+    const mentors = await client.query(`
+      SELECT mp.*, u.username 
+      FROM mentor_promotions mp
+      JOIN users u ON mp.user_id = u.id
+      WHERE mp.status = 'active' AND u.role = 'mentor'
+    `);
+    
+    for (const mentor of mentors.rows) {
+      const topup = mentor.monthly_topup || 0;
+      const requirement = mentor.topup_requirement || 7000000;
+      const resetDate = mentor.topup_reset_date ? new Date(mentor.topup_reset_date) : new Date(mentor.promoted_at);
+      const now = new Date();
+      
+      // Check if one month has passed since reset
+      const monthsPassed = (now.getFullYear() - resetDate.getFullYear()) * 12 + 
+                          (now.getMonth() - resetDate.getMonth());
+      
+      if (monthsPassed >= 1) {
+        if (topup < requirement) {
+          // Downgrade mentor with atomic transaction
+          await client.query('BEGIN');
+          
+          try {
+            // Downgrade user role to 'user'
+            await client.query(`
+              UPDATE users 
+              SET role = 'user'
+              WHERE id = $1
+            `, [mentor.user_id]);
+            
+            // Update mentor promotion status
+            await client.query(`
+              UPDATE mentor_promotions 
+              SET status = 'inactive'
+              WHERE id = $1
+            `, [mentor.id]);
+            
+            await client.query('COMMIT');
+            
+            console.log(`⚠️ DOWNGRADED mentor ${mentor.username} (ID: ${mentor.user_id}) - Topup: ${topup}/${requirement}`);
+            
+          } catch (error) {
+            await client.query('ROLLBACK');
+            console.error(`❌ Failed to downgrade mentor ${mentor.username}:`, error);
+            throw error;
+          }
+        } else {
+          // Mentor met requirement, reset for next month
+          await client.query(`
+            UPDATE mentor_promotions 
+            SET monthly_topup = 0,
+                topup_reset_date = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `, [mentor.id]);
+          
+          console.log(`✅ Mentor ${mentor.username} met topup requirement: ${topup}/${requirement} - Reset for next month`);
+        }
+      }
+    }
+    
+    console.log('✅ Mentor status check completed');
+  } catch (error) {
+    console.error('Error checking mentor status:', error);
+  } finally {
+    client.release();
+  }
+}
+
 // Run merchant status check every hour
 setInterval(checkMerchantStatusAndDowngrade, 60 * 60 * 1000); // Every hour
 
-// Run monthly revenue reset check every day
-setInterval(checkAndResetMonthlyRevenue, 24 * 60 * 60 * 1000); // Every 24 hours
+// Run mentor status check every hour
+setInterval(checkMentorStatusAndFade, 60 * 60 * 1000); // Every hour
+
+// Run monthly topup reset check every day
+setInterval(checkAndResetMonthlyTopup, 24 * 60 * 60 * 1000); // Every 24 hours
 
 // Run checks on startup
 setTimeout(() => {
-  checkAndResetMonthlyRevenue();
+  checkAndResetMonthlyTopup();
   checkMerchantStatusAndDowngrade();
+  checkMentorStatusAndFade();
 }, 10000); // 10 seconds after startup
 
 // Middleware
