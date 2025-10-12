@@ -70,6 +70,14 @@ Preferred communication style: Simple, everyday language.
 - **Android Back Button**: Hardware back button handling for proper navigation.
 - **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
 - **Room Management UX**: Increased modal height, participant picker for moderator selection, owner-only moderator adding, functional unban, and smart filtering.
+- **Call UI Enhancement**: Video call and audio call icons automatically hidden during active calls to prevent duplicate call triggers (Chatscreen1.tsx).
+
+## Code Quality & Maintainability (October 2025)
+- **Constants Extraction**: All hardcoded values in Chatscreen1.tsx replaced with constants for better maintainability:
+  - `CALL_CONSTANTS`: Call pricing (41.67 coins/sec), minimum charge (2,500 coins), interval costs
+  - `GIFT_ANIMATION_DURATION`: Animation timings (5000ms animated, 3000ms static, 600ms fade-out)
+- **Code Cleanup**: Removed commented-out legacy code, improved readability
+- **Bug Fixes**: Verified null checks in call handlers, confirmed join-room socket emit is necessary for participant tracking
 
 # External Dependencies
 
