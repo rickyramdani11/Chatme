@@ -130,16 +130,7 @@ function validatePassword(password) {
     return { valid: false, error: 'Password must be no more than 12 characters long' };
   }
   
-  // Check for at least one letter
-  const hasLetter = /[a-zA-Z]/.test(password);
-  
-  // Check for at least one number
-  const hasNumber = /[0-9]/.test(password);
-  
-  if (!hasLetter || !hasNumber) {
-    return { valid: false, error: 'Password must contain both letters and numbers' };
-  }
-  
+  // All characters allowed from 6-12 length
   return { valid: true };
 }
 
