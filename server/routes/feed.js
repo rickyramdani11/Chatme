@@ -20,12 +20,43 @@ const pool = new Pool({
 
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:${process.env.PORT || 5000}`);
 
+// Create exp history table (run once at startup, not in transaction)
+const initExpHistoryTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_exp_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        activity_type VARCHAR(50) NOT NULL,
+        exp_gained INTEGER NOT NULL,
+        new_exp INTEGER NOT NULL,
+        new_level INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  } catch (error) {
+    console.log('Exp history table initialization:', error.message);
+  }
+};
+
+// Initialize table at startup
+initExpHistoryTable();
+
 // Function to add EXP to a user
 const addUserEXP = async (userId, expAmount, activityType) => {
+  let client;
   try {
-    // Get current exp and level
-    const userResult = await pool.query('SELECT exp, level FROM users WHERE id = $1', [userId]);
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    // Get current exp and level with row lock
+    const userResult = await client.query(
+      'SELECT exp, level FROM users WHERE id = $1 FOR UPDATE', 
+      [userId]
+    );
     if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      client.release();
       return { success: false, error: 'User not found' };
     }
 
@@ -48,56 +79,55 @@ const addUserEXP = async (userId, expAmount, activityType) => {
     }
 
     // Update user EXP and level
-    await pool.query(
+    await client.query(
       'UPDATE users SET exp = $1, level = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
       [newExp, newLevel, userId]
     );
 
     console.log(`User ${userId} gained ${expAmount} EXP from ${activityType}. New EXP: ${newExp}, New Level: ${newLevel}`);
 
-    // Create exp history table if not exists
-    try {
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS user_exp_history (
-          id SERIAL PRIMARY KEY,
-          user_id INTEGER NOT NULL,
-          activity_type VARCHAR(50) NOT NULL,
-          exp_gained INTEGER NOT NULL,
-          new_exp INTEGER NOT NULL,
-          new_level INTEGER NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-    } catch (tableError) {
-      console.log('Exp history table already exists or creation failed:', tableError.message);
-    }
-
     // Record EXP gain in history table
-    await pool.query(`
+    await client.query(`
       INSERT INTO user_exp_history (user_id, activity_type, exp_gained, new_exp, new_level)
       VALUES ($1, $2, $3, $4, $5)
     `, [userId, activityType, expAmount, newExp, newLevel]);
 
-    // Give level up rewards if user leveled up
+    // Commit transaction BEFORE level up reward (reward is separate operation)
+    await client.query('COMMIT');
+    client.release();
+
+    // Give level up rewards if user leveled up (separate from transaction)
     if (leveledUp) {
       const levelUpReward = newLevel * 100; // 100 coins per level
       try {
         await pool.query(`
-          INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)
+          INSERT INTO user_credits (user_id, balance, updated_at) 
+          VALUES ($1, $2, CURRENT_TIMESTAMP)
           ON CONFLICT (user_id) DO UPDATE SET 
-            balance = user_credits.balance + EXCLUDED.balance,
+            balance = user_credits.balance + $2,
             updated_at = CURRENT_TIMESTAMP
         `, [userId, levelUpReward]);
 
         console.log(`Level up reward: ${levelUpReward} coins given to user ${userId} for reaching level ${newLevel}`);
       } catch (rewardError) {
-        console.error('Error giving level up reward:', rewardError);
+        console.error('Error giving level up reward (EXP already saved):', rewardError);
+        // EXP already committed, just log reward error
       }
     }
 
     return { success: true, userId, expAmount, newExp, newLevel, leveledUp, levelUpReward: leveledUp ? newLevel * 100 : 0 };
 
   } catch (error) {
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Error during rollback:', rollbackError);
+      } finally {
+        // Always release client even if rollback fails
+        client.release();
+      }
+    }
     console.error(`Error adding EXP for user ${userId}:`, error);
     return { success: false, error: error.message };
   }
@@ -172,42 +202,38 @@ router.get('/posts', async (req, res) => {
 });
 
 // Create new post
-router.post('/posts', async (req, res) => {
+router.post('/posts', authenticateToken, async (req, res) => {
   try {
     console.log('=== CREATE POST REQUEST ===');
-    console.log('User:', req.body.username || req.body.user);
+    console.log('User:', req.user.username);
     console.log('Content length:', req.body.content?.length || 0);
 
-    const { content, user, username, level = 1, avatar = 'U', streamingUrl = '' } = req.body;
+    const { content, streamingUrl = '' } = req.body;
+    
+    // Get user info from authenticated token
+    const userId = req.user.userId;
+    const username = req.user.username;
 
-    // Find user by username
-    const userResult = await pool.query('SELECT id, level FROM users WHERE username = $1', [username || user]);
-    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : 1; // Default to user ID 1 if not found
+    // Get user level from database
+    const userResult = await pool.query('SELECT level FROM users WHERE id = $1', [userId]);
     const userLevel = userResult.rows.length > 0 ? userResult.rows[0].level : 1;
 
-    if (!content && !user) {
-      console.log('Missing content and user');
-      return res.status(400).json({ error: 'Content or user is required' });
-    }
-
-    if (!user) {
-      console.log('Missing user');
-      return res.status(400).json({ error: 'User is required' });
+    if (!content) {
+      console.log('Missing content');
+      return res.status(400).json({ error: 'Content is required' });
     }
 
     const result = await pool.query(`
       INSERT INTO posts (user_id, username, content, streaming_url, likes, shares)
       VALUES ($1, $2, $3, $4, 0, 0)
       RETURNING *
-    `, [userId, username || user, content ? content.trim() : '', streamingUrl || '']);
+    `, [userId, username, content.trim(), streamingUrl || '']);
 
     const newPost = result.rows[0];
 
     // Award XP for creating a post
-    if (userId && userId !== 1) { // Don't give XP to default user
-      const expResult = await addUserEXP(userId, 50, 'post_created');
-      console.log('XP awarded for post creation:', expResult);
-    }
+    const expResult = await addUserEXP(userId, 50, 'post_created');
+    console.log('XP awarded for post creation:', expResult);
 
     // Get user role and other info
     const userInfoResult = await pool.query('SELECT role, verified, avatar FROM users WHERE id = $1', [userId]);
@@ -239,30 +265,38 @@ router.post('/posts', async (req, res) => {
 });
 
 // Like/Unlike post
-router.post('/posts/:postId/like', async (req, res) => {
+router.post('/posts/:postId/like', authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params;
     const { action } = req.body; // 'like' or 'unlike'
 
-    const postResult = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
-    if (postResult.rows.length === 0) {
+    // Use atomic UPDATE with CASE to prevent race conditions
+    let updateQuery;
+    if (action === 'like') {
+      updateQuery = `
+        UPDATE posts 
+        SET likes = likes + 1, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = $1
+        RETURNING likes
+      `;
+    } else if (action === 'unlike') {
+      updateQuery = `
+        UPDATE posts 
+        SET likes = GREATEST(likes - 1, 0), updated_at = CURRENT_TIMESTAMP 
+        WHERE id = $1
+        RETURNING likes
+      `;
+    } else {
+      return res.status(400).json({ error: 'Invalid action. Must be "like" or "unlike"' });
+    }
+
+    const result = await pool.query(updateQuery, [postId]);
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    const post = postResult.rows[0];
-    let newLikes = post.likes;
-
-    if (action === 'like') {
-      newLikes += 1;
-    } else if (action === 'unlike' && post.likes > 0) {
-      newLikes -= 1;
-    }
-
-    await pool.query(
-      'UPDATE posts SET likes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [newLikes, postId]
-    );
-
+    const newLikes = result.rows[0].likes;
     console.log(`Post ${postId} ${action}d. New likes count: ${newLikes}`);
 
     res.json({
@@ -277,13 +311,17 @@ router.post('/posts/:postId/like', async (req, res) => {
 });
 
 // Add comment to post
-router.post('/posts/:postId/comment', async (req, res) => {
+router.post('/posts/:postId/comment', authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params;
-    const { content, user } = req.body;
+    const { content } = req.body;
+    
+    // Get user info from authenticated token
+    const userId = req.user.userId;
+    const username = req.user.username;
 
-    if (!content || !user) {
-      return res.status(400).json({ error: 'Content and user are required' });
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
     }
 
     // Check if post exists
@@ -292,24 +330,18 @@ router.post('/posts/:postId/comment', async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    // Find user by username to get user ID
-    const userResult = await pool.query('SELECT id FROM users WHERE username = $1', [user]);
-    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : 1; // Default to user ID 1 if not found
-
     // Add comment to database
     const commentResult = await pool.query(`
       INSERT INTO post_comments (post_id, user_id, username, content)
       VALUES ($1, $2, $3, $4)
       RETURNING *
-    `, [postId, userId, user, content.trim()]);
+    `, [postId, userId, username, content.trim()]);
 
     const newComment = commentResult.rows[0];
 
     // Award XP for commenting
-    if (userId && userId !== 1) { // Don't give XP to default user
-      const expResult = await addUserEXP(userId, 25, 'comment_created');
-      console.log('XP awarded for comment creation:', expResult);
-    }
+    const expResult = await addUserEXP(userId, 25, 'comment_created');
+    console.log('XP awarded for comment creation:', expResult);
 
     // Get total comments count
     const countResult = await pool.query('SELECT COUNT(*) FROM post_comments WHERE post_id = $1', [postId]);
@@ -333,21 +365,28 @@ router.post('/posts/:postId/comment', async (req, res) => {
 });
 
 // Share post
-router.post('/posts/:postId/share', (req, res) => {
+router.post('/posts/:postId/share', authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params;
 
-    const post = posts.find(p => p.id === postId);
-    if (!post) {
+    // Use atomic UPDATE to prevent race conditions
+    const result = await pool.query(`
+      UPDATE posts 
+      SET shares = shares + 1, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = $1
+      RETURNING shares
+    `, [postId]);
+
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    post.shares += 1;
-    console.log(`Post ${postId} shared. New shares count: ${post.shares}`);
+    const newShares = result.rows[0].shares;
+    console.log(`Post ${postId} shared. New shares count: ${newShares}`);
 
     res.json({
       postId,
-      shares: post.shares,
+      shares: newShares,
       message: 'Post shared successfully'
     });
   } catch (error) {
@@ -467,24 +506,22 @@ router.post('/upload', async (req, res) => {
 });
 
 // Create post with media
-router.post('/posts/with-media', async (req, res) => {
+router.post('/posts/with-media', authenticateToken, async (req, res) => {
   try {
-    const { content, user, username, level = 1, avatar = 'U', mediaFiles = [], streamingUrl = '' } = req.body;
+    const { content, mediaFiles = [], streamingUrl = '' } = req.body;
+    
+    // Get user info from authenticated token
+    const userId = req.user.userId;
+    const username = req.user.username;
 
     console.log('=== CREATE POST WITH MEDIA REQUEST ===');
     console.log('Content:', content);
-    console.log('User:', user);
-    console.log('Username:', username);
+    console.log('User:', username);
     console.log('Media Files:', JSON.stringify(mediaFiles, null, 2));
 
-    // Find user by username
-    const userResult = await pool.query('SELECT id, level FROM users WHERE username = $1', [username || user]);
-    const userId = userResult.rows.length > 0 ? userResult.rows[0].id : 1;
+    // Get user level from database
+    const userResult = await pool.query('SELECT level FROM users WHERE id = $1', [userId]);
     const userLevel = userResult.rows.length > 0 ? userResult.rows[0].level : 1;
-
-    if (!user) {
-      return res.status(400).json({ error: 'User is required' });
-    }
 
     // Ensure mediaFiles is properly structured
     const processedMediaFiles = mediaFiles.map(file => ({
@@ -498,7 +535,7 @@ router.post('/posts/with-media', async (req, res) => {
       INSERT INTO posts (user_id, username, content, media_files, streaming_url, likes, shares)
       VALUES ($1, $2, $3, $4, $5, 0, 0)
       RETURNING *
-    `, [userId, username || user, content ? content.trim() : '', JSON.stringify(processedMediaFiles), streamingUrl || '']);
+    `, [userId, username, content ? content.trim() : '', JSON.stringify(processedMediaFiles), streamingUrl || '']);
 
     const newPost = result.rows[0];
 
@@ -533,18 +570,20 @@ router.post('/posts/with-media', async (req, res) => {
 });
 
 // Delete post
-router.delete('/posts/:postId', async (req, res) => {
+router.delete('/posts/:postId', authenticateToken, async (req, res) => {
   try {
     const { postId } = req.params;
-    const { username, role } = req.body;
+    const userId = req.user.userId;
+    const username = req.user.username;
+    const role = req.user.role;
 
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required' });
-    }
+    // Use transaction to ensure atomic deletion
+    await pool.query('BEGIN');
 
     // Get the post to check ownership
     const postResult = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
     if (postResult.rows.length === 0) {
+      await pool.query('ROLLBACK');
       return res.status(404).json({ error: 'Post not found' });
     }
 
@@ -552,6 +591,7 @@ router.delete('/posts/:postId', async (req, res) => {
 
     // Check if user can delete this post (owner or admin)
     if (post.username !== username && role !== 'admin') {
+      await pool.query('ROLLBACK');
       return res.status(403).json({ error: 'You can only delete your own posts' });
     }
 
@@ -561,10 +601,13 @@ router.delete('/posts/:postId', async (req, res) => {
     // Delete the post
     await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
 
+    await pool.query('COMMIT');
+
     console.log(`Post ${postId} deleted by ${username} (${role || 'user'})`);
 
     res.json({ success: true, message: 'Post deleted successfully' });
   } catch (error) {
+    await pool.query('ROLLBACK');
     console.error('Error deleting post:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
