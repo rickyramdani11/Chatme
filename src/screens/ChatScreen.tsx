@@ -38,15 +38,18 @@ interface Message {
   id: string;
   sender: string;
   content: string;
-  timestamp: Date;
+  timestamp: Date | string;
   roomId: string;
-  role?: any;
+  role?: 'user' | 'merchant' | 'mentor' | 'admin' | 'system' | string;
   level?: number;
-  type?: any;
-  commandType?: any;
+  type?: 'join' | 'leave' | 'message' | 'command' | 'me' | 'room_info' | 'report' | 'ban' | 'kick' | 'lock' | 'support' | 'gift' | 'error' | 'system' | 'broadcast' | string;
+  commandType?: 'system' | 'bot' | 'room-info';
   userRole?: 'user' | 'merchant' | 'mentor' | 'admin';
   image?: string;
   isSupport?: boolean;
+  giftData?: any;
+  recipient?: string;
+  giftName?: string;
 }
 
 interface ChatTab {
@@ -58,6 +61,9 @@ interface ChatTab {
   description?: string;
   moderators?: string[];
   isSupport?: boolean;
+  lastMessage?: string;
+  timestamp?: string;
+  hasNewMessage?: boolean;
 }
 
 
@@ -111,7 +117,7 @@ export default function ChatScreen() {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const maxReconnectAttempts = 5;
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isInitializingSocketRef = useRef(false);
   const hadConnectedRef = useRef(false);
   const joinedRoomsRef = useRef(new Set()); // Track rooms we've already joined
@@ -192,7 +198,7 @@ export default function ChatScreen() {
   const [callTimer, setCallTimer] = useState(0);
   const [callCost, setCallCost] = useState(0);
   const [totalDeducted, setTotalDeducted] = useState(0);
-  const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const callIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState<any>(null);
   const [callRinging, setCallRinging] = useState(false);
@@ -208,7 +214,7 @@ export default function ChatScreen() {
 
   const isRoomModerator = () => {
     const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
-    return currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+    return currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
   };
 
   // Call handling functions
@@ -1091,14 +1097,14 @@ export default function ChatScreen() {
       // Server now only emits 'receiveGift' directly
 
       // Listen for admin joined support chat
-      socketInstance.on('admin-joined', (data) => {
+      socketInstance.on('admin-joined', (data: any) => {
         console.log('Admin joined support chat:', data);
         const adminMessage: Message = {
           id: `admin_join_${Date.now()}`,
           sender: 'System',
           content: data.message,
           timestamp: new Date(),
-          roomId: currentRoomId, // Use currentRoomId for context
+          roomId: currentRoomId || 'unknown', // Use currentRoomId for context
           role: 'system',
           level: 1,
           type: 'join' // Use 'join' type for system messages about users joining
@@ -1153,7 +1159,7 @@ export default function ChatScreen() {
       });
 
       // Listen for incoming calls
-      socketInstance.on('incoming-call', (callData) => {
+      socketInstance.on('incoming-call', (callData: any) => {
         console.log('Received incoming call:', callData);
         setIncomingCallData(callData);
         setShowIncomingCallModal(true);
@@ -1174,10 +1180,9 @@ export default function ChatScreen() {
             ...prevTabs,
             {
               id: chatId,
-              name: `Chat with ${fromUsername}`,
+              title: `Chat with ${fromUsername}`,
               type: 'private',
               messages: [],
-              participants: [fromUsername],
             }
           ]);
           
@@ -1201,7 +1206,7 @@ export default function ChatScreen() {
       });
 
       // Listen for call responses
-      socketInstance.on('call-response-received', (responseData) => {
+      socketInstance.on('call-response-received', (responseData: any) => {
         console.log('Call response received:', responseData);
         setCallRinging(false);
 
@@ -1228,7 +1233,7 @@ export default function ChatScreen() {
       });
 
       // Listen for call initiated confirmation
-      socketInstance.on('call-initiated', (confirmData) => {
+      socketInstance.on('call-initiated', (confirmData: any) => {
         console.log('Call initiated:', confirmData);
         Alert.alert(
           'Calling...',
@@ -1250,14 +1255,14 @@ export default function ChatScreen() {
       });
 
       // Listen for call errors
-      socketInstance.on('call-error', (errorData) => {
+      socketInstance.on('call-error', (errorData: any) => {
         console.log('Call error:', errorData);
         setCallRinging(false);
         Alert.alert('Call Error', errorData.error);
       });
 
       // Listen for call ended
-      socketInstance.on('call-ended', (endData) => {
+      socketInstance.on('call-ended', (endData: any) => {
         console.log('Call ended:', endData);
         setCallRinging(false);
         setShowCallModal(false);
@@ -1986,14 +1991,14 @@ export default function ChatScreen() {
         }));
       }
     };
-    const handleAdminJoined = (data) => {
+    const handleAdminJoined = (data: any) => {
       console.log('Admin joined support chat:', data);
       const adminMessage: Message = {
         id: `admin_join_${Date.now()}`,
         sender: 'System',
         content: data.message,
         timestamp: new Date(),
-        roomId: currentRoomId,
+        roomId: currentRoomId || 'unknown',
         role: 'system',
         level: 1,
         type: 'join'
@@ -2006,9 +2011,9 @@ export default function ChatScreen() {
         )
       );
     };
-    const handleRoomLocked = (data) => { console.log('Room locked:', data); Alert.alert('Room Locked', `Room ${data.roomId} has been locked by ${data.lockedBy}`); };
-    const handleRoomUnlocked = (data) => { console.log('Room unlocked:', data); Alert.alert('Room Unlocked', `Room ${data.roomId} has been unlocked`); };
-    const handleUserKicked = (data) => {
+    const handleRoomLocked = (data: any) => { console.log('Room locked:', data); Alert.alert('Room Locked', `Room ${data.roomId} has been locked by ${data.lockedBy}`); };
+    const handleRoomUnlocked = (data: any) => { console.log('Room unlocked:', data); Alert.alert('Room Unlocked', `Room ${data.roomId} has been unlocked`); };
+    const handleUserKicked = (data: any) => {
       console.log('User kicked event:', data);
       if (data.kickedUser === user?.username) {
         Alert.alert('You have been kicked', `You were kicked from ${data.roomName} by ${data.kickedBy}`);
@@ -2017,7 +2022,7 @@ export default function ChatScreen() {
         setParticipants(prev => prev.filter(p => p.username !== data.kickedUser));
       }
     };
-    const handleUserBanned = (data) => {
+    const handleUserBanned = (data: any) => {
       console.log('User banned event:', data);
       if (data.bannedUser === user?.username) {
         if (data.action === 'ban') {
@@ -2034,7 +2039,7 @@ export default function ChatScreen() {
         }
       }
     };
-    const handleUserMuted = (data) => {
+    const handleUserMuted = (data: any) => {
       console.log('User muted event:', data);
       if (data.mutedUser === user?.username) {
         if (data.action === 'mute') {
@@ -2046,13 +2051,13 @@ export default function ChatScreen() {
         }
       }
     };
-    const handleForceLeaveRoom = (data) => { console.log('Force leave room:', data); Alert.alert('Left Room', `You have been removed from ${data.roomName}`); };
-    const handleIncomingCall = (callData) => {
+    const handleForceLeaveRoom = (data: any) => { console.log('Force leave room:', data); Alert.alert('Left Room', `You have been removed from ${data.roomName}`); };
+    const handleIncomingCall = (callData: any) => {
       console.log('Received incoming call:', callData);
       setIncomingCallData(callData);
       setShowIncomingCallModal(true);
     };
-    const handleCallResponse = (responseData) => {
+    const handleCallResponse = (responseData: any) => {
       console.log('Call response received:', responseData);
       setCallRinging(false);
       if (responseData.response === 'accept') {
@@ -2061,7 +2066,7 @@ export default function ChatScreen() {
         Alert.alert('Call Declined', `${responseData.responderName} declined your call`);
       }
     };
-    const handleCallEnded = (endData) => {
+    const handleCallEnded = (endData: any) => {
       console.log('Call ended:', endData);
       setCallRinging(false);
       setShowCallModal(false);
@@ -2069,7 +2074,7 @@ export default function ChatScreen() {
       endCall();
       Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
     };
-    const handleCoinReceived = (data) => { console.log('Coin received:', data); };
+    const handleCoinReceived = (data: any) => { console.log('Coin received:', data); };
 
     // Moderation action response listeners
     socket?.on('kick-user-success', (data) => {
@@ -2282,7 +2287,7 @@ export default function ChatScreen() {
     const isOwner = currentRoom && currentRoom.managedBy === username;
 
     // Check if user is moderator of current room
-    const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
+    const isModerator = currentRoom && currentRoom.moderators && username && currentRoom.moderators.includes(username);
 
     if (isOwner) return colors.roleOwner;
     if (isModerator) return colors.roleOwner;
@@ -2304,7 +2309,7 @@ export default function ChatScreen() {
     const isOwner = currentRoom && currentRoom.managedBy === username;
 
     // Check if user is moderator of current room
-    const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(username);
+    const isModerator = currentRoom && currentRoom.moderators && username && currentRoom.moderators.includes(username);
 
     if (isOwner) return colors.roleOwnerBg;
     if (isModerator) return colors.roleOwnerBg;
@@ -2322,8 +2327,8 @@ export default function ChatScreen() {
     return '';
   };
 
-  const formatTime = (timestamp: Date) => {
-    const date = new Date(timestamp);
+  const formatTime = (timestamp: Date | string) => {
+    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
     return date.toLocaleTimeString('id-ID', {
       hour: '2-digit',
       minute: '2-digit',
@@ -2588,7 +2593,7 @@ export default function ChatScreen() {
         // Check if user has permission to ban user
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2692,7 +2697,7 @@ export default function ChatScreen() {
         // Check if user has permission to kick
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2793,7 +2798,7 @@ export default function ChatScreen() {
         // Check if user has permission to lock room
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2882,7 +2887,7 @@ export default function ChatScreen() {
         // Check if user has permission to ban user
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -2986,7 +2991,7 @@ export default function ChatScreen() {
         // Check if user has permission to unban user
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && currentRoom.moderators.includes(user?.username);
+        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
         if (!isOwner && !isModerator && !isAdmin) {
@@ -3358,7 +3363,7 @@ export default function ChatScreen() {
           // If no tabs left, navigate to Room screen
           if (newTabs.length === 0) {
             setTimeout(() => {
-              navigation.navigate('Room');
+              navigation.navigate('Room' as any);
             }, 100);
           } else {
             // Set new active tab if there are remaining tabs
@@ -3416,7 +3421,7 @@ export default function ChatScreen() {
 
             // Update the "Currently in the room" message with actual participants
             if (chatTabs[activeTab].type !== 'private' && !isSupportChat && participantData.length > 0) {
-              const participantNames = participantData.map(p => p.username).join(', ');
+              const participantNames = participantData.map((p: any) => p.username).join(', ');
               const updatedContent = `Currently in the room: ${participantNames}`;
 
               setChatTabs(prevTabs =>
@@ -3580,9 +3585,9 @@ export default function ChatScreen() {
         console.error('Private chat creation failed:', errorData);
         throw new Error(errorData.error || `HTTP ${response.status}: Failed to create private chat`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating private chat:', error);
-      Alert.alert('Error', error.message || 'Failed to create private chat');
+      Alert.alert('Error', error?.message || 'Failed to create private chat');
     }
   };
 
@@ -4244,7 +4249,7 @@ export default function ChatScreen() {
               {/* Display card image if available */}
               {item.image && (
                 <Image
-                  source                  source={{ uri: `${API_BASE_URL}${item.image}` }}
+                  source={{ uri: `${API_BASE_URL}${item.image}` }}
                   style={styles.cardMessageImage}
                   resizeMode="contain"
                 />
@@ -5119,7 +5124,10 @@ export default function ChatScreen() {
                 {chatTabs[activeTab]?.type === 'private' && (
                   <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => handlePopupMenuPress('clear')}
+                    onPress={() => {
+                      setShowPopupMenu(false);
+                      Alert.alert('Clear Chat', 'Clear chat functionality will be added soon');
+                    }}
                   >
                     <Ionicons name="trash-outline" size={20} color={colors.error} />
                     <Text style={[styles.menuText, { color: colors.error }]}>Clear Chat</Text>
@@ -5580,7 +5588,7 @@ export default function ChatScreen() {
                               ref={giftVideoRef}
                               source={animSource}
                               style={styles.giftImage}
-                              resizeMode="contain"
+                              resizeMode={'contain' as any}
                               shouldPlay={false}
                               isLooping={false}
                               isMuted={true}
@@ -5596,7 +5604,7 @@ export default function ChatScreen() {
                       ) : null}
                     </View>
                     <Text style={styles.newGiftName} numberOfLines={1}>{gift.name}</Text>
-                    <View style={styles.giftPriceContainer}>
+                    <View style={styles.newGiftPriceContainer}>
                       <Ionicons name="diamond-outline" size={12} color={colors.warning} />
                       <Text style={styles.newGiftPrice}>{gift.price}</Text>
                     </View>
@@ -5628,7 +5636,7 @@ export default function ChatScreen() {
         onRequestClose={() => setShowUserGiftPicker(false)}
       >
         <View style={styles.giftModalOverlay}>
-          <View style={styles.userGiftPickerModal}>
+          <View style={styles.giftPickerModal}>
             <View style={styles.giftPickerHeader}>
               <Text style={styles.giftPickerTitle}>
                 Send {selectedGiftForUser?.name} {selectedGiftForUser?.icon} to User
@@ -5824,14 +5832,14 @@ export default function ChatScreen() {
                 ref={giftVideoRef}
                 source={typeof activeGiftAnimation.animation === 'string' ? { uri: activeGiftAnimation.animation } : activeGiftAnimation.animation}
                 style={styles.fullScreenVideo}
-                resizeMode="cover"
+                resizeMode={'cover' as any}
                 shouldPlay
                 isLooping={false}
                 isMuted={false}
                 volume={0.7}
-                onPlaybackStatusUpdate={(status) => {
+                onPlaybackStatusUpdate={(status: any) => {
                   // Auto close after video ends with smooth fade out
-                  if (status.didJustFinish) {
+                  if (status?.didJustFinish) {
                     setTimeout(() => {
                       Animated.parallel([
                         Animated.timing(giftScaleAnim, {
@@ -7146,11 +7154,6 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     fontSize: 14,
     marginRight: 4,
   },
-  newGiftPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.warning,
-  },
   // Legacy styles for backward compatibility
   giftGrid: {
     flexDirection: 'row',
@@ -7687,10 +7690,5 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
     flex: 1,
     fontSize: 14,
     lineHeight: 18,
-  },
-  roomInfoContent: {
-    fontSize: 14,
-    color: colors.success,
-    fontWeight: '500',
   },
 });
