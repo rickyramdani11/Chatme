@@ -2198,7 +2198,7 @@ io.on('connection', (socket) => {
   });
 
   // Send private gift event
-  socket.on('send-private-gift', (giftData) => {
+  socket.on('send-private-gift', async (giftData) => {
     try {
       const { from, to, gift, timestamp, roomId } = giftData;
 
@@ -2209,6 +2209,38 @@ io.on('connection', (socket) => {
 
       console.log(`🎁 Gateway relaying private gift from ${from} to ${to}: ${gift.name}`);
       console.log(`🎁 Gift details:`, JSON.stringify(gift, null, 2));
+
+      // Save gift notification message to database for persistence
+      if (roomId) {
+        try {
+          const messageContent = `${from} send ${gift.name} to ${to}`;
+          
+          const result = await pool.query(
+            `INSERT INTO private_messages (chat_id, sender_id, message, created_at) 
+             SELECT $1, u.id, $2, $3 
+             FROM users u WHERE u.username = $4
+             RETURNING id, chat_id, sender_id, message, created_at`,
+            [roomId, messageContent, timestamp || new Date().toISOString(), from]
+          );
+          
+          if (result.rows.length > 0) {
+            const savedMessage = result.rows[0];
+            console.log(`💾 Gift notification message saved to database: ${messageContent}`);
+            
+            // Emit as regular message so it appears in chat history
+            io.to(roomId).emit('new-message', {
+              id: savedMessage.id.toString(),
+              roomId: roomId,
+              sender: from,
+              content: messageContent,
+              timestamp: savedMessage.created_at,
+              type: 'system'
+            });
+          }
+        } catch (dbError) {
+          console.error('❌ Error saving gift notification to database:', dbError);
+        }
+      }
 
       // Broadcast to entire room (private chat room) to ensure delivery
       if (roomId) {

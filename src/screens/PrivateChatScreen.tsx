@@ -193,6 +193,9 @@ export default function PrivateChatScreen() {
 
         const gift = data.gift;
         
+        // Note: Gift notification message is now saved and emitted by server via 'new-message' event
+        // No need to manually add message here to avoid duplicates
+        
         const giftAnimationData = {
           ...gift,
           sender: data.from,
