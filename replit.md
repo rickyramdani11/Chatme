@@ -82,7 +82,7 @@ Preferred communication style: Simple, everyday language.
   - **Support Ticket SQL**: Fixed critical POST /support/tickets SQL schema mismatch - corrected INSERT columns to match table schema (user_id, username, subject, description vs. broken ticket_id, message)
   - **Support Ticket Response**: Fixed GET /support/tickets response parsing - frontend now correctly extracts `data.tickets` array from paginated response
   - **Live Chat Notifications**: Implemented real-time admin notification system when user sends live chat message. Uses Gateway `/emit-notification` endpoint with configurable `GATEWAY_URL` for production compatibility
-  - **Live Chat Notification Bug Fix**: Fixed admin not receiving live chat notifications - added socket listener in HelpSupportScreen for `new_notification` event. Admin now receives Alert with "View" and "Dismiss" buttons when user sends live chat message, even when admin is in HelpSupportScreen
+  - **Live Chat Notification Bug Fix**: Fixed admin not receiving live chat notifications - added socket listener in HelpSupportScreen for `new_notification` event. Admin now receives Alert with "View" and "Dismiss" buttons when user sends live chat message, even when admin is in HelpSupportScreen. Fixed navigation issue by using `useNavigation` hook instead of navigation prop for reliable screen transition
   - **Password Security**: Added server-side password validation - enforces 6-12 character length and requires combination of letters and numbers (tested with 5 scenarios, all passing)
   - Verified null checks in call handlers, confirmed join-room socket emit is necessary for participant tracking
 - **Performance Optimization**: 

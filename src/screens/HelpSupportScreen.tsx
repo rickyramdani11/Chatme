@@ -12,6 +12,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
@@ -39,7 +40,8 @@ interface SupportTicket {
   createdAt: string;
 }
 
-export default function HelpSupportScreen({ navigation }: any) {
+export default function HelpSupportScreen() {
+  const navigation = useNavigation();
   const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('faq');
   const [faqCategories, setFaqCategories] = useState<FAQCategory[]>([]);
@@ -91,11 +93,14 @@ export default function HelpSupportScreen({ navigation }: any) {
               { 
                 text: 'View', 
                 onPress: () => {
+                  console.log('🚀 Navigating to LiveChat with sessionId:', notification.data?.sessionId);
                   if (notification.data?.sessionId) {
-                    navigation.navigate('LiveChat', {
+                    (navigation as any).navigate('LiveChat', {
                       sessionId: notification.data.sessionId,
-                      adminUsername: user.username
+                      adminUsername: user?.username || 'admin'
                     });
+                  } else {
+                    console.error('❌ No sessionId in notification data');
                   }
                 }
               },
