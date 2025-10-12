@@ -103,6 +103,6 @@ Preferred communication style: Simple, everyday language.
 - **Push Notifications**: Firebase Cloud Messaging (FCM).
 
 ## Game Bots
-- **BaccaratBot**: Classic casino card game with multi-player betting.
-- **SicboBot**: 3-dice betting game.
-- **LowCard Bot**: Card comparison game.
+- **BaccaratBot**: Classic casino card game with multi-player betting. Uses row-level locking (SELECT FOR UPDATE) to prevent negative balance race conditions (October 2025).
+- **SicboBot**: 3-dice betting game. Protected against concurrent bet race conditions with transaction-based credit deduction (October 2025).
+- **LowCard Bot**: Card comparison game. Implements PostgreSQL row-level locking for atomic balance checks and deductions (October 2025).
