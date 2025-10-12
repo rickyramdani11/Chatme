@@ -194,6 +194,8 @@ const COLORS = {
   roleUserBg: '#E3F2FD',
   roleOwner: '#e8d31a',
   roleOwnerBg: '#fefce8',
+  roleModerator: '#FFA500',
+  roleModeratorBg: '#FFF4E6',
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayDark: 'rgba(0, 0, 0, 0.8)',
   overlayLight: 'rgba(0, 0, 0, 0.3)',
@@ -2233,7 +2235,7 @@ export default function ChatScreen() {
     const isModerator = currentRoom && currentRoom.moderators && username && currentRoom.moderators.includes(username);
 
     if (isOwner) return COLORS.roleOwner;
-    if (isModerator) return COLORS.roleOwner;
+    if (isModerator) return COLORS.roleModerator;
 
     switch (role) {
       case 'user': return COLORS.roleUser;
@@ -2269,7 +2271,7 @@ export default function ChatScreen() {
     const isModerator = currentRoom && currentRoom.moderators && username && currentRoom.moderators.includes(username);
 
     if (isOwner) return COLORS.roleOwnerBg;
-    if (isModerator) return COLORS.roleOwnerBg;
+    if (isModerator) return COLORS.roleModeratorBg;
 
     switch (role) {
       case 'user': return COLORS.roleUserBg;
