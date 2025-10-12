@@ -56,7 +56,7 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: Applied to sensitive operations.
 - **PIN Security**: Mandatory PIN for credit transfers.
 - **Code Protection**: Hermes engine, ProGuard/R8, auto-backup disabled.
-- **Race Condition Protection**: All credit operations use PostgreSQL row-level locking (SELECT...FOR UPDATE) with explicit transactions to prevent negative balances. Red packet expiry refunds protected against duplicate credit race conditions (October 2025).
+- **Race Condition Protection**: All credit operations use PostgreSQL row-level locking (SELECT...FOR UPDATE) with explicit transactions to prevent negative balances. Red packet expiry refunds protected against duplicate credit race conditions (October 2025). Admin delete room operations use transactions to prevent partial deletes and data inconsistency (October 2025).
 
 ## Process Management & Stability
 - **PM2 Configuration**: Dual-process setup for API server (cluster mode) and Gateway (fork mode for Socket.IO) with auto-restart, memory limits, and centralized logging.
