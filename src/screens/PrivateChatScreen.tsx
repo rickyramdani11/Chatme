@@ -121,7 +121,7 @@ export default function PrivateChatScreen() {
       setShowIncomingCallModal(true);
       
       // Clear the param to prevent re-triggering
-      navigation.setParams({ incomingCall: undefined });
+      (navigation as any).setParams({ incomingCall: undefined });
     }
   }, [routeParams.incomingCall]);
 
