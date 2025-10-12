@@ -205,7 +205,7 @@ router.post('/:roomId/join', (req, res) => {
 });
 
 // Delete room endpoint
-router.delete('/:roomId', (req, res) => {
+router.delete('/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
 
@@ -215,7 +215,10 @@ router.delete('/:roomId', (req, res) => {
     }
 
     const deletedRoom = rooms.splice(roomIndex, 1)[0];
-    console.log('Room deleted:', deletedRoom.name);
+    
+    // Delete from database
+    await pool.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+    console.log('Room deleted from database and memory:', deletedRoom.name);
 
     // Clean up participants for the deleted room
     delete roomParticipants[roomId];
@@ -228,7 +231,7 @@ router.delete('/:roomId', (req, res) => {
 });
 
 // Add participant to room
-router.post('/:roomId/participants', (req, res) => {
+router.post('/:roomId/participants', async (req, res) => {
   try {
     const { roomId } = req.params;
     const { username, role = 'user' } = req.body;
@@ -268,10 +271,15 @@ router.post('/:roomId/participants', (req, res) => {
       roomParticipants[roomId].push(participant);
       console.log('Added new participant:', username);
 
-      // Update room member count
+      // Update room member count in memory AND database
       const roomIndex = rooms.findIndex(r => r.id === roomId);
       if (roomIndex !== -1) {
-        rooms[roomIndex].members = roomParticipants[roomId].length;
+        const newMemberCount = roomParticipants[roomId].length;
+        rooms[roomIndex].members = newMemberCount;
+        
+        // Update database
+        await pool.query('UPDATE rooms SET members = $1 WHERE id = $2', [newMemberCount, roomId]);
+        console.log(`Updated room ${roomId} member count in database: ${newMemberCount}`);
       }
     }
 
