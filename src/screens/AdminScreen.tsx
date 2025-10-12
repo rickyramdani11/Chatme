@@ -3841,11 +3841,10 @@ export default function AdminScreen({ navigation }: any) {
                       [{ text: 'OK' }]
                     );
                   } else {
-                    // For mobile, show the content (you can enhance this with file system)
-                    console.log('CSV Content:', csvContent);
+                    // For mobile, notify user
                     Alert.alert(
-                      'Download Ready',
-                      'CSV report generated successfully. Check console for content.',
+                      'Laporan Siap',
+                      'Laporan CSV berhasil dibuat. Gunakan web browser untuk mendownload file.',
                       [{ text: 'OK' }]
                     );
                   }
