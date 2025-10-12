@@ -53,6 +53,10 @@ function distributeRandomly(totalAmount, slots) {
 export async function createRedPacket(roomId, senderId, senderName, totalAmount, totalSlots, message = '') {
   try {
     // Validate inputs
+    if (totalAmount < 9600) {
+      return { success: false, message: 'Minimum amount is 9600 credits!' };
+    }
+    
     if (totalAmount < totalSlots) {
       return { success: false, message: 'Total amount must be at least equal to number of slots!' };
     }
