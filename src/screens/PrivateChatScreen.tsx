@@ -1633,17 +1633,6 @@ export default function PrivateChatScreen() {
                   style={styles.messageMenuItem}
                   onPress={() => {
                     setShowMessageMenu(false);
-                    Alert.alert('Search Messages', 'Search functionality will be added soon');
-                  }}
-                >
-                  <Ionicons name="search-outline" size={20} color="#333" />
-                  <Text style={styles.messageMenuText}>Search Messages</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.messageMenuItem}
-                  onPress={() => {
-                    setShowMessageMenu(false);
                     Alert.alert(
                       'Clear Chat History',
                       'Are you sure you want to clear this chat history? This action cannot be undone.',
