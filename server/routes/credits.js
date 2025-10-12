@@ -18,7 +18,7 @@ const rateLimitStore = new Map();
 
 const rateLimit = (maxRequests = 5, windowMs = 60000) => {
   return (req, res, next) => {
-    const key = `${req.user.id}-${req.path}`;
+    const key = `${req.user.userId}-${req.path}`;
     const now = Date.now();
     
     if (!rateLimitStore.has(key)) {
@@ -56,7 +56,7 @@ setInterval(() => {
 // Get user balance
 router.get('/balance', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const result = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [userId]);
 
     let balance = 0;
@@ -76,7 +76,7 @@ router.get('/balance', authenticateToken, async (req, res) => {
 // Get credits history
 router.get('/history', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     // Get credit transfers (send/receive between users)
     const transfersResult = await pool.query(`
@@ -210,7 +210,7 @@ const auditCreditTransfer = async (req, res, next) => {
       const status = statusCode >= 200 && statusCode < 300 ? 'success' : 'failed';
       
       const auditData = {
-        from_user_id: req.user?.id,
+        from_user_id: req.user?.userId,
         from_username: req.user?.username,
         to_username: req.body?.toUsername,
         amount: req.body?.amount,
@@ -226,7 +226,7 @@ const auditCreditTransfer = async (req, res, next) => {
         (admin_id, admin_username, action, resource_type, resource_id, details, ip_address, user_agent, status, error_message)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       `, [
-        req.user.id,
+        req.user.userId,
         req.user.username,
         'CREDIT_TRANSFER',
         'credit',
@@ -251,7 +251,7 @@ const auditCreditTransfer = async (req, res, next) => {
 router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTransfer, async (req, res) => {
   try {
     const { toUsername, amount, pin } = req.body;
-    const fromUserId = req.user.id;
+    const fromUserId = req.user.userId;
 
     if (!toUsername || !amount || !pin) {
       return res.status(400).json({ error: 'Username, amount, and PIN are required' });
@@ -329,16 +329,13 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
         [amount, fromUserId]
       );
 
-      // Add to receiver
-      const receiverResult = await pool.query('SELECT balance FROM user_credits WHERE user_id = $1', [toUserId]);
-      if (receiverResult.rows.length === 0) {
-        await pool.query('INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)', [toUserId, amount]);
-      } else {
-        await pool.query(
-          'UPDATE user_credits SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
-          [amount, toUserId]
-        );
-      }
+      // Add to receiver using UPSERT to prevent race conditions
+      await pool.query(`
+        INSERT INTO user_credits (user_id, balance, updated_at) 
+        VALUES ($1, $2, CURRENT_TIMESTAMP)
+        ON CONFLICT (user_id) 
+        DO UPDATE SET balance = user_credits.balance + $2, updated_at = CURRENT_TIMESTAMP
+      `, [toUserId, amount]);
 
       // Record transaction
       await pool.query(`
@@ -437,7 +434,7 @@ router.post('/transfer', authenticateToken, rateLimit(5, 60000), auditCreditTran
 
 router.post('/call-interval-charge', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { amount, receiverId } = req.body;
 
     if (!amount || amount <= 0) {
@@ -502,7 +499,7 @@ router.post('/call-interval-charge', authenticateToken, async (req, res) => {
 
 router.post('/call-finalize', authenticateToken, async (req, res) => {
   try {
-    const callerId = req.user.id;
+    const callerId = req.user.userId;
     const { receiverId, totalAmount, duration } = req.body;
 
     if (!receiverId || !totalAmount || totalAmount <= 0) {
@@ -514,22 +511,13 @@ router.post('/call-finalize', authenticateToken, async (req, res) => {
     try {
       const receiverEarnings = Math.floor(totalAmount * 0.3);
 
-      const receiverResult = await pool.query(
-        'SELECT user_id FROM user_credits WHERE user_id = $1 FOR UPDATE',
-        [receiverId]
-      );
-
-      if (receiverResult.rows.length === 0) {
-        await pool.query(
-          'INSERT INTO user_credits (user_id, balance, withdraw_balance) VALUES ($1, 0, $2)',
-          [receiverId, receiverEarnings]
-        );
-      } else {
-        await pool.query(
-          'UPDATE user_credits SET withdraw_balance = withdraw_balance + $1, updated_at = NOW() WHERE user_id = $2',
-          [receiverEarnings, receiverId]
-        );
-      }
+      // Add earnings to receiver using UPSERT to prevent race conditions
+      await pool.query(`
+        INSERT INTO user_credits (user_id, balance, withdraw_balance, updated_at) 
+        VALUES ($1, 0, $2, NOW())
+        ON CONFLICT (user_id) 
+        DO UPDATE SET withdraw_balance = user_credits.withdraw_balance + $2, updated_at = NOW()
+      `, [receiverId, receiverEarnings]);
 
       await pool.query(`
         INSERT INTO credit_transactions (from_user_id, to_user_id, amount, type, description)
@@ -562,7 +550,7 @@ router.post('/call-finalize', authenticateToken, async (req, res) => {
 // System transfers coins to mentor, counts as mentor monthly top up (7M/month requirement)
 router.post('/admin/topup-mentor', authenticateToken, rateLimit(10, 60000), async (req, res) => {
   try {
-    const adminId = req.user.id;
+    const adminId = req.user.userId;
     const { mentorId, amount } = req.body;
 
     if (!mentorId || !amount) {
@@ -599,23 +587,13 @@ router.post('/admin/topup-mentor', authenticateToken, rateLimit(10, 60000), asyn
         return res.status(400).json({ error: 'User is not a mentor' });
       }
 
-      // Add to mentor balance (mentor RECEIVES from system)
-      const mentorCreditCheck = await pool.query(
-        'SELECT user_id FROM user_credits WHERE user_id = $1 FOR UPDATE',
-        [mentorId]
-      );
-
-      if (mentorCreditCheck.rows.length === 0) {
-        await pool.query(
-          'INSERT INTO user_credits (user_id, balance) VALUES ($1, $2)',
-          [mentorId, amount]
-        );
-      } else {
-        await pool.query(
-          'UPDATE user_credits SET balance = balance + $1, updated_at = NOW() WHERE user_id = $2',
-          [amount, mentorId]
-        );
-      }
+      // Add to mentor balance using UPSERT (mentor RECEIVES from system)
+      await pool.query(`
+        INSERT INTO user_credits (user_id, balance, updated_at) 
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (user_id) 
+        DO UPDATE SET balance = user_credits.balance + $2, updated_at = NOW()
+      `, [mentorId, amount]);
 
       // Record topup from system to mentor
       const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -699,7 +677,7 @@ async function getMentorTopupProgress(mentorId) {
 // Get topup status endpoint
 router.get('/topup/status', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     const userCheck = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
     
