@@ -73,6 +73,8 @@ Preferred communication style: Simple, everyday language.
 
 ## UI/UX Decisions
 - **Theming**: Partially implemented Dark Mode.
+- **Password Validation**: All characters allowed (letters, numbers, symbols), length 6-12 characters (October 2025).
+- **Gift Picker UI**: PrivateChatScreen gift modal displays 3-column grid layout with actual gift images instead of emoji icons (October 2025).
 - **Level Badges**: Dynamic gradient level badges.
 - **Chat Message Display**: Optimized spacing, consistent font sizes, improved text wrapping, and distinct display for gift notifications and command messages.
 - **Android Back Button**: Hardware back button handling for proper navigation.

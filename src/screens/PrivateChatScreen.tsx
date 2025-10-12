@@ -1711,7 +1711,15 @@ export default function PrivateChatScreen() {
                       style={styles.giftItem}
                       onPress={() => handleGiftSelect(gift)}
                     >
-                      <Text style={styles.giftEmoji}>{gift.icon}</Text>
+                      {(gift.mediaUrl || gift.image) ? (
+                        <Image 
+                          source={{ uri: gift.mediaUrl || gift.image }} 
+                          style={styles.giftImage}
+                          resizeMode="contain"
+                        />
+                      ) : (
+                        <Text style={styles.giftEmoji}>{gift.icon || '🎁'}</Text>
+                      )}
                       <Text style={styles.giftName}>{gift.name}</Text>
                       <Text style={styles.giftPrice}>{gift.price} coins</Text>
                     </TouchableOpacity>
@@ -2161,13 +2169,13 @@ const styles = StyleSheet.create({
   giftGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 12,
-    justifyContent: 'space-around',
+    padding: 8,
+    justifyContent: 'space-between',
   },
   giftItem: {
-    width: 90,
-    height: 100,
-    margin: 6,
+    width: '31%',
+    height: 110,
+    marginBottom: 10,
     padding: 8,
     backgroundColor: '#F8F9FA',
     borderRadius: 12,
@@ -2176,8 +2184,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
+  giftImage: {
+    width: 50,
+    height: 50,
+    marginBottom: 4,
+  },
   giftEmoji: {
-    fontSize: 24,
+    fontSize: 40,
     marginBottom: 4,
   },
   giftName: {
