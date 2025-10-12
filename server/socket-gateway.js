@@ -2213,7 +2213,9 @@ io.on('connection', (socket) => {
       // Save gift notification message to database for persistence
       if (roomId) {
         try {
-          const messageContent = `${from} send ${gift.name} to ${to}`;
+          // Include gift icon/emoji in message content for visual display
+          const giftIcon = gift.icon || '🎁';
+          const messageContent = `${from} send ${gift.name} ${giftIcon} to ${to}`;
           
           const result = await pool.query(
             `INSERT INTO private_messages (chat_id, sender_id, message, created_at) 
@@ -2227,14 +2229,20 @@ io.on('connection', (socket) => {
             const savedMessage = result.rows[0];
             console.log(`💾 Gift notification message saved to database: ${messageContent}`);
             
-            // Emit as regular message so it appears in chat history
+            // Emit as regular message so it appears in chat history with gift data
             io.to(roomId).emit('new-message', {
               id: savedMessage.id.toString(),
               roomId: roomId,
               sender: from,
               content: messageContent,
               timestamp: savedMessage.created_at,
-              type: 'system'
+              type: 'system',
+              gift: {
+                icon: giftIcon,
+                name: gift.name,
+                image: gift.image || gift.imageUrl,
+                price: gift.price
+              }
             });
           }
         } catch (dbError) {

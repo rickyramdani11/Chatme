@@ -1308,8 +1308,7 @@ export default function PrivateChatScreen() {
           console.error('❌ Socket or user not available for sending private gift');
         }
 
-        // Show success message
-        Alert.alert('Gift Sent!', `You sent ${gift.name} ${gift.icon} to ${targetUser?.username}`);
+        // Close modal immediately without blocking alert
         setShowGiftPicker(false);
       } else {
         const errorData = await response.json();

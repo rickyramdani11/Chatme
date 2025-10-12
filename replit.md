@@ -74,7 +74,9 @@ Preferred communication style: Simple, everyday language.
 ## UI/UX Decisions
 - **Theming**: Partially implemented Dark Mode.
 - **Password Validation**: All characters allowed (letters, numbers, symbols), length 6-12 characters (October 2025).
-- **Gift Picker UI**: PrivateChatScreen gift modal displays 3-column grid layout with actual gift images instead of emoji icons (October 2025).
+- **Gift Picker UI**: PrivateChatScreen gift modal displays 3-column grid layout with actual gift images instead of emoji icons. Modal is centered (90% width, 50% height, borderRadius 20) with proper wrapper structure for correct positioning (October 2025).
+- **Gift Sending UX**: Removed blocking Alert.alert after gift sent - modal closes immediately to prevent UI freeze and allow gift animation to display properly (October 2025).
+- **Gift Notification Display**: Gift messages in private chat now include gift icon/emoji in content (e.g., "chatme send Semangka 🍉 to hana") and gift object data for proper visual rendering (October 2025).
 - **Level Badges**: Dynamic gradient level badges.
 - **Chat Message Display**: Optimized spacing, consistent font sizes, improved text wrapping, and distinct display for gift notifications and command messages.
 - **Android Back Button**: Hardware back button handling for proper navigation.
