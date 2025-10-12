@@ -358,17 +358,29 @@ app.get('/api/admin/rooms', authenticateAdmin, async (req, res) => {
 
 // Delete room
 app.delete('/api/admin/rooms/:roomId', authenticateAdmin, rateLimit(5, 60000), auditLog('DELETE_ROOM', 'room'), async (req, res) => {
+  const client = await pool.connect();
+  
   try {
     const { roomId } = req.params;
 
-    // Delete related data first
-    await pool.query('DELETE FROM chat_messages WHERE room_id = $1', [roomId]);
-    await pool.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+    await client.query('BEGIN');
+
+    // Delete all related data in a transaction to prevent partial deletes
+    await client.query('DELETE FROM chat_messages WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM room_banned_users WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM room_security WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM room_moderators WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+
+    await client.query('COMMIT');
 
     res.json({ message: 'Room deleted successfully' });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Delete room error:', error);
     res.status(500).json({ error: 'Failed to delete room' });
+  } finally {
+    client.release();
   }
 });
 

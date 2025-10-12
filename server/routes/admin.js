@@ -949,21 +949,30 @@ router.put('/rooms/:roomId', authenticateToken, adminOnly, auditLog('UPDATE_ROOM
 
 // Delete room (admin only)
 router.delete('/rooms/:roomId', authenticateToken, adminOnly, rateLimit(5, 60000), auditLog('DELETE_ROOM', 'room'), async (req, res) => {
+  const client = await pool.connect();
+  
   try {
     const { roomId } = req.params;
 
-    const roomCheck = await pool.query('SELECT name FROM rooms WHERE id = $1', [roomId]);
+    await client.query('BEGIN');
+
+    // Check if room exists
+    const roomCheck = await client.query('SELECT name FROM rooms WHERE id = $1', [roomId]);
     if (roomCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Room not found' });
     }
 
     const roomName = roomCheck.rows[0].name;
 
-    await pool.query('DELETE FROM chat_messages WHERE room_id = $1', [roomId]);
-    await pool.query('DELETE FROM room_banned_users WHERE room_id = $1', [roomId]);
-    await pool.query('DELETE FROM room_security WHERE room_id = $1', [roomId]);
-    await pool.query('DELETE FROM room_moderators WHERE room_id = $1', [roomId]);
-    await pool.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+    // Delete all related data in a transaction to prevent partial deletes
+    await client.query('DELETE FROM chat_messages WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM room_banned_users WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM room_security WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM room_moderators WHERE room_id = $1', [roomId]);
+    await client.query('DELETE FROM rooms WHERE id = $1', [roomId]);
+
+    await client.query('COMMIT');
 
     res.json({ 
       message: 'Room deleted successfully',
@@ -971,8 +980,11 @@ router.delete('/rooms/:roomId', authenticateToken, adminOnly, rateLimit(5, 60000
     });
 
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error deleting room:', error);
     res.status(500).json({ error: 'Failed to delete room' });
+  } finally {
+    client.release();
   }
 });
 
