@@ -833,8 +833,17 @@ async function processLowCardCommand(io, room, msg, userId, username, userRole =
     return;
   }
 
-  // Handle /bot off command specifically
+  // Handle /bot off command specifically (ADMIN ONLY)
   if (trimmedMsg === '/bot off') {
+    console.log(`Bot off command received in room ${room} from user ${username} (role: ${userRole})`);
+    
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      sendBotMessage(io, room, `❌ Only admins can turn off LowCardBot.`);
+      console.log(`⚠️ Non-admin user ${username} attempted to turn off LowCardBot`);
+      return;
+    }
+    
     // Check if bot is already off
     if (!botPresence[room]) {
       sendBotMessage(io, room, `Bot is off in room`);
