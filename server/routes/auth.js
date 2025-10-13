@@ -58,6 +58,19 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Middleware to ensure user is admin
+const ensureAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  
+  next();
+};
+
 // Username validation function
 function validateUsername(username) {
   // Check length: 4-12 characters
@@ -542,4 +555,4 @@ router.post('/change-pin', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = { router, authenticateToken };
+module.exports = { router, authenticateToken, ensureAdmin };

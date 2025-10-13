@@ -11,7 +11,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto'); // Required for JWT and signature verification
 
 // Import route modules
-const { router: authRouter, authenticateToken } = require('./routes/auth');
+const { router: authRouter, authenticateToken, ensureAdmin } = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const chatRouter = require('./routes/chat');
 const creditsRouter = require('./routes/credits');
@@ -4485,7 +4485,7 @@ app.delete('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
 
 // Admin Withdrawal Management Endpoints
 // Get all withdrawal requests (admin only)
-app.get('/api/admin/withdrawals', authenticateToken, async (req, res) => {
+app.get('/api/admin/withdrawals', authenticateToken, ensureAdmin, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
@@ -4534,32 +4534,33 @@ app.get('/api/admin/withdrawals', authenticateToken, async (req, res) => {
 });
 
 // Approve withdrawal request (admin only)
-app.post('/api/admin/withdrawals/:id/approve', authenticateToken, async (req, res) => {
+app.post('/api/admin/withdrawals/:id/approve', authenticateToken, ensureAdmin, async (req, res) => {
+  const client = await pool.connect();
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { id } = req.params;
     const { notes } = req.body;
 
-    // Check if withdrawal exists and is pending
-    const checkResult = await pool.query(`
-      SELECT * FROM withdrawal_requests WHERE id = $1
+    await client.query('BEGIN');
+
+    // Lock the withdrawal record to prevent concurrent approve/reject
+    const checkResult = await client.query(`
+      SELECT * FROM withdrawal_requests WHERE id = $1 FOR UPDATE
     `, [id]);
 
     if (checkResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Withdrawal request not found' });
     }
 
     const withdrawal = checkResult.rows[0];
 
     if (withdrawal.status !== 'pending') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: `Cannot approve withdrawal with status: ${withdrawal.status}` });
     }
 
-    // Update withdrawal status to completed
-    await pool.query(`
+    // Update withdrawal status to completed (balance already deducted during request)
+    await client.query(`
       UPDATE withdrawal_requests 
       SET 
         status = $1,
@@ -4567,6 +4568,8 @@ app.post('/api/admin/withdrawals/:id/approve', authenticateToken, async (req, re
         notes = $2
       WHERE id = $3
     `, ['completed', notes || `Approved by admin ${req.user.username}`, id]);
+
+    await client.query('COMMIT');
 
     console.log(`✅ Withdrawal ${id} approved by admin ${req.user.username}`);
 
@@ -4576,18 +4579,18 @@ app.post('/api/admin/withdrawals/:id/approve', authenticateToken, async (req, re
     });
 
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error approving withdrawal:', error);
     res.status(500).json({ error: 'Failed to approve withdrawal' });
+  } finally {
+    client.release();
   }
 });
 
 // Reject withdrawal request and refund (admin only)
-app.post('/api/admin/withdrawals/:id/reject', authenticateToken, async (req, res) => {
+app.post('/api/admin/withdrawals/:id/reject', authenticateToken, ensureAdmin, async (req, res) => {
+  const client = await pool.connect();
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { id } = req.params;
     const { reason } = req.body;
 
@@ -4595,68 +4598,64 @@ app.post('/api/admin/withdrawals/:id/reject', authenticateToken, async (req, res
       return res.status(400).json({ error: 'Rejection reason is required' });
     }
 
-    // Check if withdrawal exists and is pending
-    const checkResult = await pool.query(`
-      SELECT * FROM withdrawal_requests WHERE id = $1
+    await client.query('BEGIN');
+
+    // Lock the withdrawal record to prevent concurrent approve/reject
+    const checkResult = await client.query(`
+      SELECT * FROM withdrawal_requests WHERE id = $1 FOR UPDATE
     `, [id]);
 
     if (checkResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Withdrawal request not found' });
     }
 
     const withdrawal = checkResult.rows[0];
 
     if (withdrawal.status !== 'pending') {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: `Cannot reject withdrawal with status: ${withdrawal.status}` });
     }
 
     if (withdrawal.refunded) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Withdrawal already refunded' });
     }
 
-    // Start transaction for atomic refund
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+    // Refund coins to user balance atomically
+    await client.query(`
+      UPDATE user_gift_earnings_balance 
+      SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $2
+    `, [withdrawal.amount_coins, withdrawal.user_id]);
 
-      // Refund coins to user balance
-      await client.query(`
-        UPDATE user_gift_earnings_balance 
-        SET balance = balance + $1, updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = $2
-      `, [withdrawal.amount_coins, withdrawal.user_id]);
+    // Update withdrawal status to rejected
+    await client.query(`
+      UPDATE withdrawal_requests 
+      SET 
+        status = $1,
+        processed_at = CURRENT_TIMESTAMP,
+        notes = $2,
+        refunded = true
+      WHERE id = $3
+    `, ['rejected', `Rejected by admin ${req.user.username}: ${reason.trim()}`, id]);
 
-      // Update withdrawal status to rejected
-      await client.query(`
-        UPDATE withdrawal_requests 
-        SET 
-          status = $1,
-          processed_at = CURRENT_TIMESTAMP,
-          notes = $2,
-          refunded = true
-        WHERE id = $3
-      `, ['rejected', `Rejected by admin ${req.user.username}: ${reason.trim()}`, id]);
+    await client.query('COMMIT');
 
-      await client.query('COMMIT');
+    console.log(`❌ Withdrawal ${id} rejected by admin ${req.user.username}. Refunded ${withdrawal.amount_coins} coins to user ${withdrawal.user_id}`);
 
-      console.log(`❌ Withdrawal ${id} rejected by admin ${req.user.username}. Refunded ${withdrawal.amount_coins} coins to user ${withdrawal.user_id}`);
-
-      res.json({
-        success: true,
-        message: 'Withdrawal rejected and refunded successfully',
-        refundedAmount: withdrawal.amount_coins
-      });
-
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    res.json({
+      success: true,
+      message: 'Withdrawal rejected and refunded successfully',
+      refundedAmount: withdrawal.amount_coins
+    });
 
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error rejecting withdrawal:', error);
     res.status(500).json({ error: 'Failed to reject withdrawal' });
+  } finally {
+    client.release();
   }
 });
 
