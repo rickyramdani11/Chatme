@@ -23,6 +23,7 @@ const pushNotificationsRouter = require('./routes/push-notifications');
 const fetch = require('node-fetch'); // Import node-fetch
 const { createProxyMiddleware } = require('http-proxy-middleware'); // For Socket.IO proxy
 const { maskEmail, maskPhone, maskToken, maskSensitiveData } = require('./utils/maskSensitiveData');
+const Brevo = require('@getbrevo/brevo'); // Brevo email service
 
 // Import Firebase service for push notifications
 const { initializeFirebase } = require('./services/firebase');
@@ -77,6 +78,20 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
   console.warn('⚠️  WARNING: Using default JWT secret. Set JWT_SECRET environment variable for production!');
   return 'your_super_secret_key_for_development_only';
 })(); // JWT secret key
+
+// Brevo (Sendinblue) Email Configuration
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'noreply@chatme.app';
+let brevoApiInstance = null;
+
+if (BREVO_API_KEY) {
+  const apiInstance = new Brevo.TransactionalEmailsApi();
+  apiInstance.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, BREVO_API_KEY);
+  brevoApiInstance = apiInstance;
+  console.log('✅ Brevo email service configured successfully');
+} else {
+  console.warn('⚠️  WARNING: BREVO_API_KEY not found. Email verification will be simulated only.');
+}
 
 // Multer storage configuration for emojis - redirected to assets
 const storageEmoji = multer.diskStorage({
@@ -935,14 +950,54 @@ const generateRoomDescription = (roomName, creatorUsername) => {
 
 let verificationTokens = [];
 
-// Email verification simulation (replace with real email service)
-const sendVerificationEmail = (email, token) => {
+// Email verification with Brevo
+const sendVerificationEmail = async (email, token) => {
   console.log(`=== EMAIL VERIFICATION ===`);
   console.log(`To: ${maskEmail(email)}`);
-  console.log(`Subject: Verify Your ChatMe Account`);
-  console.log(`Verification Link: http://0.0.0.0:5000/api/verify-email?token=${maskToken(token)}`);
-  console.log(`========================`);
-  return true;
+  
+  const verificationLink = `${API_BASE_URL}/api/verify-email?token=${token}`;
+  
+  // If Brevo is configured, send real email
+  if (brevoApiInstance) {
+    try {
+      const sendSmtpEmail = new Brevo.SendSmtpEmail();
+      
+      sendSmtpEmail.sender = { email: BREVO_SENDER_EMAIL, name: 'ChatMe' };
+      sendSmtpEmail.to = [{ email: email }];
+      sendSmtpEmail.subject = 'Verify Your ChatMe Account';
+      sendSmtpEmail.htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #FF69B4;">Welcome to ChatMe!</h2>
+          <p>Thank you for registering. Please verify your email address by clicking the button below:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationLink}" 
+               style="background-color: #FF69B4; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+              Verify Email
+            </a>
+          </div>
+          <p>Or copy and paste this link in your browser:</p>
+          <p style="color: #666; word-break: break-all;">${verificationLink}</p>
+          <p style="color: #999; font-size: 12px; margin-top: 30px;">This link will expire in 1 hour.</p>
+        </div>
+      `;
+      
+      const data = await brevoApiInstance.sendTransacEmail(sendSmtpEmail);
+      console.log(`✅ Verification email sent successfully to ${maskEmail(email)}`);
+      console.log(`Message ID: ${data.messageId}`);
+      return true;
+      
+    } catch (error) {
+      console.error(`❌ Failed to send verification email:`, error.message);
+      // Fallback to simulation if email fails
+      console.log(`Verification Link (fallback): ${verificationLink}`);
+      return false;
+    }
+  } else {
+    // Simulation mode (no Brevo API key)
+    console.log(`⚠️  SIMULATION MODE - Verification Link: ${verificationLink}`);
+    console.log(`========================`);
+    return false;
+  }
 };
 
 // Function to add EXP to a user
@@ -2366,8 +2421,8 @@ app.post('/api/auth/register', async (req, res) => {
     const verificationToken = jwt.sign({ userId: newUser.id, type: 'verification' }, JWT_SECRET, { expiresIn: '1h' });
     verificationTokens.push({ token: verificationToken, userId: newUser.id });
 
-    // Send verification email (simulation)
-    sendVerificationEmail(email, verificationToken);
+    // Send verification email
+    await sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({
       message: 'User created successfully. Please verify your email.',
