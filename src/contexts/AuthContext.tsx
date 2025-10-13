@@ -15,6 +15,7 @@ interface User {
   bio: string;
   phone: string;
   avatar: string | null;
+  profileBackground?: string | null;
   gender?: string;
   birthDate?: string;
   country?: string;

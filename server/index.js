@@ -5723,7 +5723,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
 
     // Get user data
     const userResult = await pool.query(
-      'SELECT id, username, email, bio, phone, avatar, gender, birth_date, country, signature, verified, role, exp, level FROM users WHERE id = $1',
+      'SELECT id, username, email, bio, phone, avatar, profile_background, gender, birth_date, country, signature, verified, role, exp, level FROM users WHERE id = $1',
       [actualUserId]
     );
 
@@ -5837,6 +5837,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
       followers: parseInt(followersResult.rows[0].count),
       following: parseInt(followingResult.rows[0].count),
       avatar: avatarUrl,
+      profile_background: user.profile_background,
       level: user.level || 1,
       role: user.role || 'user',
       merchantStatus: merchantStatus,
