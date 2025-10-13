@@ -271,10 +271,14 @@ export default function EditProfileScreen({ navigation }: any) {
       if (response.ok) {
         const result = await response.json();
         
-        // Update user context with new background
-        await updateProfile({
-          profileBackground: result.profileBackground
-        });
+        // Update user context with new background - direct state update
+        if (user) {
+          const updatedUser = {
+            ...user,
+            profileBackground: result.profileBackground
+          };
+          await updateProfile(updatedUser);
+        }
         
         setSelectedPhoto(null);
         Alert.alert('Success', 'Foto berhasil disimpan sebagai background profile!');
