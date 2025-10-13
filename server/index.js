@@ -505,6 +505,39 @@ pool.connect(async (err, client, release) => {
       console.error('Error creating withdrawal system tables:', tableError);
     }
 
+    // Add invite_code column to users table for referral system
+    try {
+      await client.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS invite_code VARCHAR(20) UNIQUE
+      `);
+      console.log('✅ invite_code column added to users table');
+    } catch (alterError) {
+      console.log('invite_code column might already exist or other issue:', alterError.message);
+    }
+
+    // Create referral system table if it doesn't exist
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS user_referrals (
+          id SERIAL PRIMARY KEY,
+          referrer_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          invited_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          invite_code VARCHAR(20) NOT NULL,
+          referrer_username VARCHAR(50) NOT NULL,
+          invited_username VARCHAR(50) NOT NULL,
+          bonus_amount INTEGER DEFAULT 10000,
+          bonus_claimed BOOLEAN DEFAULT false,
+          first_withdrawal_completed BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          bonus_claimed_at TIMESTAMP,
+          UNIQUE(invited_user_id)
+        )
+      `);
+      console.log('✅ Referral system table initialized successfully');
+    } catch (tableError) {
+      console.error('Error creating referral system table:', tableError);
+    }
+
     // Create Sicbo game tables if they don't exist
     try {
       await client.query(`
