@@ -1845,7 +1845,7 @@ io.on('connection', (socket) => {
           trimmedContent.startsWith('/bot off') ||
           trimmedContent.startsWith('!')) {
 
-        console.log(`🤖 Processing bot command: ${trimmedContent}`);
+        console.log(`🤖 Processing bot command: "${trimmedContent}" (length: ${trimmedContent.length}, from: ${sender})`);
 
         // Get user info from connected users
         const userInfo = connectedUsers.get(socket.id);
