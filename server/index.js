@@ -8223,6 +8223,181 @@ app.post('/mentor/add-merchant', authenticateToken, async (req, res) => {
   }
 });
 
+// Get mentor statistics/traffic (total top-ups from merchants)
+app.get('/mentor/statistics', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET MENTOR STATISTICS REQUEST ===');
+    console.log('User ID:', req.user.id);
+    console.log('User Role:', req.user.role);
+
+    // Check if user is mentor or admin
+    if (req.user.role !== 'mentor' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Mentor role required.' });
+    }
+
+    const mentorId = req.user.id;
+
+    // Get total top-ups from all merchants promoted by this mentor
+    const totalTopUpResult = await pool.query(`
+      SELECT 
+        COALESCE(SUM(amount), 0) as total_topup,
+        COUNT(DISTINCT merchant_id) as total_merchants,
+        COUNT(*) as total_transactions
+      FROM merchant_topups
+      WHERE mentor_id = $1
+    `, [mentorId]);
+
+    // Get monthly top-ups (current month)
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const monthlyTopUpResult = await pool.query(`
+      SELECT 
+        COALESCE(SUM(amount), 0) as monthly_topup,
+        COUNT(*) as monthly_transactions
+      FROM merchant_topups
+      WHERE mentor_id = $1 AND month_year = $2
+    `, [mentorId, currentMonth]);
+
+    // Get top-up details by merchant
+    const merchantDetailsResult = await pool.query(`
+      SELECT 
+        u.username,
+        u.id as merchant_id,
+        COALESCE(SUM(mt.amount), 0) as total_topup,
+        COUNT(mt.id) as transaction_count,
+        MAX(mt.created_at) as last_topup_date
+      FROM merchant_topups mt
+      JOIN users u ON mt.merchant_id = u.id
+      WHERE mt.mentor_id = $1
+      GROUP BY u.id, u.username
+      ORDER BY total_topup DESC
+    `, [mentorId]);
+
+    const stats = {
+      totalTopUp: parseInt(totalTopUpResult.rows[0].total_topup),
+      totalMerchants: parseInt(totalTopUpResult.rows[0].total_merchants),
+      totalTransactions: parseInt(totalTopUpResult.rows[0].total_transactions),
+      monthlyTopUp: parseInt(monthlyTopUpResult.rows[0].monthly_topup),
+      monthlyTransactions: parseInt(monthlyTopUpResult.rows[0].monthly_transactions),
+      merchantDetails: merchantDetailsResult.rows.map(row => ({
+        username: row.username,
+        merchantId: row.merchant_id,
+        totalTopUp: parseInt(row.total_topup),
+        transactionCount: parseInt(row.transaction_count),
+        lastTopUpDate: row.last_topup_date
+      }))
+    };
+
+    console.log('Mentor statistics:', stats);
+
+    res.json({ 
+      success: true,
+      statistics: stats
+    });
+
+  } catch (error) {
+    console.error('Error fetching mentor statistics:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get merchant statistics (for merchant role)
+app.get('/merchant/statistics', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== GET MERCHANT STATISTICS REQUEST ===');
+    console.log('User ID:', req.user.id);
+    console.log('User Role:', req.user.role);
+
+    // Check if user is merchant or admin
+    if (req.user.role !== 'merchant' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Access denied. Merchant role required.' });
+    }
+
+    const merchantId = req.user.id;
+
+    // Get merchant promotion details
+    const promotionResult = await pool.query(`
+      SELECT 
+        mp.*,
+        u.username as mentor_username
+      FROM merchant_promotions mp
+      LEFT JOIN users u ON mp.promoted_by = u.id
+      WHERE mp.user_id = $1
+      ORDER BY mp.promoted_at DESC
+      LIMIT 1
+    `, [merchantId]);
+
+    if (promotionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Merchant promotion not found' });
+    }
+
+    const promotion = promotionResult.rows[0];
+
+    // Get total top-ups by this merchant
+    const totalTopUpResult = await pool.query(`
+      SELECT 
+        COALESCE(SUM(amount), 0) as total_topup,
+        COUNT(*) as total_transactions
+      FROM merchant_topups
+      WHERE merchant_id = $1
+    `, [merchantId]);
+
+    // Get monthly top-ups (current month)
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const monthlyTopUpResult = await pool.query(`
+      SELECT 
+        COALESCE(SUM(amount), 0) as monthly_topup,
+        COUNT(*) as monthly_transactions
+      FROM merchant_topups
+      WHERE merchant_id = $1 AND month_year = $2
+    `, [merchantId, currentMonth]);
+
+    // Get top-up history
+    const historyResult = await pool.query(`
+      SELECT 
+        id,
+        amount,
+        description,
+        created_at,
+        month_year
+      FROM merchant_topups
+      WHERE merchant_id = $1
+      ORDER BY created_at DESC
+      LIMIT 20
+    `, [merchantId]);
+
+    const stats = {
+      mentorUsername: promotion.mentor_username,
+      promotedAt: promotion.promoted_at,
+      expiresAt: promotion.expires_at,
+      status: promotion.status,
+      topupRequirement: promotion.topup_requirement || 800000,
+      monthlyTopup: promotion.monthly_topup || 0,
+      totalTopUp: parseInt(totalTopUpResult.rows[0].total_topup),
+      totalTransactions: parseInt(totalTopUpResult.rows[0].total_transactions),
+      currentMonthTopUp: parseInt(monthlyTopUpResult.rows[0].monthly_topup),
+      currentMonthTransactions: parseInt(monthlyTopUpResult.rows[0].monthly_transactions),
+      topUpHistory: historyResult.rows.map(row => ({
+        id: row.id,
+        amount: row.amount,
+        description: row.description,
+        createdAt: row.created_at,
+        monthYear: row.month_year
+      }))
+    };
+
+    console.log('Merchant statistics:', stats);
+
+    res.json({ 
+      success: true,
+      statistics: stats
+    });
+
+  } catch (error) {
+    console.error('Error fetching merchant statistics:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Auth endpoints without /api prefix
 app.post('/auth/login', async (req, res) => {
   try {
