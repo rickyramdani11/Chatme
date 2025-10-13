@@ -78,6 +78,12 @@ function validateUsername(username) {
     return { valid: false, error: 'Username must be 4-12 characters' };
   }
 
+  // Must start with a letter (not underscore, dot, or number)
+  const startsWithLetterRegex = /^[a-z]/;
+  if (!startsWithLetterRegex.test(username)) {
+    return { valid: false, error: 'Username must start with a letter (a-z)' };
+  }
+
   // Check if only lowercase letters, numbers, underscore, and dot
   const validCharsRegex = /^[a-z0-9_.]+$/;
   if (!validCharsRegex.test(username)) {
