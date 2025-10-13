@@ -4509,21 +4509,46 @@ app.get('/api/admin/withdrawals', authenticateToken, ensureAdmin, async (req, re
         wr.created_at DESC
     `);
 
-    const withdrawals = result.rows.map(row => ({
-      id: row.id.toString(),
-      userId: row.user_id,
-      username: row.username,
-      email: row.email,
-      amountUsd: parseFloat(row.amount_usd),
-      amountCoins: row.amount_coins,
-      netAmountIdr: parseFloat(row.net_amount_idr),
-      accountType: row.account_type,
-      accountDetails: row.account_details,
-      status: row.status,
-      createdAt: row.created_at,
-      processedAt: row.processed_at,
-      notes: row.notes
-    }));
+    const withdrawals = result.rows.map(row => {
+      // Parse account_details from JSONB or use individual columns (backward compatibility)
+      let accountDetails;
+      if (row.account_details) {
+        // New format: JSONB column
+        const parsed = typeof row.account_details === 'string' 
+          ? JSON.parse(row.account_details) 
+          : row.account_details;
+        accountDetails = {
+          accountName: parsed.accountName || row.account_type,
+          accountNumber: parsed.accountNumber,
+          holderName: parsed.holderName,
+          accountType: row.account_type
+        };
+      } else {
+        // Old format: individual columns
+        accountDetails = {
+          accountName: row.account_name,
+          accountNumber: row.account_number,
+          holderName: row.account_name,
+          accountType: row.account_type
+        };
+      }
+
+      return {
+        id: row.id.toString(),
+        userId: row.user_id,
+        username: row.username,
+        email: row.email,
+        amountUsd: parseFloat(row.amount_usd),
+        amountCoins: row.amount_coins,
+        netAmountIdr: parseFloat(row.net_amount_idr),
+        accountType: row.account_type,
+        accountDetails,
+        status: row.status,
+        createdAt: row.created_at,
+        processedAt: row.processed_at,
+        notes: row.notes
+      };
+    });
 
     res.json({ withdrawals });
 

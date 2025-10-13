@@ -4148,7 +4148,7 @@ export default function AdminScreen({ navigation }: any) {
                       <Ionicons name="wallet" size={16} color="#666" />
                       <Text style={styles.withdrawalDetailLabel}>Account:</Text>
                       <Text style={styles.withdrawalDetailValue}>
-                        {withdrawal.accountDetails.accountName} ({withdrawal.accountDetails.accountNumber})
+                        {withdrawal.accountDetails.holderName || withdrawal.accountDetails.accountName} - {withdrawal.accountDetails.accountName} ({withdrawal.accountDetails.accountNumber})
                       </Text>
                     </View>
 
