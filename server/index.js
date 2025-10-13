@@ -8496,7 +8496,7 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
   }
 });
 
-// Get admin credit transfer history (Super Admin Only)
+// Get admin credit transfer history (All Admins)
 app.get('/api/admin/audit-logs/transfers', authenticateToken, async (req, res) => {
   try {
     console.log('=== ADMIN TRANSFER HISTORY REQUEST ===');
@@ -8505,12 +8505,6 @@ app.get('/api/admin/audit-logs/transfers', authenticateToken, async (req, res) =
 
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    // Check if user is super admin
-    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
-      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
-      return res.status(403).json({ error: 'Super admin access required to view transfer history' });
     }
 
     // Fetch all admin credit transfers from audit logs

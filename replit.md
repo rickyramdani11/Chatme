@@ -50,7 +50,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access with super admin whitelist. ensureAdmin middleware enforces admin-only access for sensitive endpoints (October 2025).
-- **Super Admin System**: Whitelist-based access for sensitive features (e.g., credit management, user credential changes).
+- **Super Admin System**: Whitelist-based access for sensitive features (e.g., add credits, email changes, password resets). Transfer history viewable by all admins (October 2025).
 - **Credential Management Tools**: Super admin-only tools for email changes and password resets with validation and audit logging.
 - **Audit Logging**: Comprehensive logging of admin actions.
 - **File Upload Security**: Base64 validation, size limits, MIME type filtering, and path traversal protection.
