@@ -911,12 +911,6 @@ export default function ChatScreen() {
         }
       });
 
-      // Listen for incoming calls
-      socketInstance.on('incoming-call', (callData: any) => {
-        console.log('Received incoming call:', callData);
-        setIncomingCallData(callData);
-        setShowIncomingCallModal(true);
-      });
 
       // Listen for private chat notifications to open tab
       socketInstance.on('open_private_chat', (notification: any) => {
@@ -958,71 +952,9 @@ export default function ChatScreen() {
         }
       });
 
-      // Listen for call responses
-      socketInstance.on('call-response-received', (responseData: any) => {
-        console.log('Call response received:', responseData);
-        setCallRinging(false);
 
-        if (responseData.response === 'accept') {
-          Alert.alert(
-            'Call Accepted',
-            `${responseData.responderName} accepted your call`,
-            [
-              {
-                text: 'Start Call',
-                onPress: () => {
-                  setShowCallModal(true);
-                  startCallTimer(incomingCallData?.callType || 'video');
-                }
-              }
-            ]
-          );
-        } else {
-          Alert.alert(
-            'Call Declined',
-            `${responseData.responderName} declined your call`
-          );
-        }
-      });
 
-      // Listen for call initiated confirmation
-      socketInstance.on('call-initiated', (confirmData: any) => {
-        console.log('Call initiated:', confirmData);
-        Alert.alert(
-          'Calling...',
-          `Calling ${confirmData.targetUsername}...`,
-          [
-            {
-              text: 'Cancel Call',
-              style: 'cancel',
-              onPress: () => {
-                setCallRinging(false);
-                socketInstance.emit('end-call', {
-                  targetUsername: confirmData.targetUsername,
-                  endedBy: user?.username
-                });
-              }
-            }
-          ]
-        );
-      });
 
-      // Listen for call errors
-      socketInstance.on('call-error', (errorData: any) => {
-        console.log('Call error:', errorData);
-        setCallRinging(false);
-        Alert.alert('Call Error', errorData.error);
-      });
-
-      // Listen for call ended
-      socketInstance.on('call-ended', (endData: any) => {
-        console.log('Call ended:', endData);
-        setCallRinging(false);
-        setShowCallModal(false);
-        setShowIncomingCallModal(false);
-        endCall();
-        Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
-      });
     };
 
     const initializeSocket = () => {
@@ -1805,28 +1737,6 @@ export default function ChatScreen() {
       }
     };
     const handleForceLeaveRoom = (data: any) => { console.log('Force leave room:', data); Alert.alert('Left Room', `You have been removed from ${data.roomName}`); };
-    const handleIncomingCall = (callData: any) => {
-      console.log('Received incoming call:', callData);
-      setIncomingCallData(callData);
-      setShowIncomingCallModal(true);
-    };
-    const handleCallResponse = (responseData: any) => {
-      console.log('Call response received:', responseData);
-      setCallRinging(false);
-      if (responseData.response === 'accept') {
-        Alert.alert('Call Accepted', `${responseData.responderName} accepted your call`, [{ text: 'Start Call', onPress: () => { setShowCallModal(true); startCallTimer(incomingCallData?.callType || 'video'); } }]);
-      } else {
-        Alert.alert('Call Declined', `${responseData.responderName} declined your call`);
-      }
-    };
-    const handleCallEnded = (endData: any) => {
-      console.log('Call ended:', endData);
-      setCallRinging(false);
-      setShowCallModal(false);
-      setShowIncomingCallModal(false);
-      endCall();
-      Alert.alert('Call Ended', `Call ended by ${endData.endedBy}`);
-    };
     const handleCoinReceived = (data: any) => { console.log('Coin received:', data); };
 
     // Moderation action response listeners
@@ -1892,9 +1802,6 @@ export default function ChatScreen() {
       socket?.off('user-banned', handleUserBanned);
       socket?.off('user-muted', handleUserMuted);
       socket?.off('force-leave-room', handleForceLeaveRoom);
-      socket?.off('incoming-call', handleIncomingCall);
-      socket?.off('call-response-received', handleCallResponse);
-      socket?.off('call-ended', handleCallEnded);
       socket?.off('coin-received', handleCoinReceived);
 
       // Remove moderation response listeners
@@ -5695,106 +5602,6 @@ export default function ChatScreen() {
         </View>
       )}
 
-      {/* Call Modal */}
-      <Modal
-        visible={showCallModal}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={endCall}
-      >
-        <View style={styles.callModalContainer}>
-          <View style={styles.callHeader}>
-            <Text style={styles.callHeaderText}>
-              {callType === 'video' ? 'Video Call' : 'Audio Call'}
-            </Text>
-            <Text style={styles.callTargetName}>
-              {selectedParticipant?.username}
-            </Text>
-            <Text style={styles.callTimer}>
-              {formatCallTime(callTimer)}
-            </Text>
-            <Text style={styles.callCost}>
-              Cost: {callCost} coins
-            </Text>
-          </View>
-
-          <View style={styles.videoCallContainer}>
-            {isInCall && (
-              <View style={{ flex: 1, backgroundColor: colors.background }}>
-                <Text style={{ color: colors.badgeTextLight, textAlign: 'center', marginTop: 50 }}>
-                  Call Active with {selectedParticipant?.username}
-                </Text>
-                <Text style={{ color: colors.badgeTextLight, textAlign: 'center', marginTop: 10 }}>
-                  {Math.floor(callTimer / 60)}:{(callTimer % 60).toString().padStart(2, '0')}
-                </Text>
-                <Text style={{ color: colors.warning, textAlign: 'center', marginTop: 5 }}>
-                  Cost: {callCost} coins
-                </Text>
-                {/* Daily.co video implementation will be added here */}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.callControls}>
-            <TouchableOpacity
-              style={[styles.callButton, styles.endCallButton]}
-              onPress={endCall}
-            >
-              <Ionicons name="call" size={30} color="white" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Incoming Call Modal */}
-      <Modal
-        visible={showIncomingCallModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={handleDeclineCall}
-      >
-        <View style={styles.incomingCallOverlay}>
-          <View style={styles.incomingCallModal}>
-            <View style={styles.incomingCallHeader}>
-              <Text style={styles.incomingCallTitle}>
-                {incomingCallData?.callType === 'video' ? 'Video' : 'Audio'} Call
-              </Text>
-              <Text style={styles.incomingCallSubtitle}>Incoming call from</Text>
-              <Text style={styles.callerName}>{incomingCallData?.callerName}</Text>
-            </View>
-
-            <View style={styles.callerAvatar}>
-              <Text style={styles.callerAvatarText}>
-                {incomingCallData?.callerName?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
-
-            <View style={styles.callRateInfo}>
-              <Text style={styles.callRateText}>Call Rates:</Text>
-              <Text style={styles.callRateDetail}>• First minute: 2,500 coins</Text>
-              <Text style={styles.callRateDetail}>• After 1st minute: 2,000 coins/minute</Text>
-            </View>
-
-            <View style={styles.incomingCallButtons}>
-              <TouchableOpacity
-                style={[styles.callActionButton, styles.declineButton]}
-                onPress={handleDeclineCall}
-              >
-                <Ionicons name="call" size={30} color="white" style={{ transform: [{ rotate: '135deg' }] }} />
-                <Text style={styles.callActionText}>Decline</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.callActionButton, styles.acceptButton]}
-                onPress={handleAcceptCall}
-              >
-                <Ionicons name="call" size={30} color="white" />
-                <Text style={styles.callActionText}>Accept</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -7270,150 +7077,6 @@ const createThemedStyles = (colors: any, isDarkMode: boolean) => StyleSheet.crea
   mentionText: {
     color: colors.info,
     fontWeight: '600',
-  },
-  // Call Modal Styles
-  callModalContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  callHeader: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: isDarkMode ? `${colors.background}CC` : '#000000CC',
-    alignItems: 'center',
-  },
-  callHeaderText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.badgeTextLight,
-    marginBottom: 5,
-  },
-  callTargetName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.badgeTextLight,
-    marginBottom: 10,
-  },
-  callTimer: {
-    fontSize: 16,
-    color: colors.success,
-    marginBottom: 5,
-  },
-  callCost: {
-    fontSize: 14,
-    color: colors.warning,
-  },
-  videoCallContainer: {
-    flex: 1,
-  },
-  callControls: {
-    position: 'absolute',
-    bottom: 50,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  callButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 15,
-  },
-  endCallButton: {
-    backgroundColor: colors.error,
-  },
-  // Incoming Call Modal Styles
-  incomingCallOverlay: {
-    flex: 1,
-    backgroundColor: isDarkMode ? `${colors.background}E6` : '#000000E6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  incomingCallModal: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 30,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    minWidth: 300,
-  },
-  incomingCallHeader: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  incomingCallTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 5,
-  },
-  incomingCallSubtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 10,
-  },
-  callerName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.info,
-  },
-  callerAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.info,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  callerAvatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.badgeTextLight,
-  },
-  callRateInfo: {
-    alignItems: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 20,
-  },
-  callRateText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 10,
-  },
-  callRateDetail: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 5,
-  },
-  incomingCallButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-  },
-  callActionButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 20,
-  },
-  acceptButton: {
-    backgroundColor: colors.success,
-  },
-  declineButton: {
-    backgroundColor: colors.error,
-  },
-  callActionText: {
-    color: colors.badgeTextLight,
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 5,
   },
   // Gift Message Styles
   giftMessageContainer: {
