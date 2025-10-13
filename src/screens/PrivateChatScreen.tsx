@@ -303,7 +303,7 @@ export default function PrivateChatScreen() {
             ]).start();
 
             // Auto-close timing based on gift type
-            const duration = data.gift.type === 'animated' ? 5000 : 3000;
+            const duration = 6000; // All gifts disappear after 6 seconds
             setTimeout(() => {
               Animated.parallel([
                 Animated.timing(giftScaleAnim, {
@@ -1271,7 +1271,7 @@ export default function PrivateChatScreen() {
           ]).start();
 
           // Auto-close timing based on gift type
-          const duration = gift.type === 'animated' ? 5000 : 3000;
+          const duration = 6000; // All gifts disappear after 6 seconds
           setTimeout(() => {
             Animated.parallel([
               Animated.timing(giftScaleAnim, {
@@ -1486,7 +1486,7 @@ export default function PrivateChatScreen() {
                   ]).start(() => {
                     setActiveGiftAnimation(null);
                   });
-                }, 3000);
+                }, 6000); // Test gift: 6 seconds duration
               }}
             >
               <Ionicons name="heart" size={24} color="#FF69B4" />
