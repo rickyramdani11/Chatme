@@ -33,7 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **Credit System**: Virtual currency with transactions and transfers, protected by PostgreSQL row-level locking to prevent race conditions.
 - **Social Features**: Friend management, user profiles, ranking systems, activity feeds with EXP/leveling system and automatic coin rewards.
 - **Administrative Tools**: Admin panel for moderation, user management, configuration, support ticket management, frame management, user online statistics, and broadcast messaging. Includes super admin whitelist for sensitive operations like credit top-ups, email changes, and password resets.
-- **Merchant/Mentor TOP UP System**: Monthly subscription-based system for mentors and merchants with specific transfer flows and auto-downgrade mechanisms.
+- **Merchant/Mentor TOP UP System**: Monthly subscription-based system for mentors and merchants with specific transfer flows and auto-downgrade mechanisms. Includes dedicated panels: MentorScreen displays traffic statistics (total top-ups, merchant count, monthly/all-time totals) with refresh capability; MerchantScreen shows merchant's own statistics (promotion details, top-up totals, monthly progress) with transaction history (October 2025). Both panels use role-based access control and secure parameterized queries.
 - **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time admin notifications via socket.
 - **Privacy & Security System**: Privacy settings, data download requests, password/PIN changes.
 - **Notification System**: Real-time Socket.IO notifications for social events and Firebase Cloud Messaging (FCM) for private messages when the app is in the background.
