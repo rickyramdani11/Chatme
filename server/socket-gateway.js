@@ -17,6 +17,7 @@ import { handleSicboCommand, handleSicboAdminCommand, ensureBotPresence as ensur
 // Import Baccarat bot
 import { 
   handleBaccaratCommand, 
+  handleBaccaratAdminCommand,
   activateBaccaratBot, 
   deactivateBaccaratBot, 
   ensureBaccaratBotPresence,
@@ -1849,35 +1850,14 @@ io.on('connection', (socket) => {
         // Get user info from connected users
         const userInfo = connectedUsers.get(socket.id);
         if (userInfo && userInfo.userId) {
-          // Handle Baccarat bot activation/deactivation
-          if (trimmedContent === '/bot bacarat add') {
-            const result = activateBaccaratBot(io, roomId);
-            socket.emit('chat-message', {
-              id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              sender: 'System',
-              content: result.message,
-              timestamp: new Date().toISOString(),
-              roomId: roomId,
-              type: 'system',
-              role: 'system',
-              isPrivate: true
-            });
-            return;
-          }
-
-          if (trimmedContent === '/bot bacarat off') {
-            const result = deactivateBaccaratBot(io, roomId);
-            socket.emit('chat-message', {
-              id: `system_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              sender: 'System',
-              content: result.message,
-              timestamp: new Date().toISOString(),
-              roomId: roomId,
-              type: 'system',
-              role: 'system',
-              isPrivate: true
-            });
-            return;
+          // Handle Baccarat admin commands (add/remove bot)
+          if (trimmedContent.includes('bacarat') && trimmedContent.startsWith('/')) {
+            console.log(`[Baccarat] Routing to admin command handler: ${trimmedContent}`);
+            const handled = await handleBaccaratAdminCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+            console.log(`[Baccarat] Admin command handled: ${handled}`);
+            if (handled) {
+              return; // Command was handled by Baccarat admin handler
+            }
           }
 
           // Handle Baccarat game commands (check if Baccarat bot is active)

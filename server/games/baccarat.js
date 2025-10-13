@@ -153,6 +153,71 @@ export function isBaccaratBotActive(roomId) {
   return botPresence[roomId] === true;
 }
 
+// Handle admin commands for Baccarat bot (like /bot bacarat add)
+export async function handleBaccaratAdminCommand(io, room, message, userId, username, userRole) {
+  const trimmedMsg = message.trim().toLowerCase();
+  
+  // /bot bacarat add command (ADMIN ONLY)
+  if (trimmedMsg === '/bot bacarat add' || trimmedMsg === '/add bacarat' || trimmedMsg === '/bacarat add') {
+    console.log(`[Baccarat] Add bot command received in room ${room} from ${username} (role: ${userRole})`);
+    
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      sendBotMessage(io, room, `❌ Only admins can add BaccaratBot to rooms.`);
+      console.log(`[Baccarat] Non-admin user ${username} attempted to add BaccaratBot`);
+      return true; // Command handled
+    }
+    
+    // Check if LowCard game is running
+    if (hasActiveLowcardGame(room)) {
+      sendBotMessage(io, room, '⚠️ Lowcard is running this room, off bot lowcard to add bot new');
+      console.log(`[Baccarat] Cannot add BaccaratBot - LowCard game is running in room ${room}`);
+      return true; // Command handled
+    }
+    
+    if (!botPresence[room]) {
+      botPresence[room] = true;
+      sendBotMessage(io, room, '🎴 BaccaratBot is now active! Type !start to begin playing\n\nBet on Player (1:1), Banker (0.95:1), or Tie (8:1)\nType !help for commands');
+      console.log(`[Baccarat] BaccaratBot successfully added to room ${room} by admin ${username}`);
+    } else {
+      sendBotMessage(io, room, '⚠️ BaccaratBot is already active in this room! Type !help for commands.');
+      console.log(`[Baccarat] BaccaratBot already active in room ${room}`);
+    }
+    return true; // Command handled
+  }
+  
+  // /bot bacarat off command (ADMIN ONLY)
+  if (trimmedMsg === '/bot bacarat off' || trimmedMsg === '/bacarat off') {
+    console.log(`[Baccarat] Remove bot command received in room ${room} from ${username} (role: ${userRole})`);
+    
+    // Check if user is admin
+    if (userRole !== 'admin') {
+      sendBotMessage(io, room, `❌ Only admins can remove BaccaratBot from rooms.`);
+      return true; // Command handled
+    }
+    
+    // Check if bot is already off
+    if (!botPresence[room]) {
+      sendBotMessage(io, room, `BaccaratBot is not active in this room.`);
+      return true; // Command handled
+    }
+    
+    // End any active game and refund
+    if (games[room]) {
+      endGame(io, room, true);
+    }
+    
+    // Remove bot presence
+    delete botPresence[room];
+    
+    sendBotMessage(io, room, 'BaccaratBot has left the room. Type "/bot bacarat add" to add the bot back.');
+    console.log(`[Baccarat] BaccaratBot removed from room ${room} by admin ${username}`);
+    return true; // Command handled
+  }
+  
+  return false; // Command not handled
+}
+
 export function activateBaccaratBot(io, roomId) {
   if (hasActiveLowcardGame(roomId)) {
     return { success: false, message: 'LowCard game is active. Please end it first.' };
