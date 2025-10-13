@@ -368,6 +368,34 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
 
       const withdrawal = withdrawalResult.rows[0];
 
+      // MANUAL WITHDRAWAL MODE - Admin will process manually
+      // Skip Xendit API and save as pending status
+      await client.query(`
+        UPDATE withdrawal_requests 
+        SET status = $1, notes = $2
+        WHERE id = $3
+      `, [
+        'pending',
+        'Waiting for admin approval',
+        withdrawal.id
+      ]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        success: true,
+        message: 'Withdrawal request submitted successfully. Admin will process your request manually.',
+        withdrawal: {
+          id: withdrawal.id.toString(),
+          amountUsd: withdrawal.amount_usd,
+          amountCoins: withdrawal.amount_coins,
+          netAmountIdr: withdrawal.net_amount_idr,
+          status: 'pending',
+          createdAt: withdrawal.created_at
+        }
+      });
+
+      /* XENDIT AUTO-PROCESS (DISABLED FOR MANUAL MODE)
       // Create Xendit payout
       try {
         // Map account to Xendit channel code (all uppercase for e-wallets, ID_ prefix for banks)
@@ -539,6 +567,8 @@ router.post('/user/withdraw', authenticateToken, async (req, res) => {
           refundedAmount: amountCoins
         });
       }
+
+      END OF XENDIT AUTO-PROCESS COMMENT */
 
     } catch (error) {
       await client.query('ROLLBACK');
