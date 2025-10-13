@@ -639,7 +639,8 @@ export default function ProfileScreen({ navigation, route }: any) {
       });
 
       if (response.ok) {
-        const photos = await response.json();
+        const data = await response.json();
+        const photos = data.photos || [];
         console.log('Album photos fetched:', photos.length, 'photos');
         console.log('Album photos data:', JSON.stringify(photos));
         setAlbumPhotos(photos);
