@@ -6124,55 +6124,6 @@ app.get('/api/users/:userId/gifts', async (req, res) => {
   }
 });
 
-// Get merchants and mentors for Info Center
-app.get('/api/users/merchants-mentors', authenticateToken, async (req, res) => {
-  try {
-    console.log('=== GET MERCHANTS AND MENTORS ===');
-    console.log('User:', req.user.username);
-
-    // Fetch merchants
-    const merchantsResult = await pool.query(`
-      SELECT id, username, role, level, avatar, status
-      FROM users
-      WHERE role = 'merchant'
-      ORDER BY username ASC
-    `);
-
-    // Fetch mentors
-    const mentorsResult = await pool.query(`
-      SELECT id, username, role, level, avatar, status
-      FROM users
-      WHERE role = 'mentor'
-      ORDER BY username ASC
-    `);
-
-    const merchants = merchantsResult.rows.map(row => ({
-      id: row.id,
-      username: row.username,
-      role: row.role,
-      level: row.level || 1,
-      avatar: row.avatar,
-      status: row.status || 'offline'
-    }));
-
-    const mentors = mentorsResult.rows.map(row => ({
-      id: row.id,
-      username: row.username,
-      role: row.role,
-      level: row.level || 1,
-      avatar: row.avatar,
-      status: row.status || 'offline'
-    }));
-
-    console.log(`✅ Found ${merchants.length} merchants and ${mentors.length} mentors`);
-
-    res.json({ merchants, mentors });
-  } catch (error) {
-    console.error('Error fetching merchants and mentors:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Upload photo/video for posts
 app.post('/api/users/:userId/album', async (req, res) => {
   try {
@@ -9775,7 +9726,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   POST /api/users/:userId/avatar - Upload user avatar`);
   console.log(`   GET  /api/users/:userId/album - Get user photo album`);
   console.log(`   POST /users/:userId/album - Upload photo to user album`);
-  console.log(`   GET  /api/users/merchants-mentors - Get merchants and mentors list`);
   console.log(`   GET  /api/users/:userId/gifts - Get user gifts received`);
   console.log(`   GET  /api/credits/balance - Get user credits balance`);
   console.log(`   GET  /api/credits/history - Get user credits transaction history`);
