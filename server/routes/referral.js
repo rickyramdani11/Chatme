@@ -82,10 +82,11 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const stats = statsResult.rows[0];
 
     res.json({
-      totalReferrals: parseInt(stats.total_referrals) || 0,
-      successfulReferrals: parseInt(stats.successful_referrals) || 0,
-      totalBonusEarned: parseInt(stats.total_bonus_earned) || 0,
-      pendingReferrals: (parseInt(stats.total_referrals) || 0) - (parseInt(stats.successful_referrals) || 0)
+      stats: {
+        totalInvited: parseInt(stats.total_referrals) || 0,
+        totalBonusEarned: parseInt(stats.total_bonus_earned) || 0,
+        pendingBonus: (parseInt(stats.total_referrals) || 0) - (parseInt(stats.successful_referrals) || 0)
+      }
     });
   } catch (error) {
     console.error('Error getting referral stats:', error);
@@ -113,18 +114,18 @@ router.get('/history', authenticateToken, async (req, res) => {
       LIMIT 50
     `, [userId]);
 
-    const history = historyResult.rows.map(row => ({
+    const referrals = historyResult.rows.map(row => ({
       id: row.id,
       invitedUsername: row.invited_username,
       bonusAmount: row.bonus_amount,
       bonusClaimed: row.bonus_claimed,
       firstWithdrawalCompleted: row.first_withdrawal_completed,
       status: row.bonus_claimed ? 'completed' : (row.first_withdrawal_completed ? 'processing' : 'pending'),
-      createdAt: row.created_at,
+      invitedAt: row.created_at,
       bonusClaimedAt: row.bonus_claimed_at
     }));
 
-    res.json({ history });
+    res.json({ referrals });
   } catch (error) {
     console.error('Error getting referral history:', error);
     res.status(500).json({ error: 'Failed to get referral history' });
