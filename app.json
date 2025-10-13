@@ -31,9 +31,7 @@
       ],
       "bundleIdentifier": "com.chatme1.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSCameraUsageDescription": "This app needs access to your camera for video calls",
-        "NSMicrophoneUsageDescription": "This app needs access to your microphone for audio and video calls"
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -45,16 +43,13 @@
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.WAKE_LOCK",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.FOREGROUND_SERVICE"
       ],
       "package": "com.chatme1.app",
       "allowBackup": false
     },
     "plugins": [
       "expo-router",
-      "@daily-co/config-plugin-rn-daily-js",
       [
         "expo-build-properties",
         {
@@ -62,8 +57,7 @@
             "minifyEnabled": true,
             "shrinkResources": true,
             "enableProguardInReleaseBuilds": true,
-            "enableSeparateBuildPerCPUArchitecture": true,
-            "extraProguardRules": "-keep class co.daily.** { *; }\n-keep interface co.daily.** { *; }\n-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
+            "enableSeparateBuildPerCPUArchitecture": true
           }
         }
       ]
