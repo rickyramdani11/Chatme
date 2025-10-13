@@ -264,6 +264,10 @@ export default function ChatScreen() {
   const [userBalance, setUserBalance] = useState(0); // User credit balance
   const [claimedPackets, setClaimedPackets] = useState<number[]>([]); // Track claimed packet IDs
   
+  // Gift Notification Auto-hide State
+  const [hiddenGiftIds, setHiddenGiftIds] = useState<Set<string>>(new Set());
+  const giftTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  
   // Get user and token before any refs that depend on them
   const { user, token, logout } = useAuth();
   
@@ -315,6 +319,14 @@ export default function ChatScreen() {
 
     fetchBalance();
   }, [token, showRedPacketModal]);
+  
+  // Cleanup gift timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(giftTimersRef.current).forEach(timer => clearTimeout(timer));
+      giftTimersRef.current = {};
+    };
+  }, []);
   
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
@@ -3657,8 +3669,21 @@ export default function ChatScreen() {
       );
     }
 
-    // Handle gift messages - Purple semi-transparent bubble
+    // Handle gift messages - Purple semi-transparent bubble with auto-hide
     if (item.type === 'gift') {
+      // Check if this gift notification should be hidden
+      if (hiddenGiftIds.has(item.id)) {
+        return null;
+      }
+
+      // Start timer to auto-hide after 8 seconds if not already started
+      if (!giftTimersRef.current[item.id]) {
+        giftTimersRef.current[item.id] = setTimeout(() => {
+          setHiddenGiftIds(prev => new Set(prev).add(item.id));
+          delete giftTimersRef.current[item.id];
+        }, 8000);
+      }
+
       return (
         <View style={styles.giftNotificationContainer}>
           <View style={styles.giftNotificationBubble}>
@@ -5796,7 +5821,7 @@ const createThemedStyles = () => StyleSheet.create({
     paddingVertical: 8,
   },
   messageContainer: {
-    marginBottom: 2,
+    marginBottom: 4,
     paddingHorizontal: 0,
   },
   supportMessageContainer: {
@@ -6399,7 +6424,7 @@ const createThemedStyles = () => StyleSheet.create({
   // Gift notification styles
   giftNotificationContainer: {
     alignItems: 'flex-start',
-    marginVertical: 2,
+    marginVertical: 4,
     paddingHorizontal: 0,
   },
   giftNotificationBubble: {
