@@ -1318,10 +1318,12 @@ export default function PrivateChatScreen() {
         setShowGiftPicker(false);
       } else {
         const errorData = await response.json();
+        setShowGiftPicker(false); // Close modal on error
         Alert.alert('Error', errorData.error || 'Failed to send gift');
       }
     } catch (error) {
       console.error('Error sending private gift:', error);
+      setShowGiftPicker(false); // Close modal on error
       Alert.alert('Error', 'Failed to send gift. Please try again.');
     }
   };
