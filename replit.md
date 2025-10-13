@@ -42,8 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear, supporting static images and Lottie JSON animations with real-time preview.
 - **Room Connection Persistence**: Maintains user connection with inactivity cleanup and intelligent socket reconnection, ensuring single listener attachment for all socket events.
 - **Room Capacity Management**: Real-time participant count sync and client-side validation.
-- **Video Call System**: Private video/audio calls with Daily.co integration.
-- **Private Communication Types**: Three distinct private communication channels: (1) Private Chat 1-on-1 with roomId format `private_3_4` for regular user-to-user conversations, (2) Support Chat with `isSupport: true` flag for live admin support sessions, (3) Video Call via Daily.co integration for real-time audio/video communication (October 2025).
+- **Private Communication Types**: Two distinct private communication channels: (1) Private Chat 1-on-1 with roomId format `private_3_4` for regular user-to-user conversations, (2) Support Chat with `isSupport: true` flag for live admin support sessions (October 2025).
 - **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 - **Info Center**: Displays game commands and merchant/mentor contacts.
 - **Withdrawal System**: Manual withdrawal management system bypassing Xendit API (due to business verification requirements). Features admin approval/rejection workflow with database transactions, row-level locking (SELECT FOR UPDATE) to prevent race conditions, atomic balance refunds on rejection, real-time exchange rates, minimum thresholds, Indonesian bank support, full history tracking, and duplicate account number validation across users to prevent spam and irregular coin transactions (October 2025).
@@ -84,8 +83,6 @@ Preferred communication style: Simple, everyday language.
 - **Android Back Button**: Hardware back button handling for proper navigation.
 - **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
 - **Room Management UX**: Increased modal height, participant picker for moderator selection, owner-only moderator adding, functional unban, and smart filtering.
-- **Call UI Enhancement**: Video/audio call icons hidden during active calls.
-- **Private Chat UI**: Video call and audio call icons temporarily hidden from PrivateChatScreen header (October 2025).
 - **HomeScreen**: Removed fake active users counter that displayed random numbers instead of real data (October 2025).
 
 # External Dependencies
@@ -107,7 +104,6 @@ Preferred communication style: Simple, everyday language.
 ## Platform & Integrations
 - **Expo Services**: EAS (Expo Application Services).
 - **Storage**: Cloudinary for gift media, avatar frame assets, and feed post media.
-- **Video Calls**: Daily.co.
 - **Payment Gateway**: Xendit Payout API.
 - **Push Notifications**: Firebase Cloud Messaging (FCM).
 
