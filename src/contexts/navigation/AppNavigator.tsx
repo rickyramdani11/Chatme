@@ -53,8 +53,6 @@ import ChatHistoryScreen from '../../screens/ChatHistoryScreen';
 import InfoScreen from '../../screens/InfoScreen';
 // Import InviteFriendsScreen
 import InviteFriendsScreen from '../../screens/InviteFriendsScreen';
-// Import GlobalIncomingCallManager
-import { GlobalIncomingCallManager } from '../../components/GlobalIncomingCallManager';
 
 import { useAuth } from '../../hooks';
 
@@ -266,9 +264,6 @@ export default function AppNavigator() {
         <Stack.Screen name="Auth" component={AuthScreen} />
       )}
       </Stack.Navigator>
-      
-      {/* Global Incoming Call Manager - Always active when user is logged in */}
-      {user && <GlobalIncomingCallManager />}
     </>
   );
 }
