@@ -132,6 +132,22 @@ interface CreditHistory {
   createdAt?: string;
 }
 
+interface Withdrawal {
+  id: string;
+  userId: number;
+  username: string;
+  email: string;
+  amountUsd: number;
+  amountCoins: number;
+  netAmountIdr: number;
+  accountType: string;
+  accountDetails: any;
+  status: string;
+  createdAt: string;
+  processedAt?: string;
+  notes?: string;
+}
+
 // Super Admin IDs yang boleh akses fitur "Tambah Credit"
 const SUPER_ADMIN_IDS = [1, 4]; // ID: 1 (asu), 4 (chatme)
 
@@ -253,6 +269,14 @@ export default function AdminScreen({ navigation }: any) {
   const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
   const [downloadingReport, setDownloadingReport] = useState(false);
 
+  // Withdrawal management states
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
+
   // Check if current user is super admin
   const isSuperAdmin = user?.id && SUPER_ADMIN_IDS.includes(Number(user.id));
 
@@ -354,6 +378,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'download-outline',
       color: '#009688',
       description: 'Download laporan gift earnings (CSV format)'
+    },
+    {
+      id: 'withdrawals',
+      title: 'Withdrawal Requests',
+      icon: 'cash-outline',
+      color: '#4CAF50',
+      description: 'Proses withdrawal request manual'
     }
   ];
 
@@ -408,6 +439,9 @@ export default function AdminScreen({ navigation }: any) {
       if (activeTab === 'support-tickets') {
         loadSupportTickets();
         loadTicketStats();
+      }
+      if (activeTab === 'withdrawals') {
+        loadWithdrawals();
       }
     }
   }, [token, activeTab, user]);
@@ -1955,6 +1989,117 @@ export default function AdminScreen({ navigation }: any) {
       Alert.alert('Error', (error as Error).message || 'Failed to update room');
     } finally {
       setEditingRoom(false);
+    }
+  };
+
+  // Withdrawal Management Functions
+  const loadWithdrawals = async () => {
+    try {
+      setWithdrawalsLoading(true);
+      const response = await fetch(`${API_BASE_URL}/admin/withdrawals`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWithdrawals(data.withdrawals || []);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load withdrawals: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading withdrawals:', error);
+      Alert.alert('Error', 'Network error loading withdrawals');
+    } finally {
+      setWithdrawalsLoading(false);
+    }
+  };
+
+  const approveWithdrawal = async (withdrawal: Withdrawal) => {
+    Alert.alert(
+      'Approve Withdrawal',
+      `Approve withdrawal for ${withdrawal.username}?\n\nAmount: $${withdrawal.amountUsd.toFixed(2)} USD (${withdrawal.amountCoins.toLocaleString()} coins)\nNet: Rp ${withdrawal.netAmountIdr.toLocaleString()}\nAccount: ${withdrawal.accountDetails.accountName} (${withdrawal.accountDetails.accountNumber})`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          style: 'default',
+          onPress: async () => {
+            try {
+              setProcessingWithdrawal(true);
+              const response = await fetch(`${API_BASE_URL}/admin/withdrawals/${withdrawal.id}/approve`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+                body: JSON.stringify({ notes: `Approved by ${user?.username}` })
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Withdrawal approved successfully');
+                loadWithdrawals();
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to approve withdrawal');
+              }
+            } catch (error) {
+              console.error('Error approving withdrawal:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to approve withdrawal');
+            } finally {
+              setProcessingWithdrawal(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const openRejectModal = (withdrawal: Withdrawal) => {
+    setSelectedWithdrawal(withdrawal);
+    setRejectReason('');
+    setShowWithdrawalModal(true);
+  };
+
+  const rejectWithdrawal = async () => {
+    if (!selectedWithdrawal) return;
+
+    if (!rejectReason.trim()) {
+      Alert.alert('Error', 'Please provide a rejection reason');
+      return;
+    }
+
+    try {
+      setProcessingWithdrawal(true);
+      const response = await fetch(`${API_BASE_URL}/admin/withdrawals/${selectedWithdrawal.id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+        body: JSON.stringify({ reason: rejectReason.trim() })
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', 'Withdrawal rejected and refunded successfully');
+        setShowWithdrawalModal(false);
+        setSelectedWithdrawal(null);
+        setRejectReason('');
+        loadWithdrawals();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reject withdrawal');
+      }
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      Alert.alert('Error', (error as Error).message || 'Failed to reject withdrawal');
+    } finally {
+      setProcessingWithdrawal(false);
     }
   };
 
@@ -3928,6 +4073,177 @@ export default function AdminScreen({ navigation }: any) {
                 </Text>
               </View>
             </View>
+          </ScrollView>
+        );
+
+      case 'withdrawals':
+        const getStatusColor = (status: string) => {
+          switch (status) {
+            case 'pending': return '#FF9800';
+            case 'completed': return '#4CAF50';
+            case 'rejected': return '#F44336';
+            case 'processing': return '#2196F3';
+            default: return '#999';
+          }
+        };
+
+        const getStatusText = (status: string) => {
+          switch (status) {
+            case 'pending': return 'Menunggu';
+            case 'completed': return 'Selesai';
+            case 'rejected': return 'Ditolak';
+            case 'processing': return 'Diproses';
+            default: return status;
+          }
+        };
+
+        return (
+          <ScrollView style={styles.withdrawalsContainer} showsVerticalScrollIndicator={false}>
+            <View style={styles.withdrawalsHeader}>
+              <Text style={styles.withdrawalsTitle}>Withdrawal Requests</Text>
+              <Text style={styles.withdrawalsSubtitle}>Kelola permintaan penarikan dana manual</Text>
+            </View>
+
+            {withdrawalsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4CAF50" />
+                <Text style={styles.loadingText}>Memuat data...</Text>
+              </View>
+            ) : withdrawals.length === 0 ? (
+              <View style={styles.emptyWithdrawalsContainer}>
+                <Ionicons name="cash-outline" size={60} color="#ccc" />
+                <Text style={styles.emptyWithdrawalsText}>Tidak ada permintaan withdrawal</Text>
+              </View>
+            ) : (
+              withdrawals.map((withdrawal, index) => (
+                <View key={`withdrawal-${withdrawal.id}-${index}`} style={styles.withdrawalCard}>
+                  <View style={styles.withdrawalHeader}>
+                    <View style={styles.withdrawalUserInfo}>
+                      <Text style={styles.withdrawalUsername}>{withdrawal.username}</Text>
+                      <Text style={styles.withdrawalEmail}>{withdrawal.email}</Text>
+                    </View>
+                    <View style={[styles.withdrawalStatusBadge, { backgroundColor: getStatusColor(withdrawal.status) }]}>
+                      <Text style={styles.withdrawalStatusText}>{getStatusText(withdrawal.status)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.withdrawalDetails}>
+                    <View style={styles.withdrawalDetailRow}>
+                      <Ionicons name="cash" size={16} color="#666" />
+                      <Text style={styles.withdrawalDetailLabel}>Amount:</Text>
+                      <Text style={styles.withdrawalDetailValue}>
+                        ${withdrawal.amountUsd.toFixed(2)} USD ({withdrawal.amountCoins.toLocaleString()} coins)
+                      </Text>
+                    </View>
+
+                    <View style={styles.withdrawalDetailRow}>
+                      <Ionicons name="card" size={16} color="#666" />
+                      <Text style={styles.withdrawalDetailLabel}>Net IDR:</Text>
+                      <Text style={styles.withdrawalDetailValue}>
+                        Rp {withdrawal.netAmountIdr.toLocaleString()}
+                      </Text>
+                    </View>
+
+                    <View style={styles.withdrawalDetailRow}>
+                      <Ionicons name="wallet" size={16} color="#666" />
+                      <Text style={styles.withdrawalDetailLabel}>Account:</Text>
+                      <Text style={styles.withdrawalDetailValue}>
+                        {withdrawal.accountDetails.accountName} ({withdrawal.accountDetails.accountNumber})
+                      </Text>
+                    </View>
+
+                    <View style={styles.withdrawalDetailRow}>
+                      <Ionicons name="time" size={16} color="#666" />
+                      <Text style={styles.withdrawalDetailLabel}>Tanggal:</Text>
+                      <Text style={styles.withdrawalDetailValue}>
+                        {new Date(withdrawal.createdAt).toLocaleString('id-ID')}
+                      </Text>
+                    </View>
+
+                    {withdrawal.notes && (
+                      <View style={styles.withdrawalNotes}>
+                        <Ionicons name="information-circle" size={16} color="#999" />
+                        <Text style={styles.withdrawalNotesText}>{withdrawal.notes}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {withdrawal.status === 'pending' && (
+                    <View style={styles.withdrawalActions}>
+                      <TouchableOpacity
+                        style={[styles.withdrawalActionButton, { backgroundColor: '#4CAF50' }]}
+                        onPress={() => approveWithdrawal(withdrawal)}
+                        disabled={processingWithdrawal}
+                      >
+                        <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                        <Text style={styles.withdrawalActionText}>Approve</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.withdrawalActionButton, { backgroundColor: '#F44336' }]}
+                        onPress={() => openRejectModal(withdrawal)}
+                        disabled={processingWithdrawal}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#fff" />
+                        <Text style={styles.withdrawalActionText}>Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+
+            {/* Reject Modal */}
+            <Modal
+              visible={showWithdrawalModal}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setShowWithdrawalModal(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.rejectModal}>
+                  <Text style={styles.rejectModalTitle}>Reject Withdrawal</Text>
+                  <Text style={styles.rejectModalSubtitle}>
+                    Coins akan otomatis dikembalikan ke user
+                  </Text>
+
+                  <Text style={styles.formLabel}>Alasan Penolakan *</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.rejectReasonInput]}
+                    value={rejectReason}
+                    onChangeText={setRejectReason}
+                    placeholder="Contoh: Data rekening tidak valid"
+                    placeholderTextColor="#999"
+                    multiline
+                    numberOfLines={3}
+                  />
+
+                  <View style={styles.rejectModalActions}>
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalCancelButton]}
+                      onPress={() => {
+                        setShowWithdrawalModal(false);
+                        setRejectReason('');
+                      }}
+                    >
+                      <Text style={styles.modalCancelButtonText}>Batal</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.modalButton, styles.modalRejectButton]}
+                      onPress={rejectWithdrawal}
+                      disabled={!rejectReason.trim() || processingWithdrawal}
+                    >
+                      {processingWithdrawal ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.modalRejectButtonText}>Reject & Refund</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
           </ScrollView>
         );
 
@@ -6321,5 +6637,192 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
     lineHeight: 20,
+  },
+  
+  // Withdrawal Management Styles
+  withdrawalsContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  withdrawalsHeader: {
+    marginBottom: 20,
+  },
+  withdrawalsTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  withdrawalsSubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  emptyWithdrawalsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyWithdrawalsText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 16,
+  },
+  withdrawalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  withdrawalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  withdrawalUserInfo: {
+    flex: 1,
+  },
+  withdrawalUsername: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  withdrawalEmail: {
+    fontSize: 14,
+    color: '#666',
+  },
+  withdrawalStatusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  withdrawalStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  withdrawalDetails: {
+    marginBottom: 12,
+  },
+  withdrawalDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  withdrawalDetailLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+    minWidth: 80,
+  },
+  withdrawalDetailValue: {
+    fontSize: 14,
+    color: '#1f2937',
+    flex: 1,
+  },
+  withdrawalNotes: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  withdrawalNotesText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  withdrawalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  withdrawalActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  withdrawalActionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rejectModal: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  rejectModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  rejectModalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  rejectReasonInput: {
+    height: 80,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  rejectModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#f3f4f6',
+  },
+  modalCancelButtonText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalRejectButton: {
+    backgroundColor: '#F44336',
+  },
+  modalRejectButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
