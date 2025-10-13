@@ -272,6 +272,10 @@ export default function AdminScreen({ navigation }: any) {
   // Withdrawal management states
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
+
+  // Mentor top-up statistics states
+  const [mentorTopUpStats, setMentorTopUpStats] = useState<any>(null);
+  const [mentorStatsLoading, setMentorStatsLoading] = useState(false);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
@@ -449,6 +453,9 @@ export default function AdminScreen({ navigation }: any) {
       }
       if (activeTab === 'withdrawals') {
         loadWithdrawals();
+      }
+      if (activeTab === 'mentor-topup-stats') {
+        loadMentorTopUpStats();
       }
     }
   }, [token, activeTab, user]);
@@ -2022,6 +2029,31 @@ export default function AdminScreen({ navigation }: any) {
       Alert.alert('Error', 'Network error loading withdrawals');
     } finally {
       setWithdrawalsLoading(false);
+    }
+  };
+
+  const loadMentorTopUpStats = async () => {
+    try {
+      setMentorStatsLoading(true);
+      const response = await fetch(`${API_BASE_URL}/admin/mentor-topup-statistics`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMentorTopUpStats(data.statistics || null);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        Alert.alert('Error', `Failed to load mentor statistics: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error loading mentor statistics:', error);
+      Alert.alert('Error', 'Network error loading mentor statistics');
+    } finally {
+      setMentorStatsLoading(false);
     }
   };
 
@@ -4251,6 +4283,142 @@ export default function AdminScreen({ navigation }: any) {
                 </View>
               </View>
             </Modal>
+          </ScrollView>
+        );
+
+      case 'mentor-topup-stats':
+        return (
+          <ScrollView style={styles.content}>
+            <View style={{ padding: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={styles.sectionTitle}>Statistik Mentor Top Up System</Text>
+                <TouchableOpacity
+                  onPress={loadMentorTopUpStats}
+                  disabled={mentorStatsLoading}
+                >
+                  <Ionicons 
+                    name="refresh" 
+                    size={20} 
+                    color={mentorStatsLoading ? '#999' : '#667eea'} 
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {mentorStatsLoading ? (
+                <View style={{ padding: 30, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#667eea" />
+                  <Text style={{ marginTop: 10, color: '#666' }}>Memuat statistik...</Text>
+                </View>
+              ) : mentorTopUpStats ? (
+                <>
+                  {/* Summary Stats */}
+                  <View style={styles.statCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Ionicons name="cash-outline" size={28} color="#4CAF50" />
+                        <Text style={styles.statValue}>
+                          {mentorTopUpStats.totalTopUp.toLocaleString('id-ID')}
+                        </Text>
+                        <Text style={styles.statLabel}>Total Top Up</Text>
+                      </View>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Ionicons name="people-outline" size={28} color="#2196F3" />
+                        <Text style={styles.statValue}>{mentorTopUpStats.activeMentors}</Text>
+                        <Text style={styles.statLabel}>Mentor Aktif</Text>
+                      </View>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Ionicons name="trending-up-outline" size={28} color="#FF9800" />
+                        <Text style={styles.statValue}>
+                          {mentorTopUpStats.monthlyTopUp.toLocaleString('id-ID')}
+                        </Text>
+                        <Text style={styles.statLabel}>Top Up Bulan Ini</Text>
+                      </View>
+                      <View style={{ alignItems: 'center', flex: 1 }}>
+                        <Ionicons name="receipt-outline" size={28} color="#9C27B0" />
+                        <Text style={styles.statValue}>{mentorTopUpStats.totalTransactions}</Text>
+                        <Text style={styles.statLabel}>Total Transaksi</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Top Mentors */}
+                  {mentorTopUpStats.topMentors && mentorTopUpStats.topMentors.length > 0 && (
+                    <View style={{ marginTop: 16, backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 12, color: '#333' }}>🏆 Top 10 Mentor</Text>
+                      {mentorTopUpStats.topMentors.map((mentor: any, index: number) => (
+                        <View key={mentor.mentorId} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }}>
+                          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#667eea', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>#{index + 1}</Text>
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 16, fontWeight: '600', color: '#333' }}>{mentor.username}</Text>
+                            <Text style={{ fontSize: 14, color: '#666', marginTop: 2 }}>
+                              💰 {mentor.totalTopUp.toLocaleString('id-ID')} • {mentor.transactionCount} transaksi
+                            </Text>
+                            {mentor.lastTopUpDate && (
+                              <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                                Terakhir: {new Date(mentor.lastTopUpDate).toLocaleDateString('id-ID')}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* All Mentors List */}
+                  {mentorTopUpStats.mentorList && mentorTopUpStats.mentorList.length > 0 && (
+                    <View style={{ marginTop: 16 }}>
+                      <Text style={styles.sectionTitle}>Daftar Semua Mentor ({mentorTopUpStats.totalMentors})</Text>
+                      {mentorTopUpStats.mentorList.map((mentor: any) => (
+                        <View key={mentor.id} style={{ backgroundColor: '#fff', borderRadius: 12, padding: 16, marginTop: 12 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                            <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: '#667eea', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '700' }}>
+                                {mentor.username.charAt(0).toUpperCase()}
+                              </Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: 16, fontWeight: '600', color: '#333' }}>{mentor.username}</Text>
+                              <Text style={{ fontSize: 14, color: '#666', marginTop: 2 }}>
+                                Monthly Top Up: {mentor.monthlyTopup.toLocaleString('id-ID')} / {mentor.topupRequirement.toLocaleString('id-ID')}
+                              </Text>
+                            </View>
+                            <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: mentor.status === 'active' ? '#4CAF50' : '#F44336' }}>
+                              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                                {mentor.status === 'active' ? 'AKTIF' : 'EXPIRED'}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={{ borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                              <Ionicons name="calendar-outline" size={16} color="#666" />
+                              <Text style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>
+                                Promoted: {new Date(mentor.promotedAt).toLocaleDateString('id-ID')}
+                              </Text>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Ionicons name="time-outline" size={16} color="#666" />
+                              <Text style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>
+                                Expires: {new Date(mentor.expiresAt).toLocaleDateString('id-ID')}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="stats-chart-outline" size={80} color="#ccc" />
+                  <Text style={styles.emptyStateText}>Belum ada data statistik</Text>
+                </View>
+              )}
+            </View>
           </ScrollView>
         );
 
