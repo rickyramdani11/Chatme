@@ -37,12 +37,9 @@ export default function InfoScreen({ navigation }: any) {
       icon: 'game-controller',
       color: '#9C27B0',
       commands: [
-        { cmd: '/lc join [amount]', desc: 'Bergabung dengan permainan (min: 50 kredit)' },
-        { cmd: '/lc start', desc: 'Mulai permainan (hanya pembuat)' },
-        { cmd: '/lc status', desc: 'Lihat status permainan saat ini' },
-        { cmd: '/lc players', desc: 'Lihat daftar pemain yang bergabung' },
-        { cmd: '/lc leave', desc: 'Keluar dari permainan' },
-        { cmd: '/lc shutdown', desc: 'Matikan bot (hanya pembuat)' },
+        { cmd: '!start [bet]', desc: 'Mulai permainan dengan taruhan' },
+        { cmd: '!j', desc: 'Join game (bergabung dengan permainan)' },
+        { cmd: '!d', desc: 'Tembak kartu (draw card)' },
       ],
     },
     {
@@ -50,10 +47,10 @@ export default function InfoScreen({ navigation }: any) {
       icon: 'diamond',
       color: '#E91E63',
       commands: [
-        { cmd: '/bacarat bet player [amount]', desc: 'Taruhan pada Player' },
-        { cmd: '/bacarat bet banker [amount]', desc: 'Taruhan pada Banker' },
-        { cmd: '/bacarat bet tie [amount]', desc: 'Taruhan pada Tie' },
-        { cmd: '/bacarat status', desc: 'Lihat status permainan' },
+        { cmd: '!start', desc: 'Start game (mulai permainan)' },
+        { cmd: '!b p [bet]', desc: 'Bet Player - Taruhan pada Player' },
+        { cmd: '!b b [bet]', desc: 'Bet Banker - Taruhan pada Banker' },
+        { cmd: '!b t [bet]', desc: 'Bet Tie - Taruhan pada Draw (coin kembali jika menang)' },
       ],
     },
     {
@@ -61,10 +58,11 @@ export default function InfoScreen({ navigation }: any) {
       icon: 'cube',
       color: '#FF5722',
       commands: [
-        { cmd: '/sicbo bet big [amount]', desc: 'Taruhan Big (11-17)' },
-        { cmd: '/sicbo bet small [amount]', desc: 'Taruhan Small (4-10)' },
-        { cmd: '/sicbo bet triple [number] [amount]', desc: 'Taruhan Triple (1-6)' },
-        { cmd: '/sicbo status', desc: 'Lihat status permainan' },
+        { cmd: '!s [bet] big', desc: 'Contoh: !s 500 big - Taruhan 500 pada BIG' },
+        { cmd: '!s [bet] small', desc: 'Contoh: !s 1000 small - Taruhan 1000 pada SMALL' },
+        { cmd: '!s [bet] odd', desc: 'Contoh: !s 2000 odd - Taruhan 2000 pada ODD' },
+        { cmd: '!s [bet] total:[n]', desc: 'Contoh: !s 500 total:15 - Taruhan 500 pada total 15' },
+        { cmd: '!s [bet] single:[n]', desc: 'Contoh: !s 1000 single:5 - Taruhan 1000 pada dadu angka 5' },
       ],
     },
   ];
