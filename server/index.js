@@ -18,6 +18,7 @@ const creditsRouter = require('./routes/credits');
 const feedRouter = require('./routes/feed');
 const roomsRouter = require('./routes/rooms');
 const withdrawRouter = require('./routes/withdraw');
+const referralRouter = require('./routes/referral');
 const pushNotificationsRouter = require('./routes/push-notifications');
 const fetch = require('node-fetch'); // Import node-fetch
 const { createProxyMiddleware } = require('http-proxy-middleware'); // For Socket.IO proxy
@@ -915,6 +916,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/feed', feedRouter);
 app.use('/api/rooms', roomsRouter);
 app.use('/api/withdraw', withdrawRouter); // Mount withdrawal routes at /api/withdraw to avoid conflicts
+app.use('/api/referral', referralRouter); // Mount referral routes
 app.use('/api/support', supportRouter); // Mount support routes
 app.use('/api/notifications', authenticateToken, pushNotificationsRouter); // Push notifications with auth
 
@@ -4626,6 +4628,47 @@ app.post('/api/admin/withdrawals/:id/approve', authenticateToken, ensureAdmin, a
         notes = $2
       WHERE id = $3
     `, ['completed', notes || `Approved by admin ${req.user.username}`, id]);
+
+    // Check if this is user's first successful withdrawal for referral bonus
+    const previousWithdrawalsResult = await client.query(`
+      SELECT COUNT(*) as count 
+      FROM withdrawal_requests 
+      WHERE user_id = $1 AND status = 'completed' AND id != $2
+    `, [withdrawal.user_id, id]);
+
+    const isFirstWithdrawal = parseInt(previousWithdrawalsResult.rows[0].count) === 0;
+
+    // If first withdrawal, check for referral and award bonus
+    if (isFirstWithdrawal) {
+      const referralResult = await client.query(`
+        SELECT id, referrer_id, referrer_username, bonus_amount, bonus_claimed
+        FROM user_referrals
+        WHERE invited_user_id = $1 AND bonus_claimed = false
+      `, [withdrawal.user_id]);
+
+      if (referralResult.rows.length > 0) {
+        const referral = referralResult.rows[0];
+        
+        // Mark first withdrawal completed and bonus claimed
+        await client.query(`
+          UPDATE user_referrals
+          SET first_withdrawal_completed = true,
+              bonus_claimed = true,
+              bonus_claimed_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+        `, [referral.id]);
+
+        // Award 10k credits to referrer (using atomic UPSERT pattern)
+        await client.query(`
+          INSERT INTO user_credits (user_id, balance)
+          VALUES ($1, $2)
+          ON CONFLICT (user_id)
+          DO UPDATE SET balance = user_credits.balance + $2
+        `, [referral.referrer_id, referral.bonus_amount]);
+
+        console.log(`🎁 Referral bonus awarded: ${referral.bonus_amount} credits to user ${referral.referrer_id} (${referral.referrer_username}) for successful referral`);
+      }
+    }
 
     await client.query('COMMIT');
 

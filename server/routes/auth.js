@@ -147,10 +147,32 @@ function validatePassword(password) {
   return { valid: true };
 }
 
+// Generate unique invite code (8 characters: uppercase letters + numbers)
+async function generateUniqueInviteCode() {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code;
+  let isUnique = false;
+  
+  while (!isUnique) {
+    code = '';
+    for (let i = 0; i < 8; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    
+    // Check if code already exists
+    const result = await pool.query('SELECT id FROM users WHERE invite_code = $1', [code]);
+    if (result.rows.length === 0) {
+      isUnique = true;
+    }
+  }
+  
+  return code;
+}
+
 // Registration endpoint
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, email, phone, country, gender } = req.body;
+    const { username, password, email, phone, country, gender, referralCode } = req.body;
 
     if (!username || !password || !email || !phone || !country || !gender) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -177,21 +199,55 @@ router.post('/register', async (req, res) => {
     // Normalize Gmail address (remove dots) to prevent duplicate accounts
     const normalizedEmail = normalizeGmailAddress(email);
 
+    // Validate referral code if provided
+    let referrerId = null;
+    let referrerUsername = null;
+    if (referralCode) {
+      const referrerResult = await pool.query(
+        'SELECT id, username FROM users WHERE invite_code = $1',
+        [referralCode.toUpperCase()]
+      );
+      
+      if (referrerResult.rows.length === 0) {
+        return res.status(400).json({ error: 'Invalid referral code' });
+      }
+      
+      referrerId = referrerResult.rows[0].id;
+      referrerUsername = referrerResult.rows[0].username;
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Generate 6-digit OTP
     const verificationOTP = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Direct insert with normalized email - database UNIQUE constraints handle duplicate prevention
+    // Generate unique invite code for new user
+    const inviteCode = await generateUniqueInviteCode();
+
+    // Direct insert with normalized email and invite code - database UNIQUE constraints handle duplicate prevention
     // This is race-condition proof: concurrent inserts will be serialized by the database
     const result = await pool.query(
-      `INSERT INTO users (username, email, password, phone, country, gender, bio, avatar, verified, exp, level, last_login, status, verification_otp, otp_expiry)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, username, email`,
-      [username, normalizedEmail, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline', verificationOTP, otpExpiry]
+      `INSERT INTO users (username, email, password, phone, country, gender, bio, avatar, verified, exp, level, last_login, status, verification_otp, otp_expiry, invite_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id, username, email, invite_code`,
+      [username, normalizedEmail, hashedPassword, phone, country, gender, '', null, false, 0, 1, null, 'offline', verificationOTP, otpExpiry, inviteCode]
     );
 
     const newUser = result.rows[0];
+
+    // If user registered with referral code, create referral record
+    if (referrerId) {
+      try {
+        await pool.query(
+          `INSERT INTO user_referrals (referrer_id, invited_user_id, invite_code, referrer_username, invited_username)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [referrerId, newUser.id, referralCode.toUpperCase(), referrerUsername, newUser.username]
+        );
+        console.log(`✅ Referral created: ${referrerUsername} invited ${newUser.username}`);
+      } catch (referralError) {
+        console.error('Failed to create referral record:', referralError);
+      }
+    }
 
     // Send verification email with OTP (non-blocking)
     sendVerificationEmail(email, username, verificationOTP).catch(err => {
@@ -203,7 +259,8 @@ router.post('/register', async (req, res) => {
       user: {
         id: newUser.id,
         username: newUser.username,
-        email: newUser.email
+        email: newUser.email,
+        inviteCode: newUser.invite_code
       }
     });
   } catch (error) {
