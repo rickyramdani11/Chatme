@@ -27,17 +27,34 @@ interface MerchantRecord {
   status: 'active' | 'expired';
 }
 
+interface MentorStatistics {
+  totalTopUp: number;
+  totalMerchants: number;
+  totalTransactions: number;
+  monthlyTopUp: number;
+  monthlyTransactions: number;
+  merchantDetails: Array<{
+    username: string;
+    merchantId: number;
+    totalTopUp: number;
+    transactionCount: number;
+    lastTopUpDate: string;
+  }>;
+}
 
 export default function MentorScreen() {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [merchants, setMerchants] = useState<MerchantRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [statistics, setStatistics] = useState<MentorStatistics | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
   const { user } = useAuth();
   const navigation = useNavigation();
 
   useEffect(() => {
     fetchMerchants();
+    fetchStatistics();
   }, []);
 
   const fetchMerchants = async () => {
@@ -80,6 +97,39 @@ export default function MentorScreen() {
     } catch (error) {
       console.error('Error fetching merchants:', error);
       Alert.alert('Error', 'Terjadi kesalahan saat mengambil data merchant: ' + error.message);
+    }
+  };
+
+  const fetchStatistics = async () => {
+    setStatsLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.log('No token found for fetching statistics');
+        return;
+      }
+
+      console.log('Fetching statistics from:', `${BASE_URL}/mentor/statistics`);
+      const response = await fetch(`${BASE_URL}/mentor/statistics`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Statistics data:', data);
+        setStatistics(data.statistics);
+      } else {
+        const errorText = await response.text();
+        console.error('Fetch statistics failed:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
@@ -277,6 +327,76 @@ export default function MentorScreen() {
               </LinearGradient>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Traffic Statistics Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Traffic Total Top Up</Text>
+          {statsLoading ? (
+            <View style={styles.statsCard}>
+              <Text style={styles.loadingText}>Memuat statistik...</Text>
+            </View>
+          ) : statistics ? (
+            <View style={styles.statsCard}>
+              {/* Summary Stats */}
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Ionicons name="cash-outline" size={24} color="#4CAF50" />
+                  <Text style={styles.statValue}>
+                    {statistics.totalTopUp.toLocaleString('id-ID')}
+                  </Text>
+                  <Text style={styles.statLabel}>Total Top Up</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="people-outline" size={24} color="#2196F3" />
+                  <Text style={styles.statValue}>{statistics.totalMerchants}</Text>
+                  <Text style={styles.statLabel}>Merchant Aktif</Text>
+                </View>
+              </View>
+
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Ionicons name="trending-up-outline" size={24} color="#FF9800" />
+                  <Text style={styles.statValue}>
+                    {statistics.monthlyTopUp.toLocaleString('id-ID')}
+                  </Text>
+                  <Text style={styles.statLabel}>Top Up Bulan Ini</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="receipt-outline" size={24} color="#9C27B0" />
+                  <Text style={styles.statValue}>{statistics.totalTransactions}</Text>
+                  <Text style={styles.statLabel}>Total Transaksi</Text>
+                </View>
+              </View>
+
+              {/* Top Merchants */}
+              {statistics.merchantDetails.length > 0 && (
+                <View style={styles.topMerchantsSection}>
+                  <Text style={styles.topMerchantsTitle}>Top Merchants</Text>
+                  {statistics.merchantDetails.slice(0, 3).map((merchant, index) => (
+                    <View key={merchant.merchantId} style={styles.topMerchantItem}>
+                      <View style={styles.topMerchantRank}>
+                        <Text style={styles.rankText}>#{index + 1}</Text>
+                      </View>
+                      <View style={styles.topMerchantInfo}>
+                        <Text style={styles.topMerchantName}>{merchant.username}</Text>
+                        <Text style={styles.topMerchantAmount}>
+                          {merchant.totalTopUp.toLocaleString('id-ID')} coins
+                        </Text>
+                      </View>
+                      <Text style={styles.topMerchantTransactions}>
+                        {merchant.transactionCount}x
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.statsCard}>
+              <Text style={styles.emptyText}>Belum ada data statistik</Text>
+            </View>
+          )}
         </View>
 
         {/* Recent Merchants */}
@@ -559,5 +679,106 @@ const styles = StyleSheet.create({
   modalList: {
     flex: 1,
     padding: 20,
+  },
+  // Traffic Statistics Styles
+  statsCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  loadingText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
+    padding: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 14,
+    padding: 20,
+  },
+  topMerchantsSection: {
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  topMerchantsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  topMerchantItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  topMerchantRank: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  rankText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  topMerchantInfo: {
+    flex: 1,
+  },
+  topMerchantName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  topMerchantAmount: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginTop: 2,
+  },
+  topMerchantTransactions: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
   },
 });
