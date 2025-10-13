@@ -708,6 +708,7 @@ export default function ChatScreen() {
       socketInstance.removeAllListeners('gift-animation');
       socketInstance.removeAllListeners('admin-joined'); // Listener for admin joined support chat
       socketInstance.removeAllListeners('support-message'); // Listener for support messages
+      socketInstance.removeAllListeners('moderator-updated'); // Listener for moderator changes
 
       socketInstance.off('new-message');
       socketInstance.on('new-message', (newMessage: Message) => {
@@ -883,6 +884,35 @@ export default function ChatScreen() {
               }
               
               return { ...tab, messages: updatedMessages };
+            }
+            return tab;
+          })
+        );
+      });
+
+      // Listen for moderator updates
+      socketInstance.off('moderator-updated');
+      socketInstance.on('moderator-updated', (data: { roomId: string; username: string; action: 'added' | 'removed' }) => {
+        console.log('🛡️ Moderator updated:', data);
+        
+        setChatTabs(prevTabs =>
+          prevTabs.map(tab => {
+            if (tab.id === data.roomId) {
+              let updatedModerators = [...(tab.moderators || [])];
+              
+              if (data.action === 'added') {
+                // Add moderator if not already in list
+                if (!updatedModerators.includes(data.username)) {
+                  updatedModerators.push(data.username);
+                  console.log(`✅ Added ${data.username} as moderator in room ${data.roomId}`);
+                }
+              } else if (data.action === 'removed') {
+                // Remove moderator from list
+                updatedModerators = updatedModerators.filter(mod => mod !== data.username);
+                console.log(`❌ Removed ${data.username} as moderator from room ${data.roomId}`);
+              }
+              
+              return { ...tab, moderators: updatedModerators };
             }
             return tab;
           })

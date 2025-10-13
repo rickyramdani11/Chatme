@@ -155,8 +155,14 @@ export default function RoomManagement({
         setShowParticipantPicker(false);
         loadModerators();
 
-        // Broadcast notification to room chat
+        // Broadcast moderator update to all clients in room
         if (socket) {
+          socket.emit('moderator-added', {
+            roomId: roomId,
+            username: username,
+            roomName: roomName
+          });
+
           socket.emit('send-message', {
             roomId: roomId,
             message: `${username} has moderator in room ${roomName}`,
@@ -197,6 +203,15 @@ export default function RoomManagement({
               if (response.ok) {
                 Alert.alert('Success', `${username} has been removed as moderator`);
                 loadModerators();
+                
+                // Broadcast moderator removal to all clients in room
+                if (socket) {
+                  socket.emit('moderator-removed', {
+                    roomId: roomId,
+                    username: username,
+                    roomName: roomName
+                  });
+                }
               } else {
                 const error = await response.json();
                 Alert.alert('Error', error.error || 'Failed to remove moderator');

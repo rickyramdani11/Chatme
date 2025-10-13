@@ -82,7 +82,7 @@ Preferred communication style: Simple, everyday language.
 - **Chat Message Display**: Optimized spacing, consistent font sizes, improved text wrapping, and distinct display for gift notifications and command messages.
 - **Android Back Button**: Hardware back button handling for proper navigation.
 - **ProfileScreen Design**: Compact button/badge design, white background, consistent avatar framing, and role badges.
-- **Room Management UX**: Increased modal height, participant picker for moderator selection, owner-only moderator adding, functional unban, and smart filtering.
+- **Room Management UX**: Increased modal height, participant picker for moderator selection, owner-only moderator adding, functional unban, and smart filtering. Real-time moderator role updates via socket events - when moderator is added/removed, all clients in room receive instant update with visual role color change to yellow (#e8d31a) without page refresh (October 2025).
 - **HomeScreen**: Removed fake active users counter that displayed random numbers instead of real data (October 2025).
 
 # External Dependencies

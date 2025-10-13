@@ -2589,6 +2589,40 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Moderator events
+  socket.on('moderator-added', async (data) => {
+    const { roomId, username, roomName } = data;
+    
+    try {
+      // Broadcast to all clients in room to update their moderator list
+      io.to(roomId).emit('moderator-updated', {
+        roomId: roomId,
+        username: username,
+        action: 'added'
+      });
+      
+      console.log(`✅ Moderator ${username} added to room ${roomName} (${roomId})`);
+    } catch (error) {
+      console.error('Error in moderator-added handler:', error);
+    }
+  });
+
+  socket.on('moderator-removed', async (data) => {
+    const { roomId, username, roomName } = data;
+    
+    try {
+      // Broadcast to all clients in room to update their moderator list
+      io.to(roomId).emit('moderator-updated', {
+        roomId: roomId,
+        username: username,
+        action: 'removed'
+      });
+      
+      console.log(`✅ Moderator ${username} removed from room ${roomName} (${roomId})`);
+    } catch (error) {
+      console.error('Error in moderator-removed handler:', error);
+    }
+  });
 
   // Notification events
   socket.on('send-notification', (notificationData) => {
