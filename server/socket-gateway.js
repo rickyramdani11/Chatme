@@ -9,7 +9,7 @@ const { Pool } = pkg;
 import crypto from 'crypto';
 
 // Import LowCard bot
-import { processLowCardCommand } from './games/lowcard.js';
+import { processLowCardCommand, isBotActiveInRoom } from './games/lowcard.js';
 
 // Import Sicbo bot
 import { handleSicboCommand, handleSicboAdminCommand, ensureBotPresence as ensureSicboBotPresence, isSicboBotActive } from './games/sicbo.js';
