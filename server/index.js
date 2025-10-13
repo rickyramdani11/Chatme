@@ -8398,6 +8398,103 @@ app.get('/merchant/statistics', authenticateToken, async (req, res) => {
   }
 });
 
+// Get mentor top-up statistics (admin only)
+app.get('/admin/mentor-topup-statistics', authenticateToken, ensureAdmin, async (req, res) => {
+  try {
+    console.log('=== GET ADMIN MENTOR TOP-UP STATISTICS ===');
+    console.log('Admin User ID:', req.user.id);
+    console.log('Admin Role:', req.user.role);
+
+    // Get all active mentors
+    const mentorsResult = await pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        mp.promoted_at,
+        mp.expires_at,
+        mp.status,
+        mp.topup_requirement,
+        mp.monthly_topup
+      FROM users u
+      JOIN mentor_promotions mp ON u.id = mp.user_id
+      WHERE u.role = 'mentor'
+      ORDER BY mp.promoted_at DESC
+    `);
+
+    const mentors = mentorsResult.rows;
+    
+    // Get total statistics from merchant_topups
+    const totalStatsResult = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT mentor_id) as active_mentors,
+        COALESCE(SUM(amount), 0) as total_topup,
+        COUNT(*) as total_transactions
+      FROM merchant_topups
+    `);
+
+    // Get monthly statistics (current month)
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const monthlyStatsResult = await pool.query(`
+      SELECT 
+        COALESCE(SUM(amount), 0) as monthly_topup,
+        COUNT(*) as monthly_transactions
+      FROM merchant_topups
+      WHERE month_year = $1
+    `, [currentMonth]);
+
+    // Get top mentors by total top-up
+    const topMentorsResult = await pool.query(`
+      SELECT 
+        u.username,
+        mt.mentor_id,
+        COALESCE(SUM(mt.amount), 0) as total_topup,
+        COUNT(*) as transaction_count,
+        MAX(mt.created_at) as last_topup_date
+      FROM merchant_topups mt
+      JOIN users u ON mt.mentor_id = u.id
+      GROUP BY mt.mentor_id, u.username
+      ORDER BY total_topup DESC
+      LIMIT 10
+    `);
+
+    const statistics = {
+      totalMentors: mentors.length,
+      activeMentors: parseInt(totalStatsResult.rows[0].active_mentors || 0),
+      totalTopUp: parseInt(totalStatsResult.rows[0].total_topup || 0),
+      totalTransactions: parseInt(totalStatsResult.rows[0].total_transactions || 0),
+      monthlyTopUp: parseInt(monthlyStatsResult.rows[0].monthly_topup || 0),
+      monthlyTransactions: parseInt(monthlyStatsResult.rows[0].monthly_transactions || 0),
+      topMentors: topMentorsResult.rows.map(row => ({
+        username: row.username,
+        mentorId: row.mentor_id,
+        totalTopUp: parseInt(row.total_topup || 0),
+        transactionCount: parseInt(row.transaction_count || 0),
+        lastTopUpDate: row.last_topup_date
+      })),
+      mentorList: mentors.map(mentor => ({
+        id: mentor.id,
+        username: mentor.username,
+        promotedAt: mentor.promoted_at,
+        expiresAt: mentor.expires_at,
+        status: mentor.status,
+        topupRequirement: mentor.topup_requirement || 0,
+        monthlyTopup: mentor.monthly_topup || 0
+      }))
+    };
+
+    console.log('Admin mentor statistics:', statistics);
+
+    res.json({ 
+      success: true,
+      statistics
+    });
+
+  } catch (error) {
+    console.error('Error fetching admin mentor statistics:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Auth endpoints without /api prefix
 app.post('/auth/login', async (req, res) => {
   try {
