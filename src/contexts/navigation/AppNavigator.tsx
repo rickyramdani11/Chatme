@@ -51,6 +51,8 @@ import FamilyDetailScreen from '../../screens/FamilyDetailScreen';
 import ChatHistoryScreen from '../../screens/ChatHistoryScreen';
 // Import InfoScreen
 import InfoScreen from '../../screens/InfoScreen';
+// Import InviteFriendsScreen
+import InviteFriendsScreen from '../../screens/InviteFriendsScreen';
 // Import GlobalIncomingCallManager
 import { GlobalIncomingCallManager } from '../../components/GlobalIncomingCallManager';
 
@@ -251,6 +253,12 @@ export default function AppNavigator() {
           <Stack.Screen
             name="ChatHistory"
             component={ChatHistoryScreen}
+            options={{ headerShown: false }}
+          />
+          {/* Add InviteFriends screen to Stack Navigator */}
+          <Stack.Screen
+            name="InviteFriends"
+            component={InviteFriendsScreen}
             options={{ headerShown: false }}
           />
         </>

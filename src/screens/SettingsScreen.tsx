@@ -323,6 +323,14 @@ export default function SettingsScreen({ navigation }: any) {
             onPress={() => navigation.navigate('FamilyScreen')}
           />
 
+          {/* Invite Friends Menu Item */}
+          <SettingsItem
+            icon="gift"
+            title="Invite Friends"
+            iconColor={colors.success}
+            onPress={() => navigation.navigate('InviteFriends')}
+          />
+
           {/* Admin Panel Menu Item - Only visible for admin users */}
           {user?.role === 'admin' && (
             <SettingsItem

@@ -72,6 +72,7 @@ export type RootStackParamList = {
   CreateFamilyScreen: undefined;
   FamilyDetailScreen: { familyId: string };
   ChatHistory: undefined;
+  InviteFriends: undefined;
 };
 
 export type TabParamList = {
