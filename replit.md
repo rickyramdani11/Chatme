@@ -26,7 +26,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Core Features
 - **Chat System**: Multi-room chat, private messaging, emoji support, media sharing. Features anti-flood rate limiting and no message history persistence.
-- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration. Private chat gift notifications persist to database for permanent history (October 2025). Room chat gift notifications display as permanent messages during session but are ephemeral by design (October 2025).
+- **Gift System**: Virtual gifts with real-time display, video gifts, Lottie JSON animations, and Cloudinary integration. Private chat gift notifications persist to database for permanent history (October 2025). Room chat gift notifications display as permanent messages during session but are ephemeral by design (October 2025). All gift animations standardized to 6-second duration for consistent UX (October 2025). Eliminated duplicate gift events by using single `new-message` event delivery path instead of dual `new-message` + `receive-private-gift` emissions (October 2025).
 - **Red Packet System**: WeChat-style virtual red envelopes with random credit distribution, UI modal for sending, falling envelope animation for claiming, auto-expiry with transaction-based refund locking (October 2025), and real-time socket events. Uses Fisher-Yates shuffle for fair distribution (October 2025).
 - **Gaming Integration**: LowCard bot game, SicboBot, and BaccaratBot with database persistence and multi-player support.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API, responding only in private chats.
@@ -43,6 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Room Connection Persistence**: Maintains user connection with inactivity cleanup and intelligent socket reconnection, ensuring single listener attachment for all socket events.
 - **Room Capacity Management**: Real-time participant count sync and client-side validation.
 - **Video Call System**: Private video/audio calls with Daily.co integration.
+- **Private Communication Types**: Three distinct private communication channels: (1) Private Chat 1-on-1 with roomId format `private_3_4` for regular user-to-user conversations, (2) Support Chat with `isSupport: true` flag for live admin support sessions, (3) Video Call via Daily.co integration for real-time audio/video communication (October 2025).
 - **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 - **Info Center**: Displays game commands and merchant/mentor contacts.
 - **Withdrawal System**: Manual withdrawal management system bypassing Xendit API (due to business verification requirements). Features admin approval/rejection workflow with database transactions, row-level locking (SELECT FOR UPDATE) to prevent race conditions, atomic balance refunds on rejection, real-time exchange rates, minimum thresholds, Indonesian bank support, full history tracking, and duplicate account number validation across users to prevent spam and irregular coin transactions (October 2025).

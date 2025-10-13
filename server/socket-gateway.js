@@ -2250,38 +2250,9 @@ io.on('connection', (socket) => {
         }
       }
 
-      // Broadcast to entire room (private chat room) to ensure delivery
-      if (roomId) {
-        console.log(`🎁 Broadcasting private gift to room: ${roomId}`);
-        io.to(roomId).emit('receive-private-gift', {
-          from,
-          to,
-          gift,
-          timestamp: timestamp || new Date().toISOString(),
-          type: 'private',
-          roomId: roomId
-        });
-        console.log(`🎁 Private gift broadcasted to room ${roomId}`);
-      } else {
-        // Fallback: Find target user's socket directly
-        const targetSocket = [...connectedUsers.entries()].find(([socketId, userInfo]) => 
-          userInfo.username === to
-        );
-
-        if (targetSocket) {
-          const [targetSocketId] = targetSocket;
-          io.to(targetSocketId).emit('receive-private-gift', {
-            from,
-            to,
-            gift,
-            timestamp: timestamp || new Date().toISOString(),
-            type: 'private'
-          });
-          console.log(`🎁 Private gift delivered directly to ${to}`);
-        } else {
-          console.log(`❌ Target user ${to} not found or offline`);
-        }
-      }
+      // Gift notification already saved to database and delivered via 'new-message' event
+      // No need to emit 'receive-private-gift' separately to prevent duplicate animations
+      console.log(`✅ Private gift notification complete (delivered via new-message event)`);
 
     } catch (error) {
       console.error('❌ Error handling send-private-gift:', error);

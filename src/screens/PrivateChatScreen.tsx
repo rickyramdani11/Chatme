@@ -160,7 +160,6 @@ export default function PrivateChatScreen() {
   useEffect(() => {
     const setupSocketListeners = (socketInstance: Socket) => {
       socketInstance.removeAllListeners('new-message');
-      socketInstance.removeAllListeners('receive-private-gift');
 
       socketInstance.on('new-message', (newMessage: Message) => {
         if (newMessage.roomId === roomId) {
@@ -192,138 +191,8 @@ export default function PrivateChatScreen() {
         }
       });
 
-      socketInstance.on('receive-private-gift', (data: any) => {
-        console.log('🎁 Received private gift:', data);
-        console.log('🎁 Gift data:', JSON.stringify(data.gift, null, 2));
-        console.log('🎁 From:', data.from, 'Timestamp:', data.timestamp);
-
-        const gift = data.gift;
-        
-        // Note: Gift notification message is now saved and emitted by server via 'new-message' event
-        // No need to manually add message here to avoid duplicates
-        
-        const giftAnimationData = {
-          ...gift,
-          sender: data.from,
-          recipient: user?.username,
-          timestamp: data.timestamp,
-          isPrivate: true
-        };
-
-        // Check if this is a Lottie JSON animation
-        const checkIsLottieJSON = (source: any): boolean => {
-          if (!source) return false;
-          const uri = source.uri || source;
-          if (typeof uri === 'string') {
-            return uri.toLowerCase().endsWith('.json');
-          }
-          return false;
-        };
-
-        // Handle Lottie JSON animations
-        const lottieSource = gift.animation || gift.videoSource || gift.image;
-        if (checkIsLottieJSON(lottieSource)) {
-          console.log('🎭 Processing Lottie JSON animation:', gift.name);
-          
-          let jsonSource = lottieSource;
-          if (typeof jsonSource === 'string') {
-            jsonSource = { uri: jsonSource };
-          }
-          
-          if (jsonSource) {
-            setCurrentGiftVideoSource(jsonSource);
-            setActiveGiftAnimation({
-              ...giftAnimationData,
-              type: 'json'
-            });
-            setShowGiftVideo(true);
-          }
-          
-        // Handle video gifts
-        } else if (gift.type === 'animated_video' || gift.mediaType === 'video') {
-          console.log('🎬 Processing video gift:', gift.name);
-          
-          let videoSource = gift.videoSource || gift.animation;
-          if (typeof videoSource === 'string') {
-            videoSource = { uri: videoSource };
-          } else if (gift.videoUrl) {
-            videoSource = { uri: gift.videoUrl };
-          }
-          
-          if (videoSource) {
-            setCurrentGiftVideoSource(videoSource);
-            setActiveGiftAnimation({
-              ...giftAnimationData,
-              type: 'animated_video'
-            });
-            setShowGiftVideo(true);
-          }
-          
-        } else if (gift.image || gift.imageUrl) {
-          console.log('🖼️ Processing image gift:', gift.name);
-          
-          let imageSource = gift.image;
-          if (typeof imageSource === 'string') {
-            imageSource = { uri: imageSource };
-          } else if (gift.imageUrl) {
-            imageSource = { uri: gift.imageUrl };
-          }
-          
-          setCurrentGiftVideoSource(imageSource);
-          setActiveGiftAnimation({
-            ...giftAnimationData,
-            type: gift.type || 'static'
-          });
-          setShowGiftVideo(true);
-          
-        } else {
-          console.log('🎭 Processing icon/static gift:', data.gift.name);
-          
-          // Handle other gift types (icons, etc.)
-          setActiveGiftAnimation(giftAnimationData);
-
-          // Reset animations with requestAnimationFrame to avoid UseInsertionEffect warning
-          requestAnimationFrame(() => {
-            giftScaleAnim.setValue(0.3);
-            giftOpacityAnim.setValue(0);
-
-            // Start animation
-            Animated.parallel([
-              Animated.spring(giftScaleAnim, {
-                toValue: 1,
-                tension: 80,
-                friction: 6,
-                useNativeDriver: true,
-              }),
-              Animated.timing(giftOpacityAnim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-              }),
-            ]).start();
-
-            // Auto-close timing based on gift type
-            const duration = 6000; // All gifts disappear after 6 seconds
-            setTimeout(() => {
-              Animated.parallel([
-                Animated.timing(giftScaleAnim, {
-                  toValue: 1.1,
-                  duration: 400,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(giftOpacityAnim, {
-                  toValue: 0,
-                  duration: 400,
-                  useNativeDriver: true,
-                }),
-              ]).start(() => {
-                console.log('🎁 Static gift animation ended');
-                setActiveGiftAnimation(null);
-              });
-            }, duration);
-          });
-        }
-      });
+      // Gift animations are now handled via 'new-message' event with gift data
+      // No separate 'receive-private-gift' listener needed to prevent duplicates
 
       // Listen for incoming calls
       socketInstance.on('incoming-call', (callData) => {
