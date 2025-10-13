@@ -8702,9 +8702,9 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
 
         // Insert into mentor_topups table
         await client.query(`
-          INSERT INTO mentor_topups (user_id, amount, month_year, source, created_at)
+          INSERT INTO mentor_topups (mentor_id, amount, month_year, description, created_at)
           VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-        `, [targetUser.id, amount, monthYear, 'admin_panel']);
+        `, [targetUser.id, amount, monthYear, reason || 'Admin panel top up']);
 
         // Update mentor_promotions monthly_topup
         await client.query(`
