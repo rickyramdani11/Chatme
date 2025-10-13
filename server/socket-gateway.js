@@ -1874,12 +1874,22 @@ io.on('connection', (socket) => {
             return;
           }
 
-          // Check if Sicbo bot is active
+          // Check which bot is active
           const sicboActive = isSicboBotActive(roomId);
+          const lowcardActive = isBotActiveInRoom(roomId);
           
           // Route to appropriate bot based on command and active status
-          // Sicbo shortened commands: !start, !s, !help, !status (only if Sicbo is active)
-          if (sicboActive && (trimmedContent.startsWith('!start') || 
+          // LowCard shortened commands: !start, !j, !d, !leave, !help, !status (only if LowCard is active)
+          if (lowcardActive && (
+              trimmedContent.startsWith('!start ') || 
+              trimmedContent === '!j' ||
+              trimmedContent === '!d' ||
+              trimmedContent === '!leave' ||
+              trimmedContent === '!help' ||
+              trimmedContent === '!status')) {
+            // LowCard game command (shortened format)
+            processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
+          } else if (sicboActive && (trimmedContent.startsWith('!start') || 
               trimmedContent.startsWith('!s ') || 
               trimmedContent === '!s' ||
               trimmedContent === '!help' ||
