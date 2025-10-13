@@ -8399,7 +8399,7 @@ app.get('/merchant/statistics', authenticateToken, async (req, res) => {
 });
 
 // Get mentor top-up statistics (admin only)
-app.get('/admin/mentor-topup-statistics', authenticateToken, ensureAdmin, async (req, res) => {
+app.get('/api/admin/mentor-topup-statistics', authenticateToken, ensureAdmin, async (req, res) => {
   try {
     console.log('=== GET ADMIN MENTOR TOP-UP STATISTICS ===');
     console.log('Admin User ID:', req.user.id);
