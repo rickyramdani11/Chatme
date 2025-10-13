@@ -1925,8 +1925,16 @@ io.on('connection', (socket) => {
               console.log(`[Sicbo] Not handled, passing to LowCard`);
               processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
             }
-          } else if (trimmedContent.startsWith('!lowcard') || trimmedContent.startsWith('/lowcard') || trimmedContent.startsWith('/add lowcard') || trimmedContent.startsWith('/bot lowcard')) {
-            // Only route to LowCard if explicitly LowCard command
+          } else if (
+            (trimmedContent.includes('lowcard') && trimmedContent.startsWith('/')) ||
+            trimmedContent.startsWith('!lowcard') ||
+            trimmedContent === '/add' ||
+            trimmedContent === '/addbot' ||
+            trimmedContent === '/init_bot' ||
+            trimmedContent === '/bot off'
+          ) {
+            // LowCard admin and game commands
+            console.log(`[LowCard] Routing command to processLowCardCommand: ${trimmedContent}`);
             processLowCardCommand(io, roomId, trimmedContent, userInfo.userId, sender, socket.userRole);
           } else {
             // Unknown bot command - send error message to user
