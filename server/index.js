@@ -4644,6 +4644,7 @@ app.post('/api/admin/withdrawals/:id/approve', authenticateToken, ensureAdmin, a
         SELECT id, referrer_id, referrer_username, bonus_amount, bonus_claimed
         FROM user_referrals
         WHERE invited_user_id = $1 AND bonus_claimed = false
+        FOR UPDATE
       `, [withdrawal.user_id]);
 
       if (referralResult.rows.length > 0) {
