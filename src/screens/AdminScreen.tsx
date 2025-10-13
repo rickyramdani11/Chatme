@@ -385,6 +385,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'cash-outline',
       color: '#4CAF50',
       description: 'Proses withdrawal request manual'
+    },
+    {
+      id: 'mentor-topup-stats',
+      title: 'Statistik Mentor Top Up',
+      icon: 'stats-chart-outline',
+      color: '#6366F1',
+      description: 'Lihat statistik mentor top up ke system'
     }
   ];
 
