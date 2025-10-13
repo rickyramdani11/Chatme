@@ -45,7 +45,7 @@ Preferred communication style: Simple, everyday language.
 - **Video Call System**: Private video/audio calls with Daily.co integration.
 - **Socket Connection Stability**: Enhanced ping/pong heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 - **Info Center**: Displays game commands and merchant/mentor contacts.
-- **Withdrawal System**: Manual withdrawal management system bypassing Xendit API (due to business verification requirements). Features admin approval/rejection workflow with database transactions, row-level locking (SELECT FOR UPDATE) to prevent race conditions, atomic balance refunds on rejection, real-time exchange rates, minimum thresholds, Indonesian bank support, and full history tracking (October 2025).
+- **Withdrawal System**: Manual withdrawal management system bypassing Xendit API (due to business verification requirements). Features admin approval/rejection workflow with database transactions, row-level locking (SELECT FOR UPDATE) to prevent race conditions, atomic balance refunds on rejection, real-time exchange rates, minimum thresholds, Indonesian bank support, full history tracking, and duplicate account number validation across users to prevent spam and irregular coin transactions (October 2025).
 
 ## Security & Admin Enhancements
 - **Admin Access Control**: Frontend and backend role-based access with super admin whitelist. ensureAdmin middleware enforces admin-only access for sensitive endpoints (October 2025).

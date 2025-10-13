@@ -136,14 +136,27 @@ router.post('/user/link-account', authenticateToken, async (req, res) => {
       )
     `);
 
-    // Check if account already exists
+    // Check if this account number is used by ANY other user (prevent spam/fraud)
+    const duplicateAccountCheck = await pool.query(`
+      SELECT user_id, holder_name FROM user_linked_accounts 
+      WHERE account_number = $1 AND is_active = true AND user_id != $2
+    `, [accountNumber, userId]);
+
+    if (duplicateAccountCheck.rows.length > 0) {
+      console.log(`🚫 DUPLICATE ACCOUNT BLOCKED: Account number ${accountNumber} already used by user ID ${duplicateAccountCheck.rows[0].user_id}`);
+      return res.status(400).json({ 
+        error: 'This account number is already registered by another user. Each account can only be linked once to prevent spam and irregular transactions.' 
+      });
+    }
+
+    // Check if current user already has this account
     const existingAccount = await pool.query(`
       SELECT id FROM user_linked_accounts 
       WHERE user_id = $1 AND account_number = $2 AND is_active = true
     `, [userId, accountNumber]);
 
     if (existingAccount.rows.length > 0) {
-      return res.status(400).json({ error: 'Account already linked' });
+      return res.status(400).json({ error: 'You have already linked this account' });
     }
 
     // Insert new account
