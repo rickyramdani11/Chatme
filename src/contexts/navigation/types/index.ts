@@ -30,6 +30,7 @@ export type RootStackParamList = {
   TopRank: undefined;
   Notifications: undefined;
   Mentor: undefined;
+  Merchant: undefined;
   AdminScreen: undefined;
   Withdraw: undefined;
   WithdrawHistory: undefined;

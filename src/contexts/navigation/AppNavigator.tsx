@@ -28,6 +28,8 @@ import CreditScreen from '../../screens/CreditScreen';
 import TransactionHistoryScreen from '../../screens/TransactionHistoryScreen';
 // Import MentorScreen
 import MentorScreen from '../../screens/MentorScreen';
+// Import MerchantScreen
+import MerchantScreen from '../../screens/MerchantScreen';
 // Import NotificationsScreen
 import NotificationsScreen from '../../screens/NotificationsScreen';
 
@@ -197,6 +199,12 @@ export default function AppNavigator() {
           <Stack.Screen
             name="Mentor"
             component={MentorScreen}
+            options={{ headerShown: false }}
+          />
+          {/* Add Merchant screen to Stack Navigator */}
+          <Stack.Screen
+            name="Merchant"
+            component={MerchantScreen}
             options={{ headerShown: false }}
           />
           <Stack.Screen

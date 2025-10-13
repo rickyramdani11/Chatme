@@ -307,6 +307,16 @@ export default function SettingsScreen({ navigation }: any) {
             />
           )}
 
+          {/* Merchant Menu Item - Only visible for merchant users */}
+          {user?.role === 'merchant' && (
+            <SettingsItem
+              icon="briefcase"
+              title="Merchant"
+              iconColor={colors.warning}
+              onPress={() => navigation.navigate('Merchant')}
+            />
+          )}
+
           {/* Toko Menu Item */}
           <SettingsItem
             icon="storefront"
