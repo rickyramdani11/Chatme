@@ -29,7 +29,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, email: string, phone: string, country: string, gender: string) => Promise<void>;
+  register: (username: string, password: string, email: string, phone: string, country: string, gender: string, inviteCode?: string) => Promise<void>;
   logout: () => void;
   updateProfile: (userData: Partial<User>) => Promise<void>;
   refreshUserData: () => Promise<User | null>;
@@ -237,12 +237,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (username: string, password: string, email: string, phone: string, country: string, gender: string) => {
+  const register = async (username: string, password: string, email: string, phone: string, country: string, gender: string, inviteCode?: string) => {
     try {
-      console.log('Attempting to register user:', maskSensitiveData({ username, email, phone, country, gender }));
+      console.log('Attempting to register user:', maskSensitiveData({ username, email, phone, country, gender, inviteCode }));
       console.log('API URL:', `${API_BASE_URL}/auth/register`);
 
-      const requestBody = { username, password, email, phone, country, gender };
+      const requestBody: any = { username, password, email, phone, country, gender };
+      if (inviteCode) {
+        requestBody.inviteCode = inviteCode;
+      }
       console.log('Request body:', maskSensitiveData(requestBody));
 
       // Create abort controller for timeout

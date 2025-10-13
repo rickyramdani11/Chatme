@@ -65,6 +65,7 @@ export default function AuthScreen() {
   const [registeredEmail, setRegisteredEmail] = useState('');
   const [verifyingOTP, setVerifyingOTP] = useState(false);
   const [resendingOTP, setResendingOTP] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
   const { login, register } = useAuth();
 
   // Auto-login disabled - users must manually enter credentials after restart
@@ -173,7 +174,7 @@ export default function AuthScreen() {
 
         Alert.alert('Success', '🎉 Welcome back ChatMe,Senang melihatmu lagi Yuk mulai ngobrol dan berbagi cerita!');
       } else {
-        await register(username, password, email, phone, selectedCountry.code, gender);
+        await register(username, password, email, phone, selectedCountry.code, gender, inviteCode || undefined);
         setRegisteredEmail(email);
         setShowOtpModal(true);
       }
@@ -752,6 +753,19 @@ export default function AuthScreen() {
                       keyboardType="phone-pad"
                     />
                   </View>
+                </View>
+
+                {/* Invite Code Input (Optional) */}
+                <View style={styles.inputContainer}>
+                  <Ionicons name="gift-outline" size={20} color="#FF6B35" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Invite Code (Optional)"
+                    placeholderTextColor="#999"
+                    value={inviteCode}
+                    onChangeText={setInviteCode}
+                    autoCapitalize="characters"
+                  />
                 </View>
 
                 {/* Gender Selection */}
