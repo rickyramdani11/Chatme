@@ -8640,8 +8640,10 @@ app.post('/api/admin/credits/add', authenticateToken, async (req, res) => {
     }
 
     // Check if user is super admin (allowed to add credits)
-    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
-      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
+    // Convert ID to integer for comparison with SUPER_ADMIN_IDS array
+    const userId = parseInt(req.user.id, 10);
+    if (!SUPER_ADMIN_IDS.includes(userId)) {
+      console.log(`⛔ Access denied: User ${req.user.id} (parsed: ${userId}) is not a super admin`);
       return res.status(403).json({ error: 'Super admin access required to add credits' });
     }
 
@@ -8837,8 +8839,10 @@ app.post('/api/admin/change-user-email', authenticateToken, async (req, res) => 
     }
 
     // Check if user is super admin
-    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
-      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
+    // Convert ID to integer for comparison with SUPER_ADMIN_IDS array
+    const userId = parseInt(req.user.id, 10);
+    if (!SUPER_ADMIN_IDS.includes(userId)) {
+      console.log(`⛔ Access denied: User ${req.user.id} (parsed: ${userId}) is not a super admin`);
       return res.status(403).json({ error: 'Super admin access required to change user email' });
     }
 
@@ -8929,8 +8933,10 @@ app.post('/api/admin/reset-user-password', authenticateToken, async (req, res) =
     }
 
     // Check if user is super admin
-    if (!SUPER_ADMIN_IDS.includes(req.user.id)) {
-      console.log(`⛔ Access denied: User ${req.user.id} is not a super admin`);
+    // Convert ID to integer for comparison with SUPER_ADMIN_IDS array
+    const userId = parseInt(req.user.id, 10);
+    if (!SUPER_ADMIN_IDS.includes(userId)) {
+      console.log(`⛔ Access denied: User ${req.user.id} (parsed: ${userId}) is not a super admin`);
       return res.status(403).json({ error: 'Super admin access required to reset user password' });
     }
 
