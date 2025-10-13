@@ -327,6 +327,24 @@ export default function ChatScreen() {
       giftTimersRef.current = {};
     };
   }, []);
+
+  // Auto-hide gift messages after 8 seconds
+  useEffect(() => {
+    chatTabs.forEach(tab => {
+      tab.messages.forEach(message => {
+        if (message.type === 'gift' && !hiddenGiftIds.has(message.id) && !giftTimersRef.current[message.id]) {
+          giftTimersRef.current[message.id] = setTimeout(() => {
+            setHiddenGiftIds(prev => {
+              const newSet = new Set(prev);
+              newSet.add(message.id);
+              return newSet;
+            });
+            delete giftTimersRef.current[message.id];
+          }, 8000);
+        }
+      });
+    });
+  }, [chatTabs]);
   
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(roomId || null);
   const [showUserGiftPicker, setShowUserGiftPicker] = useState(false);
@@ -3674,14 +3692,6 @@ export default function ChatScreen() {
       // Check if this gift notification should be hidden
       if (hiddenGiftIds.has(item.id)) {
         return null;
-      }
-
-      // Start timer to auto-hide after 8 seconds if not already started
-      if (!giftTimersRef.current[item.id]) {
-        giftTimersRef.current[item.id] = setTimeout(() => {
-          setHiddenGiftIds(prev => new Set(prev).add(item.id));
-          delete giftTimersRef.current[item.id];
-        }, 8000);
       }
 
       return (
