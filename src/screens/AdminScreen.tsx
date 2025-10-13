@@ -4168,7 +4168,7 @@ export default function AdminScreen({ navigation }: any) {
                     )}
                   </View>
 
-                  {withdrawal.status === 'pending' && (
+                  {(withdrawal.status === 'pending' || withdrawal.status === 'processing') && (
                     <View style={styles.withdrawalActions}>
                       <TouchableOpacity
                         style={[styles.withdrawalActionButton, { backgroundColor: '#4CAF50' }]}

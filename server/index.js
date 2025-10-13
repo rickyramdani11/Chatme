@@ -4554,7 +4554,7 @@ app.post('/api/admin/withdrawals/:id/approve', authenticateToken, ensureAdmin, a
 
     const withdrawal = checkResult.rows[0];
 
-    if (withdrawal.status !== 'pending') {
+    if (withdrawal.status !== 'pending' && withdrawal.status !== 'processing') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: `Cannot approve withdrawal with status: ${withdrawal.status}` });
     }
@@ -4612,7 +4612,7 @@ app.post('/api/admin/withdrawals/:id/reject', authenticateToken, ensureAdmin, as
 
     const withdrawal = checkResult.rows[0];
 
-    if (withdrawal.status !== 'pending') {
+    if (withdrawal.status !== 'pending' && withdrawal.status !== 'processing') {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: `Cannot reject withdrawal with status: ${withdrawal.status}` });
     }
