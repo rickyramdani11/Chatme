@@ -1550,4 +1550,64 @@ router.delete('/announcements/:id', authenticateToken, adminOnly, async (req, re
   }
 });
 
+// Update user role (admin only, super admin for admin role)
+router.put('/users/:userId/role', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    if (!role || !['user', 'admin', 'mentor', 'merchant'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be user, admin, mentor, or merchant' });
+    }
+
+    const isSuperAdmin = SUPER_ADMIN_IDS.includes(req.user.id);
+
+    if (role === 'admin' && !isSuperAdmin) {
+      return res.status(403).json({ error: 'Only super admin can assign admin role' });
+    }
+
+    const userCheck = await pool.query('SELECT id, username, role FROM users WHERE id = $1', [userId]);
+    
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const targetUser = userCheck.rows[0];
+
+    if (SUPER_ADMIN_IDS.includes(parseInt(userId)) && !isSuperAdmin) {
+      return res.status(403).json({ error: 'Cannot modify super admin role' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role',
+      [role, userId]
+    );
+
+    await pool.query(
+      `INSERT INTO admin_actions (admin_id, action_type, target_user_id, details, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [
+        req.user.id,
+        'role_change',
+        userId,
+        JSON.stringify({ 
+          from: targetUser.role, 
+          to: role,
+          target_username: targetUser.username
+        })
+      ]
+    );
+
+    console.log(`Admin ${req.user.username} changed role of user ${targetUser.username} from ${targetUser.role} to ${role}`);
+
+    res.json({ 
+      message: 'User role updated successfully',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ error: 'Failed to update user role' });
+  }
+});
+
 module.exports = router;
