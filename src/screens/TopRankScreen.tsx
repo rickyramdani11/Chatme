@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 
 
 interface RankingUser {
@@ -134,10 +134,10 @@ const TopRankScreen = ({ navigation }: any) => {
         <View style={styles.avatarContainer}>
           {item.avatar ? (
             <Image 
-              source={{ uri: item.avatar }} 
+              source={{ uri: `${BASE_URL}${item.avatar}` }} 
               style={styles.avatar}
               onError={(error) => {
-                console.log('Failed to load avatar:', item.avatar, error.nativeEvent.error);
+                console.log('Failed to load avatar:', `${BASE_URL}${item.avatar}`, error.nativeEvent.error);
               }}
             />
           ) : (
