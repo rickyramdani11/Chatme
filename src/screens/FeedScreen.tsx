@@ -21,6 +21,7 @@ import { useAuth } from '../hooks';
 import { useNavigation } from '@react-navigation/native';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 import { useTheme } from '../contexts/ThemeContext';
+import AnimatedFrameOverlay from '../components/AnimatedFrameOverlay';
 
 // Import Video with error handling
 let Video: any = null;
@@ -65,6 +66,7 @@ interface FeedPost {
   shares: number;
   level: number;
   avatar?: string;
+  avatarFrame?: string | null;
   mediaFiles?: MediaFile[];
   role?: string;
   verified?: boolean;
@@ -829,6 +831,17 @@ export default function FeedScreen() {
             onPress={() => handleUserClick(post)}
           >
             <View style={[styles.avatar, themedStyles.avatar, { borderColor: getRoleColor(post.role), borderWidth: 2 }]}>
+              {/* Avatar Frame Overlay */}
+              {post.avatarFrame && (
+                <AnimatedFrameOverlay
+                  frameImage={post.avatarFrame.startsWith('http') ? post.avatarFrame : `${BASE_URL}${post.avatarFrame}`}
+                  animationUrl={null}
+                  size={58}
+                  style={{ position: 'absolute', top: -4, left: -4, zIndex: 2 }}
+                />
+              )}
+              
+              {/* Avatar Image */}
               {post.avatar && (post.avatar.startsWith('http') || post.avatar.startsWith('/api/')) ? (
                 <Image 
                   source={{ uri: post.avatar }} 
