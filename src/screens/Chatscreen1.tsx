@@ -2163,7 +2163,7 @@ export default function ChatScreen() {
 
             socket?.emit('sendMessage', {
               roomId: currentRoomId,
-              sender: 'System',
+              sender: user?.username || 'User',
               content: `🚫 ${targetUsername} has been banned from the room by ${user?.username}`,
               role: 'system',
               level: 1,
@@ -2371,14 +2371,7 @@ export default function ChatScreen() {
             )
           );
 
-          socket?.emit('sendMessage', {
-            roomId: currentRoomId,
-            sender: 'System',
-            content: `🔒 Room has been locked by ${user?.username}. New users will need a password to enter.`,
-            role: 'system',
-            level: 1,
-            type: 'lock'
-          });
+          // Server will broadcast the lock message, no need to send separately
         } else {
           const helpMessage = {
             id: `help_${Date.now()}_${user?.username}`,
