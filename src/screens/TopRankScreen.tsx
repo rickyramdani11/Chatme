@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks';
 import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
+import AnimatedFrameOverlay from '../components/AnimatedFrameOverlay';
 
 
 interface RankingUser {
@@ -22,6 +23,7 @@ interface RankingUser {
   id: string;
   username: string;
   avatar?: string;
+  avatarFrame?: string | null;
   level: number;
   verified: boolean;
   score?: number;
@@ -132,6 +134,17 @@ const TopRankScreen = ({ navigation }: any) => {
 
       <View style={styles.userInfo}>
         <View style={styles.avatarContainer}>
+          {/* Avatar Frame Overlay */}
+          {item.avatarFrame && (
+            <AnimatedFrameOverlay
+              frameImage={item.avatarFrame.startsWith('http') ? item.avatarFrame : `${BASE_URL}${item.avatarFrame}`}
+              animationUrl={null}
+              size={58}
+              style={{ position: 'absolute', top: -4, left: -4, zIndex: 2 }}
+            />
+          )}
+          
+          {/* Avatar Image */}
           {item.avatar ? (
             <Image 
               source={{ uri: item.avatar }} 
@@ -147,6 +160,8 @@ const TopRankScreen = ({ navigation }: any) => {
               </Text>
             </View>
           )}
+          
+          {/* Verified Badge */}
           {item.verified && (
             <Ionicons 
               name="checkmark-circle" 
