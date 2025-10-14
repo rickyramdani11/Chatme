@@ -9616,7 +9616,7 @@ app.get('/api/rankings/wealth', async (req, res) => {
     const rankings = result.rows.map(row => {
       let avatarUrl = null;
       if (row.avatar) {
-        if (row.avatar.startsWith('/api/users/avatar/')) {
+        if (row.avatar.startsWith('/api/')) {
           // Extract avatar ID from the URL
           const avatarId = row.avatar.split('/').pop();
           avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${avatarId}`;
@@ -9678,7 +9678,7 @@ app.get('/api/rankings/gifts', async (req, res) => {
     const rankings = result.rows.map(row => {
       let avatarUrl = null;
       if (row.avatar) {
-        if (row.avatar.startsWith('/api/users/avatar/')) {
+        if (row.avatar.startsWith('/api/')) {
           // Extract avatar ID from the URL
           const avatarId = row.avatar.split('/').pop();
           avatarUrl = `${req.protocol}://${req.get('host')}/api/users/avatar/${avatarId}`;
