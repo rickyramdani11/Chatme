@@ -273,7 +273,7 @@ export default function ChatScreen() {
   
   // Get room data from navigation params  
   const routeParams = (route.params as any) || {};
-  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport } = routeParams;
+  const { roomId, roomName, roomDescription, autoFocusTab, type = 'room', targetUser, isSupport, password } = routeParams;
   
   // Update refs whenever state changes to avoid stale closures
   useEffect(() => {
@@ -674,11 +674,18 @@ export default function ChatScreen() {
           });
         } else {
           // Join regular room or private chat
-          socket.emit('join-room', {
+          const joinData: any = {
             roomId: roomId,
             username: user?.username || 'Guest',
             role: user?.role || 'user'
-          });
+          };
+          
+          // Include password if provided (for locked rooms)
+          if (password) {
+            joinData.password = password;
+          }
+          
+          socket.emit('join-room', joinData);
         }
       }
 
