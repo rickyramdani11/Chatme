@@ -139,8 +139,8 @@ const TopRankScreen = ({ navigation }: any) => {
             <AnimatedFrameOverlay
               frameImage={item.avatarFrame.startsWith('http') ? item.avatarFrame : `${BASE_URL}${item.avatarFrame}`}
               animationUrl={null}
-              size={58}
-              style={{ position: 'absolute', top: -4, left: -4, zIndex: 2 }}
+              size={60}
+              style={{ position: 'absolute', top: -5, left: -5 }}
             />
           )}
           
