@@ -134,7 +134,7 @@ const TopRankScreen = ({ navigation }: any) => {
 
       <View style={styles.userInfo}>
         <View style={styles.avatarContainer}>
-          {/* Avatar Frame Overlay */}
+          {/* Avatar Frame Overlay - rendered first (behind) */}
           {item.avatarFrame && (
             <AnimatedFrameOverlay
               frameImage={item.avatarFrame.startsWith('http') ? item.avatarFrame : `${BASE_URL}${item.avatarFrame}`}
@@ -144,7 +144,7 @@ const TopRankScreen = ({ navigation }: any) => {
             />
           )}
           
-          {/* Avatar Image */}
+          {/* Avatar Image - rendered last (in front) */}
           {item.avatar ? (
             <Image 
               source={{ uri: item.avatar }} 
