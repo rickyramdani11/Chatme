@@ -1509,10 +1509,15 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
-  const promoteUser = async (userId: string, username: string, newRole: 'admin' | 'mentor') => {
+  const updateUserRole = async (userId: string, username: string, newRole: 'admin' | 'mentor' | 'user', currentRole: string) => {
+    const isRemoving = newRole === 'user';
+    const actionText = isRemoving 
+      ? `remove ${currentRole} role from ${username}` 
+      : `make ${username} ${newRole === 'admin' ? 'an admin' : 'a mentor'}`;
+    
     Alert.alert(
-      'Confirm Promotion',
-      `Are you sure you want to make ${username} ${newRole === 'admin' ? 'an admin' : 'a mentor'}?${newRole === 'mentor' ? ' (Role will expire after 1 month)' : ''}`,
+      isRemoving ? 'Confirm Role Removal' : 'Confirm Role Change',
+      `Are you sure you want to ${actionText}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1521,30 +1526,27 @@ export default function AdminScreen({ navigation }: any) {
           onPress: async () => {
             try {
               setLoading(true);
-              const response = await fetch(`${API_BASE_URL}/admin/users/promote`, {
-                method: 'POST',
+              const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/role`, {
+                method: 'PUT',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${token}`,
                   'User-Agent': 'ChatMe-Mobile-App',
                 },
-                body: JSON.stringify({
-                  userId,
-                  newRole
-                }),
+                body: JSON.stringify({ role: newRole }),
               });
 
               if (response.ok) {
                 const data = await response.json();
-                Alert.alert('Success', data.message);
+                Alert.alert('Success', data.message || 'User role updated successfully');
                 searchUsers();
               } else {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to promote user');
+                throw new Error(errorData.error || 'Failed to update user role');
               }
             } catch (error) {
-              console.error('Error promoting user:', error);
-              Alert.alert('Error', (error as Error).message || 'Failed to promote user');
+              console.error('Error updating user role:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to update user role');
             } finally {
               setLoading(false);
             }
@@ -2520,19 +2522,36 @@ export default function AdminScreen({ navigation }: any) {
         {item.email && <Text style={styles.userEmail}>{item.email}</Text>}
       </View>
       <View style={styles.userActions}>
-        {item.role !== 'admin' && (
+        {item.role === 'admin' ? (
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.removeBtn]}
+            onPress={() => updateUserRole(item.id, item.username, 'user', item.role)}
+            disabled={loading}
+          >
+            <Text style={styles.actionBtnText}>Remove Admin</Text>
+          </TouchableOpacity>
+        ) : (
           <TouchableOpacity
             style={[styles.actionBtn, styles.adminBtn]}
-            onPress={() => promoteUser(item.id, item.username, 'admin')}
+            onPress={() => updateUserRole(item.id, item.username, 'admin', item.role)}
             disabled={loading}
           >
             <Text style={styles.actionBtnText}>Make Admin</Text>
           </TouchableOpacity>
         )}
-        {item.role !== 'mentor' && item.role !== 'admin' && (
+        
+        {item.role === 'mentor' ? (
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.removeBtn]}
+            onPress={() => updateUserRole(item.id, item.username, 'user', item.role)}
+            disabled={loading}
+          >
+            <Text style={styles.actionBtnText}>Remove Mentor</Text>
+          </TouchableOpacity>
+        ) : item.role !== 'admin' && (
           <TouchableOpacity
             style={[styles.actionBtn, styles.mentorBtn]}
-            onPress={() => promoteUser(item.id, item.username, 'mentor')}
+            onPress={() => updateUserRole(item.id, item.username, 'mentor', item.role)}
             disabled={loading}
           >
             <Text style={styles.actionBtnText}>Make Mentor</Text>
@@ -5458,6 +5477,9 @@ const styles = StyleSheet.create({
   },
   mentorBtn: {
     backgroundColor: '#FF9800',
+  },
+  removeBtn: {
+    backgroundColor: '#9E9E9E',
   },
   actionBtnText: {
     color: '#fff',
