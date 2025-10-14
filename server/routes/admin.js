@@ -1563,7 +1563,7 @@ router.put('/users/:userId/role', authenticateToken, adminOnly, async (req, res)
       return res.status(400).json({ error: 'Invalid role. Must be user, admin, mentor, or merchant' });
     }
 
-    const isSuperAdmin = SUPER_ADMIN_IDS.includes(req.user.id);
+    const isSuperAdmin = SUPER_ADMIN_IDS.includes(parseInt(req.user.id));
 
     if (role === 'admin' && !isSuperAdmin) {
       return res.status(403).json({ error: 'Only super admin can assign admin role' });
