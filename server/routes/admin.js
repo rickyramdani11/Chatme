@@ -22,6 +22,9 @@ const pool = new Pool({
 
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:5000`);
 
+// Super admin whitelist for sensitive operations
+const SUPER_ADMIN_IDS = [1, 4];
+
 // Allowed MIME types for uploads
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
