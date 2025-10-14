@@ -184,6 +184,7 @@ export default function AdminScreen({ navigation }: any) {
   const [selectedUserForHistory, setSelectedUserForHistory] = useState<UserStatus | null>(null);
   const [userCreditHistory, setUserCreditHistory] = useState<CreditHistory[]>([]);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [searchUserStatus, setSearchUserStatus] = useState('');
 
   // Room management states
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -3564,6 +3565,17 @@ export default function AdminScreen({ navigation }: any) {
         );
 
       case 'status':
+        const filteredUserStatusList = userStatusList.filter(user => {
+          if (!searchUserStatus.trim()) return true;
+          const searchLower = searchUserStatus.toLowerCase().trim();
+          return (
+            user.username.toLowerCase().includes(searchLower) ||
+            user.email?.toLowerCase().includes(searchLower) ||
+            user.role.toLowerCase().includes(searchLower) ||
+            user.phone?.toLowerCase().includes(searchLower)
+          );
+        });
+
         return (
           <ScrollView style={styles.statusContainer} showsVerticalScrollIndicator={false}>
             <View style={styles.statusHeader}>
@@ -3581,7 +3593,32 @@ export default function AdminScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            {userStatusList.map((user, index) => (
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#999" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by username, email, role, or phone..."
+                value={searchUserStatus}
+                onChangeText={setSearchUserStatus}
+                placeholderTextColor="#999"
+              />
+              {searchUserStatus.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchUserStatus('')}>
+                  <Ionicons name="close-circle" size={20} color="#999" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {filteredUserStatusList.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={48} color="#999" />
+                <Text style={styles.emptyStateText}>
+                  {searchUserStatus ? 'No users found matching your search' : 'No users to display'}
+                </Text>
+              </View>
+            ) : null}
+
+            {filteredUserStatusList.map((user, index) => (
               <View key={`user-status-${user.id}-${index}`} style={styles.userStatusCard}>
                 <View style={styles.userStatusHeader}>
                   <View style={styles.userBasicInfo}>
@@ -5691,6 +5728,17 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#FFF5F2',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
   },
   userStatusCard: {
     backgroundColor: '#fff',
