@@ -2348,6 +2348,7 @@ export default function ChatScreen() {
           // Emit lock room command to server
           socket?.emit('lock-room', {
             roomId: currentRoomId,
+            action: 'lock',
             password: password,
             lockedBy: user?.username
           });
