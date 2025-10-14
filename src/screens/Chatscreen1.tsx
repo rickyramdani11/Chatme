@@ -2314,17 +2314,16 @@ export default function ChatScreen() {
       }
 
       case '/lock': {
-        // Check if user has permission to lock room
+        // Check if user has permission to lock room (only owner and admin)
         const currentRoom = chatTabs.find(tab => tab.id === currentRoomId);
         const isOwner = currentRoom && currentRoom.managedBy === user?.username;
-        const isModerator = currentRoom && currentRoom.moderators && user?.username && currentRoom.moderators.includes(user.username);
         const isAdmin = user?.role === 'admin';
 
-        if (!isOwner && !isModerator && !isAdmin) {
+        if (!isOwner && !isAdmin) {
           const errorMessage = {
             id: `error_${Date.now()}_${user?.username}`,
             sender: 'System',
-            content: '❌ Only room owner, moderators, or admins can lock the room.',
+            content: '❌ Only room owner or admin can lock the room.',
             timestamp: new Date(),
             roomId: currentRoomId,
             role: 'system',

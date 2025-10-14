@@ -254,7 +254,7 @@ const hasPermission = async (userId, username, roomId, action) => {
         case 'mute':
           return moderator.can_mute;
         case 'lock_room':
-          return moderator.can_lock_room;
+          return false; // Moderators cannot lock rooms
         case 'add_bot':
         case 'remove_bot':
           return true; // Moderators can manage bots
