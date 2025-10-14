@@ -66,7 +66,7 @@ interface Achievement {
 
 interface AlbumPhoto {
   id: string;
-  url: string;
+  image_url: string;
   filename: string;
   uploadedAt: string;
 }
@@ -858,7 +858,7 @@ export default function ProfileScreen({ navigation, route }: any) {
     if (!token || !user?.id) return;
     
     try {
-      const backgroundUrl = photo.url;
+      const backgroundUrl = photo.image_url;
       
       const response = await fetch(`${API_BASE_URL}/users/${user.id}/profile-background`, {
         method: 'PUT',
@@ -898,10 +898,10 @@ export default function ProfileScreen({ navigation, route }: any) {
         activeOpacity={isOwnProfile ? 0.7 : 1}
       >
         <Image 
-          source={{ uri: `${BASE_URL}${item.url}` }} 
+          source={{ uri: `${BASE_URL}${item.image_url}` }} 
           style={styles.albumPhotoImage}
           onError={(error) => {
-            console.log('Album photo loading failed:', item.url, error.nativeEvent.error);
+            console.log('Album photo loading failed:', item.image_url, error.nativeEvent.error);
           }}
         />
       </TouchableOpacity>
@@ -979,8 +979,8 @@ export default function ProfileScreen({ navigation, route }: any) {
                       ? profile.profileBackground 
                       : `${BASE_URL}${profile.profileBackground}` 
                   }
-                : albumPhotos.length > 0 && albumPhotos[0]?.url
-                ? { uri: `${BASE_URL}${albumPhotos[0].url}` }
+                : albumPhotos.length > 0 && albumPhotos[0]?.image_url
+                ? { uri: `${BASE_URL}${albumPhotos[0].image_url}` }
                 : require('../../assets/Bg_profile/Bg_profile.jpeg')
             } 
             style={styles.backgroundImage}
