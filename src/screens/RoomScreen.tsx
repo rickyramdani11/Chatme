@@ -480,7 +480,7 @@ export default function RoomScreen() {
                 placeholder="Enter room name"
                 value={newRoomName}
                 onChangeText={setNewRoomName}
-                maxLength={50}
+                maxLength={20}
                 placeholderTextColor={colors.textSecondary}
               />
             </View>

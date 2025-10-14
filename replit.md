@@ -43,7 +43,7 @@ Preferred communication style: Simple, everyday language.
 - **Room Connection Persistence**: Intelligent socket reconnection, inactivity cleanup, and single listener attachment.
 - **Room Capacity Management**: Real-time participant count sync and client-side validation.
 - **Room Lock/Password Protection**: Room owners and admins can lock/unlock rooms using `/lock <password>` chat command with bcrypt password hashing and secure validation. Moderators cannot lock rooms.
-- **Room Creation Limits**: Room name limited to 50 characters, description limited to 80 characters for consistent UI/UX.
+- **Room Creation Limits**: Room name limited to 20 characters, description limited to 80 characters for consistent UI/UX.
 - **Private Communication Types**: Distinct channels for 1-on-1 private chat and live admin support.
 - **Socket Connection Stability**: Heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 - **Socket Authentication Security**: All client-side socket.emit('sendMessage') calls use authenticated user's username as sender. Room commands (`/lock`, `/ban`) properly validated against socket.username to prevent spoofed system messages.
