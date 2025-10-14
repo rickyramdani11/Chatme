@@ -261,7 +261,7 @@ router.get('/user-stats', authenticateToken, adminOnly, async (req, res) => {
     const onlineUsersResult = await pool.query(`
       SELECT COUNT(*) as online 
       FROM users 
-      WHERE status = 'ONLINE'
+      WHERE LOWER(status) = 'online'
     `);
     const onlineUsers = parseInt(onlineUsersResult.rows[0].online);
 
