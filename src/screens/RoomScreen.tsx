@@ -51,6 +51,10 @@ export default function RoomScreen() {
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   
+  // Password modal states
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [pendingRoom, setPendingRoom] = useState<{id: string, name: string, description?: string} | null>(null);
 
   // Fetch rooms from server
   const fetchRooms = async () => {
@@ -116,26 +120,9 @@ export default function RoomScreen() {
 
       if (!response.ok) {
         if (response.status === 403 && data.requiresPassword) {
-          // Room requires password, prompt user
-          Alert.prompt(
-            'Room Locked',
-            data.message || 'This room is password protected. Please enter the password:',
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel',
-              },
-              {
-                text: 'Join',
-                onPress: (enteredPassword) => {
-                  if (enteredPassword) {
-                    joinRoom(roomId, roomName, roomDescription, enteredPassword);
-                  }
-                },
-              },
-            ],
-            'secure-text'
-          );
+          // Room requires password, show custom modal
+          setPendingRoom({ id: roomId, name: roomName, description: roomDescription });
+          setShowPasswordModal(true);
           return;
         } else {
           throw new Error(data.error || `HTTP error! status: ${response.status}`);
@@ -155,6 +142,24 @@ export default function RoomScreen() {
       console.error('Error joining room:', error);
       Alert.alert('Error', error.message || 'Failed to join room. Please try again.');
     }
+  };
+
+  // Handle password submit
+  const handlePasswordSubmit = () => {
+    if (pendingRoom && passwordInput.trim()) {
+      setShowPasswordModal(false);
+      const password = passwordInput.trim();
+      setPasswordInput('');
+      setPendingRoom(null);
+      joinRoom(pendingRoom.id, pendingRoom.name, pendingRoom.description, password);
+    }
+  };
+
+  // Handle password cancel
+  const handlePasswordCancel = () => {
+    setShowPasswordModal(false);
+    setPasswordInput('');
+    setPendingRoom(null);
   };
 
   // Create new room
@@ -528,6 +533,109 @@ export default function RoomScreen() {
             </View>
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* Password Modal */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handlePasswordCancel}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        }}>
+          <View style={{
+            backgroundColor: colors.card,
+            borderRadius: 16,
+            padding: 20,
+            width: '100%',
+            maxWidth: 400,
+          }}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <Ionicons name="lock-closed" size={48} color={colors.primary} />
+              <Text style={{ 
+                fontSize: 20, 
+                fontWeight: 'bold', 
+                color: colors.text,
+                marginTop: 12
+              }}>
+                Room Locked
+              </Text>
+              <Text style={{ 
+                fontSize: 14, 
+                color: colors.textSecondary,
+                marginTop: 8,
+                textAlign: 'center'
+              }}>
+                This room is password protected
+              </Text>
+            </View>
+
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 8,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                fontSize: 16,
+                color: colors.text,
+                backgroundColor: colors.surface,
+                marginBottom: 20
+              }}
+              placeholder="Enter password"
+              placeholderTextColor={colors.textSecondary}
+              value={passwordInput}
+              onChangeText={setPasswordInput}
+              secureTextEntry
+              autoFocus
+              onSubmitEditing={handlePasswordSubmit}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={handlePasswordCancel}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  alignItems: 'center'
+                }}
+              >
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handlePasswordSubmit}
+                disabled={!passwordInput.trim()}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  backgroundColor: passwordInput.trim() ? colors.primary : colors.disabled,
+                  alignItems: 'center'
+                }}
+              >
+                <Text style={{ 
+                  color: passwordInput.trim() ? colors.badgeTextLight : colors.textSecondary,
+                  fontSize: 16, 
+                  fontWeight: '600' 
+                }}>
+                  Join
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
       
     </SafeAreaView>
