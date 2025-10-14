@@ -135,7 +135,8 @@ export default function RoomScreen() {
         roomName,
         roomDescription: roomDescription || `${roomName} room`,
         type: 'room',
-        autoFocusTab: true 
+        autoFocusTab: true,
+        password: password || undefined
       });
 
     } catch (error) {
