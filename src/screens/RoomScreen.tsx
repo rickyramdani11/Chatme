@@ -492,7 +492,7 @@ export default function RoomScreen() {
                 placeholder="Enter room description (will be shown in chat screen)"
                 value={newRoomDescription}
                 onChangeText={setNewRoomDescription}
-                maxLength={50}
+                maxLength={80}
                 multiline
                 numberOfLines={3}
                 placeholderTextColor={colors.textSecondary}
