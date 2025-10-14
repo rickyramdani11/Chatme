@@ -142,30 +142,16 @@ export default function EditProfileScreen({ navigation }: any) {
         if (response.ok) {
           setProfileData(prev => ({ ...prev, avatar: result.avatarUrl }));
           
-          // Update user context by calling the profile update endpoint directly
-          try {
-            const profileResponse = await fetch(`${API_BASE_URL}/users/${user?.id}/profile`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : '',
-              },
-              body: JSON.stringify({
-                avatar: result.avatarUrl
-              }),
-            });
-
-            if (profileResponse.ok) {
-              const updatedUser = await profileResponse.json();
-              await updateProfile(updatedUser);
-              Alert.alert('Success', 'Avatar berhasil diperbarui!');
-            } else {
-              Alert.alert('Success', 'Avatar uploaded but profile update failed');
-            }
-          } catch (profileError) {
-            console.error('Profile update error:', profileError);
-            Alert.alert('Success', 'Avatar uploaded successfully');
+          // Update user context with new avatar
+          if (user) {
+            const updatedUser = {
+              ...user,
+              avatar: result.avatarUrl
+            };
+            await updateProfile(updatedUser);
           }
+          
+          Alert.alert('Success', 'Avatar berhasil diperbarui!');
         } else {
           Alert.alert('Error', result.error || 'Gagal mengupload avatar');
         }
