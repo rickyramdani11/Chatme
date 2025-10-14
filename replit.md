@@ -31,7 +31,7 @@ Preferred communication style: Simple, everyday language.
 - **Gaming Integration**: LowCard, Sicbo, and Baccarat bot games with database persistence and multi-player support.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API for private chats.
 - **Credit System**: Virtual currency with secure transactions and transfers, protected by PostgreSQL row-level locking.
-- **Social Features**: Friend management, user profiles, ranking systems, activity feeds with EXP/leveling, and automatic coin rewards.
+- **Social Features**: Friend management, user profiles, ranking systems (Games ranking based on total coins spent in games, Wealth ranking based on total spending, Gifts ranking based on gifts sent), activity feeds with EXP/leveling, and automatic coin rewards.
 - **Administrative Tools**: Admin panel for moderation, user management, configuration, support tickets, frame management, online statistics, broadcast messaging, and mentor top-up statistics. Includes super admin whitelist for sensitive operations.
 - **Merchant/Mentor TOP UP System**: Monthly subscription-based system with dedicated panels for traffic statistics and transaction history, utilizing role-based access control.
 - **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time admin notifications.
@@ -42,7 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Avatar Customization**: Frame rental system with auto-expiry and headwear, supporting static images and Lottie JSON.
 - **Room Connection Persistence**: Intelligent socket reconnection, inactivity cleanup, and single listener attachment.
 - **Room Capacity Management**: Real-time participant count sync and client-side validation.
-- **Room Lock/Password Protection**: Room owners can lock/unlock rooms using chat commands with password hashing and custom modal for secure input.
+- **Room Lock/Password Protection**: Room owners and admins can lock/unlock rooms using `/lock <password>` chat command with bcrypt password hashing and secure validation. Moderators cannot lock rooms.
 - **Private Communication Types**: Distinct channels for 1-on-1 private chat and live admin support.
 - **Socket Connection Stability**: Heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
 - **Socket Authentication Security**: All client-side socket.emit('sendMessage') calls use authenticated user's username as sender. Room commands (`/lock`, `/ban`) properly validated against socket.username to prevent spoofed system messages.

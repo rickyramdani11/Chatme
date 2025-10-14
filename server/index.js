@@ -9517,19 +9517,27 @@ app.get('/api/rankings/games', async (req, res) => {
   try {
     console.log('Fetching games rankings...');
 
-    // Query users with game scores, ordered by score
+    // Query users with total coins spent in games (bet amount), ordered by total coins
     const query = `
       SELECT 
-        ROW_NUMBER() OVER (ORDER BY COALESCE(game_score, 0) DESC) as rank,
-        id::text,
-        username,
-        avatar,
-        level,
-        verified,
-        COALESCE(game_score, 0) as score
-      FROM users 
-      WHERE COALESCE(game_score, 0) > 0
-      ORDER BY COALESCE(game_score, 0) DESC
+        ROW_NUMBER() OVER (ORDER BY COALESCE(total_game_coins, 0) DESC) as rank,
+        u.id::text,
+        u.username,
+        u.avatar,
+        u.level,
+        u.verified,
+        COALESCE(total_game_coins, 0) as score
+      FROM users u
+      LEFT JOIN (
+        SELECT 
+          from_user_id as user_id,
+          SUM(amount) as total_game_coins
+        FROM credit_transactions 
+        WHERE type = 'game_bet'
+        GROUP BY from_user_id
+      ) game_spending ON u.id = game_spending.user_id
+      WHERE COALESCE(total_game_coins, 0) > 0
+      ORDER BY COALESCE(total_game_coins, 0) DESC
       LIMIT 50
     `;
 
