@@ -108,7 +108,7 @@ const TopRankScreen = ({ navigation }: any) => {
   const getScoreDisplay = (user: RankingUser) => {
     switch (activeTab) {
       case 'games':
-        return `Score: ${user.score || 0}`;
+        return `Total Played: ${user.score || 0} coins`;
       case 'wealth':
         return `${user.credits || 0} credits`;
       case 'gifts':
