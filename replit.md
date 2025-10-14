@@ -32,7 +32,7 @@ Preferred communication style: Simple, everyday language.
 - **AI Bot Integration**: ChatMe Bot powered by Google Gemini 2.5 Flash Lite Preview via OpenRouter API for private chats.
 - **Credit System**: Virtual currency with secure transactions and transfers, protected by PostgreSQL row-level locking.
 - **Social Features**: Friend management, user profiles, ranking systems (Games ranking based on total coins spent in games, Wealth ranking based on total spending, Gifts ranking based on gifts sent), activity feeds with EXP/leveling, and automatic coin rewards.
-- **Administrative Tools**: Admin panel for moderation, user management, configuration, support tickets, frame management, online statistics, broadcast messaging, and mentor top-up statistics. Includes super admin whitelist for sensitive operations.
+- **Administrative Tools**: Admin panel for moderation, user management, configuration, support tickets, frame management, online statistics, broadcast messaging, and mentor top-up statistics. Includes room management with unlock feature for locked rooms. Super admin whitelist for sensitive operations.
 - **Merchant/Mentor TOP UP System**: Monthly subscription-based system with dedicated panels for traffic statistics and transaction history, utilizing role-based access control.
 - **Help & Support System**: Live chat support with ticket creation, FAQ, and real-time admin notifications.
 - **Privacy & Security System**: Privacy settings, data download requests, password/PIN changes.

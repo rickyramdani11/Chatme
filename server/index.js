@@ -4508,6 +4508,82 @@ app.delete('/api/admin/rooms/:roomId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get room lock status (admin only)
+app.get('/api/admin/rooms/:roomId/lock-status', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { roomId } = req.params;
+
+    const result = await pool.query(
+      'SELECT is_locked, locked_by_username, locked_at FROM room_security WHERE room_id = $1',
+      [roomId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({ isLocked: false });
+    }
+
+    const lockInfo = result.rows[0];
+    res.json({
+      isLocked: lockInfo.is_locked,
+      lockedBy: lockInfo.locked_by_username,
+      lockedAt: lockInfo.locked_at
+    });
+
+  } catch (error) {
+    console.error('Error checking room lock status:', error);
+    res.status(500).json({ error: 'Failed to check lock status' });
+  }
+});
+
+// Unlock room (admin only)
+app.post('/api/admin/rooms/:roomId/unlock', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { roomId } = req.params;
+
+    // Check if room exists
+    const roomCheck = await pool.query('SELECT name FROM rooms WHERE id = $1', [roomId]);
+    if (roomCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    const roomName = roomCheck.rows[0].name;
+
+    // Unlock the room
+    const result = await pool.query(
+      `UPDATE room_security 
+       SET is_locked = false, password_hash = null, updated_at = NOW()
+       WHERE room_id = $1
+       RETURNING *`,
+      [roomId]
+    );
+
+    if (result.rows.length > 0) {
+      console.log(`🔓 Room ${roomName} (ID: ${roomId}) unlocked by admin ${req.user.username}`);
+      res.json({ 
+        message: 'Room unlocked successfully',
+        roomName: roomName
+      });
+    } else {
+      res.json({ 
+        message: 'Room was not locked',
+        roomName: roomName
+      });
+    }
+
+  } catch (error) {
+    console.error('Error unlocking room:', error);
+    res.status(500).json({ error: 'Failed to unlock room' });
+  }
+});
+
 // Admin Withdrawal Management Endpoints
 // Get all withdrawal requests (admin only)
 app.get('/api/admin/withdrawals', authenticateToken, ensureAdmin, async (req, res) => {

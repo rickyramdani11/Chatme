@@ -197,6 +197,8 @@ export default function AdminScreen({ navigation }: any) {
   const [editRoomOwner, setEditRoomOwner] = useState('');
   const [editRoomCategory, setEditRoomCategory] = useState<'social' | 'game'>('social');
   const [editingRoom, setEditingRoom] = useState(false);
+  const [roomIsLocked, setRoomIsLocked] = useState(false);
+  const [unlockingRoom, setUnlockingRoom] = useState(false);
 
   // Ban management states
   const [bannedDevicesList, setBannedDevicesList] = useState<BannedDevice[]>([]);
@@ -1941,7 +1943,7 @@ export default function AdminScreen({ navigation }: any) {
     );
   };
 
-  const openEditRoomModal = (room: Room) => {
+  const openEditRoomModal = async (room: Room) => {
     setSelectedRoom(room);
     setEditRoomName(room.name);
     setEditRoomDescription(room.description || '');
@@ -1950,7 +1952,68 @@ export default function AdminScreen({ navigation }: any) {
     setEditRoomMaxMembersInput(capacity.toString());
     setEditRoomOwner(room.managedBy || room.createdBy || '');
     setEditRoomCategory((room.category === 'game' ? 'game' : 'social') as 'social' | 'game');
+    
+    // Check if room is locked
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/rooms/${room.id}/lock-status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'ChatMe-Mobile-App',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRoomIsLocked(data.isLocked || false);
+      }
+    } catch (error) {
+      console.error('Error checking room lock status:', error);
+      setRoomIsLocked(false);
+    }
+    
     setShowEditRoomModal(true);
+  };
+
+  const unlockRoom = async () => {
+    if (!selectedRoom) return;
+
+    Alert.alert(
+      'Unlock Room',
+      `Are you sure you want to unlock "${selectedRoom.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unlock',
+          style: 'destructive',
+          onPress: async () => {
+            setUnlockingRoom(true);
+            try {
+              const response = await fetch(`${API_BASE_URL}/admin/rooms/${selectedRoom.id}/unlock`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'User-Agent': 'ChatMe-Mobile-App',
+                },
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Room unlocked successfully');
+                setRoomIsLocked(false);
+              } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to unlock room');
+              }
+            } catch (error) {
+              console.error('Error unlocking room:', error);
+              Alert.alert('Error', (error as Error).message || 'Failed to unlock room');
+            } finally {
+              setUnlockingRoom(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const saveRoomChanges = async () => {
@@ -3451,6 +3514,40 @@ export default function AdminScreen({ navigation }: any) {
                         placeholderTextColor="#999"
                       />
                     </View>
+
+                    {roomIsLocked && (
+                      <View style={[styles.editFormSection, { marginTop: 20 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                          <Ionicons name="lock-closed" size={20} color="#F44336" />
+                          <Text style={[styles.editFormLabel, { marginLeft: 8, marginBottom: 0, color: '#F44336' }]}>
+                            Room is Locked
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={{
+                            backgroundColor: '#F44336',
+                            padding: 16,
+                            borderRadius: 12,
+                            alignItems: 'center',
+                            flexDirection: 'row',
+                            justifyContent: 'center',
+                          }}
+                          onPress={unlockRoom}
+                          disabled={unlockingRoom}
+                        >
+                          {unlockingRoom ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <>
+                              <Ionicons name="lock-open-outline" size={20} color="#fff" />
+                              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16, marginLeft: 8 }}>
+                                Unlock Room
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )}
                   </ScrollView>
                 </SafeAreaView>
               </Modal>
