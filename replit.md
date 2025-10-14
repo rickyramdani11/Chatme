@@ -78,7 +78,7 @@ Preferred communication style: Simple, everyday language.
 - **ProfileScreen Design**: Compact design with consistent framing and role badges.
 - **Room Management UX**: Enhanced modal, participant picker for moderator selection, and real-time moderator role updates via sockets.
 - **HomeScreen**: Displays accurate active user data.
-- **Avatar Frame Display**: Proportional frame sizing across screens matching ProfileScreen ratio (1.36x) - ProfileScreen (88px avatar/120px frame), TopRankScreen (50px avatar/68px frame), FeedScreen (40px avatar/54px frame). All frames use same positioning logic without position: absolute for consistent layering. Frames shown in rankings (games/wealth/gifts) and feed posts with AnimatedFrameOverlay component.
+- **Avatar Frame Display**: Proportional frame sizing across screens - ProfileScreen (88px avatar/120px frame with 16px offset), TopRankScreen (50px avatar/60px frame with 5px offset), FeedScreen (40px avatar/50px frame with 5px offset). All frames use relative positioning without position: absolute for consistent layering. Frames shown in rankings (games/wealth/gifts) and feed posts with AnimatedFrameOverlay component.
 
 # External Dependencies
 

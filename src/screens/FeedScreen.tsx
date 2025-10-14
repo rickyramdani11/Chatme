@@ -836,8 +836,8 @@ export default function FeedScreen() {
                 <AnimatedFrameOverlay
                   frameImage={post.avatarFrame.startsWith('http') ? post.avatarFrame : `${BASE_URL}${post.avatarFrame}`}
                   animationUrl={null}
-                  size={54}
-                  style={{ top: -7, left: -7 }}
+                  size={50}
+                  style={{ top: -5, left: -5 }}
                 />
               )}
               
