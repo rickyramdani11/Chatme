@@ -100,7 +100,7 @@ export default function FeedScreen() {
   
   const videoRef = useRef<Video>(null);
 
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const navigation = useNavigation();
   const { colors, isDarkMode } = useTheme();
 
@@ -440,6 +440,7 @@ export default function FeedScreen() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
             'User-Agent': 'ChatMe-Mobile-App',
           },
           body: JSON.stringify(uploadData),
@@ -498,6 +499,7 @@ export default function FeedScreen() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
             'User-Agent': 'ChatMe-Mobile-App',
           },
           body: JSON.stringify({
@@ -551,6 +553,7 @@ export default function FeedScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ action }),
       });
@@ -644,6 +647,7 @@ export default function FeedScreen() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
         });
 
@@ -682,6 +686,7 @@ export default function FeedScreen() {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   username: user?.username,
@@ -722,6 +727,7 @@ export default function FeedScreen() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify({
             content: commentText,
