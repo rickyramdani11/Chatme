@@ -134,17 +134,17 @@ const TopRankScreen = ({ navigation }: any) => {
 
       <View style={styles.userInfo}>
         <View style={styles.avatarContainer}>
-          {/* Avatar Frame Overlay - rendered first (behind) */}
+          {/* Avatar Frame Overlay */}
           {item.avatarFrame && (
             <AnimatedFrameOverlay
               frameImage={item.avatarFrame.startsWith('http') ? item.avatarFrame : `${BASE_URL}${item.avatarFrame}`}
               animationUrl={null}
-              size={60}
-              style={{ position: 'absolute', top: -5, left: -5 }}
+              size={68}
+              style={{ top: -9, left: -9 }}
             />
           )}
           
-          {/* Avatar Image - rendered last (in front) */}
+          {/* Avatar Image */}
           {item.avatar ? (
             <Image 
               source={{ uri: item.avatar }} 
@@ -369,6 +369,9 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     position: 'relative',
+    width: 50,
+    height: 50,
+    overflow: 'visible',
   },
   avatar: {
     width: 50,

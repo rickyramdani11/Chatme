@@ -831,17 +831,17 @@ export default function FeedScreen() {
             onPress={() => handleUserClick(post)}
           >
             <View style={[styles.avatar, themedStyles.avatar, { borderColor: getRoleColor(post.role), borderWidth: 2 }]}>
-              {/* Avatar Frame Overlay - rendered first (behind) */}
+              {/* Avatar Frame Overlay */}
               {post.avatarFrame && (
                 <AnimatedFrameOverlay
                   frameImage={post.avatarFrame.startsWith('http') ? post.avatarFrame : `${BASE_URL}${post.avatarFrame}`}
                   animationUrl={null}
-                  size={46}
-                  style={{ position: 'absolute', top: -3, left: -3 }}
+                  size={54}
+                  style={{ top: -7, left: -7 }}
                 />
               )}
               
-              {/* Avatar Image - rendered last (in front) */}
+              {/* Avatar Image */}
               {post.avatar && (post.avatar.startsWith('http') || post.avatar.startsWith('/api/')) ? (
                 <Image 
                   source={{ uri: post.avatar }} 
@@ -1527,6 +1527,9 @@ const styles = StyleSheet.create({
   avatarContainer: {
     position: 'relative',
     marginRight: 12,
+    width: 40,
+    height: 40,
+    overflow: 'visible',
   },
   avatar: {
     width: 40,
