@@ -238,7 +238,7 @@ router.post('/posts', authenticateToken, async (req, res) => {
     console.log('XP awarded for post creation:', expResult);
 
     // Get user role and other info
-    const userInfoResult = await pool.query('SELECT role, verified, avatar FROM users WHERE id = $1', [userId]);
+    const userInfoResult = await pool.query('SELECT role, verified, avatar, avatar_frame FROM users WHERE id = $1', [userId]);
     const userInfo = userInfoResult.rows[0];
 
     const responsePost = {
@@ -252,6 +252,7 @@ router.post('/posts', authenticateToken, async (req, res) => {
       shares: newPost.shares,
       level: userLevel,
       avatar: userInfo.avatar || newPost.username?.charAt(0).toUpperCase(),
+      avatarFrame: userInfo.avatar_frame || null,
       role: userInfo.role,
       verified: userInfo.verified,
       mediaFiles: [],
