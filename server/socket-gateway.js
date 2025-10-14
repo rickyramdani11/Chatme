@@ -1836,6 +1836,113 @@ io.on('connection', (socket) => {
         return; // Don't process as regular message
       }
 
+      // Handle /lock and /unlock commands
+      if (trimmedContent.startsWith('/lock') || trimmedContent === '/unlock') {
+        try {
+          const userInfo = connectedUsers.get(socket.id);
+          if (!userInfo || !userInfo.userId) {
+            socket.emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ User not found',
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          // Check permission
+          const hasLockPermission = await hasPermission(userInfo.userId, userInfo.username, roomId, 'lock_room');
+          
+          if (!hasLockPermission) {
+            socket.emit('new-message', {
+              id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              sender: 'System',
+              content: '❌ You do not have permission to lock/unlock this room',
+              timestamp: new Date().toISOString(),
+              roomId: roomId,
+              type: 'system',
+              role: 'system',
+              isPrivate: true
+            });
+            return;
+          }
+
+          if (trimmedContent === '/unlock') {
+            // Unlock the room
+            const result = await unlockRoom(roomId, userInfo.userId, userInfo.username);
+            
+            if (result) {
+              // Broadcast unlock event
+              io.to(roomId).emit('room-unlocked', {
+                roomId,
+                unlockedBy: userInfo.username,
+                timestamp: new Date().toISOString()
+              });
+
+              // Send system message
+              const unlockMessage = {
+                id: Date.now().toString(),
+                sender: 'System',
+                content: `🔓 Room unlocked by ${userInfo.username}`,
+                timestamp: new Date().toISOString(),
+                roomId: roomId,
+                type: 'unlock'
+              };
+
+              io.to(roomId).emit('new-message', unlockMessage);
+              console.log(`🔓 Room ${roomId} unlocked by ${userInfo.username}`);
+            }
+          } else {
+            // Extract password from /lock command
+            const password = content.substring('/lock'.length).trim() || null;
+
+            // Lock the room
+            const result = await lockRoom(roomId, userInfo.userId, userInfo.username, password);
+
+            if (result) {
+              // Broadcast lock event to room
+              io.to(roomId).emit('room-locked', {
+                roomId,
+                lockedBy: userInfo.username,
+                hasPassword: !!password,
+                timestamp: new Date().toISOString()
+              });
+
+              // Send system message
+              const lockMessage = {
+                id: Date.now().toString(),
+                sender: 'System',
+                content: `🔒 Room locked by ${userInfo.username}${password ? ' with password' : ''}`,
+                timestamp: new Date().toISOString(),
+                roomId: roomId,
+                type: 'lock'
+              };
+
+              io.to(roomId).emit('new-message', lockMessage);
+              console.log(`🔒 Room ${roomId} locked by ${userInfo.username}${password ? ' with password' : ''}`);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error processing lock/unlock command:', error);
+          socket.emit('new-message', {
+            id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            sender: 'System',
+            content: `❌ Failed to ${trimmedContent.startsWith('/lock') ? 'lock' : 'unlock'} room`,
+            timestamp: new Date().toISOString(),
+            roomId: roomId,
+            type: 'system',
+            role: 'system',
+            isPrivate: true
+          });
+        }
+        
+        return; // Don't process as regular message
+      }
+
       // Handle bot commands
       if (trimmedContent.startsWith('/bot lowcard add') || 
           trimmedContent.startsWith('/bot sicbo') ||
