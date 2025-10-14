@@ -837,7 +837,7 @@ export default function FeedScreen() {
                   frameImage={post.avatarFrame.startsWith('http') ? post.avatarFrame : `${BASE_URL}${post.avatarFrame}`}
                   animationUrl={null}
                   size={50}
-                  style={{ top: -5, left: -5 }}
+                  style={{ top: -10, left: -10 }}
                 />
               )}
               

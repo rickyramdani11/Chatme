@@ -140,7 +140,7 @@ const TopRankScreen = ({ navigation }: any) => {
               frameImage={item.avatarFrame.startsWith('http') ? item.avatarFrame : `${BASE_URL}${item.avatarFrame}`}
               animationUrl={null}
               size={60}
-              style={{ top: -5, left: -5 }}
+              style={{ top: -10, left: -10 }}
             />
           )}
           
