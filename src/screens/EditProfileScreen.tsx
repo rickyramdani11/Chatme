@@ -257,7 +257,7 @@ export default function EditProfileScreen({ navigation }: any) {
       if (response.ok) {
         const result = await response.json();
         
-        // Update user context with new background - direct state update
+        // Update user context with new background
         if (user) {
           const updatedUser = {
             ...user,
@@ -267,7 +267,12 @@ export default function EditProfileScreen({ navigation }: any) {
         }
         
         setSelectedPhoto(null);
-        Alert.alert('Success', 'Foto berhasil disimpan sebagai background profile!');
+        Alert.alert('Success', 'Foto berhasil disimpan sebagai background profile!', [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack() // Navigate back to ProfileScreen untuk refresh
+          }
+        ]);
       } else {
         const errorData = await response.json();
         Alert.alert('Error', errorData.error || 'Gagal menyimpan background');

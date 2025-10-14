@@ -974,7 +974,11 @@ export default function ProfileScreen({ navigation, route }: any) {
           <Image 
             source={
               profile.profileBackground
-                ? { uri: `${BASE_URL}${profile.profileBackground}` }
+                ? { 
+                    uri: profile.profileBackground.startsWith('http') 
+                      ? profile.profileBackground 
+                      : `${BASE_URL}${profile.profileBackground}` 
+                  }
                 : albumPhotos.length > 0 && albumPhotos[0]?.url
                 ? { uri: `${BASE_URL}${albumPhotos[0].url}` }
                 : require('../../assets/Bg_profile/Bg_profile.jpeg')
