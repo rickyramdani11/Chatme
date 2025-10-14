@@ -379,10 +379,10 @@ export default function ChatScreen() {
     if (instant) {
       flatListRefs.current[roomId]?.scrollToEnd({ animated: false });
     } else {
-      // Debounced scroll with minimal delay (reduced from 50ms to 10ms for faster message display)
+      // Debounced scroll with 100ms delay for stability
       scrollTimeoutRef.current = setTimeout(() => {
         flatListRefs.current[roomId]?.scrollToEnd({ animated: false });
-      }, 10);
+      }, 100);
     }
   };
 
@@ -4450,9 +4450,9 @@ export default function ChatScreen() {
       {/* Tab Navigation with KeyboardAvoidingView */}
       <KeyboardAvoidingView
         style={styles.chatContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-        enabled={true}
+        enabled={Platform.OS === 'ios'}
       >
         <View style={styles.tabContainer}>
           <ScrollView
