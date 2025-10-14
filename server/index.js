@@ -9715,6 +9715,177 @@ setTimeout(() => {
   cleanupExpiredFrames();
 }, 2000); // Wait 2 seconds for tables to be fully initialized
 
+// ==================== ANNOUNCEMENTS API ====================
+
+// Get active announcements for user (not yet viewed)
+app.get('/api/announcements/active', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const query = `
+      SELECT a.id, a.title, a.message, a.type, a.created_at
+      FROM announcements a
+      WHERE a.is_active = true
+      AND NOT EXISTS (
+        SELECT 1 FROM user_announcement_views uav
+        WHERE uav.announcement_id = a.id
+        AND uav.user_id = $1
+      )
+      ORDER BY a.created_at DESC
+      LIMIT 1
+    `;
+
+    const result = await pool.query(query, [userId]);
+    
+    if (result.rows.length > 0) {
+      res.json(result.rows[0]);
+    } else {
+      res.json(null);
+    }
+  } catch (error) {
+    console.error('Error fetching active announcements:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+// Mark announcement as viewed
+app.post('/api/announcements/:id/view', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const announcementId = req.params.id;
+
+    await pool.query(
+      `INSERT INTO user_announcement_views (user_id, announcement_id)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id, announcement_id) DO NOTHING`,
+      [userId, announcementId]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking announcement as viewed:', error);
+    res.status(500).json({ error: 'Failed to mark announcement as viewed' });
+  }
+});
+
+// Admin: Get all announcements
+app.get('/api/admin/announcements', authenticateToken, ensureAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        a.*,
+        COUNT(DISTINCT uav.user_id) as view_count
+      FROM announcements a
+      LEFT JOIN user_announcement_views uav ON a.id = uav.announcement_id
+      GROUP BY a.id
+      ORDER BY a.created_at DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching announcements:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+// Admin: Create announcement
+app.post('/api/admin/announcements', authenticateToken, ensureAdmin, async (req, res) => {
+  try {
+    const { title, message, type = 'info' } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO announcements (title, message, type, is_active)
+       VALUES ($1, $2, $3, true)
+       RETURNING *`,
+      [title, message, type]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating announcement:', error);
+    res.status(500).json({ error: 'Failed to create announcement' });
+  }
+});
+
+// Admin: Update announcement
+app.put('/api/admin/announcements/:id', authenticateToken, ensureAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, message, type, is_active } = req.body;
+
+    const result = await pool.query(
+      `UPDATE announcements
+       SET title = COALESCE($1, title),
+           message = COALESCE($2, message),
+           type = COALESCE($3, type),
+           is_active = COALESCE($4, is_active),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING *`,
+      [title, message, type, is_active, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating announcement:', error);
+    res.status(500).json({ error: 'Failed to update announcement' });
+  }
+});
+
+// Admin: Delete announcement
+app.delete('/api/admin/announcements/:id', authenticateToken, ensureAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'DELETE FROM announcements WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    res.status(500).json({ error: 'Failed to delete announcement' });
+  }
+});
+
+// Admin: Toggle announcement active status
+app.patch('/api/admin/announcements/:id/toggle', authenticateToken, ensureAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `UPDATE announcements
+       SET is_active = NOT is_active,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error toggling announcement:', error);
+    res.status(500).json({ error: 'Failed to toggle announcement' });
+  }
+});
+
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
