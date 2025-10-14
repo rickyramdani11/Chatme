@@ -37,7 +37,8 @@ const AnnouncementManagement: React.FC<Props> = ({ token }) => {
   const [formData, setFormData] = useState({
     title: '',
     message: '',
-    type: 'info'
+    type: 'info',
+    is_active: true
   });
 
   useEffect(() => {
@@ -56,7 +57,7 @@ const AnnouncementManagement: React.FC<Props> = ({ token }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setAnnouncements(data);
+        setAnnouncements(data.announcements || []);
       } else {
         Alert.alert('Error', 'Failed to fetch announcements');
       }
@@ -92,7 +93,7 @@ const AnnouncementManagement: React.FC<Props> = ({ token }) => {
 
       if (response.ok) {
         Alert.alert('Success', editingId ? 'Announcement updated!' : 'Announcement created!');
-        setFormData({ title: '', message: '', type: 'info' });
+        setFormData({ title: '', message: '', type: 'info', is_active: true });
         setShowAddForm(false);
         setEditingId(null);
         fetchAnnouncements();
@@ -109,7 +110,8 @@ const AnnouncementManagement: React.FC<Props> = ({ token }) => {
     setFormData({
       title: announcement.title,
       message: announcement.message,
-      type: announcement.type
+      type: announcement.type,
+      is_active: announcement.is_active
     });
     setEditingId(announcement.id);
     setShowAddForm(true);
@@ -208,7 +210,7 @@ const AnnouncementManagement: React.FC<Props> = ({ token }) => {
           onPress={() => {
             setShowAddForm(!showAddForm);
             setEditingId(null);
-            setFormData({ title: '', message: '', type: 'info' });
+            setFormData({ title: '', message: '', type: 'info', is_active: true });
           }}
         >
           <Ionicons name={showAddForm ? 'close' : 'add'} size={24} color="#fff" />

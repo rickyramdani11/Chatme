@@ -1421,9 +1421,19 @@ router.post('/create-special-account', authenticateToken, adminOnly, async (req,
 router.get('/announcements', authenticateToken, adminOnly, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, title, message, is_active, created_at, updated_at
-      FROM announcements
-      ORDER BY created_at DESC
+      SELECT 
+        a.id, 
+        a.title, 
+        a.message, 
+        a.is_active,
+        COALESCE(a.type, 'info') as type,
+        COUNT(av.id) as view_count,
+        a.created_at, 
+        a.updated_at
+      FROM announcements a
+      LEFT JOIN announcement_views av ON a.id = av.announcement_id
+      GROUP BY a.id, a.title, a.message, a.is_active, a.type, a.created_at, a.updated_at
+      ORDER BY a.created_at DESC
     `);
 
     res.json({ announcements: result.rows });
@@ -1436,17 +1446,20 @@ router.get('/announcements', authenticateToken, adminOnly, async (req, res) => {
 // Create announcement (admin only)
 router.post('/announcements', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const { title, message } = req.body;
+    const { title, message, type = 'info' } = req.body;
 
     if (!title || !message) {
       return res.status(400).json({ error: 'Title and message are required' });
     }
 
+    const validTypes = ['info', 'warning', 'error', 'success'];
+    const announcementType = validTypes.includes(type) ? type : 'info';
+
     const result = await pool.query(
-      `INSERT INTO announcements (title, message, is_active, created_at, updated_at)
-       VALUES ($1, $2, true, NOW(), NOW())
+      `INSERT INTO announcements (title, message, type, is_active, created_at, updated_at)
+       VALUES ($1, $2, $3, true, NOW(), NOW())
        RETURNING *`,
-      [title, message]
+      [title, message, announcementType]
     );
 
     res.json({ announcement: result.rows[0] });
@@ -1460,14 +1473,27 @@ router.post('/announcements', authenticateToken, adminOnly, async (req, res) => 
 router.put('/announcements/:id', authenticateToken, adminOnly, async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, message, is_active } = req.body;
+    const { title, message, type = 'info' } = req.body;
+    let { is_active } = req.body;
+
+    const validTypes = ['info', 'warning', 'error', 'success'];
+    const announcementType = validTypes.includes(type) ? type : 'info';
+
+    if (is_active === undefined) {
+      const current = await pool.query('SELECT is_active FROM announcements WHERE id = $1', [id]);
+      if (current.rows.length > 0) {
+        is_active = current.rows[0].is_active;
+      } else {
+        is_active = true;
+      }
+    }
 
     const result = await pool.query(
       `UPDATE announcements
-       SET title = $1, message = $2, is_active = $3, updated_at = NOW()
-       WHERE id = $4
+       SET title = $1, message = $2, type = $3, is_active = $4, updated_at = NOW()
+       WHERE id = $5
        RETURNING *`,
-      [title, message, is_active, id]
+      [title, message, announcementType, is_active, id]
     );
 
     if (result.rows.length === 0) {
@@ -1478,6 +1504,30 @@ router.put('/announcements/:id', authenticateToken, adminOnly, async (req, res) 
   } catch (error) {
     console.error('Error updating announcement:', error);
     res.status(500).json({ error: 'Failed to update announcement' });
+  }
+});
+
+// Toggle announcement status (admin only)
+router.patch('/announcements/:id/toggle', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `UPDATE announcements
+       SET is_active = NOT is_active, updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json({ announcement: result.rows[0] });
+  } catch (error) {
+    console.error('Error toggling announcement:', error);
+    res.status(500).json({ error: 'Failed to toggle announcement' });
   }
 });
 
