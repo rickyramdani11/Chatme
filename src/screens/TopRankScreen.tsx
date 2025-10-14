@@ -134,10 +134,10 @@ const TopRankScreen = ({ navigation }: any) => {
         <View style={styles.avatarContainer}>
           {item.avatar ? (
             <Image 
-              source={{ uri: `${BASE_URL}${item.avatar}` }} 
+              source={{ uri: item.avatar }} 
               style={styles.avatar}
               onError={(error) => {
-                console.log('Failed to load avatar:', `${BASE_URL}${item.avatar}`, error.nativeEvent.error);
+                console.log('Failed to load avatar:', item.avatar, error.nativeEvent.error);
               }}
             />
           ) : (
