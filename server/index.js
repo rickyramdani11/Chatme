@@ -9590,14 +9590,14 @@ app.get('/api/rankings/wealth', async (req, res) => {
     // Query users with total spending from gifts and games, ordered by total spending
     const query = `
       SELECT 
-        ROW_NUMBER() OVER (ORDER BY total_spending DESC) as rank,
-        id::text,
-        username,
-        avatar,
-        level,
-        verified,
+        ROW_NUMBER() OVER (ORDER BY COALESCE(total_spending, 0) DESC) as rank,
+        u.id::text,
+        u.username,
+        u.avatar,
+        u.level,
+        u.verified,
         COALESCE(total_spending, 0) as credits
-      FROM users 
+      FROM users u
       LEFT JOIN (
         SELECT 
           from_user_id as user_id,
@@ -9607,7 +9607,7 @@ app.get('/api/rankings/wealth', async (req, res) => {
         GROUP BY from_user_id
       ) spending ON u.id = spending.user_id
       WHERE COALESCE(total_spending, 0) > 0
-      ORDER BY total_spending DESC
+      ORDER BY COALESCE(total_spending, 0) DESC
       LIMIT 50
     `;
 
@@ -9650,19 +9650,26 @@ app.get('/api/rankings/gifts', async (req, res) => {
   try {
     console.log('Fetching gifts rankings...');
 
-    // Query users with total gifts received, ordered by total gifts
+    // Query users with total gifts sent (from gift_earnings), ordered by total gifts
     const query = `
       SELECT 
-        ROW_NUMBER() OVER (ORDER BY COALESCE(total_gifts_received, 0) DESC) as rank,
-        id::text,
-        username,
-        avatar,
-        level,
-        verified,
-        COALESCE(total_gifts_received, 0) as totalGifts
-      FROM users 
-      WHERE COALESCE(total_gifts_received, 0) > 0
-      ORDER BY COALESCE(total_gifts_received, 0) DESC
+        ROW_NUMBER() OVER (ORDER BY COALESCE(total_gifts, 0) DESC) as rank,
+        u.id::text,
+        u.username,
+        u.avatar,
+        u.level,
+        u.verified,
+        COALESCE(total_gifts, 0) as totalGifts
+      FROM users u
+      LEFT JOIN (
+        SELECT 
+          sender_user_id as user_id,
+          SUM(gift_price) as total_gifts
+        FROM gift_earnings
+        GROUP BY sender_user_id
+      ) gifts ON u.id = gifts.user_id
+      WHERE COALESCE(total_gifts, 0) > 0
+      ORDER BY COALESCE(total_gifts, 0) DESC
       LIMIT 50
     `;
 
