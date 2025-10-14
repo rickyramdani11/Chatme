@@ -85,10 +85,19 @@ export default function InfoScreen({ navigation }: any) {
       const response = await fetch(`${API_BASE_URL}/api/users/merchants-mentors`, {
         headers: {
           Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
       console.log('📡 Response status:', response.status);
+      console.log('📡 Response content-type:', response.headers.get('content-type'));
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('❌ Non-JSON response received:', text.substring(0, 200));
+        throw new Error('Server returned non-JSON response');
+      }
       
       if (response.ok) {
         const data = await response.json();
@@ -96,11 +105,14 @@ export default function InfoScreen({ navigation }: any) {
         setMerchants(data.merchants || []);
         setMentors(data.mentors || []);
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ API error:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch merchants and mentors');
       }
     } catch (error) {
       console.error('❌ Error fetching merchants and mentors:', error);
+      setMerchants([]);
+      setMentors([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
