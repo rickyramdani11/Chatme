@@ -164,7 +164,7 @@ router.post('/', async (req, res) => {
 });
 
 // Join room endpoint
-router.post('/:roomId/join', (req, res) => {
+router.post('/:roomId/join', async (req, res) => {
   try {
     const { roomId } = req.params;
     const { password } = req.body;
@@ -178,13 +178,41 @@ router.post('/:roomId/join', (req, res) => {
       return res.status(404).json({ error: `Room with ID ${roomId} not found` });
     }
 
-    // Check if room is locked and requires password
-    if (room.type === 'locked' && global.roomLocks && global.roomLocks[roomId]) {
-      if (!password || password !== global.roomLocks[roomId]) {
+    // Check if room is locked by querying room_security table
+    const lockCheck = await pool.query(
+      'SELECT is_locked, password_hash FROM room_security WHERE room_id = $1',
+      [roomId]
+    );
+
+    if (lockCheck.rows.length > 0 && lockCheck.rows[0].is_locked) {
+      const roomSecurity = lockCheck.rows[0];
+      
+      // If room has password protection, verify it
+      if (roomSecurity.password_hash) {
+        if (!password) {
+          return res.status(403).json({
+            error: 'Room is password protected',
+            requiresPassword: true,
+            message: 'This room is locked. Please enter the password to join.'
+          });
+        }
+
+        // Verify password using bcrypt
+        const bcrypt = require('bcrypt');
+        const passwordMatch = await bcrypt.compare(password, roomSecurity.password_hash);
+        
+        if (!passwordMatch) {
+          return res.status(403).json({
+            error: 'Incorrect password',
+            requiresPassword: true,
+            message: 'Wrong password. Please try again.'
+          });
+        }
+      } else {
+        // Room is locked but has no password (shouldn't happen, but handle it)
         return res.status(403).json({
-          error: 'Room is password protected',
-          requiresPassword: true,
-          message: 'This room is locked. Please enter the correct password to join.'
+          error: 'Room is locked',
+          message: 'This room is currently locked.'
         });
       }
     }
