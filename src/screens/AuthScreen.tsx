@@ -66,7 +66,7 @@ export default function AuthScreen() {
   const [verifyingOTP, setVerifyingOTP] = useState(false);
   const [resendingOTP, setResendingOTP] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
-  const { login, register } = useAuth();
+  const { login, register, token } = useAuth();
 
   // Auto-login disabled - users must manually enter credentials after restart
   // useEffect(() => {
@@ -116,6 +116,31 @@ export default function AuthScreen() {
     createAnimation(animatedValue3, 5000).start();
   }, []);
 
+  const checkAndShowAnnouncement = async (authToken: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/announcements/active`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.announcement) {
+          Alert.alert(
+            data.announcement.title,
+            data.announcement.message,
+            [{ text: 'OK' }]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch announcement:', error);
+    }
+  };
+
   const handleResendOTPFromLogin = async (email: string) => {
     try {
       const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
@@ -163,7 +188,7 @@ export default function AuthScreen() {
     setLoading(true);
     try {
       if (isLogin) {
-        await login(username, password);
+        const authToken = await login(username, password);
 
         // Handle Remember Me
         if (rememberMe) {
@@ -171,6 +196,9 @@ export default function AuthScreen() {
         } else {
           await AsyncStorage.removeItem('rememberedCredentials');
         }
+
+        // Check for announcements with fresh token
+        await checkAndShowAnnouncement(authToken);
 
         Alert.alert('Success', '🎉 Welcome back ChatMe,Senang melihatmu lagi Yuk mulai ngobrol dan berbagi cerita!');
       } else {

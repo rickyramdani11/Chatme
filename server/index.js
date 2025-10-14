@@ -920,6 +920,41 @@ app.use('/api/referral', referralRouter); // Mount referral routes
 app.use('/api/support', supportRouter); // Mount support routes
 app.use('/api/notifications', authenticateToken, pushNotificationsRouter); // Push notifications with auth
 
+// Announcement endpoint for all authenticated users
+app.get('/api/announcements/active', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const result = await pool.query(`
+      SELECT a.* 
+      FROM announcements a
+      WHERE a.is_active = true
+        AND NOT EXISTS (
+          SELECT 1 FROM announcement_views av
+          WHERE av.announcement_id = a.id AND av.user_id = $1
+        )
+      ORDER BY a.created_at DESC
+      LIMIT 1
+    `, [userId]);
+
+    if (result.rows.length === 0) {
+      return res.json({ announcement: null });
+    }
+
+    const announcement = result.rows[0];
+
+    await pool.query(
+      'INSERT INTO announcement_views (announcement_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [announcement.id, userId]
+    );
+
+    res.json({ announcement });
+  } catch (error) {
+    console.error('Error fetching active announcement:', error);
+    res.status(500).json({ error: 'Failed to fetch announcement' });
+  }
+});
+
 // JWT authentication middleware is now imported from auth module
 
 // In-memory database for non-critical data (posts will be moved to DB later)

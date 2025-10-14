@@ -1415,4 +1415,89 @@ router.post('/create-special-account', authenticateToken, adminOnly, async (req,
   }
 });
 
+// ==================== ANNOUNCEMENT MANAGEMENT ====================
+
+// Get all announcements (admin only)
+router.get('/announcements', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, title, message, is_active, created_at, updated_at
+      FROM announcements
+      ORDER BY created_at DESC
+    `);
+
+    res.json({ announcements: result.rows });
+  } catch (error) {
+    console.error('Error fetching announcements:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+// Create announcement (admin only)
+router.post('/announcements', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { title, message } = req.body;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Title and message are required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO announcements (title, message, is_active, created_at, updated_at)
+       VALUES ($1, $2, true, NOW(), NOW())
+       RETURNING *`,
+      [title, message]
+    );
+
+    res.json({ announcement: result.rows[0] });
+  } catch (error) {
+    console.error('Error creating announcement:', error);
+    res.status(500).json({ error: 'Failed to create announcement' });
+  }
+});
+
+// Update announcement (admin only)
+router.put('/announcements/:id', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, message, is_active } = req.body;
+
+    const result = await pool.query(
+      `UPDATE announcements
+       SET title = $1, message = $2, is_active = $3, updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [title, message, is_active, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json({ announcement: result.rows[0] });
+  } catch (error) {
+    console.error('Error updating announcement:', error);
+    res.status(500).json({ error: 'Failed to update announcement' });
+  }
+});
+
+// Delete announcement (admin only)
+router.delete('/announcements/:id', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await pool.query('DELETE FROM announcement_views WHERE announcement_id = $1', [id]);
+    const result = await pool.query('DELETE FROM announcements WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
+
+    res.json({ message: 'Announcement deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    res.status(500).json({ error: 'Failed to delete announcement' });
+  }
+});
+
 module.exports = router;

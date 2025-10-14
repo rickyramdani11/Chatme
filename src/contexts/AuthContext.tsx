@@ -29,7 +29,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<string>;
   register: (username: string, password: string, email: string, phone: string, country: string, gender: string, inviteCode?: string) => Promise<void>;
   logout: () => void;
   updateProfile: (userData: Partial<User>) => Promise<void>;
@@ -216,6 +216,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Failed to initialize push notifications:', pushError);
         // Don't block login if push notifications fail
       }
+
+      return data.token;
     } catch (error: any) {
       console.error('Login error:', error);
       
