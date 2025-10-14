@@ -24,6 +24,7 @@ import * as Device from 'expo-device';
 import * as Location from 'expo-location';
 import { API_BASE_URL } from '../utils/apiConfig';
 import AdminTransferHistoryModal from '../components/AdminTransferHistoryModal';
+import AnnouncementManagement from '../components/AnnouncementManagement';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -398,6 +399,13 @@ export default function AdminScreen({ navigation }: any) {
       icon: 'stats-chart-outline',
       color: '#6366F1',
       description: 'Lihat statistik mentor top up ke system'
+    },
+    {
+      id: 'announcements',
+      title: 'Login Announcements',
+      icon: 'megaphone-outline',
+      color: '#9C27B0',
+      description: 'Kelola pesan alert setelah user login'
     }
   ];
 
@@ -4518,6 +4526,9 @@ export default function AdminScreen({ navigation }: any) {
             </View>
           </ScrollView>
         );
+
+      case 'announcements':
+        return token ? <AnnouncementManagement token={token} /> : null;
 
       default:
         return null;
