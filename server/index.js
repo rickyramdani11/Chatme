@@ -9566,6 +9566,7 @@ app.get('/api/rankings/games', async (req, res) => {
         u.id::text,
         u.username,
         u.avatar,
+        u.avatar_frame,
         u.level,
         u.verified,
         COALESCE(total_game_coins, 0) as score
@@ -9604,6 +9605,7 @@ app.get('/api/rankings/games', async (req, res) => {
         id: row.id,
         username: row.username,
         avatar: avatarUrl,
+        avatarFrame: row.avatar_frame || null,
         level: row.level || 1,
         verified: row.verified || false,
         score: row.score
@@ -9629,6 +9631,7 @@ app.get('/api/rankings/wealth', async (req, res) => {
         u.id::text,
         u.username,
         u.avatar,
+        u.avatar_frame,
         u.level,
         u.verified,
         COALESCE(total_spending, 0) as credits
@@ -9667,6 +9670,7 @@ app.get('/api/rankings/wealth', async (req, res) => {
         id: row.id,
         username: row.username,
         avatar: avatarUrl,
+        avatarFrame: row.avatar_frame || null,
         level: row.level || 1,
         verified: row.verified || false,
         credits: row.credits || 0
@@ -9692,6 +9696,7 @@ app.get('/api/rankings/gifts', async (req, res) => {
         u.id::text,
         u.username,
         u.avatar,
+        u.avatar_frame,
         u.level,
         u.verified,
         COALESCE(total_gifts, 0) as totalGifts
@@ -9729,6 +9734,7 @@ app.get('/api/rankings/gifts', async (req, res) => {
         id: row.id,
         username: row.username,
         avatar: avatarUrl,
+        avatarFrame: row.avatar_frame || null,
         level: row.level || 1,
         verified: row.verified || false,
         totalGifts: row.totalgifts

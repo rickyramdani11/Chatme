@@ -144,6 +144,7 @@ router.get('/posts', async (req, res) => {
         u.role,
         u.verified,
         u.avatar,
+        u.avatar_frame,
         u.level,
         COALESCE(
           (SELECT JSON_AGG(
@@ -182,6 +183,7 @@ router.get('/posts', async (req, res) => {
         shares: row.shares,
         level: row.level || 1,
         avatar: avatarUrl,
+        avatarFrame: row.avatar_frame || null,
         role: row.role,
         verified: row.verified,
         mediaFiles: row.media_files || [],
