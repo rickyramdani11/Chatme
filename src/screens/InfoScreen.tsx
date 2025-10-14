@@ -82,7 +82,7 @@ export default function InfoScreen({ navigation }: any) {
     try {
       console.log('📋 Fetching merchants and mentors from API...');
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/users/merchants-mentors`, {
+      const response = await fetch(`${API_BASE_URL}/users/merchants-mentors`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export default function InfoScreen({ navigation }: any) {
   const handlePersonPress = async (person: Person) => {
     try {
       const participants = [user?.username, person.username].sort();
-      const response = await fetch(`${API_BASE_URL}/api/chat/private`, {
+      const response = await fetch(`${API_BASE_URL}/chat/private`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
