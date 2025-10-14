@@ -10,8 +10,9 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useAuth } from '../hooks';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { API_BASE_URL, BASE_URL } from '../utils/apiConfig';
 import { useFocusEffect } from '@react-navigation/native';
 
 interface Person {
@@ -236,9 +237,17 @@ export default function InfoScreen({ navigation }: any) {
                 >
                   <View style={styles.personInfo}>
                     <View style={styles.personAvatar}>
-                      <Text style={styles.personAvatarText}>
-                        {merchant.username.charAt(0).toUpperCase()}
-                      </Text>
+                      {merchant.avatar ? (
+                        <Image
+                          source={{ uri: `${BASE_URL}${merchant.avatar}` }}
+                          style={styles.personAvatarImage}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <Text style={styles.personAvatarText}>
+                          {merchant.username.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
                     </View>
                     <View style={styles.personDetails}>
                       <Text style={styles.personName}>{merchant.username}</Text>
@@ -269,9 +278,17 @@ export default function InfoScreen({ navigation }: any) {
                 >
                   <View style={styles.personInfo}>
                     <View style={styles.personAvatar}>
-                      <Text style={styles.personAvatarText}>
-                        {mentor.username.charAt(0).toUpperCase()}
-                      </Text>
+                      {mentor.avatar ? (
+                        <Image
+                          source={{ uri: `${BASE_URL}${mentor.avatar}` }}
+                          style={styles.personAvatarImage}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <Text style={styles.personAvatarText}>
+                          {mentor.username.charAt(0).toUpperCase()}
+                        </Text>
+                      )}
                     </View>
                     <View style={styles.personDetails}>
                       <Text style={styles.personName}>{mentor.username}</Text>
@@ -484,6 +501,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  personAvatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   personDetails: {
     flex: 1,
