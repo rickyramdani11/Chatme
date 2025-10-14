@@ -45,6 +45,7 @@ Preferred communication style: Simple, everyday language.
 - **Room Lock/Password Protection**: Room owners can lock/unlock rooms using chat commands with password hashing and custom modal for secure input.
 - **Private Communication Types**: Distinct channels for 1-on-1 private chat and live admin support.
 - **Socket Connection Stability**: Heartbeat monitoring, auto-reconnection, exponential backoff, and transport fallback.
+- **Socket Authentication Security**: All client-side socket.emit('sendMessage') calls use authenticated user's username as sender. Room commands (`/lock`, `/ban`) properly validated against socket.username to prevent spoofed system messages.
 - **Info Center**: Displays game commands and merchant/mentor contacts.
 - **Withdrawal System**: Manual admin-managed system with approval workflow, database transactions, row-level locking, real-time exchange rates, and duplicate account number validation.
 - **Referral/Invite System**: User invite system with unique codes, bonus credits for referrers after invited user's first withdrawal, and detailed referral tracking UI.
