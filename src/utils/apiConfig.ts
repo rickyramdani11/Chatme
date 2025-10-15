@@ -2,7 +2,7 @@
 const IS_DEVELOPMENT = __DEV__ || process.env.NODE_ENV === 'development';
 
 // Replit domain base
-const BASE_REPLIT_URL = 'https://abed75e4-0074-4553-b02b-0ccf98d04bb1-00-3cbrqb7zslnfk.pike.replit.dev';
+const BASE_REPLIT_URL = 'https://web.chatmeapp.online/';
 
 // API Configuration  
 export const API_BASE_URL = `${BASE_REPLIT_URL}/api`; // API Server now on port 5000 (default Replit port)
