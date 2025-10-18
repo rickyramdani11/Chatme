@@ -36,7 +36,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Video } from 'expo-av';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../hooks';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useIsFocused } from '@react-navigation/native';
 import { registerBackgroundFetch, unregisterBackgroundFetch } from '../utils/backgroundTasks';
 import { API_BASE_URL, SOCKET_URL } from '../utils/apiConfig';
 import RoomManagement from '../components/RoomManagement';
@@ -200,6 +200,7 @@ const COLORS = {
 export default function ChatScreen() {
   const route = useRoute();
   const navigation = useNavigation();
+  const isFocused = useIsFocused(); // Check if screen is currently focused
   const [activeTab, setActiveTab] = useState(0);
   const [message, setMessage] = useState('');
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -1571,11 +1572,19 @@ export default function ChatScreen() {
             }, 100);
           }
 
-          // Always rejoin all rooms to ensure we're still in them using refs
+          // Only rejoin rooms if ChatScreen is currently focused
           setTimeout(() => {
             const currentTabs = chatTabsRef.current;
             const currentUser = userRef.current;
+            
+            // Check if screen is focused before rejoining
+            if (!isFocused) {
+              console.log('⏸️ ChatScreen not focused - skipping auto-rejoin');
+              return;
+            }
+            
             if (currentTabs.length > 0 && currentUser?.username) {
+              console.log('✅ ChatScreen is focused - auto-rejoining rooms');
               currentTabs.forEach((tab, index) => {
                 setTimeout(() => {
                   console.log('Rejoining room after app resume:', tab.id, currentUser.username);

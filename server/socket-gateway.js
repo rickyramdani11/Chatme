@@ -2817,7 +2817,7 @@ io.on('connection', (socket) => {
     console.log(`🔴 ===========================================`);
     console.log(`🔴 GATEWAY DISCONNECT!`);
     console.log(`❌ User disconnected from gateway: ${socket.id}`);
-    console.log(`📊 Remaining connections: ${io.sockets.sockets.size - 1}`);
+    console.log(`📊 Remaining connections: ${io.sockets.sockets.size}`);
     console.log(`🔴 ===========================================`);
 
     const userInfo = connectedUsers.get(socket.id);

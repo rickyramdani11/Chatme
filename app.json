@@ -57,7 +57,8 @@
             "minifyEnabled": true,
             "shrinkResources": true,
             "enableProguardInReleaseBuilds": true,
-            "enableSeparateBuildPerCPUArchitecture": true
+            "enableSeparateBuildPerCPUArchitecture": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ]
@@ -70,6 +71,7 @@
       "eas": {
         "projectId": "3b2d89f7-3835-43c6-b549-f9df2fe65c88"
       }
-    }
+    },
+    "owner": "meongmeong"
   }
 }

@@ -88,7 +88,7 @@ export default function RoomScreen() {
 
   
 
-  // Join room
+  // Join room with optimistic navigation for faster UX
   const joinRoom = async (roomId: string, roomName: string, roomDescription?: string, password?: string) => {
     try {
       // Check if room is full before attempting to join
@@ -102,6 +102,17 @@ export default function RoomScreen() {
         return;
       }
 
+      // Navigate immediately for faster UX (optimistic navigation)
+      navigation.navigate('Chat', { 
+        roomId, 
+        roomName,
+        roomDescription: roomDescription || `${roomName} room`,
+        type: 'room',
+        autoFocusTab: true,
+        password: password || undefined
+      });
+
+      // Join room in background (don't block navigation)
       const requestBody: any = {};
       if (password) {
         requestBody.password = password;
@@ -120,28 +131,20 @@ export default function RoomScreen() {
 
       if (!response.ok) {
         if (response.status === 403 && data.requiresPassword) {
-          // Room requires password, show custom modal
+          // Room requires password, navigate back and show modal
+          navigation.goBack();
           setPendingRoom({ id: roomId, name: roomName, description: roomDescription });
           setShowPasswordModal(true);
           return;
         } else {
-          throw new Error(data.error || `HTTP error! status: ${response.status}`);
+          // If join fails, user is already in chat but won't be able to send messages
+          console.error('Join room error:', data.error);
         }
       }
 
-      // Navigate to ChatScreen with room data
-      navigation.navigate('Chat', { 
-        roomId, 
-        roomName,
-        roomDescription: roomDescription || `${roomName} room`,
-        type: 'room',
-        autoFocusTab: true,
-        password: password || undefined
-      });
-
     } catch (error) {
       console.error('Error joining room:', error);
-      Alert.alert('Error', error.message || 'Failed to join room. Please try again.');
+      // User is already in chat, just log the error
     }
   };
 
