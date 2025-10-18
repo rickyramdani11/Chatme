@@ -1,13 +1,14 @@
 
 const express = require('express');
-const { Pool } = require('pg');
+// const { Pool } = require('pg');
+const pool = require( '../config/db.js');
 const { authenticateToken } = require('./auth');
 
 const router = express.Router();
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+// });
 
 // Get exchange rate
 router.get('/exchange-rate', async (req, res) => {

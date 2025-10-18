@@ -1,11 +1,14 @@
-
+import dotenv from 'dotenv';
+dotenv.config();
+console.info('🚀 Starting Socket Gateway...');
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
-import pkg from 'pg';
-const { Pool } = pkg;
+// import pkg from 'pg';
+// const { Pool } = pkg;
+import { default as pool } from './config/db.js';
 import crypto from 'crypto';
 
 // Import LowCard bot
@@ -54,6 +57,8 @@ const io = new SocketIOServer(server, {
   maxHttpBufferSize: 1e6
 });
 
+
+
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 8000;
 // Generate a secure random secret if JWT_SECRET is not provided
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
@@ -64,15 +69,18 @@ const MAIN_API_URL = process.env.MAIN_API_URL || 'http://0.0.0.0:5000';
 
 
 // Database configuration with optimized pooling
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  allowExitOnIdle: false
-});
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: {
+//     require: true,
+//     rejectUnauthorized: false
+//   },
+//   max: 20,
+//   min: 2,
+//   idleTimeoutMillis: 30000,
+//   connectionTimeoutMillis: 5000,
+//   allowExitOnIdle: false
+// });
 
 // Test database connection
 pool.connect((err, client, release) => {

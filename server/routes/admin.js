@@ -1,6 +1,7 @@
 
 const express = require('express');
-const { Pool } = require('pg');
+// const { Pool } = require('pg');
+const pool = require ('../config/db.js');
 const { authenticateToken } = require('./auth');
 const multer = require('multer');
 const path = require('path');
@@ -15,10 +16,10 @@ cloudinary.config({
 });
 
 const router = express.Router();
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+// });
 
 const API_BASE_URL = process.env.API_BASE_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : `http://localhost:5000`);
 

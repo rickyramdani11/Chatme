@@ -2,13 +2,14 @@
  * Red Packet Database Initialization
  */
 
-import pkg from 'pg';
-const { Pool } = pkg;
+// import pkg from 'pg';
+// const { Pool } = pkg;
+import { default as pool } from '../config/db.js';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
-});
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+// });
 
 export async function initRedPacketTables() {
   try {

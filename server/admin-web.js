@@ -3,7 +3,8 @@ const express = require('express');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { Pool } = require('pg');
+// const { Pool } = require('pg');
+const pool = require( './config/dbx.js');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
@@ -20,10 +21,10 @@ if (!process.env.JWT_SECRET) {
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Database configuration
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+// });
 
 // Middleware
 app.use(cors());

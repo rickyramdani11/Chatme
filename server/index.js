@@ -1,10 +1,12 @@
+require('dotenv').config();  // ← load file .env
+
 const express = require('express');
 const http = require('http');
 // const socketIo = require('socket.io'); // Removed - handled by gateway
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const { Pool } = require('pg');
+// const { Pool } = require('pg');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -142,16 +144,20 @@ process.on('SIGINT', () => {
   });
 });
 
+console.error(`Database URL: ${process.env.DATABASE_URL}`);
+
 // Database configuration with optimized pooling
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-  max: 20,
-  min: 2,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-  allowExitOnIdle: false
-});
+const pool = require('./config/db');
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+//   // ssl: false,
+//   max: 20,
+//   min: 2,
+//   idleTimeoutMillis: 30000,
+//   connectionTimeoutMillis: 5000,
+//   allowExitOnIdle: false
+// });
 
 // Test database connection and load initial data
 pool.connect(async (err, client, release) => {
@@ -597,7 +603,7 @@ pool.connect(async (err, client, release) => {
         ORDER BY created_at ASC
       `);
 
-      rooms = result.rows.map(row => ({
+      const rooms = result.rows.map(row => ({
         id: row.id.toString(),
         name: row.name,
         description: row.description,

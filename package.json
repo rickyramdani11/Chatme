@@ -19,7 +19,9 @@
     "pm2:logs:gateway": "pm2 logs gateway",
     "pm2:status": "pm2 status",
     "pm2:monit": "pm2 monit",
-    "pm2:flush": "pm2 flush"
+    "pm2:flush": "pm2 flush",
+    "server:index": "babel-node server/index.js",
+    "server:gateway": "babel-node server/socket-gateway.js"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",
@@ -99,7 +101,9 @@
     "xendit-node": "^7.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
+    "@babel/core": "^7.28.4",
+    "@babel/node": "^7.28.0",
+    "@babel/preset-env": "^7.28.3",
     "@types/react": "~19.0.10",
     "eas-cli": "^16.18.0",
     "eslint": "^9.25.0",

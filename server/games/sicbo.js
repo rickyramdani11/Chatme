@@ -18,15 +18,16 @@
  * - anytriple: Any triple - pays 30:1
  */
 
-import pkg from 'pg';
-const { Pool } = pkg;
+// import pkg from 'pg';
+// const { Pool } = pkg;
+import { default as pool } from '../config/db.js';
 import { hasActiveLowcardGame } from './lowcard.js';
 
 // Create database pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
-});
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
+// });
 
 const BOT_USERNAME = 'SicboBot';
 const BOT_USER_ID = 999; // Different from LowCard bot
